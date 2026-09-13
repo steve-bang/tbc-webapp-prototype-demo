@@ -1,0 +1,152 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+
+  --color-status-pending: #b26a00;
+  --color-status-progress: #0b6b3a;
+  --color-status-done: #1b5e20;
+  --color-status-error: #b3261e;
+  --color-status-info: #00629d;
+  --color-status-neutral: #5f6368;
+}
+
+:root {
+  --background: oklch(0.985 0.003 106);
+  --foreground: oklch(0.18 0.01 106);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.01 106);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.01 106);
+  /* thương hiệu Thiên Bảo Car — brand green #0B6B3A, kế thừa từ App nhân viên (shared/theme) */
+  --primary: oklch(0.42 0.11 154);
+  --primary-foreground: oklch(0.985 0.01 154);
+  --secondary: oklch(0.96 0.01 106);
+  --secondary-foreground: oklch(0.25 0.01 106);
+  --muted: oklch(0.96 0.01 106);
+  --muted-foreground: oklch(0.5 0.01 106);
+  --accent: oklch(0.94 0.03 154);
+  --accent-foreground: oklch(0.3 0.05 154);
+  --destructive: oklch(0.5 0.19 27);
+  --destructive-foreground: oklch(0.985 0.01 27);
+  --border: oklch(0.9 0.005 106);
+  --input: oklch(0.9 0.005 106);
+  --ring: oklch(0.42 0.11 154);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.99 0.002 106);
+  --sidebar-foreground: oklch(0.18 0.01 106);
+  --sidebar-primary: oklch(0.42 0.11 154);
+  --sidebar-primary-foreground: oklch(0.985 0.01 154);
+  --sidebar-accent: oklch(0.94 0.03 154);
+  --sidebar-accent-foreground: oklch(0.3 0.05 154);
+  --sidebar-border: oklch(0.9 0.005 106);
+}
+
+:root:not([data-theme='light']) {
+  @media (prefers-color-scheme: dark) {
+    --background: oklch(0.17 0.01 154);
+    --foreground: oklch(0.94 0.005 106);
+    --card: oklch(0.21 0.012 154);
+    --card-foreground: oklch(0.94 0.005 106);
+    --popover: oklch(0.21 0.012 154);
+    --popover-foreground: oklch(0.94 0.005 106);
+    --primary: oklch(0.72 0.15 154);
+    --primary-foreground: oklch(0.15 0.02 154);
+    --secondary: oklch(0.27 0.012 154);
+    --secondary-foreground: oklch(0.94 0.005 106);
+    --muted: oklch(0.27 0.012 154);
+    --muted-foreground: oklch(0.68 0.01 106);
+    --accent: oklch(0.3 0.03 154);
+    --accent-foreground: oklch(0.9 0.03 154);
+    --destructive: oklch(0.6 0.19 27);
+    --destructive-foreground: oklch(0.15 0.02 27);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.72 0.15 154);
+    --sidebar: oklch(0.19 0.012 154);
+    --sidebar-foreground: oklch(0.94 0.005 106);
+    --sidebar-primary: oklch(0.72 0.15 154);
+    --sidebar-primary-foreground: oklch(0.15 0.02 154);
+    --sidebar-accent: oklch(0.3 0.03 154);
+    --sidebar-accent-foreground: oklch(0.9 0.03 154);
+    --sidebar-border: oklch(1 0 0 / 12%);
+  }
+}
+
+:root[data-theme='dark'] {
+  --background: oklch(0.17 0.01 154);
+  --foreground: oklch(0.94 0.005 106);
+  --card: oklch(0.21 0.012 154);
+  --card-foreground: oklch(0.94 0.005 106);
+  --popover: oklch(0.21 0.012 154);
+  --popover-foreground: oklch(0.94 0.005 106);
+  --primary: oklch(0.72 0.15 154);
+  --primary-foreground: oklch(0.15 0.02 154);
+  --secondary: oklch(0.27 0.012 154);
+  --secondary-foreground: oklch(0.94 0.005 106);
+  --muted: oklch(0.27 0.012 154);
+  --muted-foreground: oklch(0.68 0.01 106);
+  --accent: oklch(0.3 0.03 154);
+  --accent-foreground: oklch(0.9 0.03 154);
+  --destructive: oklch(0.6 0.19 27);
+  --destructive-foreground: oklch(0.15 0.02 27);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.72 0.15 154);
+  --sidebar: oklch(0.19 0.012 154);
+  --sidebar-foreground: oklch(0.94 0.005 106);
+  --sidebar-primary: oklch(0.72 0.15 154);
+  --sidebar-primary-foreground: oklch(0.15 0.02 154);
+  --sidebar-accent: oklch(0.3 0.03 154);
+  --sidebar-accent-foreground: oklch(0.9 0.03 154);
+  --sidebar-border: oklch(1 0 0 / 12%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
