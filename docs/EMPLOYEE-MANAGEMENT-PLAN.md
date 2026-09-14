@@ -1,7 +1,7 @@
 # Kế hoạch triển khai — Trang Quản lý Nhân viên (Employee Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` — chờ phê duyệt trước khi giao `dev`
-implement. **Không code** — tài liệu này chỉ lên kế hoạch.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (14/09/2026, chủ dự án phê duyệt) — đã giao
+`dev` implement theo đúng phạm vi §1–§9 và Definition of Done §11.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/EmployeeAssignment-BRD.md` (v1.4) +
 `EmployeeAssignment-UseCase.md` (v1.4) + `../thien-bao-car-docs/WebappQuanTri.md` §8.2/§8.4.
@@ -283,3 +283,5 @@ mật khẩu, không OTP — liên quan hiển thị username) · `CR-2026-035` 
 Tài liệu này, sau khi được phê duyệt, sẽ trở thành task brief đầy đủ giao thẳng cho agent `dev` (thay
 thế task brief rút gọn trước đó) — không cần lên kế hoạch lại. `dev` implement đúng §3–§9, tự chạy
 kiểm tra §11, báo cáo file đã tạo/sửa để `tech-lead` review.
+
+**Cập nhật 14/09/2026:** Đã `APPROVED` — giao `dev` implement.

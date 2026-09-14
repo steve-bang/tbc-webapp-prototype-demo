@@ -36,8 +36,8 @@ Owner/Consignment tạm ẩn.
 - [~] `features/employees`: model (Employee, UserAccount liên kết) · api/hooks/seed (6–8 nhân viên,
       đủ vai trò `WebappQuanTri.md` §3) · màn **Hồ sơ nhân viên** (list + tạo/sửa qua Sheet, trạng thái
       `ACTIVE/INACTIVE/SUSPENDED`). — kế hoạch chi tiết đầy đủ (bao gồm responsive 375/768/desktop) ở
-      [`docs/EMPLOYEE-MANAGEMENT-PLAN.md`](EMPLOYEE-MANAGEMENT-PLAN.md), trạng thái `PENDING_APPROVAL`
-      — **chờ phê duyệt** trước khi giao `dev` implement.
+      [`docs/EMPLOYEE-MANAGEMENT-PLAN.md`](EMPLOYEE-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
+      (14/09/2026) — **đang giao `dev` implement**.
 - [ ] `features/customers`: model (Customer) · api/hooks/seed (8–10 khách, có 1 khách `BLOCKED`) ·
       màn **Danh sách khách** (tìm kiếm theo tên/SĐT/CCCD, lọc trạng thái) · **Customer Detail** (tab
       giấy tờ, lịch sử thuê placeholder, thanh toán/công nợ placeholder, sự cố placeholder, tín nhiệm) ·
