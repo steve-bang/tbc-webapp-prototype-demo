@@ -1,7 +1,8 @@
 # Kế hoạch triển khai — Trang Bảo dưỡng & Phụ tùng (Vehicle Maintenance)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (14/09/2026, chủ dự án phê duyệt) — đã
-giao `dev` implement.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `DONE` (14/09/2026) — `dev` implement xong, review
+`tech-lead` đạt ngay vòng 1 (không Blocker). Chi tiết bàn giao ở `CHANGELOG.md` 2026-09-14 mục
+`Added`.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/VehicleMaintenance-BRD.md` (v1.1) +
 `VehicleMaintenance-UseCase.md` (v1.1) + `../thien-bao-car-docs/WebappQuanTri.md` §6.2–§6.6 (Nhóm 1

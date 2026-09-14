@@ -195,6 +195,14 @@ export type ConsignmentContractStatus = (typeof CONSIGNMENT_CONTRACT_STATUSES)[n
 export const PAYOUT_STATUSES = ['SCHEDULED', 'PAID', 'ON_HOLD'] as const
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number]
 
+/**
+ * Phạm vi áp dụng của một `MaintenanceRule` — `VehicleMaintenance-BRD.md` §6.1,
+ * `MT-BR-01/02`. `SPECIFIC_VEHICLE` (một xe) ưu tiên hơn `VEHICLE_MODEL`
+ * (nhiều xe cùng dòng) khi cùng `category` (`MT-BR-02`).
+ */
+export const MAINTENANCE_RULE_APPLIES_TO = ['SPECIFIC_VEHICLE', 'VEHICLE_MODEL'] as const
+export type MaintenanceRuleAppliesTo = (typeof MAINTENANCE_RULE_APPLIES_TO)[number]
+
 /** Danh mục sự kiện thông báo — `Notification-BRD.md` §7 + mở rộng. */
 export const NOTIFICATION_EVENT_TYPES = [
   'VEHICLE_DOCUMENT_EXPIRING',
@@ -255,5 +263,10 @@ export const AUDIT_ACTIONS = [
   'CHANGE_VEHICLE_STATUS',
   'ADD_VEHICLE_DOCUMENT',
   'UPDATE_VEHICLE_DOCUMENT',
+  // Vehicle Maintenance (MT) — Rule/Record/SparePart CRUD (`MT-BR-10`).
+  'CREATE_MAINTENANCE_RULE',
+  'DEACTIVATE_MAINTENANCE_RULE',
+  'CREATE_MAINTENANCE_RECORD',
+  'CREATE_SPARE_PART_RECORD',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

@@ -5,8 +5,8 @@
  * `registerSeedStep()` khi được import ở đây.
  *
  * Thứ tự seed bắt buộc (`docs/IMPLEMENTATION-PLAN.md` Phase 1): `employees` →
- * `customers` → `vehicles` (+ `maintenance`) — Vehicle Detail sẽ tham chiếu
- * chủ xe/nhân viên ở các tab sau này.
+ * `customers` → `vehicles` → `maintenance` — Vehicle Detail sẽ tham chiếu
+ * chủ xe/nhân viên ở các tab sau này; `maintenance` tham chiếu id xe đã seed.
  *
  * File này chỉ import (side-effect) — không export gì để dùng trực tiếp.
  */
@@ -14,3 +14,4 @@
 import '@/features/employees/seed'
 import '@/features/customers/seed'
 import '@/features/vehicles/seed'
+import '@/features/maintenance/seed'

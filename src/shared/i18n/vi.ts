@@ -9,6 +9,7 @@ import type {
   EmployeeStatus,
   IncidentStatus,
   Liability,
+  MaintenanceRuleAppliesTo,
   OwnershipType,
   PayoutStatus,
   RentalStatus,
@@ -289,6 +290,69 @@ export const vi = {
     issuingBank: 'Ngân hàng nhận thế chấp',
     heldRegistrationNumber: 'Số đăng ký xe đang giữ',
   },
+  maintenance: {
+    title: 'Bảo dưỡng & phụ tùng',
+    description: 'Theo dõi hạn bảo dưỡng, quy tắc áp dụng và lịch sử thay thế phụ tùng toàn đội xe.',
+    tabMaintenance: 'Bảo dưỡng',
+    tabSpareParts: 'Phụ tùng',
+    filterVehicle: 'Xe',
+    filterAllVehicles: 'Tất cả xe',
+    // Bảng "Đến hạn" — MT §6.3.
+    dueSectionTitle: 'Đến hạn bảo dưỡng',
+    dueColumnVehicle: 'Xe',
+    dueColumnCategory: 'Hạng mục',
+    dueColumnNextDueKm: 'Đến hạn tại (km)',
+    dueColumnCurrentKm: 'Odo hiện tại (km)',
+    dueEmpty: 'Không có hạng mục bảo dưỡng nào áp dụng cho xe đang lọc.',
+    // Quy tắc bảo dưỡng — MT-BR-01/02/11, gate MAINTENANCE.CONFIG.
+    ruleSectionTitle: 'Quy tắc bảo dưỡng',
+    addRuleButton: 'Thêm quy tắc',
+    ruleCategory: 'Hạng mục',
+    ruleThresholdKm: 'Số km giữa 2 lần',
+    ruleAppliesTo: 'Áp dụng cho',
+    ruleAppliesToVehicle: 'Xe áp dụng',
+    ruleAppliesToModel: 'Dòng xe áp dụng',
+    ruleStatus: 'Trạng thái',
+    ruleActive: 'Đang áp dụng',
+    ruleInactive: 'Đã vô hiệu hoá',
+    deactivateRuleButton: 'Vô hiệu hoá',
+    deactivateRuleConfirm: 'Vô hiệu hoá quy tắc này? Các bản ghi bảo dưỡng cũ không bị ảnh hưởng.',
+    ruleEmpty: 'Chưa có quy tắc bảo dưỡng nào. Bấm "Thêm quy tắc" để bắt đầu.',
+    createRuleTitle: 'Thêm quy tắc bảo dưỡng',
+    createRuleSuccess: 'Đã tạo quy tắc bảo dưỡng.',
+    deactivateRuleSuccess: 'Đã vô hiệu hoá quy tắc bảo dưỡng.',
+    configTbdBadge: 'Quyền chưa chốt',
+    configTbdTooltip: 'Quyền cấu hình quy tắc bảo dưỡng chưa chốt — WebappQuanTri.md §6.4',
+    // MaintenanceRecord — MT-BR-03.
+    addRecordButton: 'Thêm bản ghi bảo dưỡng',
+    createRecordTitle: 'Thêm bản ghi bảo dưỡng',
+    createRecordSuccess: 'Đã ghi nhận bảo dưỡng.',
+    recordDate: 'Ngày thực hiện',
+    recordOdometer: 'Odo lúc bảo dưỡng (km)',
+    recordCategory: 'Hạng mục',
+    recordCategoryHint: 'Gợi ý theo quy tắc đang áp dụng cho xe, có thể nhập hạng mục khác',
+    recordCost: 'Chi phí (VNĐ)',
+    recordProvider: 'Đơn vị thực hiện',
+    recordNote: 'Ghi chú',
+    odometerRegressionError: 'Odo nhập vào phải lớn hơn hoặc bằng lần bảo dưỡng gần nhất của xe (UC-MT-02 A1).',
+    historySectionTitle: 'Lịch sử bảo dưỡng',
+    historyEmpty: 'Chưa có bản ghi bảo dưỡng nào cho xe đang lọc.',
+    historySelectVehicleHint: 'Chọn một xe ở bộ lọc phía trên để xem lịch sử bảo dưỡng.',
+    // SparePartRecord — MT-BR-07.
+    addSparePartButton: 'Thêm phụ tùng thay thế',
+    createSparePartTitle: 'Thêm phụ tùng thay thế',
+    createSparePartSuccess: 'Đã ghi nhận thay phụ tùng.',
+    sparePartName: 'Tên phụ tùng',
+    sparePartQuantity: 'Số lượng',
+    sparePartDate: 'Ngày thay thế',
+    sparePartOdometer: 'Odo lúc thay thế (km)',
+    sparePartCost: 'Chi phí (VNĐ)',
+    sparePartProvider: 'Đơn vị thực hiện',
+    sparePartNote: 'Ghi chú',
+    sparePartHistoryEmpty: 'Chưa có bản ghi thay phụ tùng nào.',
+    vehicle: 'Xe',
+    saveError: 'Không thể lưu, vui lòng thử lại.',
+  },
 } as const
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -426,4 +490,22 @@ export const PAYOUT_STATUS_LABELS: Record<PayoutStatus, string> = {
   SCHEDULED: 'Đã lên lịch',
   PAID: 'Đã chi trả',
   ON_HOLD: 'Tạm giữ',
+}
+
+export const MAINTENANCE_RULE_APPLIES_TO_LABELS: Record<MaintenanceRuleAppliesTo, string> = {
+  SPECIFIC_VEHICLE: 'Xe cụ thể',
+  VEHICLE_MODEL: 'Dòng xe',
+}
+
+/**
+ * `MaintenanceDueStatus` (`features/maintenance/model.ts`) là trạng thái tính
+ * động (derived), không sống trong `shared/domain/enums.ts` — khai literal
+ * union lại ở đây thay vì `import type` từ `features/*` để tôn trọng nguyên
+ * tắc `shared/` không phụ thuộc ngược vào `features/` (`docs/ARCHITECTURE.md`
+ * §1).
+ */
+export const MAINTENANCE_DUE_STATUS_LABELS: Record<'OK' | 'DUE_SOON' | 'OVERDUE', string> = {
+  OK: 'Còn hạn',
+  DUE_SOON: 'Sắp đến hạn',
+  OVERDUE: 'Quá hạn',
 }

@@ -137,3 +137,25 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   hiện 2 Blocker (bug namespace token Tailwind `--spacing-*` va chạm `max-w-*`/`--container-*` khiến
   dialog vỡ layout dưới 640px — đã sửa gốc ở `src/index.css`; và lỗ hổng cho mở khoá tài khoản của
   nhân viên đang `SUSPENDED`, vi phạm `EA-BR-02` — đã thêm guard), vòng 2 xác nhận đạt.
+- **Feature `features/maintenance` — trang Bảo dưỡng & phụ tùng (`/maintenance`, module `MT`) hoàn
+  thành**, đúng phạm vi `docs/MAINTENANCE-MANAGEMENT-PLAN.md`. 3 entity độc lập
+  `MaintenanceRule`/`MaintenanceRecord`/`SparePartRecord` (không nhúng trong `Vehicle`), **cố ý
+  không dựng bất kỳ logic Deduction/khấu trừ chủ xe ký gửi nào** — `MT-BR-09`/BRD §11 là nội dung cũ
+  đã bị CR-2026-050 bãi bỏ trên thực tế, xác nhận không có field/hàm/tham chiếu "Owner
+  Statement"/"Deduction" nào lọt vào code. Hàm thuần `nextDueKm()`/`maintenanceDueStatus()` (3
+  trạng thái `OK`/`DUE_SOON`/`OVERDUE`, ngưỡng tạm 500km kèm `TODO(OQ)`) + `applicableRule()` ưu
+  tiên `SPECIFIC_VEHICLE` hơn `VEHICLE_MODEL` (`MT-BR-02`). Api/hooks đầy đủ audit (4 action mới:
+  `CREATE_MAINTENANCE_RULE`/`DEACTIVATE_MAINTENANCE_RULE`/`CREATE_MAINTENANCE_RECORD`/
+  `CREATE_SPARE_PART_RECORD`), Rule chỉ vô hiệu hoá không xoá vật lý, Record/SparePart append-only
+  không có `update()`/`remove()` (`MT-BR-11`). Seed đủ demo cả 3 trạng thái tính động theo
+  `Vehicle.currentKm` thật (kể cả 1 xe chưa có Record nào — baseline = 0). Màn `MaintenanceScreen`
+  2 tab (Maintenance/Spare Parts), bảng "Đến hạn" toàn đội xe + quản lý Rule (gate
+  `MAINTENANCE.CONFIG`, ô `TBD` cho Manager/Sales) + lịch sử theo xe, responsive 375/768/desktop.
+  Qua review `tech-lead` đạt ngay vòng 1, **không Blocker** — 5 điểm dev tự quyết định đều xác nhận
+  hợp lệ: dùng odometer lớn nhất (`maxOdometer()`) thay vì bản ghi mới nhất theo ngày để derive Next
+  Due KM (an toàn hơn với dữ liệu ngày sai thứ tự vì không bỏ sót giá trị odo cao nhất thực tế đã
+  ghi); Dialog thật cho "Vô hiệu hoá quy tắc" (không `window.confirm`); `vehicleModel` dùng `Select`
+  từ dòng xe đã có trong seed (ghi nhận nợ nhỏ: chưa tạo được Rule cho dòng xe hoàn toàn mới chưa có
+  xe nào trong hệ thống — chấp nhận được ở Phase 1 demo dữ liệu cố định); `<datalist>` HTML thuần
+  gợi ý category (không phải component mới, không vi phạm quy ước); độ dài `MaintenanceScreen.tsx`
+  hợp lý, không cần tách thêm.

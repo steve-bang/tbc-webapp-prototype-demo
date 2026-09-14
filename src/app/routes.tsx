@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
+import { MaintenanceScreen } from '@/features/maintenance'
 import { VehicleListScreen } from '@/features/vehicles'
 import { AppShell } from '@/shared/layout/AppShell'
 import { ComingSoon } from '@/shared/layout/ComingSoon'
@@ -19,7 +20,7 @@ export function AppRoutes() {
 
         <Route path={paths.vehicles} element={<VehicleListScreen />} />
         <Route path="/vehicles/:id" element={<ComingSoon title="Chi tiết xe" />} />
-        <Route path={paths.maintenance} element={<ComingSoon title="Bảo dưỡng & phụ tùng" />} />
+        <Route path={paths.maintenance} element={<MaintenanceScreen />} />
 
         <Route path={paths.customers} element={<CustomerListScreen />} />
         <Route path="/customers/:id" element={<CustomerDetailScreen />} />

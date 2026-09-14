@@ -69,11 +69,13 @@ Owner/Consignment tạm ẩn.
       tiết** — theo đúng thứ tự build đã chốt ở `docs/PAGE-IMPLEMENTATION-PRIORITY.md` (Vehicle list →
       Maintenance list → Vehicle Detail), chỉ lên kế hoạch sau khi `features/maintenance` (mục tiếp
       theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật ngay thay vì phải sửa lại.
-- [~] `features/maintenance`: kế hoạch chi tiết đầy đủ ở
-      [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](MAINTENANCE-MANAGEMENT-PLAN.md), trạng thái
-      `APPROVED` (14/09/2026) — **đang giao `dev` implement**. Lưu ý quan trọng đã xử lý trong
-      plan: `MT-BR-09`/BRD §11 (Deduction cho xe ký gửi) là nội dung CŨ, đã bị CR-2026-050 bãi bỏ —
-      **không dựng logic khấu trừ**.
+- [x] `features/maintenance`: hoàn thành 14/09/2026 — kế hoạch chi tiết ở
+      [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](MAINTENANCE-MANAGEMENT-PLAN.md) (`DONE`). Đúng phạm
+      vi: 3 entity độc lập `MaintenanceRule`/`MaintenanceRecord`/`SparePartRecord`, **không dựng
+      logic Deduction/khấu trừ** (`MT-BR-09`/BRD §11 đã bị CR-2026-050 bãi bỏ), 4 audit action mới,
+      Rule vô hiệu hoá thay vì xoá, Record/SparePart append-only, seed đủ 3 trạng thái
+      `OK`/`DUE_SOON`/`OVERDUE` tính động. Qua review `tech-lead` đạt ngay vòng 1, không Blocker.
+      Chi tiết đầy đủ ở `CHANGELOG.md` 2026-09-14.
 - [ ] Cập nhật `shared/fixtures/registerSeeds.ts` theo đúng thứ tự trên.
 - [ ] Xoá `ComingSoon` cho các route đã xong trong `app/routes.tsx`.
 
