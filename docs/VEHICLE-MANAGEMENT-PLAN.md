@@ -1,9 +1,9 @@
 # Kế hoạch triển khai — Trang Quản lý Xe (Vehicle Management)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 (List) `DONE`** (14/09/2026). **Round 2
-(Detail) `PENDING_APPROVAL`** (14/09/2026) — kế hoạch chi tiết đầy đủ ở §8 (thay thế bản phác thảo
-cũ), chờ phê duyệt trước khi giao `dev`. `features/maintenance` đã `DONE`, tab Bảo dưỡng nối được
-dữ liệu thật ngay theo đúng thứ tự đã chốt.
+(Detail) `APPROVED`** (14/09/2026, chủ dự án duyệt) — kế hoạch chi tiết đầy đủ ở §8, đã giao `dev`
+implement. `features/maintenance` đã `DONE`, tab Bảo dưỡng nối được dữ liệu thật ngay theo đúng thứ
+tự đã chốt.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/VehicleManagement-BRD.md` (v1.12) +
 `VehicleManagement-UseCase.md` (SRS-VM-*, lưu ý header không chuẩn — xem `CLAUDE.md` kho tài liệu

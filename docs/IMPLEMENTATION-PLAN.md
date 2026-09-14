@@ -66,7 +66,8 @@ Owner/Consignment tạm ẩn.
       `VehicleListScreen` (tìm kiếm/4 bộ lọc/tạo-sửa qua Sheet/đổi trạng thái qua Dialog riêng —
       đúng §5.2/`AC-VM-006` — /`VehicleDocumentsDialog` CRUD giấy tờ tái dùng được cho Round 2),
       responsive 375/768/desktop. **Round 2 (Vehicle Detail 12 tab) đã lên kế hoạch chi tiết đầy đủ ở
-      §8 cùng file, trạng thái `PENDING_APPROVAL`** (14/09/2026) — sau `features/maintenance` đã xong
+      §8 cùng file, trạng thái `APPROVED`** (14/09/2026, chủ dự án duyệt, đã giao `dev`) — sau
+      `features/maintenance` đã xong
       đúng thứ tự `docs/PAGE-IMPLEMENTATION-PRIORITY.md`. Cấu trúc: `CustomerDetailScreen.tsx` làm
       mẫu bắt buộc; 12 tab (Tổng quan/Chủ xe & Ký gửi (điều kiện `ownershipType=CONSIGNED`)/Giấy
       tờ/Hiện trạng xe/Bảo dưỡng/Phạt nguội/Lịch sử thuê/Giao-nhận/Doanh thu/Chi phí/Lợi nhuận/Nhật
@@ -76,8 +77,8 @@ Owner/Consignment tạm ẩn.
       Phase 1. **Không cần Vehicle API/hooks/permissions/audit-action mới** — `useVehicle(id)` đã có
       sẵn từ Round 1. Việc code chính: tách `VehicleDocumentsList` khỏi `VehicleDocumentsDialog` (tái
       dùng ở tab Giấy tờ), `VehicleMaintenanceTab` mới (cross-import hooks có sẵn của
-      `features/maintenance`), `VehicleDetailScreen` mới, mount route `/vehicles/:id`. Chờ chủ dự án
-      duyệt trước khi giao `dev`.
+      `features/maintenance`), `VehicleDetailScreen` mới, mount route `/vehicles/:id`. Đã giao `dev`
+      implement.
 - [x] `features/maintenance`: hoàn thành 14/09/2026 — kế hoạch chi tiết ở
       [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](MAINTENANCE-MANAGEMENT-PLAN.md) (`DONE`). Đúng phạm
       vi: 3 entity độc lập `MaintenanceRule`/`MaintenanceRecord`/`SparePartRecord`, **không dựng
