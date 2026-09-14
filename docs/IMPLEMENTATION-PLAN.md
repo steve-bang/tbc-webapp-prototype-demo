@@ -54,14 +54,13 @@ Owner/Consignment tạm ẩn.
       hạn cứng); cả 3 nợ nhỏ Round 1 đã xử lý (`blockReasonSchema` dùng trong `CustomerReasonDialog`,
       comment `CM-R03`/`AC-CM-007`/`RM §41 Case 2` tại `canBlock`, thống nhất nhãn `noValue`).
       `tsc -b`/`oxlint`/`build` sạch cả 2 round.
-- [ ] `features/vehicles`: model (Vehicle, VehicleDocument, ConditionEvent) · api/hooks/seed (15–20 xe,
-      tỉ lệ `CONSIGNED` ~90%, đủ trạng thái, ít nhất 1 xe sắp hết hạn đăng kiểm để demo cảnh báo Dashboard
-      ở Phase 6) · màn **Danh sách xe** (tìm kiếm biển số/hãng, lọc trạng thái/hãng/Vehicle Class/Ownership) ·
-      **Tạo/sửa xe** + **Tạo/sửa giấy tờ xe** · **Vehicle Detail** nhiều tab: Overview, Documents, Vehicle
-      Condition (đọc từ `ConditionEvent`, có thể rỗng ở phase này), Maintenance+SpareParts, Traffic Fines
-      (placeholder), Rental History (placeholder — chờ Phase 2), Delivery/Pickup (placeholder), Revenue/
-      Cost/Profit ×3 (placeholder — chờ Phase 4), Activity History (đọc từ Audit thật). Tab
-      **Owner/Consignment** chỉ hiện khung rỗng "chờ Phase 5" khi `OwnershipType = CONSIGNED`.
+- [~] `features/vehicles`: kế hoạch chi tiết đầy đủ cho **Round 1 (Vehicle List)** ở
+      [`docs/VEHICLE-MANAGEMENT-PLAN.md`](VEHICLE-MANAGEMENT-PLAN.md), trạng thái `PENDING_APPROVAL`
+      — **chờ phê duyệt** trước khi giao `dev`. Round 2 (Vehicle Detail nhiều tab) **cố ý chưa lên kế
+      hoạch chi tiết** — theo đúng thứ tự build đã chốt ở `docs/PAGE-IMPLEMENTATION-PRIORITY.md`
+      (Vehicle list → Maintenance list → Vehicle Detail), Round 2 chỉ lên kế hoạch sau khi
+      `features/maintenance` (mục tiếp theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật
+      ngay thay vì phải sửa lại.
 - [ ] `features/maintenance`: model (MaintenanceRule, MaintenanceRecord, SparePartRecord) · api/hooks/seed ·
       màn **Bảo dưỡng & phụ tùng** (danh sách toàn đội xe, lọc theo xe, "đến hạn" dựa `Next Due KM` vs
       `Current KM`).
