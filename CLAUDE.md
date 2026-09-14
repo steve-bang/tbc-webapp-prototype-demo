@@ -113,15 +113,25 @@ ngay trong một phiên, không cần đăng xuất/đăng nhập lại. Khi xon
 Repo có 2 subagent định nghĩa ở `.claude/agents/`:
 
 - **`tech-lead`** (`.claude/agents/tech-lead.md`): lên kế hoạch — chia backlog trong
-  `docs/IMPLEMENTATION-PLAN.md` thành task cụ thể, và review code đã implement (đúng kiến trúc,
-  đúng nghiệp vụ, chất lượng) trước khi coi là xong. **Không tự tay implement tính năng lớn.**
+  `docs/IMPLEMENTATION-PLAN.md` thành task cụ thể (kèm Scope of Work + danh sách file cần đọc
+  trước), review code đã implement (đúng kiến trúc, đúng nghiệp vụ, chất lượng), và **khi review
+  đạt: tự commit + cập nhật docs (`IMPLEMENTATION-PLAN.md`/plan doc riêng nếu có/`CHANGELOG.md`) +
+  push** (quy trình chuẩn 14/09/2026 — xem file agent, mục "Khi review đạt — Bàn giao"). **Không tự
+  tay implement tính năng lớn.**
 - **`dev`** (`.claude/agents/dev.md`): thực thi task được giao — implement feature/screen, nối
   seed data, sửa theo góp ý review của `tech-lead`. Tuân thủ tuyệt đối `CONVENTIONS.md` +
-  `docs/ARCHITECTURE.md`. **Không tự ý đổi kiến trúc/phạm vi.**
+  `docs/ARCHITECTURE.md`. **Không tự ý đổi kiến trúc/phạm vi, không commit/push.**
 
-Vòng lặp làm việc thông thường: `tech-lead` chọn phase/mục tiếp theo trong
-`docs/IMPLEMENTATION-PLAN.md` → giao task rõ ràng cho `dev` → `dev` implement + tự chạy
-`tsc -b`/`oxlint`/`npm run build` (không cần tự test bằng trình duyệt — người dùng tự test thủ công)
-→ `tech-lead` review kết quả → lặp lại tới khi phase xong.
+**Vòng lặp làm việc chuẩn (chốt 14/09/2026), 4 bước:**
+
+1. `tech-lead` lên plan implement — chọn phase/mục tiếp theo trong `docs/IMPLEMENTATION-PLAN.md`,
+   viết task brief đầy đủ (Scope of Work + file cần đọc trước).
+2. `dev` implement code theo đúng plan, tự chạy `tsc -b`/`oxlint`/`npm run build` (không cần tự
+   test bằng trình duyệt — người dùng tự test thủ công sau bàn giao).
+3. `tech-lead` review + đưa feedback:
+   - Có Blocker → quay lại **bước 2** (`dev` sửa) → review lại → lặp tới khi hết Blocker.
+   - Không còn Blocker → sang **bước 4**.
+4. `tech-lead` tự **add + commit source, cập nhật docs, rồi push** (lên cả nhánh đang làm việc và
+   `main`) — không cần điều phối viên/người dùng làm thay bước này.
 Khi không có agent nào được chỉ định rõ, ưu tiên đọc `docs/IMPLEMENTATION-PLAN.md` để biết việc
 tiếp theo là gì thay vì tự đoán phạm vi.

@@ -94,4 +94,6 @@ tiếp theo trong `docs/IMPLEMENTATION-PLAN.md`), tự đọc theo thứ tự m�
   placeholder rõ ràng (`ComingSoon`, dữ liệu rỗng có ghi chú) + comment `TODO(OQ: ...)` trỏ nguồn.
 - **KHÔNG** mở rộng phạm vi task tự phát (ví dụ được giao làm `customers` mà tiện tay sửa luôn
   `vehicles`) — báo riêng nếu phát hiện việc ngoài phạm vi cần làm.
-- **KHÔNG** chạy `git commit`/`git push` trừ khi được yêu cầu rõ ràng.
+- **KHÔNG** chạy `git commit`/`git push` — kể cả khi task đã xong. Sau khi bạn báo cáo hoàn thành,
+  `tech-lead` là người review rồi tự commit + cập nhật docs + push (quy trình chuẩn 14/09/2026) —
+  không phải việc của bạn dù ở vòng nào.

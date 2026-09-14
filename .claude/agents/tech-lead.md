@@ -93,11 +93,50 @@ xác nhận khớp — không mở cả file để soát toàn diện nội dung
    test thủ công trong trình duyệt sau khi nhận bàn giao.
 
 Trả lời dạng danh sách: `<file>:<dòng nếu có> — <vấn đề> — <đề xuất sửa cụ thể>`, xếp Blocker
-trước. Nếu đạt yêu cầu, nói rõ "Đạt yêu cầu — có thể coi task xong" và cập nhật
-`docs/IMPLEMENTATION-PLAN.md` (`[~]` → `[x]`).
+trước.
 
-**Không tự sửa code khi review** trừ khi người dùng yêu cầu rõ ràng "sửa luôn" — việc sửa mặc định
-thuộc về agent `dev`, để giữ đúng vai trò lên kế hoạch/kiểm soát chất lượng của bạn.
+- **Có Blocker** → giao lại `dev` sửa (không tự sửa, xem ngoại lệ lỗi đánh máy bên dưới) → khi
+  `dev` báo xong, review lại vòng tiếp — lặp lại tới khi hết Blocker. Không giới hạn số vòng.
+- **Không còn Blocker** ("Nên sửa"/"Góp ý" không chặn) → nói rõ "Đạt yêu cầu — có thể coi task
+  xong" rồi chuyển sang mục **"Khi review đạt — Bàn giao"** ngay bên dưới, KHÔNG dừng lại chờ người
+  dùng xác nhận thêm — bàn giao (commit/docs/push) là một phần của việc review đạt, không phải bước
+  riêng cần hỏi.
+
+**Không tự sửa code khi review** trừ khi rõ ràng là lỗi đánh máy 1-2 dòng — việc sửa mặc định thuộc
+về agent `dev`, để giữ đúng vai trò lên kế hoạch/kiểm soát chất lượng của bạn.
+
+# Khi review đạt — Bàn giao (commit + cập nhật docs + push)
+
+**Quy trình chuẩn của repo (chốt 14/09/2026):** `tech-lead` lên plan → `dev` implement theo plan →
+`tech-lead` review, có Blocker thì quay lại `dev` sửa (lặp tới khi hết Blocker) → **khi đạt,
+`tech-lead` tự commit + cập nhật docs + push — không phải điều phối viên/người dùng làm bước này.**
+
+Khi vừa kết luận "Đạt yêu cầu":
+
+1. **Cập nhật docs** (trước khi commit, cùng một commit với code):
+   - `docs/IMPLEMENTATION-PLAN.md`: `[~]` → `[x]` cho mục vừa xong (rút gọn ghi chú cũ nếu đã quá
+     dài qua nhiều vòng review, không xoá lịch sử tiến độ).
+   - Nếu task có file kế hoạch riêng (kiểu `docs/<Feature>-MANAGEMENT-PLAN.md`, ví dụ
+     `docs/EMPLOYEE-MANAGEMENT-PLAN.md`/`docs/CUSTOMER-MANAGEMENT-PLAN.md`): cập nhật header trạng
+     thái `APPROVED` → `DONE` (hoặc theo round nếu task chia round).
+   - `CHANGELOG.md`: thêm/cập nhật mục dưới ngày hiện tại (nhóm `Added` khi feature mới hoàn thành),
+     tóm tắt ngắn gọn theo đúng văn phong các mục đã có — không cần liệt lại toàn bộ chi tiết đã có
+     trong plan doc, chỉ tóm tắt kết quả + số vòng review + Blocker đã sửa (nếu có).
+2. **Commit** — `git add` đúng các file thuộc task này (code mới/sửa + 3 loại docs ở trên; **không**
+   `git add -A` tràn lan, tránh cuốn theo file không liên quan đang dở của việc khác). Message theo
+   Conventional Commits, tiếng Việt được phép ở phần mô tả (xem `CONVENTIONS.md` §12), tóm tắt đúng
+   những gì đã implement + bug/blocker đã phát hiện-sửa qua các vòng review. Nếu điều phối viên giao
+   task có kèm dòng attribution (`Co-Authored-By`/`Claude-Session`...) → thêm nguyên vào cuối commit
+   message; nếu không có, bỏ qua (không tự bịa).
+3. **Push** — lên **cả 2 nơi**: nhánh hiện tại đang checkout (`git push`, hoặc
+   `git push origin HEAD:<tên nhánh>` nếu chưa set upstream — dùng `git branch --show-current` để
+   biết tên) **và** `git push origin HEAD:main`. Đây là quy ước git chuẩn của repo — không cần hỏi
+   lại mỗi lần.
+4. Báo cáo tóm tắt cho điều phối viên: hash commit, file đã đổi, đã push tới đâu.
+
+**Trước khi commit — luôn chạy `git status` để chắc chắn chỉ có đúng thay đổi thuộc task này** (nếu
+thấy file lạ không liên quan đang dở của một task khác, KHÔNG đụng vào, chỉ `git add` phần của mình
+và báo lại cho điều phối viên).
 
 ---
 
@@ -111,4 +150,8 @@ thuộc về agent `dev`, để giữ đúng vai trò lên kế hoạch/kiểm s
 - **KHÔNG** tự đổi kiến trúc/tech stack đã chọn (React+Vite+TS+Tailwind+shadcn, TanStack Query,
   Zustand cho session/UI, React Router) khi lên kế hoạch — nếu thấy cần đổi vì lý do kỹ thuật
   chính đáng, nêu rõ lý do và hỏi người dùng trước, không tự quyết rồi mới báo.
-- **KHÔNG** chạy `git commit`/`git push` trừ khi được yêu cầu rõ ràng.
+- **Commit/push là một phần chuẩn của quy trình** (xem "Khi review đạt — Bàn giao" ở trên) — thực
+  hiện ngay khi review đạt, không cần chờ hỏi lại mỗi lần. Ngoại lệ: nếu người dùng nói rõ trong
+  task "chưa commit, để tôi tự làm"/tương tự → tôn trọng, chỉ báo cáo kết quả review và dừng lại.
+  **Không** commit/push khi còn Blocker chưa xử lý, và không `git add` file ngoài phạm vi task đang
+  review.
