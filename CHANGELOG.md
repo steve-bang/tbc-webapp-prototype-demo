@@ -15,6 +15,25 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Planned**
 
+- Thêm [`docs/RENTAL-MANAGEMENT-PLAN.md`](docs/RENTAL-MANAGEMENT-PLAN.md): kế hoạch triển khai
+  **Round 1** của trang **Lượt thuê** (`/rentals`, module `RM` — hub trung tâm Phase 2) — data core
+  (`model`/`api`/`hooks`/`seed`) + Rental List + Tạo/Xác nhận/Huỷ lượt thuê. Đối chiếu
+  `RentalManagement-BRD.md` v1.7 (state machine 12 trạng thái đầy đủ, `RM-BR-01→32`) +
+  `-UseCase.md` v1.2 + `WebappQuanTri.md` §9 + toàn bộ CR liên quan (003/004/005/006/008/009/043/
+  060/062). **Phát hiện quan trọng**: không có module/entity "Bảng giá" nào trong toàn bộ 21 module
+  — `Rental Rate` là field nhập tay của chính `Rental` (`Base Amount = Rental Rate × Rental
+  Duration`), không suy ra từ `Vehicle` (đã xác nhận lại `vehicles/model.ts` không có field giá).
+  **Quyết định điều chỉnh thứ tự build** so với `docs/PAGE-IMPLEMENTATION-PRIORITY.md` (Calendar
+  trước Rentals list): dữ liệu lõi `features/rentals` phải có trước vì `RentalCalendar` chỉ là lớp
+  hiển thị trên dữ liệu Rental (`RentalCalendar-BRD.md` §1.2/§7 — RC không sở hữu dữ liệu riêng).
+  Round 1 chỉ tự thao tác `DRAFT⇄CONFIRMED⇄CANCELLED` qua UI (các state sau thuộc module chưa build:
+  `CT`/`VH`/`VR`/`RS`) nhưng model đủ 12-state, seed trải đều để List hiển thị đúng badge. Enforce
+  chống trùng lịch (`RM-BR-04`) + Turnaround Buffer 90 phút (`RM-BR-23`/CR-2026-006), snapshot giá/
+  cọc 2 phần/Allowed KM/Price Per KM theo Vehicle Class (CR-2026-008), phí giao/nhận ngoài 10km =
+  15.000đ/km (CR-2026-062). Không tự chốt Open Question nào (Q53 Allowed KM tháng, Q37 làm tròn
+  Prepayment) — dùng `TODO(OQ)`. §8 là roadmap (chưa field-level) cho Calendar+Dispatch/Rental
+  Detail/Employee Assignment/Contracts/nối Rental History — sẽ chi tiết hoá khi tới lượt. Trạng
+  thái: `PENDING_APPROVAL` — chờ phê duyệt trước khi giao `dev` implement Round 1.
 - Bổ sung §8 (thay thế bản phác thảo cũ) + §15/§16 mới vào
   [`docs/VEHICLE-MANAGEMENT-PLAN.md`](docs/VEHICLE-MANAGEMENT-PLAN.md): kế hoạch chi tiết đầy đủ cho
   **Round 2 (Vehicle Detail)** của trang **Quản lý xe** (`/vehicles/:id`, module `VM`) — mảnh cuối
