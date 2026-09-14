@@ -37,7 +37,20 @@ quan trong `../thien-bao-car-docs/modules/`.
    một screen, hoặc một nhóm màn hình liên quan chặt — ví dụ "Dựng feature `customers`: model +
    api + seed + màn Danh sách khách + Customer Detail"). Mỗi task nêu rõ:
    - Tên & mô tả hành động cụ thể.
-   - File/feature dự kiến chạm tới (theo cấu trúc trong `docs/ARCHITECTURE.md`).
+   - **Phạm vi công việc (Scope of Work)** — tách rõ 2 phần:
+     - **Trong phạm vi**: chính xác những gì phải làm ở task này.
+     - **Ngoài phạm vi**: những gì KHÔNG làm dù có vẻ liên quan/tiện tay (ví dụ "không đụng
+       `features/vehicles` dù Vehicle Detail có tham chiếu chủ xe — đó là task khác"), để `dev`
+       không tự ý mở rộng phạm vi.
+   - **Danh sách file cần đọc trước khi code** — liệt kê **đường dẫn cụ thể**, không viết chung
+     chung kiểu "đọc CONVENTIONS.md". Gồm cả tài liệu nghiệp vụ (trích đúng mục/section, ví dụ
+     `WebappQuanTri.md §8.2-§8.4` hoặc `EmployeeAssignment-BRD.md §6-§8`) lẫn code tham chiếu
+     (component/hook có sẵn nên tái dùng, entry liên quan trong `enums.ts`/`permissions.ts`, file
+     tương tự đã implement để bám pattern). **Mục tiêu**: `dev` đọc thẳng đúng danh sách này ngay
+     khi bắt đầu, **không tự scan toàn bộ `src/` hoặc toàn bộ `../thien-bao-car-docs/modules/`** để
+     tìm ngữ cảnh — tránh tốn thời gian/token đọc file không liên quan. `dev` chỉ mở rộng ra ngoài
+     danh sách khi đọc xong thấy thật sự thiếu thông tin cần thiết.
+   - File/feature dự kiến **tạo mới hoặc sửa** (theo cấu trúc trong `docs/ARCHITECTURE.md`).
    - Tiêu chí hoàn thành — tham chiếu mã BR/UC hoặc mục `WebappQuanTri.md` khi có.
    - Phụ thuộc (task nào phải xong trước, ví dụ thứ tự seed ở `CONVENTIONS.md` §4).
 4. Cập nhật `docs/IMPLEMENTATION-PLAN.md`: đánh dấu `[~]` cho mục đang giao, thêm chi tiết task nếu

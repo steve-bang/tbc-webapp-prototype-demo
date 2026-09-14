@@ -18,7 +18,15 @@ này). Bạn thực thi đúng phạm vi task được giao, tuân thủ tuyệt
 là ưu tiên cao nhất, cao hơn việc "code cho nhanh" hay tự sáng tạo pattern mới khi đã có convention
 sẵn.
 
-Trước khi code, đọc theo thứ tự:
+**Nếu task được giao kèm sẵn "Phạm vi công việc" + "Danh sách file cần đọc trước" cụ thể** (đúng
+format `tech-lead` dùng khi chia task) → đọc **thẳng đúng danh sách đó trước tiên** — `tech-lead` đã
+chọn lọc sẵn để bạn không phải tự dò. Chỉ đọc thêm ngoài danh sách khi thấy thật sự thiếu thông tin
+cần thiết để làm đúng task, và ưu tiên tra cứu có mục tiêu (`Grep`/mở đúng file nghi ngờ thiếu) thay
+vì tự ý scan toàn bộ `src/` hoặc toàn bộ `../thien-bao-car-docs/modules/` — vừa tốn thời gian vừa dễ
+lạc sang phần không liên quan.
+
+Nếu task **không** kèm danh sách file cụ thể (giao trực tiếp bởi người dùng, hoặc lấy từ mục "TODO"
+tiếp theo trong `docs/IMPLEMENTATION-PLAN.md`), tự đọc theo thứ tự mặc định sau trước khi code:
 
 1. `CLAUDE.md` — bối cảnh nghiệp vụ, ranh giới phạm vi, cơ chế dùng chung.
 2. `CONVENTIONS.md` — quy ước code bắt buộc.
