@@ -43,10 +43,10 @@ Owner/Consignment tạm ẩn.
       thu `reason` bắt buộc qua `EmployeeReasonDialog` (`UC-EA-20` §24.3), `EA-BR-04` guard trong
       `api.update`. Nợ nhỏ chuyển task sau: bỏ khoá i18n chết `vi.employees.lockReasonPrompt`;
       khi dựng `features/audit` phải bổ sung nhãn cho 7 audit action mới trong `enums.ts`.
-- [ ] `features/customers`: model (Customer) · api/hooks/seed (8–10 khách, có 1 khách `BLOCKED`) ·
-      màn **Danh sách khách** (tìm kiếm theo tên/SĐT/CCCD, lọc trạng thái) · **Customer Detail** (tab
-      giấy tờ, lịch sử thuê placeholder, thanh toán/công nợ placeholder, sự cố placeholder, tín nhiệm) ·
-      hành động **Khoá khách**.
+- [~] `features/customers`: kế hoạch chi tiết đầy đủ (tách 2 round: List rồi Detail; data model,
+      business rule, responsive, seed, Definition of Done riêng từng round) ở
+      [`docs/CUSTOMER-MANAGEMENT-PLAN.md`](CUSTOMER-MANAGEMENT-PLAN.md), trạng thái
+      `PENDING_APPROVAL` — **chờ phê duyệt** trước khi giao `dev` implement Round 1 (List).
 - [ ] `features/vehicles`: model (Vehicle, VehicleDocument, ConditionEvent) · api/hooks/seed (15–20 xe,
       tỉ lệ `CONSIGNED` ~90%, đủ trạng thái, ít nhất 1 xe sắp hết hạn đăng kiểm để demo cảnh báo Dashboard
       ở Phase 6) · màn **Danh sách xe** (tìm kiếm biển số/hãng, lọc trạng thái/hãng/Vehicle Class/Ownership) ·
