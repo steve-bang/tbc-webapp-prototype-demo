@@ -15,6 +15,15 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Planned**
 
+- Thêm [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](docs/MAINTENANCE-MANAGEMENT-PLAN.md): kế hoạch triển
+  khai trang **Bảo dưỡng & phụ tùng** (`/maintenance`, module `MT`) — 1 trang 2 tab (Maintenance ·
+  Spare Parts, CR-2026-039). Phát hiện quan trọng: `MT-BR-09`/BRD §11 (Maintenance Record là chứng
+  từ khấu trừ cho xe ký gửi) là nội dung **cũ**, đã bị **CR-2026-050** (mô hình `FIXED_MONTHLY`)
+  bãi bỏ trên thực tế — `WebappQuanTri.md` §6.5 xác nhận công ty chịu toàn bộ, không khấu trừ. Plan
+  **không dựng logic Deduction**. Model 3 entity độc lập (`MaintenanceRule`/`MaintenanceRecord`/
+  `SparePartRecord`, không nhúng trong `Vehicle` vì Rule có thể áp theo `VEHICLE_MODEL`). Ngưỡng
+  cảnh báo `DUE_SOON` (BRD chưa chốt số) tạm đề xuất 500km kèm `TODO(OQ)`. Trạng thái:
+  `PENDING_APPROVAL` — chờ phê duyệt trước khi giao `dev` implement.
 - Thêm [`docs/VEHICLE-MANAGEMENT-PLAN.md`](docs/VEHICLE-MANAGEMENT-PLAN.md): kế hoạch triển khai
   **Round 1 (Vehicle List)** của trang **Quản lý xe** (`/vehicles`, module `VM`) — page nặng nhất
   Phase 1. Đối chiếu `VehicleManagement-BRD.md` v1.12 + `WebappQuanTri.md` §6; mọi enum liên quan

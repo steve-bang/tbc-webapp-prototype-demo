@@ -69,9 +69,11 @@ Owner/Consignment tạm ẩn.
       tiết** — theo đúng thứ tự build đã chốt ở `docs/PAGE-IMPLEMENTATION-PRIORITY.md` (Vehicle list →
       Maintenance list → Vehicle Detail), chỉ lên kế hoạch sau khi `features/maintenance` (mục tiếp
       theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật ngay thay vì phải sửa lại.
-- [ ] `features/maintenance`: model (MaintenanceRule, MaintenanceRecord, SparePartRecord) · api/hooks/seed ·
-      màn **Bảo dưỡng & phụ tùng** (danh sách toàn đội xe, lọc theo xe, "đến hạn" dựa `Next Due KM` vs
-      `Current KM`).
+- [~] `features/maintenance`: kế hoạch chi tiết đầy đủ ở
+      [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](MAINTENANCE-MANAGEMENT-PLAN.md), trạng thái
+      `PENDING_APPROVAL` — **chờ phê duyệt** trước khi giao `dev`. Lưu ý quan trọng đã xử lý trong
+      plan: `MT-BR-09`/BRD §11 (Deduction cho xe ký gửi) là nội dung CŨ, đã bị CR-2026-050 bãi bỏ —
+      **không dựng logic khấu trừ**.
 - [ ] Cập nhật `shared/fixtures/registerSeeds.ts` theo đúng thứ tự trên.
 - [ ] Xoá `ComingSoon` cho các route đã xong trong `app/routes.tsx`.
 
