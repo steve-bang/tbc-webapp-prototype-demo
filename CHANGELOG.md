@@ -112,6 +112,31 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Feature `features/vehicles` — Round 2 (Vehicle Detail, `/vehicles/:id`) hoàn thành,
+  `features/vehicles` xong toàn bộ (khép lại Phase 1)**, đúng phạm vi
+  `docs/VEHICLE-MANAGEMENT-PLAN.md` §8. `VehicleDetailScreen` mirror 1:1 cấu trúc
+  `CustomerDetailScreen` (header + `Tabs`), **12 tab tối đa** đúng bảng §8.3: `VehicleOverviewTab`
+  mới (basic info thật + tóm tắt giấy tờ/bảo dưỡng, tái dùng `documentExpiryStatus()`/
+  `applicableRule()`/`nextDueKm()`/`maintenanceDueStatus()`), tab "Chủ xe & Ký gửi" ẩn đúng điều
+  kiện `ownershipType==='CONSIGNED'`, `VehicleMaintenanceTab` mới cross-import barrel
+  `@/features/maintenance` (due status + lịch sử `MaintenanceRecord`/`SparePartRecord` đúng xe đang
+  xem), `VehicleDocumentsList` tách từ `VehicleDocumentsDialog` (giữ nguyên public API Dialog cũ ở
+  List, hành vi List không đổi), `VehicleAuditTab` lọc `listAuditRecords()` theo
+  `entity==='Vehicle' && entityId===vehicle.id`, 3 tab Doanh thu/Chi phí/Lợi nhuận tách riêng
+  (`CR-2026-036`, không gộp) ẩn hẳn khi `!can('VEHICLE','EXPORT')`, các tab còn lại dùng
+  `VehicleDetailPlaceholder` (copy `CustomerDetailPlaceholder`) chờ module nguồn
+  (`RM`/`VH`/`VR`/`TF`/`RV`/`VC`). Thêm điều hướng click hàng bảng/`VehicleCard` sang Detail (mirror
+  `CustomerListScreen`/`CustomerCard`) — không nằm trong 7 mục code tối thiểu §8.4 nhưng cần thiết
+  để truy cập màn mới, đúng DoD §15.4. Không sửa `api.ts`/`hooks.ts`/`permissions.ts`/`enums.ts` của
+  `vehicles` — đúng dự đoán plan (`useVehicle(id)` có sẵn từ Round 1). Qua review `tech-lead` đạt
+  ngay vòng 1, **không Blocker** — mọi điểm dev tự quyết định (mirror điều hướng List/Card, 2 map
+  label `OWNERSHIP_TYPE_LABELS`/`VEHICLE_DOCUMENT_TYPE_LABELS` đã có sẵn từ Round 1 nên không thêm
+  lại, `TabsList className="max-w-full"` cục bộ tại `VehicleDetailScreen` không đổi
+  `shared/ui/tabs.tsx`, 2 tab component không nêu tên tường minh trong plan (`VehicleOverviewTab`/
+  `VehicleAuditTab`) vẫn tách file riêng đúng pattern `CustomerProfileTab`, trùng lặp nhỏ ~15 dòng
+  tính "due rows" giữa Overview/Maintenance tab thay vì sửa `features/maintenance` đã `DONE`, đọc
+  `listAuditRecords()` trực tiếp trong render thay vì qua `useQuery` vì đây là log dùng chung không
+  phải dữ liệu nghiệp vụ riêng) đều xác nhận hợp lệ.
 - **Feature `features/customers` — trang Quản lý khách hàng (`/customers`, `/customers/:id`,
   module `CM`) hoàn thành cả 2 round**, đúng phạm vi `docs/CUSTOMER-MANAGEMENT-PLAN.md`. **Round 1
   (List)**: model `Customer` (enum `CUSTOMER_STATUSES` giữ nguyên `ACTIVE`/`BLOCKED`, không thêm

@@ -10,17 +10,19 @@ import { VehicleStatusBadge } from './VehicleStatusBadge'
 export function VehicleCard({
   vehicle,
   canEdit,
+  onOpen,
   onEdit,
   onDocuments,
 }: {
   vehicle: Vehicle
   canEdit: boolean
+  onOpen: () => void
   onEdit: () => void
   onDocuments: () => void
 }) {
   const attentionCount = countDocumentsNeedingAttention(vehicle)
   return (
-    <Card>
+    <Card role="button" tabIndex={0} onClick={onOpen} className="cursor-pointer">
       <CardContent className="flex flex-col gap-2 py-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -43,7 +45,8 @@ export function VehicleCard({
           </p>
         )}
         {canEdit && (
-          <div className="mt-1 flex flex-wrap gap-2">
+          // stopPropagation — thẻ toàn bộ card đã gắn onOpen (mở Detail), nút hành động không được kích hoạt kèm.
+          <div className="mt-1 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
             <Button size="sm" variant="outline" onClick={onEdit}>
               <Pencil className="size-3.5" />
               {vi.common.edit}

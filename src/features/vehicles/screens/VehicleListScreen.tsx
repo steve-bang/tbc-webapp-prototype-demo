@@ -1,5 +1,7 @@
 import { FileWarning, Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { OWNERSHIP_TYPE_LABELS, VEHICLE_CLASS_LABELS, vi } from '@/shared/i18n/vi'
@@ -19,6 +21,7 @@ import { countDocumentsNeedingAttention, type Vehicle } from '../model'
 
 /** `UC-VM` — danh sách + tìm kiếm/lọc/tạo/sửa/đổi trạng thái/giấy tờ xe. */
 export function VehicleListScreen() {
+  const navigate = useNavigate()
   const { can } = usePermission()
   const canEdit = can('VEHICLE', 'EDIT')
 
@@ -61,6 +64,10 @@ export function VehicleListScreen() {
   function openEdit(vehicle: Vehicle) {
     setEditingVehicle(vehicle)
     setFormOpen(true)
+  }
+
+  function openDetail(vehicle: Vehicle) {
+    navigate(paths.vehicleDetail(vehicle.id))
   }
 
   return (
@@ -128,7 +135,7 @@ export function VehicleListScreen() {
                   {vehicles.map((vehicle) => {
                     const attentionCount = countDocumentsNeedingAttention(vehicle)
                     return (
-                      <TableRow key={vehicle.id}>
+                      <TableRow key={vehicle.id} className="cursor-pointer" onClick={() => openDetail(vehicle)}>
                         <TableCell className="font-medium">{vehicle.plate}</TableCell>
                         <TableCell>
                           {vehicle.brand} {vehicle.model}
@@ -155,7 +162,8 @@ export function VehicleListScreen() {
                         </TableCell>
                         {canEdit && (
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            {/* stopPropagation — hàng đã gắn onClick mở Detail, nút hành động không được kích hoạt kèm. */}
+                            <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                               <Button size="sm" variant="outline" onClick={() => openEdit(vehicle)}>
                                 {vi.common.edit}
                               </Button>
@@ -182,6 +190,7 @@ export function VehicleListScreen() {
                 key={vehicle.id}
                 vehicle={vehicle}
                 canEdit={canEdit}
+                onOpen={() => openDetail(vehicle)}
                 onEdit={() => openEdit(vehicle)}
                 onDocuments={() => setDocumentsVehicleId(vehicle.id)}
               />

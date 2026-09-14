@@ -27,7 +27,7 @@ kiểm tra trình duyệt).
       chờ Phase 1+ điền theo đúng thứ tự phụ thuộc).
 - [x] `CLAUDE.md`, `CONVENTIONS.md`, `docs/ARCHITECTURE.md`, file này.
 
-## Phase 1 — Danh mục nền: Xe, Bảo dưỡng, Khách hàng, Nhân viên — `[ ]`
+## Phase 1 — Danh mục nền: Xe, Bảo dưỡng, Khách hàng, Nhân viên — `[x]`
 
 **Thứ tự seed bắt buộc**: `employees` → `customers` → `vehicles` (+ `maintenance`) — vì Vehicle
 Detail tham chiếu chủ xe/nhân viên ở các tab sau này; nếu chưa làm Consignment (Phase 5) thì tab
@@ -54,31 +54,27 @@ Owner/Consignment tạm ẩn.
       hạn cứng); cả 3 nợ nhỏ Round 1 đã xử lý (`blockReasonSchema` dùng trong `CustomerReasonDialog`,
       comment `CM-R03`/`AC-CM-007`/`RM §41 Case 2` tại `canBlock`, thống nhất nhãn `noValue`).
       `tsc -b`/`oxlint`/`build` sạch cả 2 round.
-- [~] `features/vehicles`: kế hoạch chi tiết đầy đủ cho **Round 1 (Vehicle List)** ở
-      [`docs/VEHICLE-MANAGEMENT-PLAN.md`](VEHICLE-MANAGEMENT-PLAN.md). **Round 1 xong 14/09/2026** —
-      review `tech-lead` đạt ngay vòng 1 (không Blocker): model `Vehicle`/`VehicleDocument` đúng §2,
-      hàm dùng chung `documentExpiryStatus()` tách ra `shared/lib/documentStatus.ts` (refactor
-      `features/customers/model.ts` theo, giữ nguyên chữ ký public, hành vi không đổi), api/hooks đầy
-      đủ audit (5 action mới `CREATE_VEHICLE`/`UPDATE_VEHICLE`/`CHANGE_VEHICLE_STATUS`/
-      `ADD_VEHICLE_DOCUMENT`/`UPDATE_VEHICLE_DOCUMENT`, không có `remove()`/xoá document — `VM-RULE-005`
-      + BRD §16.1), seed 18 xe (16 `CONSIGNED`/2 `OWNED`, đủ 3 `Vehicle Class`, 2 `bankFinanced` có
-      `MORTGAGE_RECEIPT` hợp lệ, hạn giấy tờ `EXPIRING_SOON`/`EXPIRED` tính động theo ngày),
-      `VehicleListScreen` (tìm kiếm/4 bộ lọc/tạo-sửa qua Sheet/đổi trạng thái qua Dialog riêng —
-      đúng §5.2/`AC-VM-006` — /`VehicleDocumentsDialog` CRUD giấy tờ tái dùng được cho Round 2),
-      responsive 375/768/desktop. **Round 2 (Vehicle Detail 12 tab) đã lên kế hoạch chi tiết đầy đủ ở
-      §8 cùng file, trạng thái `APPROVED`** (14/09/2026, chủ dự án duyệt, đã giao `dev`) — sau
-      `features/maintenance` đã xong
-      đúng thứ tự `docs/PAGE-IMPLEMENTATION-PRIORITY.md`. Cấu trúc: `CustomerDetailScreen.tsx` làm
-      mẫu bắt buộc; 12 tab (Tổng quan/Chủ xe & Ký gửi (điều kiện `ownershipType=CONSIGNED`)/Giấy
-      tờ/Hiện trạng xe/Bảo dưỡng/Phạt nguội/Lịch sử thuê/Giao-nhận/Doanh thu/Chi phí/Lợi nhuận/Nhật
-      ký thao tác) — gộp 2 tab "Chủ xe" + "Hợp đồng ký gửi" của BRD thành 1 (module `VehicleConsignment`
-      chưa build). Hầu hết tab còn lại (Lịch sử thuê, Giao-nhận, Phạt nguội, Doanh thu/Chi phí/Lợi
-      nhuận) dùng `VehicleDetailPlaceholder` vì module nguồn (`RM`/`VH`/`VR`/`TF`/`RV`) chưa tới lượt
-      Phase 1. **Không cần Vehicle API/hooks/permissions/audit-action mới** — `useVehicle(id)` đã có
-      sẵn từ Round 1. Việc code chính: tách `VehicleDocumentsList` khỏi `VehicleDocumentsDialog` (tái
-      dùng ở tab Giấy tờ), `VehicleMaintenanceTab` mới (cross-import hooks có sẵn của
-      `features/maintenance`), `VehicleDetailScreen` mới, mount route `/vehicles/:id`. Đã giao `dev`
-      implement.
+- [x] `features/vehicles`: **hoàn thành cả 2 round**, kế hoạch đầy đủ ở
+      [`docs/VEHICLE-MANAGEMENT-PLAN.md`](VEHICLE-MANAGEMENT-PLAN.md) (`DONE`). **Round 1 (List,
+      xong 14/09/2026)**: model `Vehicle`/`VehicleDocument` đúng §2, hàm dùng chung
+      `documentExpiryStatus()` tách ra `shared/lib/documentStatus.ts` (refactor
+      `features/customers/model.ts` theo, hành vi không đổi), api/hooks đầy đủ audit (5 action mới
+      `CREATE_VEHICLE`/`UPDATE_VEHICLE`/`CHANGE_VEHICLE_STATUS`/`ADD_VEHICLE_DOCUMENT`/
+      `UPDATE_VEHICLE_DOCUMENT`, không có `remove()`/xoá document — `VM-RULE-005` + BRD §16.1), seed
+      18 xe (16 `CONSIGNED`/2 `OWNED`, đủ 3 `Vehicle Class`), `VehicleListScreen` (tìm kiếm/4 bộ
+      lọc/tạo-sửa qua Sheet/đổi trạng thái qua `VehicleStatusDialog` riêng — §5.2/`AC-VM-006` —
+      /`VehicleDocumentsDialog` CRUD giấy tờ), responsive 375/768/desktop. **Round 2 (Detail,
+      `/vehicles/:id`, xong 14/09/2026)**: `VehicleDetailScreen` mirror 1:1 `CustomerDetailScreen`
+      (`TabsList` thêm `max-w-full` cục bộ để cuộn ngang 12 tab, không đổi `shared/ui/tabs.tsx`), 12
+      tab tối đa đúng §8.3 (tab "Chủ xe & Ký gửi" chỉ khi `ownershipType=CONSIGNED`;
+      `VehicleOverviewTab`/`VehicleMaintenanceTab` mới nối dữ liệu thật qua barrel
+      `@/features/maintenance`; `VehicleDocumentsList` tách khỏi `VehicleDocumentsDialog` cũ, hành vi
+      List không đổi; `VehicleAuditTab` lọc `listAuditRecords()` theo `entity==='Vehicle'`; 3 tab
+      Doanh thu/Chi phí/Lợi nhuận tách riêng — `CR-2026-036` — ẩn hẳn khi thiếu `VEHICLE.EXPORT`; còn
+      lại `VehicleDetailPlaceholder` chờ module nguồn `RM`/`VH`/`VR`/`TF`/`RV`/`VC`), thêm điều
+      hướng List→Detail (mirror `CustomerListScreen`/`CustomerCard`). Không cần Vehicle
+      API/hooks/permissions/enum mới ở Round 2. Qua review `tech-lead` đạt ngay vòng 1 cả 2 round,
+      **không Blocker lần nào**.
 - [x] `features/maintenance`: hoàn thành 14/09/2026 — kế hoạch chi tiết ở
       [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](MAINTENANCE-MANAGEMENT-PLAN.md) (`DONE`). Đúng phạm
       vi: 3 entity độc lập `MaintenanceRule`/`MaintenanceRecord`/`SparePartRecord`, **không dựng
@@ -89,8 +85,8 @@ Owner/Consignment tạm ẩn.
 - [x] Cập nhật `shared/fixtures/registerSeeds.ts` theo đúng thứ tự trên — mỗi feature tự thêm
       import khi implement, đã đúng thứ tự `employees → customers → vehicles → maintenance`.
 - [x] Xoá `ComingSoon` cho các route đã xong trong `app/routes.tsx` — `/employees`, `/customers`,
-      `/customers/:id`, `/vehicles`, `/maintenance` đều đã mount screen thật. Còn lại `ComingSoon`
-      hợp lệ: `/employees/:id` + `/vehicles/:id` (Detail, chưa tới lượt) và mọi route Phase 2+.
+      `/customers/:id`, `/vehicles`, `/vehicles/:id`, `/maintenance` đều đã mount screen thật. Còn
+      lại `ComingSoon` hợp lệ: `/employees/:id` và mọi route Phase 2+.
 
 ## Phase 2 — Lịch & lượt thuê (lõi nghiệp vụ) — `[ ]`
 

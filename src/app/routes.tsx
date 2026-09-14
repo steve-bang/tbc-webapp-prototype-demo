@@ -3,7 +3,7 @@ import { LoginScreen } from '@/features/auth'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
 import { MaintenanceScreen } from '@/features/maintenance'
-import { VehicleListScreen } from '@/features/vehicles'
+import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
 import { AppShell } from '@/shared/layout/AppShell'
 import { ComingSoon } from '@/shared/layout/ComingSoon'
 import { paths } from './paths'
@@ -19,7 +19,7 @@ export function AppRoutes() {
         <Route path={paths.calendar} element={<ComingSoon title="Lịch cho thuê" />} />
 
         <Route path={paths.vehicles} element={<VehicleListScreen />} />
-        <Route path="/vehicles/:id" element={<ComingSoon title="Chi tiết xe" />} />
+        <Route path="/vehicles/:id" element={<VehicleDetailScreen />} />
         <Route path={paths.maintenance} element={<MaintenanceScreen />} />
 
         <Route path={paths.customers} element={<CustomerListScreen />} />
