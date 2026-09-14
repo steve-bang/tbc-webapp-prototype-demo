@@ -1,7 +1,8 @@
 # Kế hoạch triển khai — Trang Quản lý Khách hàng (Customer Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` — chờ phê duyệt trước khi giao
-`dev` implement. **Không code** — tài liệu này chỉ lên kế hoạch.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (14/09/2026, chủ dự án phê duyệt) — đã
+giao `dev` implement **Round 1** (List). Round 2 (Detail) chờ Round 1 qua review đạt + xác nhận
+tiếp từ chủ dự án.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/CustomerManagement-BRD.md` (v1.3) +
 `CustomerManagement-UseCase.md` (v1.1) + `../thien-bao-car-docs/WebappQuanTri.md` §7.

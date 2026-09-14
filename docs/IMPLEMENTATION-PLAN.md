@@ -45,8 +45,8 @@ Owner/Consignment tạm ẩn.
       khi dựng `features/audit` phải bổ sung nhãn cho 7 audit action mới trong `enums.ts`.
 - [~] `features/customers`: kế hoạch chi tiết đầy đủ (tách 2 round: List rồi Detail; data model,
       business rule, responsive, seed, Definition of Done riêng từng round) ở
-      [`docs/CUSTOMER-MANAGEMENT-PLAN.md`](CUSTOMER-MANAGEMENT-PLAN.md), trạng thái
-      `PENDING_APPROVAL` — **chờ phê duyệt** trước khi giao `dev` implement Round 1 (List).
+      [`docs/CUSTOMER-MANAGEMENT-PLAN.md`](CUSTOMER-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
+      (14/09/2026) — **đang giao `dev` implement Round 1 (List)**.
 - [ ] `features/vehicles`: model (Vehicle, VehicleDocument, ConditionEvent) · api/hooks/seed (15–20 xe,
       tỉ lệ `CONSIGNED` ~90%, đủ trạng thái, ít nhất 1 xe sắp hết hạn đăng kiểm để demo cảnh báo Dashboard
       ở Phase 6) · màn **Danh sách xe** (tìm kiếm biển số/hãng, lọc trạng thái/hãng/Vehicle Class/Ownership) ·
