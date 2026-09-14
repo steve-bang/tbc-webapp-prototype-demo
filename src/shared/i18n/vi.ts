@@ -3,6 +3,7 @@ import type {
   AssignmentStatus,
   ConsignmentContractStatus,
   ContractStatus,
+  CustomerDocumentType,
   CustomerStatus,
   DocumentStatus,
   EmployeeStatus,
@@ -145,7 +146,6 @@ export const vi = {
     genderOther: 'Khác',
     phone: 'Số điện thoại',
     email: 'Email',
-    noEmail: 'Chưa có email',
     address: 'Địa chỉ',
     note: 'Ghi chú',
     sectionPersonal: 'Thông tin cá nhân',
@@ -182,6 +182,43 @@ export const vi = {
     saveError: 'Không thể lưu, vui lòng thử lại.',
     emptyFiltered: 'Không tìm thấy khách hàng phù hợp. Thử xoá bớt bộ lọc.',
     emptyAll: 'Chưa có khách hàng nào. Bấm "Thêm khách hàng" để bắt đầu.',
+    notFound: 'Không tìm thấy khách hàng.',
+    // Round 2 — Customer Detail (`/customers/:id`), 6 tab (docs/CUSTOMER-MANAGEMENT-PLAN.md §6.2).
+    tabProfile: 'Hồ sơ',
+    tabDocuments: 'Giấy tờ',
+    tabRentalHistory: 'Thuê xe',
+    tabPayment: 'Thanh toán',
+    tabIncidents: 'Sự cố',
+    tabCredit: 'Tín nhiệm',
+    rentalHistoryPlaceholder: 'Chờ triển khai Rental Management (Phase 2).',
+    paymentPlaceholder: 'Chờ Payment/RentalSettlement (Phase 4).',
+    incidentsPlaceholder: 'Chờ DamageIncident (Phase 3).',
+    // UC-CM-12 — chỉ số tín nhiệm, Phase 1 chưa có dữ liệu nguồn (Rental/Payment/Incident).
+    creditRentalCount: 'Số lượt thuê',
+    creditLateReturnCount: 'Số lần trả trễ',
+    creditCancellationCount: 'Số lần huỷ lượt thuê',
+    creditPaymentIssueCount: 'Số lần vấn đề thanh toán',
+    creditIncidentCount: 'Số lần sự cố',
+    creditOutstandingAmount: 'Công nợ hiện tại',
+    creditNote:
+      'Phase 1 chỉ cung cấp dữ liệu/lịch sử, hệ thống không tự động kết luận khách hàng tốt/xấu (CM §20, UC-CM-12).',
+    // Tab Giấy tờ — CustomerDocument CRUD (UC-CM-07/CM §22).
+    addDocument: 'Thêm giấy tờ',
+    editDocument: 'Sửa giấy tờ',
+    documentType: 'Loại giấy tờ',
+    documentTypePlaceholder: 'Chọn loại giấy tờ',
+    documentNumber: 'Số giấy tờ',
+    documentIssueDate: 'Ngày cấp',
+    documentExpiryDate: 'Ngày hết hạn',
+    documentNote: 'Ghi chú',
+    documentEmptyAll: 'Chưa có giấy tờ nào. Bấm "Thêm giấy tờ" để bắt đầu.',
+    addDocumentSuccess: 'Đã thêm giấy tờ.',
+    updateDocumentSuccess: 'Đã cập nhật giấy tờ.',
+    removeDocumentSuccess: 'Đã xoá giấy tờ.',
+    removeDocumentTitle: 'Xoá giấy tờ',
+    removeDocumentDescription: 'Bạn có chắc muốn xoá giấy tờ này? Thao tác không thể hoàn tác.',
+    documentSaveError: 'Không thể lưu giấy tờ, vui lòng thử lại.',
+    documentRemoveError: 'Không thể xoá giấy tờ, vui lòng thử lại.',
   },
 } as const
 
@@ -216,6 +253,13 @@ export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
 export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
   ACTIVE: 'Hoạt động',
   BLOCKED: 'Đã khoá',
+}
+
+export const CUSTOMER_DOCUMENT_TYPE_LABELS: Record<CustomerDocumentType, string> = {
+  ID_CARD: 'CCCD',
+  PASSPORT: 'Hộ chiếu',
+  DRIVER_LICENSE: 'Giấy phép lái xe',
+  OTHER: 'Khác',
 }
 
 export const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {

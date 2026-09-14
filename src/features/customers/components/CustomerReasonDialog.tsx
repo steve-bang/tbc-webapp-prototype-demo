@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Label } from '@/shared/ui/label'
 import { Textarea } from '@/shared/ui/textarea'
+import { blockReasonSchema } from '../model'
 
 /**
  * Dialog nhập lý do dùng chung cho Khoá/Mở khoá khách hàng — `UC-CM-06`/
@@ -42,12 +43,12 @@ export function CustomerReasonDialog({
   }
 
   function handleConfirm() {
-    const trimmed = reason.trim()
-    if (trimmed.length < 3) {
-      setError(vi.customers.reasonRequired)
+    const result = blockReasonSchema.safeParse({ reason })
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? vi.customers.reasonRequired)
       return
     }
-    onConfirm(trimmed)
+    onConfirm(result.data.reason)
   }
 
   return (

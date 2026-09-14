@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
-import { CustomerListScreen } from '@/features/customers'
+import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
 import { AppShell } from '@/shared/layout/AppShell'
 import { ComingSoon } from '@/shared/layout/ComingSoon'
@@ -21,7 +21,7 @@ export function AppRoutes() {
         <Route path={paths.maintenance} element={<ComingSoon title="Bảo dưỡng & phụ tùng" />} />
 
         <Route path={paths.customers} element={<CustomerListScreen />} />
-        <Route path="/customers/:id" element={<ComingSoon title="Chi tiết khách hàng" />} />
+        <Route path="/customers/:id" element={<CustomerDetailScreen />} />
 
         <Route path={paths.dispatchBoard} element={<ComingSoon title="Bảng điều phối trong ngày" />} />
         <Route path={paths.employees} element={<EmployeeListScreen />} />

@@ -3,10 +3,17 @@ import { writeJson } from '@/shared/lib/storage'
 import { CUSTOMERS_STORAGE_KEY } from './api'
 import type { Customer } from './model'
 
+/** `YYYY-MM-DD` tính từ hôm nay ± số ngày — dùng để seed `CustomerDocument.expiryDate` demo đúng ngưỡng `documentExpiryStatus()` (30 ngày) dù chạy seed vào ngày nào. */
+function isoDateOffset(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 /**
  * 9 khách hàng demo — `CustomerManagement-BRD.md` §7 / `WebappQuanTri.md` §7.4 /
- * `docs/CUSTOMER-MANAGEMENT-PLAN.md` §8. Round 1 chưa có CRUD `CustomerDocument`
- * (xem `docs/CUSTOMER-MANAGEMENT-PLAN.md` §1.2) nên mọi khách seed `documents: []`.
+ * `docs/CUSTOMER-MANAGEMENT-PLAN.md` §8. Round 2 hoàn thiện seed `CustomerDocument`
+ * (Round 1 seed `documents: []` cho mọi khách vì chưa có CRUD).
  */
 function seedCustomers(): void {
   const customers: Customer[] = [
@@ -28,7 +35,18 @@ function seedCustomers(): void {
       licenseIssueDate: '2016-03-10',
       licenseExpiryDate: '2031-03-10',
       status: 'ACTIVE',
-      documents: [],
+      documents: [
+        // CM §22/UC-CM-07 — document ID_CARD còn hiệu lực (demo badge VALID).
+        {
+          id: 'doc_001',
+          documentType: 'ID_CARD',
+          documentNumber: '079192001234',
+          issueDate: '2015-06-01',
+          expiryDate: '2035-06-01',
+          createdAt: '2024-01-10T02:00:00.000Z',
+          updatedAt: '2024-01-10T02:00:00.000Z',
+        },
+      ],
       createdAt: '2024-01-10T02:00:00.000Z',
       updatedAt: '2024-01-10T02:00:00.000Z',
     },
@@ -50,7 +68,18 @@ function seedCustomers(): void {
       licenseIssueDate: '2012-08-15',
       licenseExpiryDate: '2027-08-15',
       status: 'ACTIVE',
-      documents: [],
+      documents: [
+        // CM §22/UC-CM-07 — document ID_CARD còn hiệu lực (demo badge VALID).
+        {
+          id: 'doc_002',
+          documentType: 'ID_CARD',
+          documentNumber: '079188002345',
+          issueDate: '2014-02-20',
+          expiryDate: '2034-02-20',
+          createdAt: '2024-01-15T02:00:00.000Z',
+          updatedAt: '2024-01-15T02:00:00.000Z',
+        },
+      ],
       createdAt: '2024-01-15T02:00:00.000Z',
       updatedAt: '2024-01-15T02:00:00.000Z',
     },
@@ -90,7 +119,18 @@ function seedCustomers(): void {
       licenseIssueDate: '2017-05-20',
       licenseExpiryDate: '2032-05-20',
       status: 'ACTIVE',
-      documents: [],
+      documents: [
+        // CM §22/UC-CM-07 — document DRIVER_LICENSE sắp hết hạn trong 30 ngày (demo badge EXPIRING_SOON).
+        {
+          id: 'doc_003',
+          documentType: 'DRIVER_LICENSE',
+          documentNumber: '079195007890',
+          issueDate: '2017-05-20',
+          expiryDate: isoDateOffset(20),
+          createdAt: '2024-02-10T02:00:00.000Z',
+          updatedAt: '2024-02-10T02:00:00.000Z',
+        },
+      ],
       createdAt: '2024-02-10T02:00:00.000Z',
       updatedAt: '2024-02-10T02:00:00.000Z',
     },
@@ -112,7 +152,18 @@ function seedCustomers(): void {
       licenseIssueDate: '2010-01-01',
       licenseExpiryDate: '2025-01-01',
       status: 'ACTIVE',
-      documents: [],
+      documents: [
+        // CM §22/UC-CM-07 — document ID_CARD đã hết hạn (demo badge EXPIRED).
+        {
+          id: 'doc_004',
+          documentType: 'ID_CARD',
+          documentNumber: '079185004567',
+          issueDate: '2013-04-11',
+          expiryDate: isoDateOffset(-10),
+          createdAt: '2024-03-01T02:00:00.000Z',
+          updatedAt: '2024-03-01T02:00:00.000Z',
+        },
+      ],
       createdAt: '2024-03-01T02:00:00.000Z',
       updatedAt: '2024-03-01T02:00:00.000Z',
     },

@@ -1,17 +1,15 @@
+import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { z } from 'zod'
-import type { CustomerStatus } from '@/shared/domain/enums'
+import { CUSTOMER_DOCUMENT_TYPES, type CustomerDocumentType, type CustomerStatus, type DocumentStatus } from '@/shared/domain/enums'
 
 /**
- * Giấy tờ khách hàng — `CustomerManagement-BRD.md` §22 / `UC-CM-07`. Round 1
- * chỉ khai kiểu tối thiểu để field `documents` trên `Customer` có shape ổn
- * định ngay từ đầu (luôn seed `[]`) — tránh đổi cấu trúc `Customer` khi
- * Round 2 thêm CRUD đầy đủ. Round 2 sẽ hoàn thiện: `CUSTOMER_DOCUMENT_TYPES`
- * (`enums.ts`), `documentExpiryStatus()`, và `addDocument/updateDocument/
- * removeDocument` trong `api.ts`.
+ * Giấy tờ khách hàng — `CustomerManagement-BRD.md` §22 / `UC-CM-07`. Round 2
+ * hoàn thiện `documentType` bằng enum thật `CustomerDocumentType` (Round 1
+ * chỉ khai `string` tạm để giữ shape ổn định cho `Customer.documents`).
  */
 export interface CustomerDocument {
   id: string
-  documentType: string
+  documentType: CustomerDocumentType
   documentNumber: string
   issueDate?: string
   expiryDate?: string
@@ -82,12 +80,37 @@ export function findDuplicateCustomer(
   return undefined
 }
 
+/**
+ * `CM-R03`/`AC-CM-007`/`RM §41 Case 2` — `BLOCKED` không được tạo lượt thuê
+ * mới. Ở đây chỉ ghi nhận trạng thái; việc chặn tạo rental **chưa enforce
+ * được** vì `Rental` (module `RM`) chưa tồn tại trong prototype Phase 1.
+ */
 export function canBlock(status: CustomerStatus): boolean {
   return status === 'ACTIVE'
 }
 
 export function canUnblock(status: CustomerStatus): boolean {
   return status === 'BLOCKED'
+}
+
+/**
+ * CM §23/CM-R09 — hiệu lực giấy tờ. `warningDays` chưa có ngưỡng chính thức
+ * (BRD §23 "cần Business xác nhận") — BA đề xuất tạm 30 ngày cho demo, KHÁC
+ * ngưỡng CR-2026-046 của VehicleManagement (module khác, không dùng chung
+ * số). TODO(OQ: CM-BRD §23). Viết trong `customers/model.ts` — nếu
+ * `features/vehicles` sau này cần logic tương tự, cân nhắc rút thành
+ * `shared/lib/documentStatus.ts` dùng chung lúc đó.
+ */
+export function documentExpiryStatus(
+  expiryDate: string | undefined,
+  today: Date = new Date(),
+  warningDays = 30,
+): DocumentStatus {
+  if (!expiryDate) return 'VALID'
+  const diffDays = differenceInCalendarDays(parseISO(expiryDate), today)
+  if (diffDays < 0) return 'EXPIRED'
+  if (diffDays <= warningDays) return 'EXPIRING_SOON'
+  return 'VALID'
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -122,10 +145,22 @@ export const customerFormSchema = z.object({
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>
 
+/** `UC-CM-07`/`CM §22` — thêm/sửa giấy tờ khách hàng; `documentType`/`documentNumber` bắt buộc. */
+export const customerDocumentFormSchema = z.object({
+  documentType: z.enum(CUSTOMER_DOCUMENT_TYPES),
+  documentNumber: z.string().trim().min(1, 'Số giấy tờ là bắt buộc'),
+  issueDate: z.string().trim().optional(),
+  expiryDate: z.string().trim().optional(),
+  note: z.string().trim().optional(),
+})
+
+export type CustomerDocumentFormValues = z.infer<typeof customerDocumentFormSchema>
+
 /**
  * `UC-CM-06`/`AC-CM-006` — bắt buộc lý do cho cả khoá lẫn mở khoá (áp dụng
  * nhất quán 2 chiều dù BRD chỉ nói rõ chiều khoá — an toàn hơn, giống tinh
- * thần `EA-BR` khi Employee có action nhạy cảm tương tự).
+ * thần `EA-BR` khi Employee có action nhạy cảm tương tự). Dùng để validate
+ * trong `CustomerReasonDialog` (thay vì kiểm tra tay `trimmed.length < 3`).
  */
 export const blockReasonSchema = z.object({
   reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự)'),

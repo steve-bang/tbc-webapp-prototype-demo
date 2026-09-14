@@ -43,17 +43,17 @@ Owner/Consignment tạm ẩn.
       thu `reason` bắt buộc qua `EmployeeReasonDialog` (`UC-EA-20` §24.3), `EA-BR-04` guard trong
       `api.update`. Nợ nhỏ chuyển task sau: bỏ khoá i18n chết `vi.employees.lockReasonPrompt`;
       khi dựng `features/audit` phải bổ sung nhãn cho 7 audit action mới trong `enums.ts`.
-- [~] `features/customers`: kế hoạch chi tiết đầy đủ (tách 2 round: List rồi Detail; data model,
+- [x] `features/customers`: kế hoạch chi tiết đầy đủ (tách 2 round: List rồi Detail; data model,
       business rule, responsive, seed, Definition of Done riêng từng round) ở
-      [`docs/CUSTOMER-MANAGEMENT-PLAN.md`](CUSTOMER-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
-      (14/09/2026). **Round 1 (List) xong 14/09/2026** — review đạt: model/api/hooks/seed (9 khách)
-      + `CustomerListScreen` (tìm kiếm/lọc/tạo-sửa/Khoá-Mở khoá) đúng §2-§9, `tsc -b`/`oxlint`/
-      `build` sạch. Nợ nhỏ chuyển Round 2: `blockReasonSchema` trong `model.ts` chưa được dùng (dialog
-      validate tay theo đúng pattern `EmployeeReasonDialog`) — cân nhắc dùng hoặc bỏ; thiếu comment
-      trích `CM-R03`/`AC-CM-007`/`RM §41 Case 2` (BLOCKED không tạo rental mới — chưa enforce được)
-      tại `canBlock`; lệch nhãn "Chưa có" (`vi.customers.noValue`) so với "Chưa có email"
-      (`vi.customers.noEmail`) giữa bảng desktop và card mobile cho cùng field email. **Đang chờ giao
-      Round 2 (Detail)**.
+      [`docs/CUSTOMER-MANAGEMENT-PLAN.md`](CUSTOMER-MANAGEMENT-PLAN.md). **Round 1 (List) xong
+      14/09/2026** — model/api/hooks/seed (9 khách) + `CustomerListScreen` đúng §2-§9. **Round 2
+      (Detail) xong 14/09/2026** — review đạt ngay vòng 1: `CustomerDetailScreen` (`/customers/:id`,
+      6 tab đúng §6.2, tab Tín nhiệm không số liệu giả) + `CustomerDocument` CRUD (`addDocument`/
+      `updateDocument`/`removeDocument`, 3 audit action nối cuối `AUDIT_ACTIONS`) +
+      `documentExpiryStatus()` (ngưỡng 30 ngày, seed dùng offset ngày động — không hardcode ngày hết
+      hạn cứng); cả 3 nợ nhỏ Round 1 đã xử lý (`blockReasonSchema` dùng trong `CustomerReasonDialog`,
+      comment `CM-R03`/`AC-CM-007`/`RM §41 Case 2` tại `canBlock`, thống nhất nhãn `noValue`).
+      `tsc -b`/`oxlint`/`build` sạch cả 2 round.
 - [ ] `features/vehicles`: model (Vehicle, VehicleDocument, ConditionEvent) · api/hooks/seed (15–20 xe,
       tỉ lệ `CONSIGNED` ~90%, đủ trạng thái, ít nhất 1 xe sắp hết hạn đăng kiểm để demo cảnh báo Dashboard
       ở Phase 6) · màn **Danh sách xe** (tìm kiếm biển số/hãng, lọc trạng thái/hãng/Vehicle Class/Ownership) ·

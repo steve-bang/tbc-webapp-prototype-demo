@@ -1,6 +1,8 @@
 import { Plus, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { vi } from '@/shared/i18n/vi'
@@ -21,6 +23,7 @@ type PendingBlockAction = { type: 'block' | 'unblock'; customer: Customer }
 
 /** `UC-CM-01, 02, 03, 05, 06, 14` — danh sách + tìm kiếm/lọc/tạo/sửa/khoá-mở khoá khách hàng. */
 export function CustomerListScreen() {
+  const navigate = useNavigate()
   const { can } = usePermission()
   const canEdit = can('CUSTOMER', 'EDIT')
   const canBlockAction = can('CUSTOMER', 'BLOCK')
@@ -49,6 +52,10 @@ export function CustomerListScreen() {
   function openEdit(customer: Customer) {
     setEditingCustomer(customer)
     setFormOpen(true)
+  }
+
+  function openDetail(customer: Customer) {
+    navigate(paths.customerDetail(customer.id))
   }
 
   async function handleReasonConfirm(reason: string) {
@@ -135,7 +142,7 @@ export function CustomerListScreen() {
               </TableHeader>
               <TableBody>
                 {customers.map((customer) => (
-                  <TableRow key={customer.id}>
+                  <TableRow key={customer.id} className="cursor-pointer" onClick={() => openDetail(customer)}>
                     <TableCell className="font-medium">{customer.fullName}</TableCell>
                     <TableCell>{customer.phone}</TableCell>
                     <TableCell>{customer.email ?? vi.customers.noValue}</TableCell>
@@ -145,7 +152,8 @@ export function CustomerListScreen() {
                     </TableCell>
                     {(canEdit || canBlockAction) && (
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        {/* stopPropagation — hàng đã gắn onClick mở Detail, nút hành động không được kích hoạt kèm. */}
+                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                           {canEdit && (
                             <Button size="sm" variant="outline" onClick={() => openEdit(customer)}>
                               {vi.common.edit}
@@ -185,6 +193,7 @@ export function CustomerListScreen() {
                 customer={customer}
                 canEdit={canEdit}
                 canBlockAction={canBlockAction}
+                onOpen={() => openDetail(customer)}
                 onEdit={() => openEdit(customer)}
                 onBlock={() => setPendingBlockAction({ type: 'block', customer })}
                 onUnblock={() => setPendingBlockAction({ type: 'unblock', customer })}

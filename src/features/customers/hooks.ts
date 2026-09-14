@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSessionStore } from '@/features/auth'
 import * as api from './api'
-import type { ActorInfo, CustomerFilter, CustomerFormInput } from './api'
+import type { ActorInfo, CustomerDocumentFormInput, CustomerFilter, CustomerFormInput } from './api'
 
 /**
  * Người thực hiện thao tác lấy từ phiên đăng nhập demo hiện tại. Fallback khi
@@ -73,6 +73,52 @@ export function useUnblockCustomer() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['customers', 'detail', variables.id] })
+    },
+  })
+}
+
+export function useAddCustomerDocument() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ customerId, input }: { customerId: string; input: CustomerDocumentFormInput }) =>
+      api.addDocument(customerId, input, actor),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['customers', 'detail', variables.customerId] })
+    },
+  })
+}
+
+export function useUpdateCustomerDocument() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({
+      customerId,
+      docId,
+      input,
+    }: {
+      customerId: string
+      docId: string
+      input: CustomerDocumentFormInput
+    }) => api.updateDocument(customerId, docId, input, actor),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['customers', 'detail', variables.customerId] })
+    },
+  })
+}
+
+export function useRemoveCustomerDocument() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ customerId, docId }: { customerId: string; docId: string }) =>
+      api.removeDocument(customerId, docId, actor),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['customers', 'detail', variables.customerId] })
     },
   })
 }

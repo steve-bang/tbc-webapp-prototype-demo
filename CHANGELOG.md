@@ -57,17 +57,19 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
-- **Feature `features/customers` — Round 1 (Danh sách khách hàng, `/customers`, module `CM`) hoàn
-  thành**, đúng phạm vi `docs/CUSTOMER-MANAGEMENT-PLAN.md` Round 1: model `Customer` (enum
-  `CUSTOMER_STATUSES` giữ nguyên `ACTIVE`/`BLOCKED`, không thêm `INACTIVE` — `TODO(OQ)` tại khai
-  báo), api/hooks đầy đủ audit (`CM-R01/02/03/05/06`, 4 audit action mới), seed 9 khách (8 `ACTIVE`
-  đa dạng field + 1 `BLOCKED` có lý do), `CustomerListScreen` (tìm kiếm tên/SĐT/CCCD, lọc trạng
-  thái, tạo/sửa qua Sheet, Khoá/Mở khoá bắt buộc lý do qua `CustomerReasonDialog`), responsive
-  375/768/desktop. Qua review `tech-lead` đạt ngay vòng 1 (không Blocker) — 3 điểm dev tự quyết
-  định (kiểu tạm cho `CustomerDocument.documentType`, sentinel Select optional, màu badge `BLOCKED`)
-  đều được xác nhận hợp lệ. 3 nợ nhỏ không chặn chuyển sang Round 2 (xem
-  `docs/IMPLEMENTATION-PLAN.md`). Round 2 (Customer Detail, `/customers/:id`) chưa bắt đầu — route
-  vẫn giữ `ComingSoon`.
+- **Feature `features/customers` — trang Quản lý khách hàng (`/customers`, `/customers/:id`,
+  module `CM`) hoàn thành cả 2 round**, đúng phạm vi `docs/CUSTOMER-MANAGEMENT-PLAN.md`. **Round 1
+  (List)**: model `Customer` (enum `CUSTOMER_STATUSES` giữ nguyên `ACTIVE`/`BLOCKED`, không thêm
+  `INACTIVE` — `TODO(OQ)` tại khai báo), api/hooks đầy đủ audit (`CM-R01/02/03/05/06`), seed 9 khách
+  (8 `ACTIVE` đa dạng field + 1 `BLOCKED` có lý do), `CustomerListScreen` (tìm kiếm tên/SĐT/CCCD,
+  lọc trạng thái, tạo/sửa qua Sheet, Khoá/Mở khoá bắt buộc lý do qua `CustomerReasonDialog`).
+  **Round 2 (Detail)**: `CustomerDocument` đầy đủ (enum `CUSTOMER_DOCUMENT_TYPES` mới, CRUD giấy tờ,
+  `documentExpiryStatus()` ngưỡng 30 ngày tạm — `TODO(OQ: CM-BRD §23)`), `CustomerDetailScreen` 6
+  tab (Hồ sơ/Giấy tờ thật, Lịch sử thuê/Thanh toán/Sự cố placeholder rõ ràng chờ Phase 2-4, Tín
+  nhiệm hiển thị "Chưa có dữ liệu" cho từng indicator — không mock số liệu, đúng tinh thần BRD §20).
+  Responsive 375/768/desktop cả 2 round. Qua review `tech-lead` đạt cả 2 vòng, **không Blocker lần
+  nào** — mọi điểm dev tự quyết định (seed document động theo ngày, nhãn tab rút gọn thống nhất,
+  Dialog cho form giấy tờ, import `paths.customerDetail()` trong feature) đều được xác nhận hợp lệ.
 - **Feature `features/employees` — trang Quản lý nhân viên (`/employees`, module `EA`) hoàn thành**,
   đúng phạm vi `docs/EMPLOYEE-MANAGEMENT-PLAN.md`: model `Employee`/`UserAccount`, state machine
   3 trạng thái (`ACTIVE ⇄ SUSPENDED → INACTIVE`), api/hooks đầy đủ audit (`EA-BR-01/02/04/05/06/16`),

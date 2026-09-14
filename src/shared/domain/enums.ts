@@ -67,6 +67,10 @@ export type ConditionEventType = (typeof CONDITION_EVENT_TYPES)[number]
 export const CUSTOMER_STATUSES = ['ACTIVE', 'BLOCKED'] as const
 export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number]
 
+/** Loại giấy tờ khách hàng — `CustomerManagement-BRD.md` §22, `UC-CM-07`. */
+export const CUSTOMER_DOCUMENT_TYPES = ['ID_CARD', 'PASSPORT', 'DRIVER_LICENSE', 'OTHER'] as const
+export type CustomerDocumentType = (typeof CUSTOMER_DOCUMENT_TYPES)[number]
+
 /** Nhân viên — `EmployeeAssignment-BRD.md`. */
 export const EMPLOYEE_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number]
@@ -236,11 +240,14 @@ export const AUDIT_ACTIONS = [
   'GRANT_ACCOUNT',
   'LOCK_ACCOUNT',
   'UNLOCK_ACCOUNT', // BA đề xuất — bổ sung ngoài UC-EA-20 §24.3 (chỉ liệt kê LOCK_ACCOUNT)
-  // Customer Management (CM) — CM-R06/UC-CM-14/AC-CM-009, Round 1 (List). Round 2 sẽ nối thêm
-  // ADD_CUSTOMER_DOCUMENT/UPDATE_CUSTOMER_DOCUMENT/DELETE_CUSTOMER_DOCUMENT.
+  // Customer Management (CM) — CM-R06/UC-CM-14/AC-CM-009, Round 1 (List).
   'CREATE_CUSTOMER',
   'UPDATE_CUSTOMER',
   'BLOCK_CUSTOMER',
   'UNBLOCK_CUSTOMER',
+  // Customer Management (CM) — Round 2 (Detail), CustomerDocument CRUD (`UC-CM-07`/`UC-CM-14`).
+  'ADD_CUSTOMER_DOCUMENT',
+  'UPDATE_CUSTOMER_DOCUMENT',
+  'DELETE_CUSTOMER_DOCUMENT',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
