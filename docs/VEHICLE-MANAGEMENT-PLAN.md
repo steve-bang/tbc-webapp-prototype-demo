@@ -1,8 +1,9 @@
 # Kế hoạch triển khai — Trang Quản lý Xe (Vehicle Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 (List) `DONE`** (14/09/2026, `dev`
-implement + `tech-lead` review đạt ngay vòng 1, không Blocker). Round 2 (Detail) vẫn chưa lên kế
-hoạch chi tiết (xem §0/§8).
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 (List) `DONE`** (14/09/2026). **Round 2
+(Detail) `PENDING_APPROVAL`** (14/09/2026) — kế hoạch chi tiết đầy đủ ở §8 (thay thế bản phác thảo
+cũ), chờ phê duyệt trước khi giao `dev`. `features/maintenance` đã `DONE`, tab Bảo dưỡng nối được
+dữ liệu thật ngay theo đúng thứ tự đã chốt.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/VehicleManagement-BRD.md` (v1.12) +
 `VehicleManagement-UseCase.md` (SRS-VM-*, lưu ý header không chuẩn — xem `CLAUDE.md` kho tài liệu
@@ -275,24 +276,98 @@ BRD §7 yêu cầu khi tạo xe). Đăng ký `registerSeedStep()`, import **sau 
 
 ---
 
-## 8. Phác thảo Round 2 (Vehicle Detail) — CHƯA chốt chi tiết, chỉ để hình dung toàn cảnh
+## 8. Round 2 — Vehicle Detail (`/vehicles/:id`) — kế hoạch đầy đủ
 
-> Sẽ lên kế hoạch đầy đủ riêng sau khi `features/maintenance` xong (xem §0). Bảng dưới **không phải
-> Definition of Done** — chỉ tóm tắt hướng đi theo BRD §12.1 + `docs/PAGE-IMPLEMENTATION-PRIORITY.md`
-> mục 6.
+`features/maintenance` đã `DONE` (xem `docs/MAINTENANCE-MANAGEMENT-PLAN.md`) — đúng thứ tự đã chốt
+ở §0, giờ lên kế hoạch chi tiết Round 2. **Điểm thuận lợi lớn:** mọi hook dữ liệu cần thiết **đã có
+sẵn** từ Round 1 + `maintenance` — Round 2 gần như thuần dựng UI/tab, **không cần API mới cho
+`Vehicle`** (chỉ 1 refactor nhỏ ở component có sẵn — xem §8.4).
 
-| Tab | Trạng thái dữ liệu ở Round 2 |
-| --- | --- |
-| Overview | Thật — tổng hợp thủ công (CR-2026-036) từ các tab khác |
-| Owner/Partner · Consignment Contract | Khung rỗng "chờ Phase 5" khi `ownershipType = CONSIGNED`, ẩn hẳn khi `OWNED` |
-| Documents | Thật — tái dùng `VehicleDocumentsDialog` (§5.3) render inline thay vì Dialog |
-| Vehicle Condition | Thật nhưng **có thể rỗng** — chờ `ConditionEvent` từ Phase 3 (`VH`/`VR`/`DI`) |
-| Maintenance · Spare Parts | Thật — **cần `features/maintenance` xong trước** |
-| Traffic Fines | Placeholder — chưa có phase sở hữu rõ trong backlog 7-phase, hỏi lại BA khi tới lượt build (đã ghi chú sẵn trong `PAGE-IMPLEMENTATION-PRIORITY.md`) |
-| Rental History | Placeholder — chờ Phase 2 |
-| Delivery/Pickup | Placeholder — chờ Phase 2/3 |
-| Revenue · Cost · Profit (3 tab) | Placeholder — chờ Phase 4, gate bằng `can('VEHICLE','EXPORT')` (đã map đúng `View Financial` trong `permissions.ts`) |
-| Activity History | Thật — đọc `listAuditRecords()` lọc theo `entity = 'Vehicle'` |
+### 8.1. Phạm vi Round 2
+
+**Trong phạm vi:** màn `VehicleDetailScreen` (`/vehicles/:id`), 12 tab tối đa theo đúng BRD §12.1
+(11 tab cố định + 1 tab điều kiện) — bảng chi tiết ở §8.3. Route thay `ComingSoon`.
+
+**Ngoài phạm vi — vì sao:** mọi nội dung "thật" phụ thuộc module chưa tồn tại
+(`RentalManagement`/`DamageIncident`/`RevenueCost`/`VehicleConsignment`/`TrafficFineIntegration`)
+giữ nguyên placeholder — đúng nguyên tắc `VM-RULE-017` ("mỗi tab chỉ tổng hợp/tham chiếu dữ liệu từ
+module sở hữu — không tự bịa"). Không dựng Vehicle Block (đã hoãn từ Round 1, vẫn chờ
+`RentalCalendar`). Không thêm action mới cho `Vehicle` ngoài Sửa/Đổi trạng thái đã có từ Round 1.
+
+### 8.2. Mẫu tham chiếu bắt buộc: `CustomerDetailScreen.tsx`
+
+`src/features/customers/screens/CustomerDetailScreen.tsx` (đã xong, review đạt) là **khuôn mẫu gần
+như 1:1** cho `VehicleDetailScreen`: header cố định (tên/badge/hành động) + `Tabs`/`TabsList`/
+`TabsContent`, dùng `CustomerDetailPlaceholder` cho tab chưa có dữ liệu. `dev` copy đúng cấu trúc
+này, đổi tên/logic cho Vehicle — **không tự sáng tạo layout khác**.
+
+`VehicleDetailPlaceholder` — component mới, copy y hệt `CustomerDetailPlaceholder.tsx` (đổi feature
+path), dùng chung cho mọi tab placeholder ở §8.3.
+
+### 8.3. 12 tab — nguồn dữ liệu & nội dung
+
+| # | Tab | Điều kiện hiện | Trạng thái | Nội dung |
+| - | --- | --- | --- | --- |
+| 1 | **Tổng quan** (mặc định) | luôn | Thật — tổng hợp thủ công (CR-2026-036) | Basic info (biển số/hãng/model/năm/màu/odo/nhiên liệu/status/ownership/bankFinanced), tóm tắt giấy tờ (đếm `EXPIRING_SOON`/`EXPIRED` từ `vehicle.documents`, tái dùng `documentExpiryStatus()`), tóm tắt bảo dưỡng (category có `Next Due KM` gần nhất — dùng `applicableRule()`/`nextDueKm()`/`maintenanceDueStatus()` từ `@/features/maintenance/model`), placeholder "—" cho lượt thuê/doanh thu/chi phí/lợi nhuận (chưa có nguồn) |
+| 2 | **Chủ xe & Ký gửi** | chỉ khi `ownershipType === 'CONSIGNED'` | Placeholder | `VehicleDetailPlaceholder` — "Chờ triển khai `VehicleConsignment` (Phase 5)". **Gộp 2 tab BRD** (Owner/Partner + Consignment Contract) thành 1 — cả hai phụ thuộc cùng module chưa tồn tại, tách 2 tab rỗng không có giá trị ở Phase 1 (xem §8.5 lý do). Ẩn hẳn khi `ownershipType === 'OWNED'` |
+| 3 | **Giấy tờ** | luôn | Thật | Tái dùng `VehicleDocumentsList` (§8.4 — tách ra từ `VehicleDocumentsDialog`) render trực tiếp, không bọc `Dialog` |
+| 4 | **Hiện trạng xe** | luôn | Thật nhưng **rỗng hợp lệ** | `VehicleDetailPlaceholder` biến thể "chưa có dữ liệu" (không phải "chờ Phase X" — đây là do chưa phát sinh `ConditionEvent`, khác về ngữ nghĩa với các tab chờ module). Chờ `VH`/`VR`/`DI` (Phase 3) |
+| 5 | **Bảo dưỡng** | luôn | Thật — `features/maintenance` đã có | `VehicleMaintenanceTab` (mới, §8.4): due status theo từng category áp dụng cho xe này (`applicableRule()` lọc theo `vehicle`), lịch sử `MaintenanceRecord` (`useMaintenanceRecords({vehicleId})`), lịch sử `SparePartRecord` (`useSparePartRecords({vehicleId})`) — 2 khối trong cùng 1 tab (khác trang `/maintenance` toàn đội xe có 2 tab riêng) |
+| 6 | **Phạt nguội** | luôn | Placeholder | `VehicleDetailPlaceholder` — "Chưa có phase sở hữu rõ trong backlog — hỏi lại BA khi tới lượt build" (đúng ghi chú đã có sẵn trong `docs/PAGE-IMPLEMENTATION-PRIORITY.md` mục 6) |
+| 7 | **Lịch sử thuê** | luôn | Placeholder | "Chờ `RentalManagement` (Phase 2)" |
+| 8 | **Giao/nhận** | luôn | Placeholder | "Chờ `VehicleHandover`/`VehicleReturn` (Phase 2/3)" |
+| 9 | **Doanh thu** | gate `can('VEHICLE','EXPORT')` | Placeholder | "Chờ `RevenueCost` (Phase 4)" |
+| 10 | **Chi phí** | gate `can('VEHICLE','EXPORT')` | Placeholder | như trên |
+| 11 | **Lợi nhuận** | gate `can('VEHICLE','EXPORT')` | Placeholder | như trên — **3 tab riêng, không gộp** (`CR-2026-036`, đã chốt, không tự ý đơn giản hoá) |
+| 12 | **Nhật ký thao tác** | luôn | Thật | `listAuditRecords()` lọc `entity === 'Vehicle' && entityId === vehicle.id`, sắp theo `at` giảm dần, hiển thị `summary`/`actorName`/`at` |
+
+Tab 9-11 (Revenue/Cost/Profit): nếu `can('VEHICLE','EXPORT')` là `false` (role không có View
+Financial — `OPERATION_STAFF`), **ẩn hẳn cả 3 tab** khỏi `TabsList` (không phải disable) — đúng
+`VM-RULE-017` "không phân quyền theo từng tab riêng lẻ, gate theo `View Financial` chung".
+
+### 8.4. Thay đổi code cần thiết (tối thiểu)
+
+1. **Refactor `VehicleDocumentsDialog.tsx`**: tách phần nội dung (nút Thêm + bảng + trạng thái rỗng)
+   ra component mới `VehicleDocumentsList.tsx` (props: `vehicle`, `canEdit` — không có
+   `open`/`onOpenChange`). `VehicleDocumentsDialog` giữ nguyên public API cũ (vẫn dùng ở
+   `VehicleListScreen`), bên trong chỉ render `<Dialog><DialogContent>...<VehicleDocumentsList
+   vehicle={vehicle} canEdit={canEdit} /></DialogContent></Dialog>`. Tab Giấy tờ ở Detail dùng thẳng
+   `VehicleDocumentsList`, không qua Dialog. **Không đổi hành vi ở màn List** — chỉ tổ chức lại code.
+2. **Mới:** `VehicleDetailPlaceholder.tsx` (copy `CustomerDetailPlaceholder.tsx`).
+3. **Mới:** `VehicleMaintenanceTab.tsx` — import `useMaintenanceRules`, `useMaintenanceRecords`,
+   `useSparePartRecords` từ `@/features/maintenance/hooks`; `applicableRule`, `nextDueKm`,
+   `maintenanceDueStatus`, `MaintenanceDueStatus` từ `@/features/maintenance/model` (hoặc barrel nếu
+   đã export đủ — kiểm tra `maintenance/index.ts` trước, thêm export nếu thiếu thay vì import sâu
+   không cần thiết). Đây là **import xuyên feature hợp lệ** (đã có tiền lệ `maintenance/hooks.ts` tự
+   import `useVehicles` từ `vehicles/hooks.ts`) — không vi phạm `VM-RULE-017` vì tab chỉ *hiển thị*
+   dữ liệu do `MT` sở hữu, không tự tính lại logic.
+4. **Mới:** `VehicleDetailScreen.tsx` (màn chính, theo mẫu §8.2), tái dùng nguyên `VehicleFormSheet`
+   + `VehicleStatusDialog` đã có từ Round 1 cho 2 nút hành động ở header (Sửa/Đổi trạng thái).
+5. `vehicles/index.ts`: export thêm `VehicleDetailScreen`.
+6. `app/routes.tsx`: mount `VehicleDetailScreen` cho `/vehicles/:id`, bỏ `ComingSoon`.
+7. `vi.ts`: mở rộng `vi.vehicles.*` với nhãn 12 tab + nội dung placeholder tương ứng, tái dùng
+   `MAINTENANCE_DUE_STATUS_LABELS` đã có sẵn từ `maintenance`.
+
+**Không cần sửa** `api.ts`/`hooks.ts` của `vehicles` (đã đủ `useVehicle(id)` từ Round 1), không cần
+audit action mới (Nhật ký thao tác chỉ đọc, không ghi thêm), không sửa `permissions.ts` (`VIEW`/
+`EDIT`/`EXPORT` đã đủ).
+
+### 8.5. Quyết định: gộp tab Owner/Partner + Consignment Contract
+
+BRD §12.1 liệt kê 2 tab riêng (`Owner/Partner`, `Consignment Contract`). Ở Round 2, **cả hai đều là
+placeholder thuần** (module `VehicleConsignment` chưa tồn tại — Phase 5) — tách 2 tab rỗng cùng nội
+dung "chờ Phase 5" không có giá trị thông tin, chỉ làm `TabsList` dài thêm không cần thiết (đã 11
+tab cố định). Gộp thành 1 tab **"Chủ xe & Ký gửi"**. Khi `VehicleConsignment` build (Phase 5) và cần
+2 khu vực riêng (hồ sơ chủ xe vs hợp đồng), tách lại thành 2 tab lúc đó — quyết định này **không
+ảnh hưởng dữ liệu**, chỉ là tổ chức UI tạm thời cho giai đoạn placeholder.
+
+### 8.6. Responsive
+
+Bám nguyên khung `CustomerDetailScreen`: header card `flex-col` mobile → `flex-row` desktop.
+`TabsList` 12 tab **chắc chắn cần cuộn ngang ở mọi kích thước màn hình** (không chỉ mobile) — dùng
+nhãn tab ngắn gọn 1-2 từ (bảng §8.3 cột "Tab" đã viết đúng độ dài mong muốn). Nội dung mỗi
+`TabsContent` responsive theo chuẩn đã dùng (card/table chuyển đổi theo breakpoint) — hầu hết tab
+placeholder không cần responsive đặc biệt (1 khối căn giữa).
 
 ---
 
@@ -365,10 +440,38 @@ khác theo đúng vị trí quy ước hiện có trong file.
 
 ---
 
-## 14. Việc tiếp theo sau khi phê duyệt
+## 14. Việc tiếp theo sau khi phê duyệt (Round 1 — đã xong, giữ nguyên lịch sử)
 
 Round 1 của tài liệu này trở thành task brief đầy đủ giao cho agent `dev` (kèm Scope of Work + danh
 sách file cần đọc trước theo format chuẩn). Sau khi Round 1 xong và qua review `tech-lead` đạt
 (4 bước chuẩn: `tech-lead` bàn giao commit + docs + push khi đạt), **task tiếp theo trong backlog là
-`features/maintenance`** (không phải Round 2 của trang này) — đúng thứ tự đã chốt ở §0. Round 2
-(Vehicle Detail) sẽ được lên kế hoạch chi tiết riêng sau đó.
+`features/maintenance`** (không phải Round 2 của trang này) — đúng thứ tự đã chốt ở §0. ✅ Cả hai đã
+xong (14/09/2026) — xem §15/§16 cho Round 2.
+
+---
+
+## 15. Definition of Done (Round 2)
+
+1. `npx tsc -b`, `npx oxlint`, `npm run build` sạch (không cần Playwright).
+2. `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+3. `VehicleListScreen`/`VehicleDocumentsDialog` (Round 1) không bị phá vỡ sau refactor tách
+   `VehicleDocumentsList` (§8.4 mục 1) — hành vi mở "Giấy tờ" từ List vẫn y hệt cũ.
+4. *(Chủ dự án tự test thủ công sau bàn giao)*: mở Detail từ 1 xe trong List; đủ 11-12 tab đúng nội
+   dung §8.3 (12 khi xe `CONSIGNED`, 11 khi `OWNED` — tab "Chủ xe & Ký gửi" ẩn đúng); tab Tổng quan
+   hiển thị đúng tóm tắt giấy tờ + bảo dưỡng (số liệu thật, không giả); tab Bảo dưỡng hiển thị đúng
+   due status/lịch sử của **đúng xe đang xem** (không lẫn xe khác); tab Giấy tờ CRUD hoạt động y hệt
+   Dialog cũ ở List; tab Nhật ký thao tác chỉ hiện đúng audit của xe này; 3 tab Doanh thu/Chi
+   phí/Lợi nhuận ẩn hoàn toàn khi đổi vai trò Topbar sang `OPERATION_STAFF`, hiện lại khi
+   `ACCOUNTANT`/`MANAGER`; nút Sửa/Đổi trạng thái ở header hoạt động đồng nhất Round 1; ở 375px
+   `TabsList` cuộn ngang được, không cuộn ngang toàn trang.
+5. `docs/IMPLEMENTATION-PLAN.md` tick `[x]` toàn bộ dòng `features/vehicles` (gộp Round 1 + 2), xoá
+   `ComingSoon` route `/vehicles/:id`.
+
+---
+
+## 16. Việc tiếp theo sau khi phê duyệt Round 2
+
+Round 2 trở thành task brief đầy đủ giao cho agent `dev` (kèm Scope of Work + danh sách file cần
+đọc trước). Sau khi qua review `tech-lead` đạt (4 bước chuẩn), **`features/vehicles` hoàn thành toàn
+bộ** — đây là feature cuối cùng còn lại của Phase 1 theo `docs/IMPLEMENTATION-PLAN.md`. Việc tiếp
+theo sau đó là bắt đầu Phase 2 (Lịch & lượt thuê).

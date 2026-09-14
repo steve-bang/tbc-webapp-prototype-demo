@@ -15,6 +15,24 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Planned**
 
+- Bổ sung §8 (thay thế bản phác thảo cũ) + §15/§16 mới vào
+  [`docs/VEHICLE-MANAGEMENT-PLAN.md`](docs/VEHICLE-MANAGEMENT-PLAN.md): kế hoạch chi tiết đầy đủ cho
+  **Round 2 (Vehicle Detail)** của trang **Quản lý xe** (`/vehicles/:id`, module `VM`) — mảnh cuối
+  cùng của Phase 1. Dùng `CustomerDetailScreen.tsx` làm mẫu bắt buộc. **12 tab**: Tổng quan/Chủ xe &
+  Ký gửi (điều kiện `ownershipType=CONSIGNED`)/Giấy tờ/Hiện trạng xe/Bảo dưỡng/Phạt nguội/Lịch sử
+  thuê/Giao-nhận/Doanh thu/Chi phí/Lợi nhuận/Nhật ký thao tác — gộp 2 tab "Chủ xe" + "Hợp đồng ký
+  gửi" của BRD gốc thành 1 vì module `VehicleConsignment` chưa build (nêu rõ lý do trong plan, đúng
+  `VM-RULE-017`: tab Vehicle Detail chỉ tổng hợp/tham chiếu dữ liệu module khác, không tự dựng logic
+  nghiệp vụ của module đó). Đa số tab (Lịch sử thuê/Giao-nhận/Phạt nguội/Doanh thu/Chi phí/Lợi
+  nhuận) dùng `VehicleDetailPlaceholder` vì module nguồn (`RM`/`VH`/`VR`/`TF`/`RV`) chưa tới Phase 1;
+  tab Lợi nhuận tách riêng khỏi Doanh thu/Chi phí đúng `CR-2026-036` (không gộp), gate chung 1 quyền
+  `VEHICLE.EXPORT` (View Financial). Phát hiện quan trọng: **không cần Vehicle API/hooks/permissions/
+  audit-action mới** — `useVehicle(id)` đã có sẵn từ Round 1. Việc code chính: tách
+  `VehicleDocumentsList` khỏi `VehicleDocumentsDialog` hiện có (tái dùng cho tab Giấy tờ, không viết
+  lại), `VehicleMaintenanceTab` mới cross-import hooks có sẵn của `features/maintenance` (đã xong,
+  đúng thứ tự build `docs/PAGE-IMPLEMENTATION-PRIORITY.md`), `VehicleDetailScreen` mới mount ở route
+  `/vehicles/:id` sẵn có. Trạng thái: `PENDING_APPROVAL` — chờ phê duyệt trước khi giao `dev`
+  implement. Sau round này `features/vehicles` hoàn tất toàn bộ, khép lại Phase 1.
 - Thêm [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](docs/MAINTENANCE-MANAGEMENT-PLAN.md): kế hoạch triển
   khai trang **Bảo dưỡng & phụ tùng** (`/maintenance`, module `MT`) — 1 trang 2 tab (Maintenance ·
   Spare Parts, CR-2026-039). Phát hiện quan trọng: `MT-BR-09`/BRD §11 (Maintenance Record là chứng

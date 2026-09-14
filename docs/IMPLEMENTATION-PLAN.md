@@ -65,10 +65,19 @@ Owner/Consignment tạm ẩn.
       `MORTGAGE_RECEIPT` hợp lệ, hạn giấy tờ `EXPIRING_SOON`/`EXPIRED` tính động theo ngày),
       `VehicleListScreen` (tìm kiếm/4 bộ lọc/tạo-sửa qua Sheet/đổi trạng thái qua Dialog riêng —
       đúng §5.2/`AC-VM-006` — /`VehicleDocumentsDialog` CRUD giấy tờ tái dùng được cho Round 2),
-      responsive 375/768/desktop. Round 2 (Vehicle Detail nhiều tab) **vẫn cố ý chưa lên kế hoạch chi
-      tiết** — theo đúng thứ tự build đã chốt ở `docs/PAGE-IMPLEMENTATION-PRIORITY.md` (Vehicle list →
-      Maintenance list → Vehicle Detail), chỉ lên kế hoạch sau khi `features/maintenance` (mục tiếp
-      theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật ngay thay vì phải sửa lại.
+      responsive 375/768/desktop. **Round 2 (Vehicle Detail 12 tab) đã lên kế hoạch chi tiết đầy đủ ở
+      §8 cùng file, trạng thái `PENDING_APPROVAL`** (14/09/2026) — sau `features/maintenance` đã xong
+      đúng thứ tự `docs/PAGE-IMPLEMENTATION-PRIORITY.md`. Cấu trúc: `CustomerDetailScreen.tsx` làm
+      mẫu bắt buộc; 12 tab (Tổng quan/Chủ xe & Ký gửi (điều kiện `ownershipType=CONSIGNED`)/Giấy
+      tờ/Hiện trạng xe/Bảo dưỡng/Phạt nguội/Lịch sử thuê/Giao-nhận/Doanh thu/Chi phí/Lợi nhuận/Nhật
+      ký thao tác) — gộp 2 tab "Chủ xe" + "Hợp đồng ký gửi" của BRD thành 1 (module `VehicleConsignment`
+      chưa build). Hầu hết tab còn lại (Lịch sử thuê, Giao-nhận, Phạt nguội, Doanh thu/Chi phí/Lợi
+      nhuận) dùng `VehicleDetailPlaceholder` vì module nguồn (`RM`/`VH`/`VR`/`TF`/`RV`) chưa tới lượt
+      Phase 1. **Không cần Vehicle API/hooks/permissions/audit-action mới** — `useVehicle(id)` đã có
+      sẵn từ Round 1. Việc code chính: tách `VehicleDocumentsList` khỏi `VehicleDocumentsDialog` (tái
+      dùng ở tab Giấy tờ), `VehicleMaintenanceTab` mới (cross-import hooks có sẵn của
+      `features/maintenance`), `VehicleDetailScreen` mới, mount route `/vehicles/:id`. Chờ chủ dự án
+      duyệt trước khi giao `dev`.
 - [x] `features/maintenance`: hoàn thành 14/09/2026 — kế hoạch chi tiết ở
       [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](MAINTENANCE-MANAGEMENT-PLAN.md) (`DONE`). Đúng phạm
       vi: 3 entity độc lập `MaintenanceRule`/`MaintenanceRecord`/`SparePartRecord`, **không dựng
