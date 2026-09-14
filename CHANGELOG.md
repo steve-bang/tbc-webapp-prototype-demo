@@ -55,6 +55,8 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Changed**
 
+- Kế hoạch trang Bảo dưỡng & phụ tùng (`docs/MAINTENANCE-MANAGEMENT-PLAN.md`) chuyển
+  `PENDING_APPROVAL` → **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement.
 - Kế hoạch trang Quản lý xe (`docs/VEHICLE-MANAGEMENT-PLAN.md`) Round 1 chuyển `PENDING_APPROVAL`
   → **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement Round 1 (Vehicle List). Round 2
   (Vehicle Detail) vẫn chưa lên kế hoạch chi tiết, chờ `features/maintenance` xong trước.

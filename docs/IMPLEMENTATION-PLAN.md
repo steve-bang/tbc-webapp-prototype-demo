@@ -71,7 +71,7 @@ Owner/Consignment tạm ẩn.
       theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật ngay thay vì phải sửa lại.
 - [~] `features/maintenance`: kế hoạch chi tiết đầy đủ ở
       [`docs/MAINTENANCE-MANAGEMENT-PLAN.md`](MAINTENANCE-MANAGEMENT-PLAN.md), trạng thái
-      `PENDING_APPROVAL` — **chờ phê duyệt** trước khi giao `dev`. Lưu ý quan trọng đã xử lý trong
+      `APPROVED` (14/09/2026) — **đang giao `dev` implement**. Lưu ý quan trọng đã xử lý trong
       plan: `MT-BR-09`/BRD §11 (Deduction cho xe ký gửi) là nội dung CŨ, đã bị CR-2026-050 bãi bỏ —
       **không dựng logic khấu trừ**.
 - [ ] Cập nhật `shared/fixtures/registerSeeds.ts` theo đúng thứ tự trên.

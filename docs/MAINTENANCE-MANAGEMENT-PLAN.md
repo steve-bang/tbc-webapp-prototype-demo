@@ -1,7 +1,7 @@
 # Kế hoạch triển khai — Trang Bảo dưỡng & Phụ tùng (Vehicle Maintenance)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` — chờ phê duyệt trước khi giao
-`dev` implement. **Không code** — tài liệu này chỉ lên kế hoạch.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (14/09/2026, chủ dự án phê duyệt) — đã
+giao `dev` implement.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/VehicleMaintenance-BRD.md` (v1.1) +
 `VehicleMaintenance-UseCase.md` (v1.1) + `../thien-bao-car-docs/WebappQuanTri.md` §6.2–§6.6 (Nhóm 1
