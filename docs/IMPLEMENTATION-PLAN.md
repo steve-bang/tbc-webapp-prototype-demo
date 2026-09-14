@@ -55,12 +55,20 @@ Owner/Consignment tạm ẩn.
       comment `CM-R03`/`AC-CM-007`/`RM §41 Case 2` tại `canBlock`, thống nhất nhãn `noValue`).
       `tsc -b`/`oxlint`/`build` sạch cả 2 round.
 - [~] `features/vehicles`: kế hoạch chi tiết đầy đủ cho **Round 1 (Vehicle List)** ở
-      [`docs/VEHICLE-MANAGEMENT-PLAN.md`](VEHICLE-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
-      (14/09/2026) — **đang giao `dev` implement Round 1**. Round 2 (Vehicle Detail nhiều tab) **cố ý chưa lên kế
-      hoạch chi tiết** — theo đúng thứ tự build đã chốt ở `docs/PAGE-IMPLEMENTATION-PRIORITY.md`
-      (Vehicle list → Maintenance list → Vehicle Detail), Round 2 chỉ lên kế hoạch sau khi
-      `features/maintenance` (mục tiếp theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật
-      ngay thay vì phải sửa lại.
+      [`docs/VEHICLE-MANAGEMENT-PLAN.md`](VEHICLE-MANAGEMENT-PLAN.md). **Round 1 xong 14/09/2026** —
+      review `tech-lead` đạt ngay vòng 1 (không Blocker): model `Vehicle`/`VehicleDocument` đúng §2,
+      hàm dùng chung `documentExpiryStatus()` tách ra `shared/lib/documentStatus.ts` (refactor
+      `features/customers/model.ts` theo, giữ nguyên chữ ký public, hành vi không đổi), api/hooks đầy
+      đủ audit (5 action mới `CREATE_VEHICLE`/`UPDATE_VEHICLE`/`CHANGE_VEHICLE_STATUS`/
+      `ADD_VEHICLE_DOCUMENT`/`UPDATE_VEHICLE_DOCUMENT`, không có `remove()`/xoá document — `VM-RULE-005`
+      + BRD §16.1), seed 18 xe (16 `CONSIGNED`/2 `OWNED`, đủ 3 `Vehicle Class`, 2 `bankFinanced` có
+      `MORTGAGE_RECEIPT` hợp lệ, hạn giấy tờ `EXPIRING_SOON`/`EXPIRED` tính động theo ngày),
+      `VehicleListScreen` (tìm kiếm/4 bộ lọc/tạo-sửa qua Sheet/đổi trạng thái qua Dialog riêng —
+      đúng §5.2/`AC-VM-006` — /`VehicleDocumentsDialog` CRUD giấy tờ tái dùng được cho Round 2),
+      responsive 375/768/desktop. Round 2 (Vehicle Detail nhiều tab) **vẫn cố ý chưa lên kế hoạch chi
+      tiết** — theo đúng thứ tự build đã chốt ở `docs/PAGE-IMPLEMENTATION-PRIORITY.md` (Vehicle list →
+      Maintenance list → Vehicle Detail), chỉ lên kế hoạch sau khi `features/maintenance` (mục tiếp
+      theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật ngay thay vì phải sửa lại.
 - [ ] `features/maintenance`: model (MaintenanceRule, MaintenanceRecord, SparePartRecord) · api/hooks/seed ·
       màn **Bảo dưỡng & phụ tùng** (danh sách toàn đội xe, lọc theo xe, "đến hạn" dựa `Next Due KM` vs
       `Current KM`).

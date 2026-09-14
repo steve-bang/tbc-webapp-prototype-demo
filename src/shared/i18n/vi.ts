@@ -9,11 +9,13 @@ import type {
   EmployeeStatus,
   IncidentStatus,
   Liability,
+  OwnershipType,
   PayoutStatus,
   RentalStatus,
   Role,
   TransactionStatus,
   VehicleClass,
+  VehicleDocumentType,
   VehicleStatus,
 } from '@/shared/domain/enums'
 
@@ -220,6 +222,73 @@ export const vi = {
     documentSaveError: 'Không thể lưu giấy tờ, vui lòng thử lại.',
     documentRemoveError: 'Không thể xoá giấy tờ, vui lòng thử lại.',
   },
+  vehicles: {
+    title: 'Xe & vòng đời',
+    description: 'Quản lý hồ sơ xe, giấy tờ và trạng thái vận hành.',
+    addButton: 'Thêm xe',
+    searchPlaceholder: 'Tìm theo biển số, hãng hoặc dòng xe',
+    filterStatus: 'Trạng thái',
+    filterAllStatuses: 'Tất cả trạng thái',
+    filterBrand: 'Hãng xe',
+    filterAllBrands: 'Tất cả hãng',
+    filterClass: 'Hạng xe',
+    filterAllClasses: 'Tất cả hạng xe',
+    filterOwnership: 'Hình thức sở hữu',
+    filterAllOwnership: 'Tất cả hình thức',
+    plate: 'Biển số',
+    brand: 'Hãng xe',
+    model: 'Dòng xe',
+    manufacturingYear: 'Năm sản xuất',
+    color: 'Màu xe',
+    vehicleClass: 'Hạng xe',
+    ownershipType: 'Hình thức sở hữu',
+    bankFinanced: 'Đang thế chấp ngân hàng',
+    currentKm: 'Odo hiện tại (km)',
+    fuelLevel: 'Mức nhiên liệu (%)',
+    note: 'Ghi chú',
+    noValue: 'Chưa có',
+    documentsWarningBadge: 'giấy tờ cần chú ý',
+    createTitle: 'Thêm xe',
+    editTitle: 'Sửa hồ sơ xe',
+    createSuccess: 'Đã tạo hồ sơ xe.',
+    updateSuccess: 'Đã cập nhật hồ sơ xe.',
+    saveError: 'Không thể lưu, vui lòng thử lại.',
+    emptyFiltered: 'Không tìm thấy xe phù hợp. Thử xoá bớt bộ lọc.',
+    emptyAll: 'Chưa có xe nào. Bấm "Thêm xe" để bắt đầu.',
+    sectionBasic: 'Thông tin xe',
+    sectionOwnership: 'Sở hữu & tài chính',
+    // Đổi trạng thái xe — VM-RULE-003/004, AC-VM-006.
+    changeStatus: 'Đổi trạng thái',
+    changeStatusTitle: 'Đổi trạng thái xe',
+    currentStatus: 'Trạng thái hiện tại',
+    newStatus: 'Trạng thái mới',
+    noTransition: 'Xe đang ở trạng thái không thể tự đổi tại đây.',
+    statusChangeSuccess: 'Đã cập nhật trạng thái xe.',
+    statusChangeError: 'Không thể đổi trạng thái, vui lòng thử lại.',
+    // Giấy tờ xe (VehicleDocument) — VM §16.1, CR-2026-046.
+    documentsButton: 'Giấy tờ',
+    documentsDialogTitle: 'Giấy tờ xe',
+    addDocument: 'Thêm giấy tờ',
+    editDocument: 'Sửa giấy tờ',
+    documentType: 'Loại giấy tờ',
+    documentTypePlaceholder: 'Chọn loại giấy tờ',
+    documentNumber: 'Số giấy tờ',
+    documentIssueDate: 'Ngày cấp',
+    documentExpiryDate: 'Ngày hết hạn',
+    documentWarningLeadDays: 'Ngưỡng cảnh báo (ngày)',
+    documentNote: 'Ghi chú',
+    documentEmptyAll: 'Chưa có giấy tờ nào. Bấm "Thêm giấy tờ" để bắt đầu.',
+    addDocumentSuccess: 'Đã thêm giấy tờ.',
+    updateDocumentSuccess: 'Đã cập nhật giấy tờ.',
+    documentSaveError: 'Không thể lưu giấy tờ, vui lòng thử lại.',
+    // Field riêng theo documentType — VM §16.1.
+    registeredOwnerName: 'Chủ sở hữu đăng ký',
+    inspectionCenter: 'Trung tâm đăng kiểm',
+    insuranceProvider: 'Đơn vị bảo hiểm',
+    policyNumber: 'Số hợp đồng bảo hiểm',
+    issuingBank: 'Ngân hàng nhận thế chấp',
+    heldRegistrationNumber: 'Số đăng ký xe đang giữ',
+  },
 } as const
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -242,6 +311,19 @@ export const VEHICLE_CLASS_LABELS: Record<VehicleClass, string> = {
   VIP_LUXURY: 'VIP / Hạng sang',
   STANDARD: 'Tiêu chuẩn',
   TWO_SEATER: '2 chỗ',
+}
+
+export const OWNERSHIP_TYPE_LABELS: Record<OwnershipType, string> = {
+  OWNED: 'Sở hữu công ty',
+  CONSIGNED: 'Ký gửi',
+}
+
+export const VEHICLE_DOCUMENT_TYPE_LABELS: Record<VehicleDocumentType, string> = {
+  VEHICLE_REGISTRATION: 'Giấy đăng ký xe',
+  INSPECTION: 'Đăng kiểm',
+  INSURANCE: 'Bảo hiểm',
+  MORTGAGE_RECEIPT: 'Biên nhận thế chấp',
+  OTHER: 'Khác',
 }
 
 export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {

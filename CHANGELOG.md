@@ -93,6 +93,30 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   Responsive 375/768/desktop cả 2 round. Qua review `tech-lead` đạt cả 2 vòng, **không Blocker lần
   nào** — mọi điểm dev tự quyết định (seed document động theo ngày, nhãn tab rút gọn thống nhất,
   Dialog cho form giấy tờ, import `paths.customerDetail()` trong feature) đều được xác nhận hợp lệ.
+- **Feature `features/vehicles` — trang Quản lý xe Round 1 (`/vehicles`, module `VM`) hoàn thành**,
+  đúng phạm vi `docs/VEHICLE-MANAGEMENT-PLAN.md` §1-§13. Model `Vehicle`/`VehicleDocument` (§2);
+  **hàm dùng chung mới `documentExpiryStatus()`** rút ra `shared/lib/documentStatus.ts` — dùng thẳng
+  cho `vehicles`, đồng thời refactor `features/customers/model.ts` gọi vào (giữ nguyên chữ ký public
+  `(expiryDate, today, warningDays)`, hành vi không đổi). Api/hooks đầy đủ audit (`CREATE_VEHICLE`/
+  `UPDATE_VEHICLE`/`CHANGE_VEHICLE_STATUS`/`ADD_VEHICLE_DOCUMENT`/`UPDATE_VEHICLE_DOCUMENT` nối cuối
+  `AUDIT_ACTIONS`), không có `remove()` xe hay xoá document (`VM-RULE-005`, BRD §16.1 — chỉ giữ lịch
+  sử). Seed 18 xe (16 `CONSIGNED`/2 `OWNED`, đủ 3 `Vehicle Class`, 2 xe `bankFinanced` có
+  `MORTGAGE_RECEIPT` hợp lệ, hạn giấy tờ `EXPIRING_SOON`/`EXPIRED` tính động theo ngày chạy demo —
+  không hardcode). `VehicleListScreen` (tìm kiếm biển số/hãng/dòng, 4 bộ lọc, tạo/sửa qua
+  `VehicleFormSheet`, **đổi trạng thái là action riêng** qua `VehicleStatusDialog` đúng ma trận
+  `AVAILABLE ⇄ MAINTENANCE`/`→ INACTIVE` — §5.2/`AC-VM-006`) + `VehicleDocumentsDialog` (CRUD giấy tờ,
+  field động theo `documentType`, viết độc lập để Round 2 tái dùng nguyên trong tab Documents),
+  responsive 375/768/desktop. Qua review `tech-lead` đạt ngay vòng 1, **không Blocker** — 4 điểm dev
+  tự quyết định đều xác nhận hợp lệ: nút "Đổi trạng thái" là action riêng theo đúng §5.2 (không phải
+  tự mở rộng phạm vi); `vehicleDocumentFormSchema` viết thành factory `(bankFinanced) => ZodSchema`
+  + `useMemo` đúng cách vì rule phụ thuộc field của xe cha chứ không phải chính document; giữ field số
+  (`currentKm`/`manufacturingYear`/`fuelLevel`/`warningLeadDays`) dạng `string` + regex validate thay
+  vì `z.coerce.number()` — lỗi type `Resolver<{ field: unknown }, ...>` giữa zod v4 coerce và
+  `@hookform/resolvers`/`react-hook-form` generic là **có thật** (tech-lead tái hiện độc lập), cách né
+  hợp lý, ghi nhận làm pattern tham khảo cho field số sau này; cảnh báo mềm "Bank Financed thiếu
+  `MORTGAGE_RECEIPT`" cố tình bỏ qua đúng theo plan §4 (không enforce ở Round 1). Ghi nhận 1 điểm
+  "Nên sửa" không chặn: `VehicleCard` (mobile) chưa có nút "Đổi trạng thái" như bảng desktop — để task
+  sau.
 - **Feature `features/employees` — trang Quản lý nhân viên (`/employees`, module `EA`) hoàn thành**,
   đúng phạm vi `docs/EMPLOYEE-MANAGEMENT-PLAN.md`: model `Employee`/`UserAccount`, state machine
   3 trạng thái (`ACTIVE ⇄ SUSPENDED → INACTIVE`), api/hooks đầy đủ audit (`EA-BR-01/02/04/05/06/16`),

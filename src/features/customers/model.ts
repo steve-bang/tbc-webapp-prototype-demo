@@ -1,6 +1,6 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { z } from 'zod'
 import { CUSTOMER_DOCUMENT_TYPES, type CustomerDocumentType, type CustomerStatus, type DocumentStatus } from '@/shared/domain/enums'
+import { documentExpiryStatus as sharedDocumentExpiryStatus } from '@/shared/lib/documentStatus'
 
 /**
  * Giấy tờ khách hàng — `CustomerManagement-BRD.md` §22 / `UC-CM-07`. Round 2
@@ -97,20 +97,17 @@ export function canUnblock(status: CustomerStatus): boolean {
  * CM §23/CM-R09 — hiệu lực giấy tờ. `warningDays` chưa có ngưỡng chính thức
  * (BRD §23 "cần Business xác nhận") — BA đề xuất tạm 30 ngày cho demo, KHÁC
  * ngưỡng CR-2026-046 của VehicleManagement (module khác, không dùng chung
- * số). TODO(OQ: CM-BRD §23). Viết trong `customers/model.ts` — nếu
- * `features/vehicles` sau này cần logic tương tự, cân nhắc rút thành
- * `shared/lib/documentStatus.ts` dùng chung lúc đó.
+ * số). TODO(OQ: CM-BRD §23). Implementation rút ra dùng chung tại
+ * `shared/lib/documentStatus.ts` (VEHICLE-MANAGEMENT-PLAN.md §3) — chữ ký
+ * public của hàm này giữ nguyên (`expiryDate, today, warningDays`) để không
+ * phá vỡ nơi gọi hiện có trong `customers/`.
  */
 export function documentExpiryStatus(
   expiryDate: string | undefined,
   today: Date = new Date(),
   warningDays = 30,
 ): DocumentStatus {
-  if (!expiryDate) return 'VALID'
-  const diffDays = differenceInCalendarDays(parseISO(expiryDate), today)
-  if (diffDays < 0) return 'EXPIRED'
-  if (diffDays <= warningDays) return 'EXPIRING_SOON'
-  return 'VALID'
+  return sharedDocumentExpiryStatus(expiryDate, warningDays, today)
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

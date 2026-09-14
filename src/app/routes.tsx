@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
+import { VehicleListScreen } from '@/features/vehicles'
 import { AppShell } from '@/shared/layout/AppShell'
 import { ComingSoon } from '@/shared/layout/ComingSoon'
 import { paths } from './paths'
@@ -16,7 +17,7 @@ export function AppRoutes() {
         <Route path={paths.dashboard} element={<ComingSoon title="Dashboard" />} />
         <Route path={paths.calendar} element={<ComingSoon title="Lịch cho thuê" />} />
 
-        <Route path={paths.vehicles} element={<ComingSoon title="Danh sách xe" />} />
+        <Route path={paths.vehicles} element={<VehicleListScreen />} />
         <Route path="/vehicles/:id" element={<ComingSoon title="Chi tiết xe" />} />
         <Route path={paths.maintenance} element={<ComingSoon title="Bảo dưỡng & phụ tùng" />} />
 

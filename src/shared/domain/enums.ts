@@ -249,5 +249,11 @@ export const AUDIT_ACTIONS = [
   'ADD_CUSTOMER_DOCUMENT',
   'UPDATE_CUSTOMER_DOCUMENT',
   'DELETE_CUSTOMER_DOCUMENT',
+  // Vehicle Management (VM) — Round 1 (List), Vehicle + VehicleDocument CRUD (`VM-RULE-007`, BRD §16.1).
+  'CREATE_VEHICLE',
+  'UPDATE_VEHICLE',
+  'CHANGE_VEHICLE_STATUS',
+  'ADD_VEHICLE_DOCUMENT',
+  'UPDATE_VEHICLE_DOCUMENT',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
