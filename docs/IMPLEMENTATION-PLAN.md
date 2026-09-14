@@ -99,7 +99,7 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
 
 - [~] `features/rentals` (RM — hub trung tâm): kế hoạch chi tiết đầy đủ **Round 1 (data core + Rental
       List + Tạo/Xác nhận/Huỷ lượt thuê)** ở [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md),
-      trạng thái `PENDING_APPROVAL` (14/09/2026) — chờ phê duyệt trước khi giao `dev`. Phát hiện quan
+      trạng thái `APPROVED` (14/09/2026, chủ dự án duyệt) — đã giao `dev` implement. Phát hiện quan
       trọng: **không có module "Bảng giá"** trong toàn bộ 21 module — `Rental Rate` là field nhập tay
       của chính `Rental`, không suy ra từ `Vehicle` (đã xác nhận `vehicles/model.ts` không có field
       giá). Model đầy đủ 12-state lifecycle (`RENTAL_STATUSES` đã scaffold từ Phase 0) nhưng Round 1

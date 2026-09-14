@@ -92,6 +92,9 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Changed**
 
+- Kế hoạch trang Lượt thuê (`docs/RENTAL-MANAGEMENT-PLAN.md`) **Round 1** chuyển `PENDING_APPROVAL`
+  → **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng §1-§7/§9-§13 (data
+  core + Rental List + Tạo/Xác nhận/Huỷ lượt thuê).
 - Kế hoạch trang Quản lý xe (`docs/VEHICLE-MANAGEMENT-PLAN.md`) **Round 2 (Vehicle Detail)** chuyển
   `PENDING_APPROVAL` → **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng
   §8 (12 tab, không cần Vehicle API/hooks/permissions/audit-action mới).
