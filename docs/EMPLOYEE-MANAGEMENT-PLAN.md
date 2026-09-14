@@ -259,9 +259,15 @@ mật khẩu, không OTP — liên quan hiển thị username) · `CR-2026-035` 
 
 ## 11. Definition of Done
 
-1. `npx tsc -b` và `npx oxlint` sạch.
+> **Cập nhật 14/09/2026:** `dev` **không cần** tự test bằng Playwright/trình duyệt nữa — chủ dự án
+> sẽ tự thao tác thật để test thủ công sau khi nhận bàn giao. Mục 3 (checklist trình duyệt) dưới đây
+> **chuyển thành checklist test thủ công của chủ dự án**, không còn là việc `dev` phải tự làm trước
+> khi báo xong.
+
+1. `npx tsc -b` sạch, `npx oxlint` sạch, `npm run build` sạch — đây là 3 cổng bắt buộc duy nhất để
+   `dev` báo task xong.
 2. `grep -rn '\*/[a-zA-Z]' src/` rỗng (gotcha comment — `CONVENTIONS.md` §11).
-3. Trong trình duyệt (≥1024px, ~768px, ~375px — dùng DevTools device toolbar):
+3. *(Chủ dự án tự test thủ công sau khi nhận bàn giao — không phải việc của `dev`)*:
    - Reset demo data → đúng 8 nhân viên, đúng phân bổ trạng thái/tài khoản ở §7.
    - Tìm kiếm theo tên/SĐT/mã, lọc theo từng bộ lọc, kết hợp nhiều bộ lọc.
    - Tạo nhân viên mới (có/không tạo tài khoản), sửa nhân viên, đổi trạng thái (đúng ma trận §4,

@@ -94,9 +94,11 @@ Không lặp lại ở đây — bắt buộc đọc:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): sơ đồ tầng thư mục, luồng dữ liệu, vòng đời
   seed/reset, theming, routing, checklist nạp backend thật.
 
-Lệnh nhanh: `npm run dev` · `npx tsc -b` (typecheck) · `npx oxlint` (lint) · `npm run build`. Chưa
-có test runner — hai cổng bắt buộc trước khi coi một task là xong: `npx tsc -b` và `npx oxlint`
-sạch, **cộng với** thao tác thật trong trình duyệt (không chỉ tin typecheck/lint cho thay đổi UI).
+Lệnh nhanh: `npm run dev` · `npx tsc -b` (typecheck) · `npx oxlint` (lint) · `npm run build`. Chưa có
+test runner — cổng bắt buộc trước khi `dev` báo một task là xong: `npx tsc -b`, `npx oxlint`, và
+`npm run build` đều sạch (không lỗi). **`dev` không cần tự kiểm tra bằng Playwright/trình duyệt** —
+người dùng (chủ dự án) sẽ tự thao tác thật trong trình duyệt để test thủ công sau khi nhận bàn giao
+(quyết định 14/09/2026, xem `CHANGELOG.md`).
 
 ## 6. Xác thực & phân quyền demo
 
@@ -119,6 +121,7 @@ Repo có 2 subagent định nghĩa ở `.claude/agents/`:
 
 Vòng lặp làm việc thông thường: `tech-lead` chọn phase/mục tiếp theo trong
 `docs/IMPLEMENTATION-PLAN.md` → giao task rõ ràng cho `dev` → `dev` implement + tự chạy
-`tsc -b`/`oxlint`/kiểm tra trình duyệt → `tech-lead` review kết quả → lặp lại tới khi phase xong.
+`tsc -b`/`oxlint`/`npm run build` (không cần tự test bằng trình duyệt — người dùng tự test thủ công)
+→ `tech-lead` review kết quả → lặp lại tới khi phase xong.
 Khi không có agent nào được chỉ định rõ, ưu tiên đọc `docs/IMPLEMENTATION-PLAN.md` để biết việc
 tiếp theo là gì thay vì tự đoán phạm vi.

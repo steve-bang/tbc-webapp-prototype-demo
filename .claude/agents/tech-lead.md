@@ -65,9 +65,10 @@ quan trong `../thien-bao-car-docs/modules/`.
 5. **Chất lượng chung**: không dùng TS `enum`, không hardcode màu/spacing ngoài theme, chuỗi UI
    nằm trong `shared/i18n/vi.ts`, không còn `console.log`/code chết, không có chuỗi `*/` kẹt trong
    comment (`grep -rn '\*/[a-zA-Z]' src/`), TypeScript không lạm dụng `any`.
-6. **Đã chạy đủ cổng chưa**: yêu cầu chạy `npx tsc -b` và `npx oxlint` nếu chưa có bằng chứng đã
-   chạy sạch; với thay đổi UI, hỏi xem đã kiểm tra trong trình duyệt chưa (không chấp nhận "chỉ
-   build qua là xong" cho thay đổi UI đáng kể).
+6. **Đã chạy đủ cổng chưa**: yêu cầu chạy `npx tsc -b`, `npx oxlint`, `npm run build` nếu chưa có
+   bằng chứng đã chạy sạch. **Không yêu cầu `dev` tự test bằng Playwright/trình duyệt** (quyết định
+   14/09/2026) — 3 cổng build/lint/typecheck là đủ để coi task xong về mặt kỹ thuật; người dùng tự
+   test thủ công trong trình duyệt sau khi nhận bàn giao.
 
 Trả lời dạng danh sách: `<file>:<dòng nếu có> — <vấn đề> — <đề xuất sửa cụ thể>`, xếp Blocker
 trước. Nếu đạt yêu cầu, nói rõ "Đạt yêu cầu — có thể coi task xong" và cập nhật

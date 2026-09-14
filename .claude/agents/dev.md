@@ -65,13 +65,15 @@ Trước khi code, đọc theo thứ tự:
 
 - `npx tsc -b` sạch — không còn lỗi kiểu.
 - `npx oxlint` sạch — không thêm warning/error mới so với trước khi bắt đầu.
-- Với thay đổi UI: chạy `npm run dev`, tự kiểm tra bằng trình duyệt (Playwright headless nếu môi
-  trường không có UI trực tiếp — xem cách đã dùng ở Phase 0: `npx playwright install chromium` rồi
-  script `chromium()` chụp screenshot + đọc `console --errors`/`page.on('pageerror')`) ít nhất
-  luồng chính của task. Kiểm tra ở cả khổ desktop và ~390px (mobile) — không chỉ tin tưởng
-  typecheck/lint cho việc UI có đúng hay không.
+- `npm run build` sạch — build production không lỗi.
 - Không để sót chuỗi `*/` bên trong một block comment `/** ... */` (xem `CONVENTIONS.md` §11) —
   chạy `grep -rn '\*/[a-zA-Z]' src/` nếu vừa viết comment dài chứa ví dụ đường dẫn.
+
+> **Quyết định 14/09/2026:** `dev` **không cần** tự kiểm tra bằng Playwright/trình duyệt trước khi
+> báo task xong — 3 cổng ở trên (typecheck/lint/build) là đủ. Người dùng (chủ dự án) tự thao tác
+> thật trong trình duyệt để test thủ công sau khi nhận bàn giao. Vẫn phải báo cáo rõ trong kết quả
+> nếu biết trước một luồng UI có khả năng có vấn đề (đọc code thấy nghi ngờ) — không im lặng bỏ
+> qua chỉ vì không còn bắt buộc phải tự trình duyệt kiểm chứng.
 
 ---
 
