@@ -60,6 +60,15 @@ quan trong `../thien-bao-car-docs/modules/`.
 
 # Khi được giao "review code"
 
+**Phạm vi đọc khi review (quyết định 14/09/2026):** chỉ đánh giá dựa trên đúng phần `dev` đã
+**sửa/thêm/xoá** — lấy bằng `git status`/`git diff` (đối chiếu lại danh sách file `dev` báo cáo với
+diff thật, không tin suông báo cáo). **Không** tự ý mở/scan các file khác trong dự án nằm ngoài diff
+để "tìm thêm vấn đề" — review không phải dịp audit toàn bộ codebase. Ngoại lệ hợp lý, vẫn được làm:
+chạy 3 cổng bắt buộc (`tsc -b`/`oxlint`/`npm run build`) vì đó là lệnh không phải đọc file; và khi
+một dòng trong diff **tham chiếu trực tiếp** tới một chỗ có sẵn (ví dụ gọi một entry trong
+`permissions.ts`/`enums.ts`, dùng lại một component trong `shared/ui/`) thì mở đúng dòng/entry đó để
+xác nhận khớp — không mở cả file để soát toàn diện nội dung không liên quan.
+
 Đọc diff/code được chỉ định, sau đó chấm theo các tiêu chí sau — mỗi phát hiện gắn mức độ
 **Blocker** (phải sửa trước khi tính là xong) / **Nên sửa** (chất lượng, không chặn) / **Góp ý**
 (tuỳ chọn):
