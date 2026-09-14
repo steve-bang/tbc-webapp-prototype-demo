@@ -57,7 +57,13 @@ export const CONDITION_EVENT_TYPES = [
 ] as const
 export type ConditionEventType = (typeof CONDITION_EVENT_TYPES)[number]
 
-/** Khách hàng — `CustomerManagement-BRD.md` §10. */
+/**
+ * Khách hàng — `CustomerManagement-BRD.md` §9/§10 (2 giá trị đang dùng).
+ * TODO(OQ: CM-BRD §9 đề xuất thêm `INACTIVE` — "ngừng sử dụng dịch vụ";
+ * UC-CM-13 (Deactivate) yêu cầu kiểm tra active rental trước khi chuyển,
+ * phụ thuộc `Rental` (Phase 2, chưa tồn tại). Không tự thêm `INACTIVE` bây
+ * giờ — sửa cùng lúc với luồng kiểm tra active rental khi Rental build.)
+ */
 export const CUSTOMER_STATUSES = ['ACTIVE', 'BLOCKED'] as const
 export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number]
 
@@ -230,5 +236,11 @@ export const AUDIT_ACTIONS = [
   'GRANT_ACCOUNT',
   'LOCK_ACCOUNT',
   'UNLOCK_ACCOUNT', // BA đề xuất — bổ sung ngoài UC-EA-20 §24.3 (chỉ liệt kê LOCK_ACCOUNT)
+  // Customer Management (CM) — CM-R06/UC-CM-14/AC-CM-009, Round 1 (List). Round 2 sẽ nối thêm
+  // ADD_CUSTOMER_DOCUMENT/UPDATE_CUSTOMER_DOCUMENT/DELETE_CUSTOMER_DOCUMENT.
+  'CREATE_CUSTOMER',
+  'UPDATE_CUSTOMER',
+  'BLOCK_CUSTOMER',
+  'UNBLOCK_CUSTOMER',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

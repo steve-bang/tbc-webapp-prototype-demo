@@ -57,6 +57,17 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Feature `features/customers` — Round 1 (Danh sách khách hàng, `/customers`, module `CM`) hoàn
+  thành**, đúng phạm vi `docs/CUSTOMER-MANAGEMENT-PLAN.md` Round 1: model `Customer` (enum
+  `CUSTOMER_STATUSES` giữ nguyên `ACTIVE`/`BLOCKED`, không thêm `INACTIVE` — `TODO(OQ)` tại khai
+  báo), api/hooks đầy đủ audit (`CM-R01/02/03/05/06`, 4 audit action mới), seed 9 khách (8 `ACTIVE`
+  đa dạng field + 1 `BLOCKED` có lý do), `CustomerListScreen` (tìm kiếm tên/SĐT/CCCD, lọc trạng
+  thái, tạo/sửa qua Sheet, Khoá/Mở khoá bắt buộc lý do qua `CustomerReasonDialog`), responsive
+  375/768/desktop. Qua review `tech-lead` đạt ngay vòng 1 (không Blocker) — 3 điểm dev tự quyết
+  định (kiểu tạm cho `CustomerDocument.documentType`, sentinel Select optional, màu badge `BLOCKED`)
+  đều được xác nhận hợp lệ. 3 nợ nhỏ không chặn chuyển sang Round 2 (xem
+  `docs/IMPLEMENTATION-PLAN.md`). Round 2 (Customer Detail, `/customers/:id`) chưa bắt đầu — route
+  vẫn giữ `ComingSoon`.
 - **Feature `features/employees` — trang Quản lý nhân viên (`/employees`, module `EA`) hoàn thành**,
   đúng phạm vi `docs/EMPLOYEE-MANAGEMENT-PLAN.md`: model `Employee`/`UserAccount`, state machine
   3 trạng thái (`ACTIVE ⇄ SUSPENDED → INACTIVE`), api/hooks đầy đủ audit (`EA-BR-01/02/04/05/06/16`),

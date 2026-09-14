@@ -1,8 +1,8 @@
 # Kế hoạch triển khai — Trang Quản lý Khách hàng (Customer Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (14/09/2026, chủ dự án phê duyệt) — đã
-giao `dev` implement **Round 1** (List). Round 2 (Detail) chờ Round 1 qua review đạt + xác nhận
-tiếp từ chủ dự án.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 (List) `DONE`** (14/09/2026) — implement
+xong, qua review `tech-lead` đạt ngay vòng 1, đã commit. **Round 2 (Detail) `APPROVED`, chưa bắt
+đầu** — chờ xác nhận tiếp từ chủ dự án trước khi giao `dev`.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/CustomerManagement-BRD.md` (v1.3) +
 `CustomerManagement-UseCase.md` (v1.1) + `../thien-bao-car-docs/WebappQuanTri.md` §7.

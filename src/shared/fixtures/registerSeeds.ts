@@ -12,3 +12,4 @@
  */
 
 import '@/features/employees/seed'
+import '@/features/customers/seed'
