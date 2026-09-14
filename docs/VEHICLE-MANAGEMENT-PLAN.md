@@ -1,7 +1,7 @@
 # Kế hoạch triển khai — Trang Quản lý Xe (Vehicle Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` — chờ phê duyệt trước khi giao
-`dev` implement. **Không code** — tài liệu này chỉ lên kế hoạch.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 (List) `APPROVED`** (14/09/2026, chủ dự án
+phê duyệt) — đã giao `dev` implement. Round 2 (Detail) vẫn chưa lên kế hoạch chi tiết (xem §0/§8).
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/VehicleManagement-BRD.md` (v1.12) +
 `VehicleManagement-UseCase.md` (SRS-VM-*, lưu ý header không chuẩn — xem `CLAUDE.md` kho tài liệu

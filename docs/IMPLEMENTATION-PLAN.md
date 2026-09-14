@@ -55,8 +55,8 @@ Owner/Consignment tạm ẩn.
       comment `CM-R03`/`AC-CM-007`/`RM §41 Case 2` tại `canBlock`, thống nhất nhãn `noValue`).
       `tsc -b`/`oxlint`/`build` sạch cả 2 round.
 - [~] `features/vehicles`: kế hoạch chi tiết đầy đủ cho **Round 1 (Vehicle List)** ở
-      [`docs/VEHICLE-MANAGEMENT-PLAN.md`](VEHICLE-MANAGEMENT-PLAN.md), trạng thái `PENDING_APPROVAL`
-      — **chờ phê duyệt** trước khi giao `dev`. Round 2 (Vehicle Detail nhiều tab) **cố ý chưa lên kế
+      [`docs/VEHICLE-MANAGEMENT-PLAN.md`](VEHICLE-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
+      (14/09/2026) — **đang giao `dev` implement Round 1**. Round 2 (Vehicle Detail nhiều tab) **cố ý chưa lên kế
       hoạch chi tiết** — theo đúng thứ tự build đã chốt ở `docs/PAGE-IMPLEMENTATION-PRIORITY.md`
       (Vehicle list → Maintenance list → Vehicle Detail), Round 2 chỉ lên kế hoạch sau khi
       `features/maintenance` (mục tiếp theo) xong, để tab Maintenance+SpareParts nối dữ liệu thật
