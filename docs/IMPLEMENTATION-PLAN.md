@@ -76,8 +76,11 @@ Owner/Consignment tạm ẩn.
       Rule vô hiệu hoá thay vì xoá, Record/SparePart append-only, seed đủ 3 trạng thái
       `OK`/`DUE_SOON`/`OVERDUE` tính động. Qua review `tech-lead` đạt ngay vòng 1, không Blocker.
       Chi tiết đầy đủ ở `CHANGELOG.md` 2026-09-14.
-- [ ] Cập nhật `shared/fixtures/registerSeeds.ts` theo đúng thứ tự trên.
-- [ ] Xoá `ComingSoon` cho các route đã xong trong `app/routes.tsx`.
+- [x] Cập nhật `shared/fixtures/registerSeeds.ts` theo đúng thứ tự trên — mỗi feature tự thêm
+      import khi implement, đã đúng thứ tự `employees → customers → vehicles → maintenance`.
+- [x] Xoá `ComingSoon` cho các route đã xong trong `app/routes.tsx` — `/employees`, `/customers`,
+      `/customers/:id`, `/vehicles`, `/maintenance` đều đã mount screen thật. Còn lại `ComingSoon`
+      hợp lệ: `/employees/:id` + `/vehicles/:id` (Detail, chưa tới lượt) và mọi route Phase 2+.
 
 ## Phase 2 — Lịch & lượt thuê (lõi nghiệp vụ) — `[ ]`
 
