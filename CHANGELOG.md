@@ -134,6 +134,23 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Feature `features/rentals` — trang Lượt thuê Round 1 (data core + Rental List +
+  Tạo/Xác nhận/Huỷ lượt thuê, module `RM` — hub trung tâm Phase 2) hoàn thành**, đúng phạm vi
+  `docs/RENTAL-MANAGEMENT-PLAN.md` §1-§7/§9-§13. Model `Rental` 12-state lifecycle
+  (`RENTAL_STATUSES`), `Rental Rate` nhập tay (không có "Bảng giá" trong hệ thống), snapshot giá/cọc
+  2 phần/Allowed KM/Price Per KM theo Vehicle Class tại thời điểm tạo (`RM-BR-12/24/25`). Api/hooks
+  đầy đủ audit, chống trùng lịch xe + Turnaround Buffer 90 phút (`RM-BR-04/23`, CR-2026-006), phí
+  giao/nhận ngoài 10km = 15.000đ/km (CR-2026-062). Seed 29 lượt thuê phủ đủ 12 trạng thái, tính qua
+  đúng hàm thuần `model.ts` (không tính tay). `RentalListScreen`/`RentalFormSheet`/
+  `RentalConfirmDialog`/`RentalCancelDialog`, Round 1 chỉ tự thao tác `DRAFT⇄CONFIRMED⇄CANCELLED` qua
+  UI. Qua 2 vòng review `tech-lead`: **vòng 1 phát hiện 1 Blocker** —
+  `rentalDurationDays()` dùng `Math.round` (qua `daysBetween()` dùng chung của
+  `shared/lib/datetime.ts`) thay vì `Math.ceil` như §3.1 yêu cầu ("làm tròn lên khi có phần ngày
+  lẻ"), gây tính thiếu 1 ngày tiền thuê cho phần lớn lượt thuê có giờ lẻ không đúng bội số 24h;
+  `dev` sửa bằng cách tính trực tiếp trong `model.ts` (`parseISO` + `Math.ceil`, giữ `Math.max(1,
+  ...)`), không đụng `daysBetween()` dùng chung cho chỗ khác. **Vòng 2 xác nhận hết Blocker** — verify
+  lại bằng script độc lập (25h/35h → đúng 2 ngày thay vì 1) và xác nhận `api.ts`/`seed.ts` đều gọi
+  qua hàm mới, không hardcode.
 - **Feature `features/vehicles` — Round 2 (Vehicle Detail, `/vehicles/:id`) hoàn thành,
   `features/vehicles` xong toàn bộ (khép lại Phase 1)**, đúng phạm vi
   `docs/VEHICLE-MANAGEMENT-PLAN.md` §8. `VehicleDetailScreen` mirror 1:1 cấu trúc

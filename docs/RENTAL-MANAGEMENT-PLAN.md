@@ -1,10 +1,12 @@
 # Kế hoạch triển khai — Trang Lượt thuê (Rental Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 `APPROVED`** (14/09/2026, chủ dự án duyệt)
-— data core + Rental List + Create/Confirm/Cancel đã lên kế hoạch chi tiết đầy đủ ở §1-§7/§9-§13, đã
-giao `dev` implement. §8 là **lộ trình** cho phần còn lại của Phase 2 (Calendar+Dispatch/Rental
-Detail/Employee Assignment/Contracts/nối Rental History) — mức mục tiêu/phạm vi/rule chính, **chưa
-chi tiết hoá field-level**, sẽ viết plan riêng khi tới lượt (đúng tiền lệ Vehicle Round 2 ở Phase 1).
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 `DONE`** (14/09/2026) — data core + Rental
+List + Create/Confirm/Cancel đã lên kế hoạch chi tiết đầy đủ ở §1-§7/§9-§13, `dev` implement xong,
+qua 2 vòng review `tech-lead` (vòng 1: 1 Blocker — `rentalDurationDays()` làm tròn sai công thức
+§3.1, đã sửa; vòng 2: hết Blocker). §8 là **lộ trình** cho phần còn lại của Phase 2
+(Calendar+Dispatch/Rental Detail/Employee Assignment/Contracts/nối Rental History) — mức mục
+tiêu/phạm vi/rule chính, **chưa chi tiết hoá field-level**, sẽ viết plan riêng khi tới lượt (đúng
+tiền lệ Vehicle Round 2 ở Phase 1).
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/RentalManagement-BRD.md` (v1.7, đặc biệt §8-§27,
 §38, §46, §51-§57) + `RentalManagement-UseCase.md` (v1.2, đặc biệt §5.5 UC-RM-01, §24a UC-RM-06/21) +

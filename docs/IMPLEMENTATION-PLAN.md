@@ -97,9 +97,9 @@ Cancel) **trước** `features/calendar`, vì Calendar chỉ là lớp hiển th
 về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồn tại trước. Chi tiết lý do ở
 `docs/RENTAL-MANAGEMENT-PLAN.md` Context.
 
-- [~] `features/rentals` (RM — hub trung tâm): kế hoạch chi tiết đầy đủ **Round 1 (data core + Rental
-      List + Tạo/Xác nhận/Huỷ lượt thuê)** ở [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md),
-      trạng thái `APPROVED` (14/09/2026, chủ dự án duyệt) — đã giao `dev` implement. Phát hiện quan
+- [x] `features/rentals` (RM — hub trung tâm): **Round 1 (data core + Rental List +
+      Tạo/Xác nhận/Huỷ lượt thuê) hoàn thành**, kế hoạch chi tiết ở
+      [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md) (nay `DONE`). Phát hiện quan
       trọng: **không có module "Bảng giá"** trong toàn bộ 21 module — `Rental Rate` là field nhập tay
       của chính `Rental`, không suy ra từ `Vehicle` (đã xác nhận `vehicles/model.ts` không có field
       giá). Model đầy đủ 12-state lifecycle (`RENTAL_STATUSES` đã scaffold từ Phase 0) nhưng Round 1
@@ -107,9 +107,13 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       `COMPLETED`, `NO_SHOW`, `DISPUTED`) chờ module sở hữu (`CT`/`VH`/`VR`/`RS`, Round/Phase sau) nên
       chỉ seed trực tiếp để List hiển thị đủ badge. Chống trùng lịch (`RM-BR-04`) + Turnaround Buffer
       90 phút (`RM-BR-23`/CR-2026-006), snapshot giá/cọc/Allowed KM/Price Per KM theo Vehicle Class
-      (CR-2026-008), phí giao/nhận ngoài 10km = 15.000đ/km (CR-2026-062) — đều enforce Round 1. **Rental
-      Detail** (`/rentals/:id`) **cố ý chưa lên kế hoạch chi tiết** — xem `docs/RENTAL-MANAGEMENT-PLAN.md`
-      §8, sẽ chi tiết hoá khi tới lượt.
+      (CR-2026-008), phí giao/nhận ngoài 10km = 15.000đ/km (CR-2026-062) — đều enforce Round 1. Qua 2
+      vòng review `tech-lead`: vòng 1 phát hiện 1 Blocker (`rentalDurationDays()` dùng `Math.round`
+      qua `daysBetween()` dùng chung thay vì `Math.ceil` riêng theo §3.1 — tính thiếu 1 ngày tiền thuê
+      cho lượt có giờ lẻ), `dev` sửa bằng hàm tính trực tiếp trong `model.ts` (không đụng
+      `shared/lib/datetime.ts` dùng chung cho chỗ khác), vòng 2 xác nhận hết Blocker. **Rental Detail**
+      (`/rentals/:id`) **cố ý chưa lên kế hoạch chi tiết** — xem `docs/RENTAL-MANAGEMENT-PLAN.md` §8,
+      sẽ chi tiết hoá khi tới lượt.
 - [ ] `features/calendar` (RC): Day / **Week (mặc định)** / Month (lưới xe × ngày, màu theo trạng thái
       lượt thuê) / Agenda; tạo nhanh lượt thuê từ ô trống; **Vehicle Block** tạo/gỡ trực tiếp trên Month.
       Lên kế hoạch chi tiết sau khi `features/rentals` Round 1 xong (roadmap sơ bộ ở

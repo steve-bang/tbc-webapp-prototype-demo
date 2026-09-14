@@ -268,5 +268,9 @@ export const AUDIT_ACTIONS = [
   'DEACTIVATE_MAINTENANCE_RULE',
   'CREATE_MAINTENANCE_RECORD',
   'CREATE_SPARE_PART_RECORD',
+  // Rental Management (RM) — Round 1 (List/Create/Confirm/Cancel), RM-BR-11.
+  'CREATE_RENTAL',
+  'CONFIRM_RENTAL',
+  'CANCEL_RENTAL',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
