@@ -108,6 +108,19 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   khi demo song song.
 - Dùng class Tailwind sinh từ token (`bg-primary`, `text-status-error`…), không hardcode hex trong
   component.
+- **Gotcha đã gặp — không đặt khoá có tên chữ trong `@theme { --spacing-* }`** (phát hiện
+  14/09/2026 khi review `features/employees`): `src/index.css` khai `--spacing-xs/sm/md/lg/xl/2xl`
+  (ví dụ `--spacing-lg: 16px`). Trong Tailwind v4, các utility `max-w-*`/`w-*`/`min-w-*` tra
+  **`--spacing-<tên>` trước `--container-<tên>`**, nên `max-w-lg` biên dịch thành
+  `max-width: var(--spacing-lg)` = **16px** thay vì 32rem (kiểm chứng: `npm run build` →
+  `dist/assets/*.css` có `.max-w-lg{max-width:var(--spacing-lg)}`). Hệ quả: `shared/ui/dialog.tsx`
+  (`max-w-lg`), `shared/ui/sheet.tsx` (`sm:max-w-xl`), `shared/layout/ComingSoon.tsx` (`max-w-md`)
+  đều bị thu nhỏ sai. **Cách sửa gốc đã chốt**: bỏ hẳn 6 khoá `--spacing-<tên>` trong `@theme`
+  (không có component nào dùng `p-md`/`gap-lg`/… — đã grep toàn `src/`), để Tailwind trả về thang
+  `--container-*` mặc định; `--spacing: 0.25rem` (thang số `p-4`, `gap-3`…) không bị ảnh hưởng.
+  **Quy tắc từ nay**: mọi token khoảng cách tự đặt phải dùng tên riêng (ví dụ `--tbc-gap-lg`),
+  không chiếm namespace `--spacing-*`/`--container-*`/`--radius-*` của Tailwind; khi thấy một
+  panel/dialog hẹp bất thường, kiểm tra CSS build ra trước khi workaround bằng `max-w-[…]`.
 - **Gotcha đã gặp — flex item cần `min-w-0` mới `truncate` đúng**: `Topbar` ban đầu bị tràn/wrap
   chữ ở khổ ~390px vì span tên app là flex item nhưng không co lại được dưới kích thước nội dung
   (hành vi mặc định của flexbox). Thêm `min-w-0` cùng `truncate` thì mới cắt bớt đúng thay vì đẩy

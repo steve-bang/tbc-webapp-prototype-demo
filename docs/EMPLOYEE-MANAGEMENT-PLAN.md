@@ -1,7 +1,11 @@
 # Kế hoạch triển khai — Trang Quản lý Nhân viên (Employee Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (14/09/2026, chủ dự án phê duyệt) — đã giao
-`dev` implement theo đúng phạm vi §1–§9 và Definition of Done §11.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `DONE` (14/09/2026) — đã implement, qua 2 vòng review
+`tech-lead` (2 Blocker phát hiện ở vòng 1 đã sửa và xác nhận đạt ở vòng 2), đã commit. Nợ nhỏ không
+chặn chuyển sang task sau: khoá i18n `lockReasonPrompt` chết (không còn `window.prompt`), cụm
+`` `max-w-[…]` `` trong `docs/ARCHITECTURE.md` sinh CSS rác khi Tailwind scan văn xuôi, `isBusy` ở
+`EmployeeFormSheet` chưa gồm trạng thái pending của khoá/mở khoá tài khoản, và cần bổ sung nhãn
+tiếng Việt cho 7 audit action mới khi dựng `features/audit`.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/EmployeeAssignment-BRD.md` (v1.4) +
 `EmployeeAssignment-UseCase.md` (v1.4) + `../thien-bao-car-docs/WebappQuanTri.md` §8.2/§8.4.

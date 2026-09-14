@@ -33,11 +33,16 @@ kiểm tra trình duyệt).
 Detail tham chiếu chủ xe/nhân viên ở các tab sau này; nếu chưa làm Consignment (Phase 5) thì tab
 Owner/Consignment tạm ẩn.
 
-- [~] `features/employees`: model (Employee, UserAccount liên kết) · api/hooks/seed (6–8 nhân viên,
+- [x] `features/employees`: model (Employee, UserAccount liên kết) · api/hooks/seed (8 nhân viên,
       đủ vai trò `WebappQuanTri.md` §3) · màn **Hồ sơ nhân viên** (list + tạo/sửa qua Sheet, trạng thái
-      `ACTIVE/INACTIVE/SUSPENDED`). — kế hoạch chi tiết đầy đủ (bao gồm responsive 375/768/desktop) ở
-      [`docs/EMPLOYEE-MANAGEMENT-PLAN.md`](EMPLOYEE-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
-      (14/09/2026) — **đang giao `dev` implement**.
+      `ACTIVE/INACTIVE/SUSPENDED`). Kế hoạch chi tiết ở
+      [`docs/EMPLOYEE-MANAGEMENT-PLAN.md`](EMPLOYEE-MANAGEMENT-PLAN.md) (`APPROVED` 14/09/2026).
+      **Xong 14/09/2026** — review vòng 2 đạt: 2 blocker đã sửa (bỏ 6 khoá `--spacing-<tên>` trong
+      `src/index.css` để `max-w-*` trả về thang `--container-*`, xem `docs/ARCHITECTURE.md` §6;
+      `unlockAccount()` chặn nhân viên không `ACTIVE` theo `EA-BR-02`), `CHANGE_ROLE`/`LOCK_ACCOUNT`
+      thu `reason` bắt buộc qua `EmployeeReasonDialog` (`UC-EA-20` §24.3), `EA-BR-04` guard trong
+      `api.update`. Nợ nhỏ chuyển task sau: bỏ khoá i18n chết `vi.employees.lockReasonPrompt`;
+      khi dựng `features/audit` phải bổ sung nhãn cho 7 audit action mới trong `enums.ts`.
 - [ ] `features/customers`: model (Customer) · api/hooks/seed (8–10 khách, có 1 khách `BLOCKED`) ·
       màn **Danh sách khách** (tìm kiếm theo tên/SĐT/CCCD, lọc trạng thái) · **Customer Detail** (tab
       giấy tờ, lịch sử thuê placeholder, thanh toán/công nợ placeholder, sự cố placeholder, tín nhiệm) ·

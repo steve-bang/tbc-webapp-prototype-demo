@@ -3,13 +3,6 @@
 @theme {
   --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 32px;
-
   --color-status-pending: #b26a00;
   --color-status-progress: #0b6b3a;
   --color-status-done: #1b5e20;

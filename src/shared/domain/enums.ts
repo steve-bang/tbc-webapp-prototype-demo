@@ -206,7 +206,14 @@ export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number]
 export const NOTIFICATION_DELIVERY_STATUSES = ['PENDING', 'SENT', 'FAILED', 'RETRY', 'CANCELLED'] as const
 export type NotificationDeliveryStatus = (typeof NOTIFICATION_DELIVERY_STATUSES)[number]
 
-/** Hành động audit — dùng chung cho mọi feature (xem `shared/lib/audit.ts`). */
+/**
+ * Hành động audit — dùng chung cho mọi feature (xem `shared/lib/audit.ts`).
+ * 8 giá trị đầu là từ vựng chung (CRUD + xác nhận). Các giá trị nối thêm bên
+ * dưới là hành động riêng của `EmployeeAssignment` — danh mục action bắt
+ * buộc theo `UC-EA-20` §24.3 (không dùng CREATE/UPDATE chung chung vì tài
+ * liệu yêu cầu phân biệt rõ CHANGE_ROLE/CHANGE_WORK_STATUS/GRANT_ACCOUNT/
+ * LOCK_ACCOUNT cho màn "Nhật ký thao tác").
+ */
 export const AUDIT_ACTIONS = [
   'CREATE',
   'UPDATE',
@@ -216,5 +223,12 @@ export const AUDIT_ACTIONS = [
   'CANCEL',
   'LOGIN',
   'EXPORT',
+  'CREATE_EMPLOYEE',
+  'UPDATE_EMPLOYEE',
+  'CHANGE_ROLE',
+  'CHANGE_WORK_STATUS',
+  'GRANT_ACCOUNT',
+  'LOCK_ACCOUNT',
+  'UNLOCK_ACCOUNT', // BA đề xuất — bổ sung ngoài UC-EA-20 §24.3 (chỉ liệt kê LOCK_ACCOUNT)
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

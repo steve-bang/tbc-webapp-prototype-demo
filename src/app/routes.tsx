@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
+import { EmployeeListScreen } from '@/features/employees'
 import { AppShell } from '@/shared/layout/AppShell'
 import { ComingSoon } from '@/shared/layout/ComingSoon'
 import { paths } from './paths'
@@ -22,7 +23,7 @@ export function AppRoutes() {
         <Route path="/customers/:id" element={<ComingSoon title="Chi tiết khách hàng" />} />
 
         <Route path={paths.dispatchBoard} element={<ComingSoon title="Bảng điều phối trong ngày" />} />
-        <Route path={paths.employees} element={<ComingSoon title="Hồ sơ nhân viên" />} />
+        <Route path={paths.employees} element={<EmployeeListScreen />} />
         <Route path="/employees/:id" element={<ComingSoon title="Chi tiết nhân viên" />} />
 
         <Route path={paths.rentals} element={<ComingSoon title="Danh sách lượt thuê" />} />
