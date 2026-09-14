@@ -114,12 +114,17 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       `shared/lib/datetime.ts` dùng chung cho chỗ khác), vòng 2 xác nhận hết Blocker. **Rental Detail**
       (`/rentals/:id`) **cố ý chưa lên kế hoạch chi tiết** — xem `docs/RENTAL-MANAGEMENT-PLAN.md` §8,
       sẽ chi tiết hoá khi tới lượt.
-- [ ] `features/calendar` (RC): Day / **Week (mặc định)** / Month (lưới xe × ngày, màu theo trạng thái
-      lượt thuê) / Agenda; tạo nhanh lượt thuê từ ô trống; **Vehicle Block** tạo/gỡ trực tiếp trên Month.
-      Lên kế hoạch chi tiết sau khi `features/rentals` Round 1 xong (roadmap sơ bộ ở
-      `docs/RENTAL-MANAGEMENT-PLAN.md` §8.1).
+- [~] `features/calendar` (RC): kế hoạch chi tiết đầy đủ **Round 2 (Week mặc định + Month lưới xe×
+      ngày + Vehicle Block + tạo nhanh)** ở [`docs/CALENDAR-MANAGEMENT-PLAN.md`](CALENDAR-MANAGEMENT-PLAN.md),
+      trạng thái `APPROVED` (14/09/2026, **tự duyệt theo uỷ quyền chủ dự án**) — đã giao `dev`
+      implement. Phát hiện quan trọng: khu "Chưa xếp xe" mô tả trong `RentalCalendar-BRD.md` **không
+      dựng được** — xung đột với `RM-BR-02` (Round 1 đã bắt buộc `vehicleId` lúc tạo Rental), ghi
+      `TODO(OQ)` thay vì tự sửa lại Round 1. **Round 3 (Day/Agenda view + kéo-thả dời lịch/đổi xe
+      UC-RC-06/07)** cố ý chưa lên kế hoạch chi tiết — tách riêng vì rủi ro cao nhất (rollback-on-
+      conflict + audit + xác nhận), để không dồn hết vào lần code lưới lịch đầu tiên của dự án.
 - [ ] Bảng điều phối trong ngày (dispatch board, trong `calendar` — theo `CLAUDE.md` bản đồ module):
       danh sách giao/nhận hôm nay, lượt sắp đến hạn, quá hạn trả; phân công nhân viên ngay trên bảng.
+      Roadmap sơ bộ ở `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.2 — cần `Assignment` (`EA`) chưa build.
 - [ ] `RentalDetailScreen` (`/rentals/:id`): giá snapshot, cọc, phát sinh, trạng thái thanh toán
       placeholder, assignment, hợp đồng liên kết, lịch sử trạng thái — roadmap ở
       `docs/RENTAL-MANAGEMENT-PLAN.md` §8.2.

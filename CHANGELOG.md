@@ -15,6 +15,21 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Planned**
 
+- Thêm [`docs/CALENDAR-MANAGEMENT-PLAN.md`](docs/CALENDAR-MANAGEMENT-PLAN.md): kế hoạch triển khai
+  **Round 2** của trang **Lịch cho thuê** (`/calendar`, module `RC`) — Week (mặc định, CR-2026-032) +
+  Month (lưới xe×ngày, CR-2026-017/044) + Vehicle Block (entity mới, CR-2026-015) + tạo nhanh lượt
+  thuê từ ô trống (UC-RC-05). Đối chiếu `RentalCalendar-BRD.md` v1.3 toàn bộ (`RC-BR-01→16`) +
+  `-UseCase.md` v1.2 + `WebappQuanTri.md` §8 + `RentalManagement-BRD.md` §57. **Phát hiện quan trọng
+  nhất**: khu "Chưa xếp xe" mà `RentalCalendar-BRD.md` mô tả **không dựng được** — xung đột kiến trúc
+  với `RM-BR-02` (Round 1 `rentals` đã bắt buộc `vehicleId` ngay lúc tạo, đã DONE/review) — ghi
+  `TODO(OQ)` thay vì tự sửa lại Round 1 đã hoàn thành. **Quyết định slice phạm vi** (tech-lead tự
+  quyết, rủi ro thấp trước): CHỈ Week+Month, KHÔNG làm Day/Agenda/kéo-thả dời lịch-đổi xe (UC-RC-06/
+  07 — rủi ro cao nhất, tách Round 3) và KHÔNG làm Dispatch board (cần `Assignment` từ `EA` chưa
+  build, đã là dòng backlog riêng). Mở rộng barrel `rentals/index.ts` để `calendar` tái dùng
+  `hasConflict()`/`TURNAROUND_BUFFER_MINUTES`/`useRentals` (đúng pattern `maintenance/index.ts`),
+  không đụng `rentals/model.ts`/`api.ts`. **Trạng thái: `APPROVED` — tự duyệt theo uỷ quyền của chủ
+  dự án** (14/09/2026, khác mọi round trước — không qua giai đoạn `PENDING_APPROVAL` chờ xác nhận
+  riêng), đã giao `dev` implement ngay.
 - Thêm [`docs/RENTAL-MANAGEMENT-PLAN.md`](docs/RENTAL-MANAGEMENT-PLAN.md): kế hoạch triển khai
   **Round 1** của trang **Lượt thuê** (`/rentals`, module `RM` — hub trung tâm Phase 2) — data core
   (`model`/`api`/`hooks`/`seed`) + Rental List + Tạo/Xác nhận/Huỷ lượt thuê. Đối chiếu
