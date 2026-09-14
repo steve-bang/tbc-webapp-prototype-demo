@@ -114,12 +114,27 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       `shared/lib/datetime.ts` dùng chung cho chỗ khác), vòng 2 xác nhận hết Blocker. **Rental Detail**
       (`/rentals/:id`) **cố ý chưa lên kế hoạch chi tiết** — xem `docs/RENTAL-MANAGEMENT-PLAN.md` §8,
       sẽ chi tiết hoá khi tới lượt.
-- [~] `features/calendar` (RC): kế hoạch chi tiết đầy đủ **Round 2 (Week mặc định + Month lưới xe×
-      ngày + Vehicle Block + tạo nhanh)** ở [`docs/CALENDAR-MANAGEMENT-PLAN.md`](CALENDAR-MANAGEMENT-PLAN.md),
-      trạng thái `APPROVED` (14/09/2026, **tự duyệt theo uỷ quyền chủ dự án**) — đã giao `dev`
-      implement. Phát hiện quan trọng: khu "Chưa xếp xe" mô tả trong `RentalCalendar-BRD.md` **không
-      dựng được** — xung đột với `RM-BR-02` (Round 1 đã bắt buộc `vehicleId` lúc tạo Rental), ghi
-      `TODO(OQ)` thay vì tự sửa lại Round 1. **Round 3 (Day/Agenda view + kéo-thả dời lịch/đổi xe
+- [x] `features/calendar` (RC): **Round 2 (Week mặc định + Month lưới xe×ngày + Vehicle Block +
+      tạo nhanh) hoàn thành**, kế hoạch chi tiết ở
+      [`docs/CALENDAR-MANAGEMENT-PLAN.md`](CALENDAR-MANAGEMENT-PLAN.md) (nay `DONE`). Phát hiện quan
+      trọng: khu "Chưa xếp xe" mô tả trong `RentalCalendar-BRD.md` **không dựng được** — xung đột
+      với `RM-BR-02` (Round 1 đã bắt buộc `vehicleId` lúc tạo Rental), ghi `TODO(OQ)` trong
+      `calendar/model.ts` thay vì tự sửa lại Round 1. Qua 1 vòng review `tech-lead`: **không có
+      Blocker** (3 cổng `tsc -b`/`oxlint`/`build` sạch, không đụng `rentals/model.ts`/`api.ts`, không
+      có khu "Chưa xếp xe"/kéo-thả/dispatch board lọt vào, seed + audit + phân quyền đúng). 4 điểm
+      "Nên sửa" ghi nhận cho theo dõi (không chặn, để Round sau hoặc patch nhỏ): (1) màu Rental Block
+      trên lưới Week chưa tái dùng `STATUS_VARIANT` như §5.2 dự kiến — chỉ 1 màu cố định + text trạng
+      thái; (2) RC-BR-04 ở tạo nhanh dựa vào cảnh báo/chặn cứng có sẵn của `RentalFormSheet` Round 1
+      tại bước Xác nhận, không chặn ngay lúc mở form như §5.4 dự kiến — chuỗi i18n
+      `vehicleInactiveNotice` hiện chưa được dùng tới; (3) `RentalBlockPopover` trigger (`div
+      role="button"`) có `tabIndex` nhưng thiếu `onKeyDown` Enter/Space nên chưa mở được bằng bàn
+      phím; (4) `RentalQuickCreateGate.tsx` là hàm thuần (không phải component React) nên cân nhắc
+      dời sang `model.ts` cho khớp bảng cấu trúc `CONVENTIONS.md` §3. Đã verify: deep-import
+      `RentalStatusBadge` đúng tiền lệ có sẵn (`maintenance/hooks.ts`, `RentalFormSheet.tsx` đều
+      deep-import `useVehicles`/`useCustomers` qua `hooks.ts` chứ không qua barrel); route-level
+      permission guard (`/calendar` gõ thẳng URL vẫn vào được dù sidebar ẩn link) là lỗ hổng kiến
+      trúc **toàn app có từ trước** (không riêng Round 2, không sửa ở review này — cần một mục
+      backlog riêng nếu muốn khắc phục). **Round 3 (Day/Agenda view + kéo-thả dời lịch/đổi xe
       UC-RC-06/07)** cố ý chưa lên kế hoạch chi tiết — tách riêng vì rủi ro cao nhất (rollback-on-
       conflict + audit + xác nhận), để không dồn hết vào lần code lưới lịch đầu tiên của dự án.
 - [ ] Bảng điều phối trong ngày (dispatch board, trong `calendar` — theo `CLAUDE.md` bản đồ module):

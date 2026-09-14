@@ -1,9 +1,10 @@
 # Kế hoạch triển khai — Trang Lịch cho thuê (Rental Calendar)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (14/09/2026) — **tự duyệt theo uỷ quyền
-của chủ dự án** (tin nhắn 14/09/2026: "tôi cho phép bạn tự lên kế hoạch, tự accept plan... không cần
-tôi accept plan"). Round 2 (Week + Month + Vehicle Block + tạo nhanh) đã lên kế hoạch chi tiết đầy đủ
-ở §1-§7/§9-§13, đã giao `dev` implement.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `DONE` (14/09/2026) — kế hoạch **tự duyệt theo uỷ
+quyền của chủ dự án** (tin nhắn 14/09/2026: "tôi cho phép bạn tự lên kế hoạch, tự accept plan...
+không cần tôi accept plan"). Round 2 (Week + Month + Vehicle Block + tạo nhanh) đã implement xong,
+qua 1 vòng review `tech-lead` không có Blocker (chi tiết ở `docs/IMPLEMENTATION-PLAN.md` mục
+`features/calendar`). Round 3 (Day/Agenda + kéo-thả, §8.1) chưa bắt đầu.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/RentalCalendar-BRD.md` (v1.3, toàn bộ §1-§35) +
 `RentalCalendar-UseCase.md` (v1.2, UC-RC-05/08/13/18) + `../thien-bao-car-docs/modules/

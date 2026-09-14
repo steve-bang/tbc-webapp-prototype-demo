@@ -259,3 +259,32 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   xe nào trong hệ thống — chấp nhận được ở Phase 1 demo dữ liệu cố định); `<datalist>` HTML thuần
   gợi ý category (không phải component mới, không vi phạm quy ước); độ dài `MaintenanceScreen.tsx`
   hợp lý, không cần tách thêm.
+- **Feature `features/calendar` — trang Lịch cho thuê Round 2 (`/calendar`, module `RC`: Week mặc
+  định + Month lưới xe×ngày + Vehicle Block + tạo nhanh lượt thuê) hoàn thành**, đúng phạm vi
+  `docs/CALENDAR-MANAGEMENT-PLAN.md` §1-§7/§9-§13 (kế hoạch tự duyệt `APPROVED` theo uỷ quyền chủ dự
+  án, không qua `PENDING_APPROVAL`). Entity mới `VehicleBlock` (khoá lịch xe theo khoảng ngày, độc
+  lập `Vehicle.status` — CR-2026-015), hàm thuần `isVehicleBlockedForPeriod`/
+  `findRentalsAffectedByBlock`/`turnaroundBufferWindow`/`rentalsByVehicleInRange`. `CalendarWeekGrid`
+  (mỗi xe 1 hàng, block vẽ theo % giờ trong từng ô ngày — không bo tròn góc liên tục hoàn hảo nhưng
+  vị trí đúng RC-BR-12) + `CalendarMonthGrid` (chấm/số lượt rút gọn + khoá phủ ô ngày, CR-2026-017/
+  044) + tạo nhanh từ ô trống (tái dùng nguyên `RentalFormSheet` Round 1 qua prop `defaultValues`
+  mới, không viết lại) + CRUD Vehicle Block (cảnh báo Rental `CONFIRMED`+ bị ảnh hưởng, không tự xử
+  lý). Mở rộng `rentals/index.ts` đúng 5 export theo kế hoạch (`TURNAROUND_BUFFER_MINUTES`/
+  `hasConflict`/`useRentals`/`RentalFilter`), không đụng `rentals/model.ts`/`api.ts`. Seed 5
+  `VehicleBlock` (3 `ACTIVE` gồm 1 trùng lượt `CONFIRMED` để demo cảnh báo + 1 khoá vô thời hạn, 2
+  `RELEASED` giữ lịch sử). **Xác nhận lại phát hiện quan trọng của kế hoạch**: khu "Chưa xếp xe"
+  (`RentalCalendar-BRD.md`) không dựng được do xung đột `RM-BR-02` — chỉ `TODO(OQ)`, không sửa lại
+  Round 1. Qua 1 vòng review `tech-lead`: **không có Blocker**. Đã verify các quyết định của `dev`:
+  deep-import `RentalStatusBadge` (không qua barrel `rentals`) đúng tiền lệ có sẵn trong repo
+  (`maintenance/hooks.ts`/`RentalFormSheet.tsx` đều deep-import `useVehicles`/`useCustomers` tương
+  tự); cảnh báo oxlint `react(set-state-in-effect)` khiến tìm kiếm→nhảy-tới-ngày phải xử lý trong
+  `onChange` thay vì `useEffect` là có thật (verify độc lập bằng file mẫu); `<div role="button">` +
+  `tabIndex`/`onKeyDown` thay `<button>` ở ô ngày Week (tránh nesting interactive) hợp lệ; route-level
+  permission guard thiếu (`/calendar` gõ thẳng URL vẫn vào được) là lỗ hổng kiến trúc **toàn app có
+  từ trước**, không riêng Round 2 — ghi nhận, không sửa ở review này. Ghi nhận 4 điểm "Nên sửa" không
+  chặn (chi tiết ở `docs/IMPLEMENTATION-PLAN.md`): màu Rental Block trên Week chưa tái dùng
+  `STATUS_VARIANT` như kế hoạch §5.2; RC-BR-04 ở tạo nhanh dựa vào chặn cứng sẵn có của
+  `RentalFormSheet` tại bước Xác nhận thay vì chặn ngay lúc mở form (chuỗi i18n
+  `vehicleInactiveNotice` hiện chưa dùng tới); `RentalBlockPopover` trigger thiếu `onKeyDown` nên
+  chưa mở được bằng bàn phím; `RentalQuickCreateGate.tsx` là hàm thuần nên cân nhắc dời sang
+  `model.ts` ở round sau.

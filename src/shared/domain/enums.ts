@@ -225,6 +225,14 @@ export const NOTIFICATION_DELIVERY_STATUSES = ['PENDING', 'SENT', 'FAILED', 'RET
 export type NotificationDeliveryStatus = (typeof NOTIFICATION_DELIVERY_STATUSES)[number]
 
 /**
+ * Vehicle Block — CR-2026-015, `RC-BR-15/16` (`RentalManagement-BRD.md` §57 +
+ * `RentalCalendar-BRD.md` §30). `ACTIVE` = đang khoá lịch xe, `RELEASED` = đã
+ * gỡ (không xoá — giữ lịch sử, đúng nguyên tắc chung `AL`).
+ */
+export const VEHICLE_BLOCK_STATUSES = ['ACTIVE', 'RELEASED'] as const
+export type VehicleBlockStatus = (typeof VEHICLE_BLOCK_STATUSES)[number]
+
+/**
  * Hành động audit — dùng chung cho mọi feature (xem `shared/lib/audit.ts`).
  * 8 giá trị đầu là từ vựng chung (CRUD + xác nhận). Các giá trị nối thêm bên
  * dưới là hành động riêng của `EmployeeAssignment` — danh mục action bắt
@@ -272,5 +280,8 @@ export const AUDIT_ACTIONS = [
   'CREATE_RENTAL',
   'CONFIRM_RENTAL',
   'CANCEL_RENTAL',
+  // Rental Calendar (RC) — Vehicle Block CRUD, `docs/CALENDAR-MANAGEMENT-PLAN.md` §9 (CR-2026-015).
+  'CREATE_VEHICLE_BLOCK',
+  'RELEASE_VEHICLE_BLOCK',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

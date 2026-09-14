@@ -33,7 +33,12 @@ import {
   type RentalFormValues,
 } from '../model'
 
-function defaultFormValues(): RentalFormValues {
+/**
+ * `docs/CALENDAR-MANAGEMENT-PLAN.md` §5.4 — `overrides` cho phép `features/calendar`
+ * điền sẵn `vehicleId`/`pickupDateTime` khi tạo nhanh lượt thuê từ ô trống trên
+ * lịch, hành vi mặc định (không truyền `overrides`) giữ nguyên như Round 1.
+ */
+function defaultFormValues(overrides?: Partial<Pick<RentalFormValues, 'vehicleId' | 'pickupDateTime'>>): RentalFormValues {
   return {
     customerId: '',
     vehicleId: '',
@@ -50,6 +55,7 @@ function defaultFormValues(): RentalFormValues {
     securityDepositType: 'CASH_20M', // RM-BR-17 — mặc định tiền mặt
     securityDepositAssetNote: '',
     note: '',
+    ...overrides,
   }
 }
 
@@ -59,7 +65,16 @@ function defaultFormValues(): RentalFormValues {
  * Giá & phụ phí / Đặt cọc / Ghi chú. Toàn bộ field tính toán hiển thị
  * real-time (readonly) qua `useWatch` + hàm thuần `model.ts`.
  */
-export function RentalFormSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function RentalFormSheet({
+  open,
+  onOpenChange,
+  defaultValues,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** `docs/CALENDAR-MANAGEMENT-PLAN.md` §5.4 — điền sẵn khi mở từ ô trống trên Lịch cho thuê. */
+  defaultValues?: Partial<Pick<RentalFormValues, 'vehicleId' | 'pickupDateTime'>>
+}) {
   const createRental = useCreateRental()
   const { data: customers = [] } = useCustomers()
   const { data: vehicles = [] } = useVehicles()
@@ -74,12 +89,15 @@ export function RentalFormSheet({ open, onOpenChange }: { open: boolean; onOpenC
     formState: { errors, isSubmitting },
   } = useForm<RentalFormValues>({
     resolver: zodResolver(rentalFormSchema),
-    defaultValues: defaultFormValues(),
+    defaultValues: defaultFormValues(defaultValues),
   })
 
   useEffect(() => {
-    if (open) reset(defaultFormValues())
-  }, [open, reset])
+    // `defaultValues` cố ý không nằm trong deps — chỉ áp dụng lại khi Sheet
+    // vừa mở (`open` đổi), không phải mỗi khi object `defaultValues` đổi
+    // identity ở component cha.
+    if (open) reset(defaultFormValues(defaultValues))
+  }, [open, reset]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isBusy = createRental.isPending || isSubmitting
 

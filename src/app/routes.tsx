@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
+import { CalendarScreen } from '@/features/calendar'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
 import { MaintenanceScreen } from '@/features/maintenance'
@@ -17,7 +18,7 @@ export function AppRoutes() {
       <Route element={<AppShell />}>
         <Route path="/" element={<Navigate to={paths.dashboard} replace />} />
         <Route path={paths.dashboard} element={<ComingSoon title="Dashboard" />} />
-        <Route path={paths.calendar} element={<ComingSoon title="Lịch cho thuê" />} />
+        <Route path={paths.calendar} element={<CalendarScreen />} />
 
         <Route path={paths.vehicles} element={<VehicleListScreen />} />
         <Route path="/vehicles/:id" element={<VehicleDetailScreen />} />

@@ -16,6 +16,7 @@ import type {
   Role,
   SecurityDepositType,
   TransactionStatus,
+  VehicleBlockStatus,
   VehicleClass,
   VehicleDocumentType,
   VehicleStatus,
@@ -468,6 +469,62 @@ export const vi = {
     cancelError: 'Không thể huỷ, vui lòng thử lại.',
     notFound: 'Không tìm thấy lượt thuê.',
   },
+  calendar: {
+    title: 'Lịch cho thuê',
+    description: 'Xem lịch xe theo tuần/tháng, tạo nhanh lượt thuê và khoá lịch xe khi cần.',
+    viewWeek: 'Tuần',
+    viewMonth: 'Tháng',
+    today: 'Hôm nay',
+    prevPeriod: 'Kỳ trước',
+    nextPeriod: 'Kỳ sau',
+    searchPlaceholder: 'Tìm theo tên khách, số điện thoại hoặc biển số xe',
+    filterVehicle: 'Xe',
+    filterAllVehicles: 'Tất cả xe',
+    filterShowCancelled: 'Hiện lượt đã huỷ',
+    filterShowNoShow: 'Hiện lượt khách không đến',
+    filterShowInactiveVehicles: 'Hiện cả xe ngừng hoạt động',
+    blockButton: 'Khoá lịch xe',
+    // Vùng đệm quay đầu xe (RC-BR-13).
+    turnaroundBufferLabel: 'Đệm quay đầu xe',
+    assignedStaffPlaceholder: 'Chưa phân công',
+    // Popover xem nhanh Rental Block (§5.2/§5.4).
+    quickViewPeriod: 'Thời gian thuê',
+    quickViewPickupLocation: 'Điểm giao xe',
+    quickViewReturnLocation: 'Điểm nhận xe',
+    quickViewStaff: 'Nhân viên phụ trách',
+    // Tạo nhanh lượt thuê từ ô trống (UC-RC-05).
+    vehicleBlockedNotice: 'Xe đang bị khoá lịch, không thể tạo lượt thuê mới trong khoảng thời gian này',
+    vehicleInactiveNotice: 'Xe đang ngừng hoạt động hoặc bảo trì — vẫn tạo được lượt nháp, sẽ bị chặn khi Xác nhận (RC-BR-04).',
+    // Day Detail Dialog (Month view — CR-2026-044).
+    dayDetailTitle: 'Lượt thuê trong ngày',
+    dayDetailEmpty: 'Không có lượt thuê nào của xe này trong ngày đã chọn.',
+    // VehicleBlockFormDialog (§5.5).
+    blockFormTitle: 'Khoá lịch xe',
+    blockFormVehicle: 'Xe',
+    blockFormVehiclePlaceholder: 'Chọn xe (chỉ hiển thị xe chưa bị khoá)',
+    blockFormStartDate: 'Từ ngày',
+    blockFormEndDate: 'Đến ngày (để trống = khoá vô thời hạn)',
+    blockFormReason: 'Lý do',
+    blockFormReasonPlaceholder: 'VD: Xe bị tai nạn, đang chờ giám định bảo hiểm',
+    blockFormAffectedWarning:
+      'Cảnh báo: có lượt thuê đã xác nhận trong khoảng thời gian này. Hệ thống KHÔNG tự huỷ/đổi xe — vui lòng xử lý thủ công (đổi xe/liên hệ khách) trước hoặc sau khi khoá.',
+    blockFormSuccess: 'Đã khoá lịch xe.',
+    blockFormError: 'Không thể khoá lịch xe, vui lòng thử lại.',
+    // Chi tiết Vehicle Block + gỡ khoá.
+    blockDetailTitle: 'Chi tiết khoá lịch xe',
+    blockDetailReason: 'Lý do khoá',
+    blockDetailPeriod: 'Khoảng thời gian khoá',
+    blockDetailIndefinite: 'Vô thời hạn (chưa có ngày kết thúc)',
+    blockDetailCreatedBy: 'Người khoá',
+    blockDetailReleasedBy: 'Người gỡ khoá',
+    blockDetailAffectedRentals: 'Lượt thuê bị ảnh hưởng',
+    blockDetailNoAffectedRentals: 'Không có lượt thuê nào bị ảnh hưởng.',
+    releaseButton: 'Gỡ khoá',
+    releaseConfirmTitle: 'Gỡ khoá lịch xe',
+    releaseConfirmDescription: 'Xe sẽ nhận lượt thuê mới bình thường trở lại sau khi gỡ khoá. Thao tác này không tự đổi trạng thái xe.',
+    releaseSuccess: 'Đã gỡ khoá lịch xe.',
+    releaseError: 'Không thể gỡ khoá, vui lòng thử lại.',
+  },
 } as const
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -610,6 +667,11 @@ export const PAYOUT_STATUS_LABELS: Record<PayoutStatus, string> = {
   SCHEDULED: 'Đã lên lịch',
   PAID: 'Đã chi trả',
   ON_HOLD: 'Tạm giữ',
+}
+
+export const VEHICLE_BLOCK_STATUS_LABELS: Record<VehicleBlockStatus, string> = {
+  ACTIVE: 'Đang khoá',
+  RELEASED: 'Đã gỡ khoá',
 }
 
 export const MAINTENANCE_RULE_APPLIES_TO_LABELS: Record<MaintenanceRuleAppliesTo, string> = {
