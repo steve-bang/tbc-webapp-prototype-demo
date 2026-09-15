@@ -19,6 +19,7 @@ import {
   calcPrepaymentAmount,
   canCancel,
   canConfirm,
+  canMarkContractCreated,
   rentalDurationDays,
   type Rental,
 } from './model'
@@ -223,6 +224,35 @@ export async function cancel(id: string, reason: string, actor: ActorInfo): Prom
       actorRole: actor.role,
       before: { status: before.status },
       after: { status: 'CANCELLED', reason: trimmedReason },
+    })
+    return after
+  })
+}
+
+/**
+ * `docs/CONTRACT-MANAGEMENT-PLAN.md` §0.2/§9.3 — ngoại lệ kiến trúc có chủ
+ * đích, chỉ `features/contracts` (`CT`) gọi hàm này (qua barrel `index.ts`)
+ * sau khi ghi `Contract` `GENERATED` thành công. Mirror `confirm()`/`cancel()`.
+ */
+export async function markContractCreated(id: string, actor: ActorInfo): Promise<Rental> {
+  return fakeRequest(() => {
+    const all = readAll()
+    const before = findOrThrow(all, id)
+    if (!canMarkContractCreated(before)) {
+      throw new Error(`Không thể chuyển lượt thuê đang ở trạng thái ${before.status} sang Đã lập hợp đồng`)
+    }
+    const after: Rental = { ...before, status: 'CONTRACT_CREATED', updatedAt: new Date().toISOString() }
+    writeAll(all.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'MARK_CONTRACT_CREATED',
+      entity: 'Rental',
+      entityId: id,
+      summary: `Lập hợp đồng cho lượt thuê ${before.id}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: 'CONTRACT_CREATED' },
     })
     return after
   })

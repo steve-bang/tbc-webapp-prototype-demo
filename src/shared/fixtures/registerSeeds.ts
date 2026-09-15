@@ -16,6 +16,10 @@
  * `docs/CALENDAR-MANAGEMENT-PLAN.md` §11: không phụ thuộc chéo thật sự (chỉ
  * cần `vehicles` đã seed), nhưng giữ đúng thứ tự nhóm nghiệp vụ 3 sau nhóm 4,
  * và seed của `calendar` tham chiếu 1 Rental `CONFIRMED` cụ thể từ `rentals/seed.ts`.
+ *
+ * `contracts` chạy cuối cùng — `docs/CONTRACT-MANAGEMENT-PLAN.md` §7 tham
+ * chiếu `rentalId`/`customerId`/`vehicleId` thật từ `rentals`/`customers`/
+ * `vehicles` đã seed (chỉ chọn Rental status `CONTRACT_CREATED` trở lên).
  */
 
 import '@/features/employees/seed'
@@ -24,3 +28,4 @@ import '@/features/vehicles/seed'
 import '@/features/maintenance/seed'
 import '@/features/rentals/seed'
 import '@/features/calendar/seed'
+import '@/features/contracts/seed'

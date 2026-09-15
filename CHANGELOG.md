@@ -42,7 +42,8 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 **Changed**
 
 - Kế hoạch trang Hợp đồng (`docs/CONTRACT-MANAGEMENT-PLAN.md`) chuyển `PENDING_APPROVAL` →
-  **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng §1-§9/§11-§13.
+  **`APPROVED`** (chủ dự án phê duyệt) → **`DONE`** sau khi `dev` implement + `tech-lead` review đạt
+  (xem mục `Added` bên dưới).
 - Kế hoạch `RentalDetailScreen` (`docs/RENTAL-MANAGEMENT-PLAN.md` §15) chuyển `PENDING_APPROVAL` →
   **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng §15.
 
@@ -60,6 +61,22 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   Blocker — 3 quyết định nhỏ của `dev` (tách tab thành component riêng, thêm field `note` vào tab
   Tổng quan, dùng `rental.vehicleClass` snapshot thay vì `vehicle.vehicleClass` sống) đều được xác
   nhận hợp lý.
+- **Trang Hợp đồng (`/contracts`, `/contracts/:id`) — Round 1 `features/contracts` (CT) `DONE`**: data
+  core `Contract`/`ContractAddendum` (enum `CONTRACT_STATUSES`/`CONTRACT_ADDENDUM_TYPES` đã scaffold
+  sẵn, dùng nguyên) · Sinh hợp đồng thủ công từ tab "Hợp đồng" ở Rental Detail (snapshot
+  Customer+Vehicle+Rental, chuyển Rental `CONFIRMED → CONTRACT_CREATED`) · Tải lên bản ký (giả lập,
+  gate `CONTRACT.CREATE`) → `SIGNED` · Huỷ hợp đồng (gate `CONTRACT.VOID`, chỉ `SYSTEM_ADMIN`, bắt
+  buộc lý do) · Xem trước/Xuất PDF giả lập (gate `CONTRACT.EXPORT`) · `ContractListScreen` (lọc trạng
+  thái, tìm mã/tên khách/biển số, card mobile) + `ContractDetailScreen` (4 tab: Tổng quan/Bản
+  ký/Phụ lục đọc-only/Nhật ký thao tác). 8 Contract + 2 Addendum seed tham chiếu Rental thật. **Điểm
+  kiến trúc**: round DUY NHẤT được phép mở rộng có kiểm soát `rentals/model.ts`/`api.ts`/`hooks.ts`/
+  `index.ts` (transition `CONFIRMED→CONTRACT_CREATED` + `markContractCreated()`), đúng ngoại lệ đã
+  chốt ở `docs/CONTRACT-MANAGEMENT-PLAN.md` §0.2. Qua 1 vòng review `tech-lead`: không Blocker — xác
+  nhận `dev` phát hiện đúng mâu thuẫn thật giữa kế hoạch §9.1/§9.3 (buộc thêm export thứ 3
+  `markContractCreated` — hàm async thuần, không phải hook — vì `contracts/api.ts`'s `create()` không
+  thể gọi hook ngoài component) và 4 quyết định nhỏ khác (gate nút Xem trước/Xuất PDF bằng
+  `CONTRACT.EXPORT`, `ContractCard` cho mobile, tách tab Tổng quan/Bản ký thành component riêng, seed
+  Huỷ hợp đồng minh hoạ độc lập không cascade) đều hợp lý.
 
 **Fixed**
 

@@ -283,5 +283,10 @@ export const AUDIT_ACTIONS = [
   // Rental Calendar (RC) — Vehicle Block CRUD, `docs/CALENDAR-MANAGEMENT-PLAN.md` §9 (CR-2026-015).
   'CREATE_VEHICLE_BLOCK',
   'RELEASE_VEHICLE_BLOCK',
+  // Contract Management (CT) — Round 1 (Sinh/Ký/Huỷ), `docs/CONTRACT-MANAGEMENT-PLAN.md` §9.1/§9.3.
+  'CREATE_CONTRACT',
+  'SET_CONTRACT_SIGNED',
+  'VOID_CONTRACT',
+  'MARK_CONTRACT_CREATED',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

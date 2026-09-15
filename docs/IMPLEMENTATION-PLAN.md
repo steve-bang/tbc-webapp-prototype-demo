@@ -155,9 +155,9 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       Qua 1 vòng review `tech-lead`: không Blocker.
 - [ ] `features/employees`: bổ sung **Assignment** (`ASSIGNED→IN_PROGRESS→DONE`), gán Delivery/Receiving
       Staff, phát hiện trùng lịch nhân viên — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.4.
-- [~] `features/contracts` (CT): kế hoạch chi tiết đầy đủ Round 1 ở
-      [`docs/CONTRACT-MANAGEMENT-PLAN.md`](CONTRACT-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
-      (15/09/2026, chủ dự án duyệt) — đã giao `dev` implement. Model `Contract`/`ContractAddendum` (enum
+- [x] `features/contracts` (CT): kế hoạch chi tiết đầy đủ Round 1 ở
+      [`docs/CONTRACT-MANAGEMENT-PLAN.md`](CONTRACT-MANAGEMENT-PLAN.md), trạng thái `DONE`
+      (15/09/2026) — qua 1 vòng review `tech-lead`, không Blocker. Model `Contract`/`ContractAddendum` (enum
       `CONTRACT_STATUSES`/`CONTRACT_ADDENDUM_TYPES` đã scaffold sẵn, dùng nguyên) · Sinh hợp đồng thủ
       công từ tab "Hợp đồng" ở Rental Detail (snapshot Customer+Vehicle+Rental, chuyển Rental sang
       `CONTRACT_CREATED`) · Tải lên bản ký (giả lập) → `SIGNED` · Huỷ hợp đồng (`SYSTEM_ADMIN`) ·
@@ -167,7 +167,12 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       + hàm `markContractCreated()`) — đúng comment mời gọi sẵn có trong `ROUND1_TRANSITIONS`, không
       phải tiền lệ chung cho mọi feature khác. Không build: tạo Phụ lục qua UI, tái tạo hợp đồng,
       cascade Cancel Rental→Void Contract (cần phụ thuộc chéo rentals↔contracts, hoãn) — do chưa có
-      `VehicleHandover`/`VehicleReturn` để tạo kịch bản thật.
+      `VehicleHandover`/`VehicleReturn` để tạo kịch bản thật. **Review note**: `dev` phát hiện kế
+      hoạch §9.1 (bước 5, `contracts/api.ts`'s `create()` gọi `markContractCreated()`) mâu thuẫn thật
+      với §9.3 (chỉ liệt kê 2 export) — `create()` là hàm async thuần, không thể gọi hook
+      `useMarkContractCreated`. `tech-lead` xác nhận hợp lý, chấp nhận export thứ 3
+      `markContractCreated` (hàm thuần từ `api.ts`, không phải hook) từ `rentals/index.ts`, đúng tiền
+      lệ `rentals/api.ts` tự gọi thẳng `customers/api.ts`/`vehicles/api.ts`.
 - [x] Nối `Rental History` ở Vehicle Detail (tab "Lịch sử thuê") và Customer Detail (tab "Thuê xe")
       vào dữ liệu thật — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.3. **Fix theo phản hồi khách
       (15/09/2026)** — hai tab vẫn placeholder dù `features/rentals` đã `DONE`: thêm

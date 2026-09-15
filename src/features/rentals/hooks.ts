@@ -64,3 +64,16 @@ export function useCancelRental() {
     },
   })
 }
+
+/** `docs/CONTRACT-MANAGEMENT-PLAN.md` §0.2/§9.3 — chỉ `features/contracts` gọi hook này. */
+export function useMarkContractCreated() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (id: string) => api.markContractCreated(id, actor),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['rentals'] })
+      queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] })
+    },
+  })
+}

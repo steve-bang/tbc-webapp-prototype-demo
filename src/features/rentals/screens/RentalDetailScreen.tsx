@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { RentalAuditTab } from '../components/RentalAuditTab'
 import { RentalCancelDialog } from '../components/RentalCancelDialog'
 import { RentalConfirmDialog } from '../components/RentalConfirmDialog'
+import { RentalContractTab } from '../components/RentalContractTab'
 import { RentalDetailPlaceholder } from '../components/RentalDetailPlaceholder'
 import { RentalOverviewTab } from '../components/RentalOverviewTab'
 import { RentalPricingTab } from '../components/RentalPricingTab'
@@ -109,7 +110,7 @@ export function RentalDetailScreen() {
           <RentalDetailPlaceholder note={vi.rentals.paymentPlaceholder} />
         </TabsContent>
         <TabsContent value="contract">
-          <RentalDetailPlaceholder note={vi.rentals.contractPlaceholder} />
+          <RentalContractTab rental={rental} />
         </TabsContent>
         <TabsContent value="handoverReturn">
           <RentalDetailPlaceholder note={vi.rentals.handoverReturnPlaceholder} />

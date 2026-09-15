@@ -213,7 +213,7 @@ export function suggestNextPickup(previousExpectedReturnDateTime: string): strin
  */
 const ROUND1_TRANSITIONS: Partial<Record<RentalStatus, RentalStatus[]>> = {
   DRAFT: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['CANCELLED'],
+  CONFIRMED: ['CANCELLED', 'CONTRACT_CREATED'], // + CONTRACT_CREATED — `docs/CONTRACT-MANAGEMENT-PLAN.md` §0.2/§3.1
 }
 
 /**
@@ -248,6 +248,15 @@ export function canConfirm(
 /** Dùng để ẩn/hiện nút Huỷ. */
 export function canCancel(rental: Rental): boolean {
   return ROUND1_TRANSITIONS[rental.status]?.includes('CANCELLED') ?? false
+}
+
+/**
+ * `docs/CONTRACT-MANAGEMENT-PLAN.md` §0.2/§3.1 — ngoại lệ kiến trúc có chủ
+ * đích: `features/contracts` (module `CT`) là feature DUY NHẤT được phép mở
+ * rộng `rentals/model.ts`/`api.ts`/`hooks.ts` ở Round 1. Mirror `canCancel()`.
+ */
+export function canMarkContractCreated(rental: Rental): boolean {
+  return ROUND1_TRANSITIONS[rental.status]?.includes('CONTRACT_CREATED') ?? false
 }
 
 // ---- Form schema ----

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
 import { CalendarScreen } from '@/features/calendar'
+import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
 import { MaintenanceScreen } from '@/features/maintenance'
@@ -33,8 +34,8 @@ export function AppRoutes() {
 
         <Route path={paths.rentals} element={<RentalListScreen />} />
         <Route path="/rentals/:id" element={<RentalDetailScreen />} />
-        <Route path={paths.contracts} element={<ComingSoon title="Hợp đồng" />} />
-        <Route path="/contracts/:id" element={<ComingSoon title="Chi tiết hợp đồng" />} />
+        <Route path={paths.contracts} element={<ContractListScreen />} />
+        <Route path="/contracts/:id" element={<ContractDetailScreen />} />
 
         <Route path={paths.handoverReturnTracking} element={<ComingSoon title="Theo dõi giao / nhận xe" />} />
         <Route path={paths.incidents} element={<ComingSoon title="Hồ sơ sự cố" />} />

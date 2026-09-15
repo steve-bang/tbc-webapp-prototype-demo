@@ -5,7 +5,7 @@ import { readJson, writeJson } from '@/shared/lib/storage'
  * trong localStorage của trình duyệt sẽ tự động được seed lại thay vì gây lỗi
  * do lệch schema.
  */
-const SEED_VERSION = 8
+const SEED_VERSION = 9
 const SEED_META_KEY = 'seedMeta'
 
 interface SeedMeta {
