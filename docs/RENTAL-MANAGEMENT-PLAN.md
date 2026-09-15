@@ -3,8 +3,8 @@
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 `DONE`** (14/09/2026) — data core + Rental
 List + Create/Confirm/Cancel đã lên kế hoạch chi tiết đầy đủ ở §1-§7/§9-§13, `dev` implement xong,
 qua 2 vòng review `tech-lead` (vòng 1: 1 Blocker — `rentalDurationDays()` làm tròn sai công thức
-§3.1, đã sửa; vòng 2: hết Blocker). **Round 2 (`RentalDetailScreen`) `PENDING_APPROVAL`** (15/09/2026)
-— kế hoạch chi tiết đầy đủ ở §15, chờ phê duyệt trước khi giao `dev`. §8 là **lộ trình** cho phần còn lại của Phase 2
+§3.1, đã sửa; vòng 2: hết Blocker). **Round 2 (`RentalDetailScreen`) `APPROVED`** (15/09/2026, chủ dự án duyệt)
+— kế hoạch chi tiết đầy đủ ở §15, đã giao `dev` implement. §8 là **lộ trình** cho phần còn lại của Phase 2
 (Calendar+Dispatch/Rental Detail/Employee Assignment/Contracts/nối Rental History) — mức mục
 tiêu/phạm vi/rule chính, **chưa chi tiết hoá field-level**, sẽ viết plan riêng khi tới lượt (đúng
 tiền lệ Vehicle Round 2 ở Phase 1).

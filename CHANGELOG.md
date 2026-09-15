@@ -24,6 +24,11 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   `useCancelRental` đã có sẵn trong `hooks.ts`. Thêm điều hướng click hàng ở `RentalListScreen` →
   `/rentals/:id`. Trạng thái: `PENDING_APPROVAL` — chờ phê duyệt trước khi giao `dev`.
 
+**Changed**
+
+- Kế hoạch `RentalDetailScreen` (`docs/RENTAL-MANAGEMENT-PLAN.md` §15) chuyển `PENDING_APPROVAL` →
+  **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng §15.
+
 **Fixed**
 
 - Fix theo phản hồi khách hàng (3 việc độc lập, review 1 vòng `tech-lead`, không Blocker):

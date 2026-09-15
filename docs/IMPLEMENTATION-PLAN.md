@@ -147,8 +147,8 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       danh sách giao/nhận hôm nay, lượt sắp đến hạn, quá hạn trả; phân công nhân viên ngay trên bảng.
       Roadmap sơ bộ ở `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.2 — cần `Assignment` (`EA`) chưa build.
 - [~] `RentalDetailScreen` (`/rentals/:id`): kế hoạch chi tiết đầy đủ ở
-      [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md) §15, trạng thái `PENDING_APPROVAL`
-      (15/09/2026) — chờ phê duyệt trước khi giao `dev`. 8 tab: Tổng quan/Giá-cọc-phát sinh (thật,
+      [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md) §15, trạng thái `APPROVED`
+      (15/09/2026, chủ dự án duyệt) — đã giao `dev` implement. 8 tab: Tổng quan/Giá-cọc-phát sinh (thật,
       không cần API mới — chỉ mở rộng barrel `useRental`/`useConfirmRental`/`useCancelRental`)/Thanh
       toán/Hợp đồng/Giao-nhận/Sự cố/Phân công (placeholder, chờ Phase sau)/Nhật ký thao tác (thật,
       mirror `VehicleAuditTab.tsx`).
