@@ -1,8 +1,8 @@
 # Kế hoạch triển khai — Giao xe & Nhận xe (Vehicle Handover / Vehicle Return)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` (15/09/2026) — Round 1 (data core +
-Theo dõi giao/nhận + Biên bản đọc-chi tiết + Chỉnh sửa/Huỷ có kiểm soát + Vehicle Condition Timeline
-bản đầy đủ) đã lên kế hoạch chi tiết, **chưa giao `dev`**.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (15/09/2026, chủ dự án phê duyệt) — Round 1
+(data core + Theo dõi giao/nhận + Biên bản đọc-chi tiết + Chỉnh sửa/Huỷ có kiểm soát + Vehicle
+Condition Timeline bản đầy đủ) đã lên kế hoạch chi tiết, đã giao `dev` implement.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/VehicleHandover-BRD.md` (v1.5, toàn bộ — đặc
 biệt §6, §9-§10, §12-§16, §22, §29) + `-UseCase.md` (v1.3, đối chiếu §0.1) +

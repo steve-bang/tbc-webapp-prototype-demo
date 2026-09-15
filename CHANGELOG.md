@@ -61,6 +61,8 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Changed**
 
+- Kế hoạch Handover/Return (`docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`) chuyển `PENDING_APPROVAL` →
+  **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement Round 1.
 - Kế hoạch trang Hợp đồng (`docs/CONTRACT-MANAGEMENT-PLAN.md`) chuyển `PENDING_APPROVAL` →
   **`APPROVED`** (chủ dự án phê duyệt) → **`DONE`** sau khi `dev` implement + `tech-lead` review đạt
   (xem mục `Added` bên dưới).
