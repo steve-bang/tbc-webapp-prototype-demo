@@ -155,9 +155,19 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       Qua 1 vòng review `tech-lead`: không Blocker.
 - [ ] `features/employees`: bổ sung **Assignment** (`ASSIGNED→IN_PROGRESS→DONE`), gán Delivery/Receiving
       Staff, phát hiện trùng lịch nhân viên — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.4.
-- [ ] `features/contracts` (CT): model (Contract, ContractAddendum) · api/hooks/seed · **Danh sách hợp
-      đồng** + **Contract Detail** (preview placeholder, nút "Xuất PDF" giả lập, phụ lục) — roadmap ở
-      `docs/RENTAL-MANAGEMENT-PLAN.md` §8.5.
+- [~] `features/contracts` (CT): kế hoạch chi tiết đầy đủ Round 1 ở
+      [`docs/CONTRACT-MANAGEMENT-PLAN.md`](CONTRACT-MANAGEMENT-PLAN.md), trạng thái `PENDING_APPROVAL`
+      (15/09/2026) — chờ phê duyệt trước khi giao `dev`. Model `Contract`/`ContractAddendum` (enum
+      `CONTRACT_STATUSES`/`CONTRACT_ADDENDUM_TYPES` đã scaffold sẵn, dùng nguyên) · Sinh hợp đồng thủ
+      công từ tab "Hợp đồng" ở Rental Detail (snapshot Customer+Vehicle+Rental, chuyển Rental sang
+      `CONTRACT_CREATED`) · Tải lên bản ký (giả lập) → `SIGNED` · Huỷ hợp đồng (`SYSTEM_ADMIN`) ·
+      **Danh sách hợp đồng** + **Contract Detail** (4 tab: Tổng quan/Bản ký/Phụ lục đọc-only/Nhật ký).
+      **Điểm kiến trúc quan trọng**: đây là round DUY NHẤT được phép mở rộng có kiểm soát
+      `rentals/model.ts`/`api.ts`/`hooks.ts`/`index.ts` (thêm transition `CONFIRMED→CONTRACT_CREATED`
+      + hàm `markContractCreated()`) — đúng comment mời gọi sẵn có trong `ROUND1_TRANSITIONS`, không
+      phải tiền lệ chung cho mọi feature khác. Không build: tạo Phụ lục qua UI, tái tạo hợp đồng,
+      cascade Cancel Rental→Void Contract (cần phụ thuộc chéo rentals↔contracts, hoãn) — do chưa có
+      `VehicleHandover`/`VehicleReturn` để tạo kịch bản thật.
 - [x] Nối `Rental History` ở Vehicle Detail (tab "Lịch sử thuê") và Customer Detail (tab "Thuê xe")
       vào dữ liệu thật — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.3. **Fix theo phản hồi khách
       (15/09/2026)** — hai tab vẫn placeholder dù `features/rentals` đã `DONE`: thêm

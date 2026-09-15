@@ -15,6 +15,21 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Planned**
 
+- Thêm [`docs/CONTRACT-MANAGEMENT-PLAN.md`](docs/CONTRACT-MANAGEMENT-PLAN.md): kế hoạch triển khai
+  **Round 1** của trang **Hợp đồng** (`/contracts`, module `CT`) — data core `Contract`/
+  `ContractAddendum` + Sinh hợp đồng thủ công (từ tab "Hợp đồng" ở Rental Detail) + Tải lên bản ký
+  (giả lập) + Huỷ hợp đồng + Danh sách + Detail (4 tab). Đối chiếu `ContractManagement-BRD.md` v1.5
+  toàn bộ (`CT-BR-01→18`) + `-UseCase.md` v1.1 + `WebappQuanTri.md` §9.2-§9.4 + CR-2026-012/013/035/
+  063. **Phát hiện mâu thuẫn tài liệu**: `CT-BR-17`/`18` nội dung khác nhau giữa BRD (mới, đã cập
+  nhật CR-063) và UseCase (cũ hơn) — dùng BRD làm chuẩn. **Điểm kiến trúc quan trọng nhất**: đây là
+  round DUY NHẤT được phép mở rộng có kiểm soát `rentals/model.ts`/`api.ts`/`hooks.ts`/`index.ts`
+  (thêm transition `CONFIRMED→CONTRACT_CREATED` + hàm `markContractCreated()`) — đúng comment mời
+  gọi sẵn có trong `ROUND1_TRANSITIONS` của Rental Round 1, không phải tiền lệ chung cho feature
+  khác. Số lượng Open Question còn treo rất lớn (mẫu hợp đồng thật chặn hoàn toàn PDF thật, trigger
+  tự động/thủ công, quy tắc đánh số, mẫu phụ lục...) — chọn phương án bảo thủ nhất cho từng điểm
+  (thủ công, mã tạm `HD-0001`, "Xuất PDF"/"Tải lên bản ký" giả lập), `TODO(OQ)` đầy đủ. Không build:
+  tạo Phụ lục qua UI, tái tạo hợp đồng, cascade Cancel→Void tự động (cần Handover/Return chưa build
+  để có kịch bản thật). Trạng thái: `PENDING_APPROVAL` — chờ phê duyệt trước khi giao `dev`.
 - Thêm §15/§16 vào [`docs/RENTAL-MANAGEMENT-PLAN.md`](docs/RENTAL-MANAGEMENT-PLAN.md): kế hoạch chi
   tiết **Round 2 — `RentalDetailScreen`** (`/rentals/:id`). Mirror `CustomerDetailScreen`, **8 tab**:
   Tổng quan/Giá-cọc-phát sinh (thật — mọi field đã snapshot sẵn trên `Rental` từ Round 1, chỉ hiển
