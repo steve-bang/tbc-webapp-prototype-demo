@@ -156,8 +156,8 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
 - [ ] `features/employees`: bổ sung **Assignment** (`ASSIGNED→IN_PROGRESS→DONE`), gán Delivery/Receiving
       Staff, phát hiện trùng lịch nhân viên — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.4.
 - [~] `features/contracts` (CT): kế hoạch chi tiết đầy đủ Round 1 ở
-      [`docs/CONTRACT-MANAGEMENT-PLAN.md`](CONTRACT-MANAGEMENT-PLAN.md), trạng thái `PENDING_APPROVAL`
-      (15/09/2026) — chờ phê duyệt trước khi giao `dev`. Model `Contract`/`ContractAddendum` (enum
+      [`docs/CONTRACT-MANAGEMENT-PLAN.md`](CONTRACT-MANAGEMENT-PLAN.md), trạng thái `APPROVED`
+      (15/09/2026, chủ dự án duyệt) — đã giao `dev` implement. Model `Contract`/`ContractAddendum` (enum
       `CONTRACT_STATUSES`/`CONTRACT_ADDENDUM_TYPES` đã scaffold sẵn, dùng nguyên) · Sinh hợp đồng thủ
       công từ tab "Hợp đồng" ở Rental Detail (snapshot Customer+Vehicle+Rental, chuyển Rental sang
       `CONTRACT_CREATED`) · Tải lên bản ký (giả lập) → `SIGNED` · Huỷ hợp đồng (`SYSTEM_ADMIN`) ·

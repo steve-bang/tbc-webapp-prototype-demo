@@ -1,8 +1,8 @@
 # Kế hoạch triển khai — Trang Hợp đồng (Contract Management)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` (15/09/2026) — Round 1 (data core +
-Sinh/Ký/Huỷ hợp đồng + List/Detail) đã lên kế hoạch chi tiết đầy đủ ở §1-§9/§11-§13, chờ phê duyệt
-trước khi giao `dev`.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (15/09/2026, chủ dự án duyệt) — Round 1
+(data core + Sinh/Ký/Huỷ hợp đồng + List/Detail) đã lên kế hoạch chi tiết đầy đủ ở §1-§9/§11-§13, đã
+giao `dev` implement.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/ContractManagement-BRD.md` (v1.5, toàn bộ, đặc
 biệt §6-§19, §26) + `-UseCase.md` (v1.1, đối chiếu mâu thuẫn §0.1) + `../thien-bao-car-docs/

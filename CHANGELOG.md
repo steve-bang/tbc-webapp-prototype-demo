@@ -41,6 +41,8 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Changed**
 
+- Kế hoạch trang Hợp đồng (`docs/CONTRACT-MANAGEMENT-PLAN.md`) chuyển `PENDING_APPROVAL` →
+  **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng §1-§9/§11-§13.
 - Kế hoạch `RentalDetailScreen` (`docs/RENTAL-MANAGEMENT-PLAN.md` §15) chuyển `PENDING_APPROVAL` →
   **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng §15.
 
