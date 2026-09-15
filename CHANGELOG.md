@@ -15,6 +15,26 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Planned**
 
+- Thêm [`docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`](docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md): kế
+  hoạch triển khai **Round 1** của **Giao xe & Nhận xe** (`/handover-return`, module `VH`/`VR`, Phase
+  3) — data core `HandoverRecord`/`ReturnRecord` (Incident Item nhúng tối giản, không phải entity
+  `Incident` riêng) + màn **Theo dõi giao/nhận** + tab **Biên bản** ở Rental Detail (đối chiếu trước/
+  sau, khoản phát sinh ước tính — công thức vượt km/CR-2026-057, trễ giờ/CR-2026-054 đã implement đủ)
+  + tab lịch sử + **Vehicle Condition Timeline bản đầy đủ** ở Vehicle Detail + Sửa/Huỷ có kiểm soát.
+  Đối chiếu `VehicleHandover-BRD.md` v1.5 toàn bộ (`VH-BR-01→23`) + `VehicleReturn-BRD.md` v1.6 toàn
+  bộ (`VR-BR-01→29`) + 2 `-UseCase.md` + `WebappQuanTri.md` §10 toàn bộ + CR liên quan (003/004/005/
+  006/023/045/052/054/057/058/060/062). **Quyết định cốt lõi**: `CLAUDE.md` §3/`WebappQuanTri.md`
+  §10.1-10.2 xác nhận việc **thực hiện** giao/nhận (chụp ảnh/ghi odo/fuel thật) thuộc App nhân viên
+  (repo khác, ngoài phạm vi phiên này) — Webapp Round 1 **không build wizard**, bản ghi `COMPLETED`
+  chỉ qua seed, chỉ có Theo dõi/Xem/Sửa/Huỷ có kiểm soát. **Điểm kiến trúc**: round thứ 2 (sau
+  `contracts`) được phép mở rộng có kiểm soát `rentals/model.ts`/`api.ts`/`hooks.ts`/`index.ts` (chỉ
+  chiều revert khi Huỷ: `canCancelHandover`/`revertHandoverCancelled`/`canCancelReturn`/
+  `revertReturnCancelled`) — cố ý **không** đụng `vehicles/model.ts`/`api.ts` (hoàn tác
+  Vehicle.status/currentKm khi Huỷ là ngoại lệ kiến trúc thứ 2 vượt phạm vi đã duyệt, để lại roadmap).
+  Không build: nhập tay VETC/phạt nguội, màn cấu hình bộ ảnh/checklist/ngưỡng, `features/incidents`
+  đầy đủ vòng đời (người dùng chỉ yêu cầu Handover/Return round này). `TODO(OQ)` đầy đủ cho thang đo
+  fuel level, số ảnh bắt buộc, mức xác nhận khách M0-M4. Trạng thái: `PENDING_APPROVAL` — chờ phê
+  duyệt trước khi giao `dev`.
 - Thêm [`docs/CONTRACT-MANAGEMENT-PLAN.md`](docs/CONTRACT-MANAGEMENT-PLAN.md): kế hoạch triển khai
   **Round 1** của trang **Hợp đồng** (`/contracts`, module `CT`) — data core `Contract`/
   `ContractAddendum` + Sinh hợp đồng thủ công (từ tab "Hợp đồng" ở Rental Detail) + Tải lên bản ký

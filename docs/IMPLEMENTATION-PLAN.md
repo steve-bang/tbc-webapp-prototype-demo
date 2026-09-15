@@ -183,9 +183,19 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
 
 ## Phase 3 — Giao/nhận xe & sự cố — `[ ]`
 
-- [ ] `features/handover-return` (VH/VR): model (HandoverRecord, ReturnRecord — placeholder ảnh) ·
-      màn **Theo dõi giao/nhận** (trạng thái từng lượt) + **Biên bản** (đối chiếu trước/sau, odo/fuel/
-      checklist).
+- [ ] `features/handover-return` (VH/VR): kế hoạch chi tiết đầy đủ Round 1 ở
+      [`docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`](HANDOVER-RETURN-MANAGEMENT-PLAN.md), trạng thái
+      `PENDING_APPROVAL` (15/09/2026) — chờ chủ dự án duyệt trước khi giao `dev`. model
+      (`HandoverRecord`/`ReturnRecord` — media placeholder, Incident Item nhúng tối giản) · màn
+      **Theo dõi giao/nhận** (`/handover-return`) + tab **Biên bản** ở Rental Detail (đối chiếu
+      trước/sau, odo/fuel/checklist, khoản phát sinh ước tính) + tab lịch sử ở Vehicle Detail + tab
+      **Hiện trạng xe** (Vehicle Condition Timeline bản đầy đủ) + Sửa/Huỷ có kiểm soát. **Quyết định
+      cốt lõi**: Webapp KHÔNG build wizard thực hiện giao/nhận thật (thuộc App nhân viên, ngoài phạm
+      vi repo — `CLAUDE.md` §3/`WebappQuanTri.md` §10.1-10.2) — bản ghi `COMPLETED` chỉ qua seed,
+      Round 1 chỉ có Theo dõi/Xem/Sửa/Huỷ có kiểm soát. Mở rộng có kiểm soát thêm `rentals/model.ts`/
+      `api.ts`/`hooks.ts` (round thứ 2 sau `contracts` được phép, chỉ chiều revert khi Huỷ) —
+      **không** đụng `vehicles/model.ts`/`api.ts` (ngoại lệ kiến trúc thứ 2 vượt phạm vi, để lại
+      roadmap §8).
 - [ ] `features/incidents` (DI): model (Incident — lifecycle `OPEN→...→CLOSED`) · api/hooks/seed (vài sự
       cố đủ mức độ) · **Hồ sơ sự cố** (lifecycle stepper, `Liability`, chi phí ước tính/thực tế/khách chịu).
 - [ ] Nối Vehicle Condition Timeline (tab Vehicle Detail) vào dữ liệu Handover/Return/Incident thật.
