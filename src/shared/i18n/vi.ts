@@ -195,7 +195,7 @@ export const vi = {
     tabPayment: 'Thanh toán',
     tabIncidents: 'Sự cố',
     tabCredit: 'Tín nhiệm',
-    rentalHistoryPlaceholder: 'Chờ triển khai Rental Management (Phase 2).',
+    rentalHistoryEmpty: 'Khách hàng này chưa có lượt thuê nào.',
     paymentPlaceholder: 'Chờ Payment/RentalSettlement (Phase 4).',
     incidentsPlaceholder: 'Chờ DamageIncident (Phase 3).',
     // UC-CM-12 — chỉ số tín nhiệm, Phase 1 chưa có dữ liệu nguồn (Rental/Payment/Incident).
@@ -310,7 +310,7 @@ export const vi = {
     consignmentPlaceholder: 'Chờ triển khai VehicleConsignment (Phase 5).',
     conditionEmpty: 'Xe chưa phát sinh sự kiện hiện trạng nào (giao/nhận/sự cố).',
     trafficFinesPlaceholder: 'Chưa có phase sở hữu rõ trong backlog — hỏi lại BA khi tới lượt build.',
-    rentalHistoryPlaceholder: 'Chờ triển khai RentalManagement (Phase 2).',
+    rentalHistoryEmpty: 'Xe này chưa có lượt thuê nào.',
     handoverReturnPlaceholder: 'Chờ triển khai VehicleHandover/VehicleReturn (Phase 2/3).',
     revenuePlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',
     costPlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',

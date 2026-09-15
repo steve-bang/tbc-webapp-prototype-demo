@@ -13,6 +13,7 @@ import { CustomerDocumentsTab } from '../components/CustomerDocumentsTab'
 import { CustomerFormSheet } from '../components/CustomerFormSheet'
 import { CustomerProfileTab } from '../components/CustomerProfileTab'
 import { CustomerReasonDialog } from '../components/CustomerReasonDialog'
+import { CustomerRentalHistoryTab } from '../components/CustomerRentalHistoryTab'
 import { CustomerStatusBadge } from '../components/CustomerStatusBadge'
 import { useBlockCustomer, useCustomer, useUnblockCustomer } from '../hooks'
 import { canBlock, canUnblock } from '../model'
@@ -123,7 +124,7 @@ export function CustomerDetailScreen() {
           <CustomerDocumentsTab customer={customer} canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="rentals">
-          <CustomerDetailPlaceholder note={vi.customers.rentalHistoryPlaceholder} />
+          <CustomerRentalHistoryTab customer={customer} />
         </TabsContent>
         <TabsContent value="payment">
           <CustomerDetailPlaceholder note={vi.customers.paymentPlaceholder} />

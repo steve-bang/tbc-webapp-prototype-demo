@@ -11,6 +11,25 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ---
 
+### 2026-09-15
+
+**Fixed**
+
+- Fix theo phản hồi khách hàng (3 việc độc lập, review 1 vòng `tech-lead`, không Blocker):
+  - **Calendar Week mobile**: `/calendar` Month view đã có lưới xe×ngày always-on nhưng Week view
+    vẫn dùng layout mobile riêng (danh sách theo ngày, `md:hidden`) khiến thiếu lưới xe×ngày trên
+    điện thoại/tablet. Bỏ hẳn nhánh mobile trong `CalendarWeekGrid.tsx`, chỉ còn 1 lưới xe×ngày bọc
+    `overflow-x-auto`, đồng bộ Month — toàn bộ logic vẽ block theo giờ (`positionInDay`), vùng
+    Turnaround Buffer, click ô trống/click block giữ nguyên hành vi.
+  - **Nối Rental History**: tab "Lịch sử thuê" (Vehicle Detail) và "Thuê xe" (Customer Detail) vẫn
+    placeholder dù `features/rentals` đã `DONE` từ Round 1. Thêm `VehicleRentalHistoryTab`/
+    `CustomerRentalHistoryTab` (read-only, mirror pattern `VehicleMaintenanceTab.tsx`) dùng
+    `useRentals` qua barrel `@/features/rentals` — không đụng
+    `rentals/model.ts`/`api.ts`/`hooks.ts`/`index.ts` (barrel đã export sẵn `useRentals` từ Round 2
+    `calendar`, verify diff rỗng).
+  - Cosmetic nhỏ đi kèm: dòng hiển thị khoảng ngày ở Week view (`CalendarScreen.tsx`) đổi màu chữ
+    cho rõ hơn (`text-muted-foreground` → `text-foreground font-medium`).
+
 ### 2026-09-14
 
 **Planned**

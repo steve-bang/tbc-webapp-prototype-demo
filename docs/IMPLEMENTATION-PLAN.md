@@ -137,6 +137,10 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       backlog riêng nếu muốn khắc phục). **Round 3 (Day/Agenda view + kéo-thả dời lịch/đổi xe
       UC-RC-06/07)** cố ý chưa lên kế hoạch chi tiết — tách riêng vì rủi ro cao nhất (rollback-on-
       conflict + audit + xác nhận), để không dồn hết vào lần code lưới lịch đầu tiên của dự án.
+      **Fix theo phản hồi khách (15/09/2026):** Week view có layout mobile riêng (danh sách theo
+      ngày) khiến thiếu lưới xe×ngày ở mobile trong khi Month đã always-on lưới — bỏ hẳn nhánh
+      mobile trong `CalendarWeekGrid.tsx`, chỉ còn 1 lưới xe×ngày bọc `overflow-x-auto`, đồng bộ
+      Month. Qua 1 vòng review `tech-lead`: không Blocker.
 - [ ] Bảng điều phối trong ngày (dispatch board, trong `calendar` — theo `CLAUDE.md` bản đồ module):
       danh sách giao/nhận hôm nay, lượt sắp đến hạn, quá hạn trả; phân công nhân viên ngay trên bảng.
       Roadmap sơ bộ ở `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.2 — cần `Assignment` (`EA`) chưa build.
@@ -148,8 +152,12 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
 - [ ] `features/contracts` (CT): model (Contract, ContractAddendum) · api/hooks/seed · **Danh sách hợp
       đồng** + **Contract Detail** (preview placeholder, nút "Xuất PDF" giả lập, phụ lục) — roadmap ở
       `docs/RENTAL-MANAGEMENT-PLAN.md` §8.5.
-- [ ] Nối `Rental History` ở Vehicle Detail và Customer Detail vào dữ liệu thật — roadmap ở
-      `docs/RENTAL-MANAGEMENT-PLAN.md` §8.3.
+- [x] Nối `Rental History` ở Vehicle Detail (tab "Lịch sử thuê") và Customer Detail (tab "Thuê xe")
+      vào dữ liệu thật — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.3. **Fix theo phản hồi khách
+      (15/09/2026)** — hai tab vẫn placeholder dù `features/rentals` đã `DONE`: thêm
+      `VehicleRentalHistoryTab`/`CustomerRentalHistoryTab` (read-only, mirror
+      `VehicleMaintenanceTab.tsx`, `useRentals` qua barrel `@/features/rentals`, không đụng
+      `rentals/model.ts`/`api.ts`/`hooks.ts`/`index.ts`). Qua 1 vòng review `tech-lead`: không Blocker.
 - [ ] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng.
 
 ## Phase 3 — Giao/nhận xe & sự cố — `[ ]`

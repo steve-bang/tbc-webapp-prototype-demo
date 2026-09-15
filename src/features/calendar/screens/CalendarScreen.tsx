@@ -182,7 +182,7 @@ export function CalendarScreen() {
           </div>
 
           {view === 'week' ? (
-            <span className="text-muted-foreground text-sm">
+            <span className="text-foreground text-sm font-medium">
               {formatDate(weekStart.toISOString())} → {formatDate(weekEnd.toISOString())}
             </span>
           ) : (

@@ -12,6 +12,7 @@ import { VehicleDocumentsList } from '../components/VehicleDocumentsList'
 import { VehicleFormSheet } from '../components/VehicleFormSheet'
 import { VehicleMaintenanceTab } from '../components/VehicleMaintenanceTab'
 import { VehicleOverviewTab } from '../components/VehicleOverviewTab'
+import { VehicleRentalHistoryTab } from '../components/VehicleRentalHistoryTab'
 import { VehicleStatusBadge } from '../components/VehicleStatusBadge'
 import { VehicleStatusDialog } from '../components/VehicleStatusDialog'
 import { useVehicle } from '../hooks'
@@ -119,7 +120,7 @@ export function VehicleDetailScreen() {
           <VehicleDetailPlaceholder note={vi.vehicles.trafficFinesPlaceholder} />
         </TabsContent>
         <TabsContent value="rentalHistory">
-          <VehicleDetailPlaceholder note={vi.vehicles.rentalHistoryPlaceholder} />
+          <VehicleRentalHistoryTab vehicle={vehicle} />
         </TabsContent>
         <TabsContent value="handoverReturn">
           <VehicleDetailPlaceholder note={vi.vehicles.handoverReturnPlaceholder} />
