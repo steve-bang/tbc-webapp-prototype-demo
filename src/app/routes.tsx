@@ -4,7 +4,7 @@ import { CalendarScreen } from '@/features/calendar'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
 import { MaintenanceScreen } from '@/features/maintenance'
-import { RentalListScreen } from '@/features/rentals'
+import { RentalDetailScreen, RentalListScreen } from '@/features/rentals'
 import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
 import { AppShell } from '@/shared/layout/AppShell'
 import { ComingSoon } from '@/shared/layout/ComingSoon'
@@ -32,7 +32,7 @@ export function AppRoutes() {
         <Route path="/employees/:id" element={<ComingSoon title="Chi tiết nhân viên" />} />
 
         <Route path={paths.rentals} element={<RentalListScreen />} />
-        <Route path="/rentals/:id" element={<ComingSoon title="Chi tiết lượt thuê" />} />
+        <Route path="/rentals/:id" element={<RentalDetailScreen />} />
         <Route path={paths.contracts} element={<ComingSoon title="Hợp đồng" />} />
         <Route path="/contracts/:id" element={<ComingSoon title="Chi tiết hợp đồng" />} />
 

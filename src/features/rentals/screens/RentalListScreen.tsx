@@ -1,5 +1,7 @@
 import { Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { paths } from '@/app/paths'
 // `customers`/`vehicles` chưa export `useCustomers`/`useVehicles` qua barrel
 // `index.ts` nên import thẳng từ `hooks.ts` của feature đó — cùng tinh thần
 // `maintenance/hooks.ts` import thẳng `vehicles/hooks.ts`.
@@ -25,6 +27,7 @@ import { canCancel } from '../model'
 
 /** `UC-RM-01` §5.1 — danh sách + tìm kiếm/lọc/tạo/xác nhận/huỷ lượt thuê. */
 export function RentalListScreen() {
+  const navigate = useNavigate()
   const { can } = usePermission()
   const canCreate = can('RENTAL', 'CREATE')
   const canConfirmAction = can('RENTAL', 'CONFIRM') // dùng chung cho cả Xác nhận lẫn Huỷ — nguồn permissions.ts
@@ -74,6 +77,10 @@ export function RentalListScreen() {
 
   const confirmRental = allRentals?.find((r) => r.id === confirmRentalId) ?? null
   const cancelRental = allRentals?.find((r) => r.id === cancelRentalId) ?? null
+
+  function openDetail(rentalId: string) {
+    navigate(paths.rentalDetail(rentalId))
+  }
 
   return (
     <div>
@@ -145,7 +152,7 @@ export function RentalListScreen() {
                     const customer = customerById.get(rental.customerId)
                     const vehicle = vehicleById.get(rental.vehicleId)
                     return (
-                      <TableRow key={rental.id}>
+                      <TableRow key={rental.id} className="cursor-pointer" onClick={() => openDetail(rental.id)}>
                         <TableCell className="font-medium">{customer?.fullName ?? rental.customerId}</TableCell>
                         <TableCell>{vehicle ? `${vehicle.plate} — ${vehicle.brand} ${vehicle.model}` : rental.vehicleId}</TableCell>
                         <TableCell>
@@ -157,7 +164,8 @@ export function RentalListScreen() {
                         </TableCell>
                         {canConfirmAction && (
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            {/* stopPropagation — hàng đã gắn onClick mở Detail, nút hành động không được kích hoạt kèm. */}
+                            <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                               {rental.status === 'DRAFT' && (
                                 <Button size="sm" variant="outline" onClick={() => setConfirmRentalId(rental.id)}>
                                   {vi.rentals.confirmAction}
@@ -187,7 +195,7 @@ export function RentalListScreen() {
                 customer={customerById.get(rental.customerId)}
                 vehicle={vehicleById.get(rental.vehicleId)}
                 canConfirmAction={canConfirmAction}
-                onOpen={() => {}}
+                onOpen={() => openDetail(rental.id)}
                 onConfirm={() => setConfirmRentalId(rental.id)}
                 onCancel={() => setCancelRentalId(rental.id)}
               />

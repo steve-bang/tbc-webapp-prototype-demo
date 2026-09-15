@@ -29,6 +29,21 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 - Kế hoạch `RentalDetailScreen` (`docs/RENTAL-MANAGEMENT-PLAN.md` §15) chuyển `PENDING_APPROVAL` →
   **`APPROVED`** (chủ dự án phê duyệt) — giao agent `dev` implement theo đúng §15.
 
+**Added**
+
+- **`RentalDetailScreen` (`/rentals/:id`) — Round 2 `features/rentals` `DONE`**: 8 tab mirror
+  `CustomerDetailScreen` — Tổng quan/Giá-cọc-phát sinh (thật, chỉ hiển thị field đã snapshot sẵn
+  trên `Rental` từ Round 1, không tính lại)/Thanh toán/Hợp đồng/Giao-nhận/Sự cố/Phân công (5 tab
+  placeholder chờ Phase sau)/Nhật ký thao tác (thật, mirror `VehicleAuditTab.tsx`). Header tái dùng
+  nguyên `RentalConfirmDialog`/`RentalCancelDialog` từ List, không viết logic mới. Thêm điều hướng
+  click hàng/card ở `RentalListScreen` → Detail (mirror `CustomerListScreen`/`CustomerCard`, giữ
+  đúng `stopPropagation` cho nút hành động trong hàng). Không cần API mới — chỉ mở rộng barrel
+  `rentals/index.ts` export `useRental`/`useConfirmRental`/`useCancelRental` đã có sẵn trong
+  `hooks.ts`; `model.ts`/`api.ts`/`permissions.ts` không đổi. Qua 1 vòng review `tech-lead`: không
+  Blocker — 3 quyết định nhỏ của `dev` (tách tab thành component riêng, thêm field `note` vào tab
+  Tổng quan, dùng `rental.vehicleClass` snapshot thay vì `vehicle.vehicleClass` sống) đều được xác
+  nhận hợp lý.
+
 **Fixed**
 
 - Fix theo phản hồi khách hàng (3 việc độc lập, review 1 vòng `tech-lead`, không Blocker):

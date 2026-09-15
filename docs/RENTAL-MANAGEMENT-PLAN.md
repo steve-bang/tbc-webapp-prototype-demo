@@ -3,11 +3,11 @@
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 `DONE`** (14/09/2026) — data core + Rental
 List + Create/Confirm/Cancel đã lên kế hoạch chi tiết đầy đủ ở §1-§7/§9-§13, `dev` implement xong,
 qua 2 vòng review `tech-lead` (vòng 1: 1 Blocker — `rentalDurationDays()` làm tròn sai công thức
-§3.1, đã sửa; vòng 2: hết Blocker). **Round 2 (`RentalDetailScreen`) `APPROVED`** (15/09/2026, chủ dự án duyệt)
-— kế hoạch chi tiết đầy đủ ở §15, đã giao `dev` implement. §8 là **lộ trình** cho phần còn lại của Phase 2
-(Calendar+Dispatch/Rental Detail/Employee Assignment/Contracts/nối Rental History) — mức mục
-tiêu/phạm vi/rule chính, **chưa chi tiết hoá field-level**, sẽ viết plan riêng khi tới lượt (đúng
-tiền lệ Vehicle Round 2 ở Phase 1).
+§3.1, đã sửa; vòng 2: hết Blocker). **Round 2 (`RentalDetailScreen`) `DONE`** (15/09/2026) — kế hoạch
+chi tiết đầy đủ ở §15, `dev` implement xong, qua 1 vòng review `tech-lead`: không Blocker. §8 là
+**lộ trình** cho phần còn lại của Phase 2 (Calendar+Dispatch/Employee Assignment/Contracts/nối
+Rental History) — mức mục tiêu/phạm vi/rule chính, **chưa chi tiết hoá field-level**, sẽ viết plan
+riêng khi tới lượt (đúng tiền lệ Vehicle Round 2 ở Phase 1).
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/RentalManagement-BRD.md` (v1.7, đặc biệt §8-§27,
 §38, §46, §51-§57) + `RentalManagement-UseCase.md` (v1.2, đặc biệt §5.5 UC-RM-01, §24a UC-RM-06/21) +
@@ -482,7 +482,13 @@ cầu chủ dự án 15/09/2026) — xem §15 cho `RentalDetailScreen`.
 
 ## 15. Round 2 — `RentalDetailScreen` (`/rentals/:id`)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` (15/09/2026).
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `DONE` (15/09/2026) — `dev` implement xong, qua 1
+vòng review `tech-lead`: không Blocker. 3 quyết định nhỏ của `dev` được xác nhận đúng khi review:
+tách `RentalOverviewTab`/`RentalPricingTab` thành component riêng (đúng tiền lệ
+`CustomerProfileTab.tsx`/`VehicleOverviewTab.tsx`); thêm field `rental.note` (điều kiện, chỉ hiện
+khi có giá trị) vào tab Tổng quan dù không liệt kê tường minh ở §15.2 — chấp nhận được, field có
+thật trên `Rental` và không có tab nào khác phù hợp hơn; `vehicleClass` ở tab Tổng quan lấy đúng từ
+snapshot `rental.vehicleClass` (RM-BR-25), không lấy từ `vehicle.vehicleClass` sống.
 
 ### 15.1. Nguồn đối chiếu (không cần đọc lại toàn bộ BRD — mọi field/rule liên quan đã trích ở §2-§4)
 
