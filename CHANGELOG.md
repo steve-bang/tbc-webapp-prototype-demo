@@ -30,6 +30,13 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   - Cosmetic nhỏ đi kèm: dòng hiển thị khoảng ngày ở Week view (`CalendarScreen.tsx`) đổi màu chữ
     cho rõ hơn (`text-muted-foreground` → `text-foreground font-medium`).
 
+**Changed**
+
+- **`features/calendar` Round 3 (Day/Agenda view + kéo-thả dời lịch/đổi xe UC-RC-06/07) tạm hoãn**
+  theo yêu cầu chủ dự án — chưa có lịch làm lại. Giữ nguyên nội dung roadmap ở
+  `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.1 làm tham khảo khi quay lại; `docs/IMPLEMENTATION-PLAN.md`
+  đã ghi chú tương ứng ở dòng `features/calendar`.
+
 ### 2026-09-14
 
 **Planned**

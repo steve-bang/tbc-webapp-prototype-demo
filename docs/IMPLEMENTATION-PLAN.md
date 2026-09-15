@@ -137,6 +137,8 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       backlog riêng nếu muốn khắc phục). **Round 3 (Day/Agenda view + kéo-thả dời lịch/đổi xe
       UC-RC-06/07)** cố ý chưa lên kế hoạch chi tiết — tách riêng vì rủi ro cao nhất (rollback-on-
       conflict + audit + xác nhận), để không dồn hết vào lần code lưới lịch đầu tiên của dự án.
+      **Tạm hoãn theo yêu cầu chủ dự án (15/09/2026)** — chưa có lịch làm lại, xem
+      `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.1 khi quay lại.
       **Fix theo phản hồi khách (15/09/2026):** Week view có layout mobile riêng (danh sách theo
       ngày) khiến thiếu lưới xe×ngày ở mobile trong khi Month đã always-on lưới — bỏ hẳn nhánh
       mobile trong `CalendarWeekGrid.tsx`, chỉ còn 1 lưới xe×ngày bọc `overflow-x-auto`, đồng bộ
