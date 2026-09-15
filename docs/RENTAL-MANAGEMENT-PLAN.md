@@ -3,7 +3,8 @@
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **Round 1 `DONE`** (14/09/2026) — data core + Rental
 List + Create/Confirm/Cancel đã lên kế hoạch chi tiết đầy đủ ở §1-§7/§9-§13, `dev` implement xong,
 qua 2 vòng review `tech-lead` (vòng 1: 1 Blocker — `rentalDurationDays()` làm tròn sai công thức
-§3.1, đã sửa; vòng 2: hết Blocker). §8 là **lộ trình** cho phần còn lại của Phase 2
+§3.1, đã sửa; vòng 2: hết Blocker). **Round 2 (`RentalDetailScreen`) `PENDING_APPROVAL`** (15/09/2026)
+— kế hoạch chi tiết đầy đủ ở §15, chờ phê duyệt trước khi giao `dev`. §8 là **lộ trình** cho phần còn lại của Phase 2
 (Calendar+Dispatch/Rental Detail/Employee Assignment/Contracts/nối Rental History) — mức mục
 tiêu/phạm vi/rule chính, **chưa chi tiết hoá field-level**, sẽ viết plan riêng khi tới lượt (đúng
 tiền lệ Vehicle Round 2 ở Phase 1).
@@ -377,12 +378,7 @@ bản BRD §30, không dùng UseCase §24 cũ hơn — xem §0.2). Vehicle Block
 hôm nay, sắp đến hạn, quá hạn) nằm trong `calendar` theo `CLAUDE.md` bản đồ module ("+ dispatch board
 trong `calendar`").
 
-### 8.2. `RentalDetailScreen` (`/rentals/:id`)
-
-Mục tiêu: mirror `CustomerDetailScreen` — tab giá/cọc/phát sinh (thật, từ dữ liệu Round 1), tab
-assignment (chờ §8.4), tab hợp đồng liên kết (chờ §8.5, placeholder tới lúc đó), tab lịch sử trạng
-thái (đọc `listAuditRecords()` lọc `entity==='Rental'`, thật ngay). Tab thanh toán = placeholder chờ
-`Payment` (Phase 4).
+### 8.2. `RentalDetailScreen` (`/rentals/:id`) — kế hoạch chi tiết đầy đủ ở §15
 
 ### 8.3. Nối `Rental History` vào Vehicle Detail + Customer Detail
 
@@ -473,10 +469,101 @@ Thêm namespace `vi.rentals.*` (mẫu `vi.vehicles.*`) — nhãn field, nhãn ac
 
 ---
 
-## 14. Việc tiếp theo sau khi phê duyệt Round 1
+## 14. Việc tiếp theo sau khi phê duyệt Round 1 (lịch sử — Round 1 đã `DONE`)
 
 Round 1 trở thành task brief đầy đủ giao cho agent `dev` (kèm Scope of Work + danh sách file cần đọc
 trước theo format chuẩn). Sau khi qua review `tech-lead` đạt (4 bước chuẩn), việc tiếp theo là lên kế
 hoạch chi tiết cho **`features/calendar`** (§8.1) — mảnh tiếp theo theo thứ tự đã điều chỉnh (xem
 Context ở đầu tài liệu), đọc lại `RentalCalendar-BRD.md` §30 tại thời điểm đó (không dùng lại nội
-dung phác thảo §8.1 làm đặc tả cuối).
+dung phác thảo §8.1 làm đặc tả cuối). ✅ Đã xong (`calendar` Round 2 DONE, Round 3 tạm hoãn theo yêu
+cầu chủ dự án 15/09/2026) — xem §15 cho `RentalDetailScreen`.
+
+---
+
+## 15. Round 2 — `RentalDetailScreen` (`/rentals/:id`)
+
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` (15/09/2026).
+
+### 15.1. Nguồn đối chiếu (không cần đọc lại toàn bộ BRD — mọi field/rule liên quan đã trích ở §2-§4)
+
+Toàn bộ field hiển thị đã **có sẵn thật** trên `Rental` (model Round 1, §2.1 — không thêm field mới).
+Chỉ cần đối chiếu thêm `RentalManagement-BRD.md` §36 (khung "Rental Detail" — liệt kê các khối thông
+tin ở mức skeleton, không chi tiết field vì đây là BRD tổng quát cấp thấp — mỗi khối tương ứng đúng 1
+tab dưới đây) và mẫu code `src/features/customers/screens/CustomerDetailScreen.tsx` +
+`src/features/vehicles/components/VehicleAuditTab.tsx` (mẫu tab audit, copy gần như nguyên).
+
+### 15.2. Phạm vi
+
+**Trong phạm vi:** màn `RentalDetailScreen` (`/rentals/:id`), mirror cấu trúc `CustomerDetailScreen`
+(header cố định + `Tabs`). Header: tên khách + biển số xe + `RentalStatusBadge`, 2 nút hành động tái
+dùng nguyên từ List (`RentalConfirmDialog`/`RentalCancelDialog`, hiện/ẩn theo `canConfirm()`/
+`canCancel()` đã có ở Round 1 — không viết lại). Thêm điều hướng click hàng ở `RentalListScreen` →
+`/rentals/:id` (mirror `CustomerListScreen`/`CustomerCard` → `/customers/:id`, đúng tiền lệ Vehicle/
+Customer).
+
+**8 tab** (nhóm 14 khối BRD §36 thành các tab có ý nghĩa, tránh tab rời rạc chỉ 1-2 field — đúng tinh
+thần đã áp dụng khi gộp tab "Chủ xe & Ký gửi" ở Vehicle Detail):
+
+| # | Tab | Trạng thái | Nội dung |
+| - | --- | --- | --- |
+| 1 | **Tổng quan** (mặc định) | Thật | Customer/Vehicle/Rental Period/Pickup/Return — toàn bộ field đã có trên `Rental` + join tên khách (`useCustomers`)/biển số xe (`useVehicles`), đúng pattern deep-import đã dùng ở `RentalListScreen`/`RentalCard` |
+| 2 | **Giá, cọc & phát sinh** | Thật | `rentalRate`/`rentalDurationDays`/`baseAmount`/`discountAmount`+`discountNote`/`deliveryDistanceKm`+`deliveryFee`/`estimatedTotal`/`prepaymentAmount`/`securityDepositType`+`securityDepositAmount`/`securityDepositAssetNote`/`additionalChargesAmount`+`additionalChargesNote` — mọi field đã snapshot sẵn trên `Rental` (§2.1), chỉ hiển thị, không tính lại |
+| 3 | **Thanh toán** | Placeholder | `RentalDetailPlaceholder` — "Chờ triển khai Payment (Phase 4)" |
+| 4 | **Hợp đồng** | Placeholder | "Chờ triển khai Contract Management (§8.5)" |
+| 5 | **Giao/nhận** | Placeholder | "Chờ triển khai VehicleHandover/VehicleReturn (Phase 3)" — gộp 2 khối BRD (Handover + Return Inspection), cùng lý do gộp tab "Chủ xe & Ký gửi" ở Vehicle Detail: cả hai cùng phụ thuộc module chưa tồn tại |
+| 6 | **Sự cố** | Placeholder | "Chờ triển khai DamageIncident (Phase 3)" |
+| 7 | **Phân công** | Placeholder | "Chờ triển khai Employee Assignment (§8.4)" |
+| 8 | **Nhật ký thao tác** | Thật | Mirror `VehicleAuditTab.tsx` gần như nguyên xi — `listAuditRecords().filter(r => r.entity==='Rental' && r.entityId===rental.id)`, sort `at` giảm dần |
+
+**Ngoài phạm vi:** không có Edit Rental (Round 1 đã loại — §1.2 vẫn đúng), không tự tạo dữ liệu giả
+cho 5 tab placeholder, không thêm audit action mới (tab 8 chỉ đọc), không sửa `permissions.ts`.
+
+### 15.3. `RentalDetailPlaceholder.tsx` — component mới
+
+Copy y hệt `CustomerDetailPlaceholder.tsx`/`VehicleDetailPlaceholder.tsx` (đổi feature path) — đã có
+2 tiền lệ giống hệt, không cần thiết kế lại.
+
+### 15.4. API / hooks — **không cần API mới**, chỉ mở rộng barrel
+
+`useRental(id)`, `useConfirmRental`, `useCancelRental` **đã tồn tại** trong `rentals/hooks.ts` (dùng ở
+`RentalListScreen`/dialogs) nhưng **chưa export qua barrel** `rentals/index.ts` (hiện chỉ có
+`useRentals`). Thêm vào `rentals/index.ts`:
+```ts
+export { useRental, useConfirmRental, useCancelRental } from './hooks'
+```
+Không cần hàm thuần mới, không cần audit action mới, không đụng `model.ts`/`api.ts`.
+
+### 15.5. Responsive
+
+Bám khung `CustomerDetailScreen`/`VehicleDetailScreen` đã dùng — 8 tab `TabsList` cần `max-w-full` +
+cuộn ngang ở mobile (đúng cách `VehicleDetailScreen` đã xử lý cho 12 tab, ít tab hơn nên rủi ro tràn
+thấp hơn).
+
+### 15.6. i18n
+
+Thêm `vi.rentals.tab*` (8 nhãn tab) + nhãn field còn thiếu cho tab Tổng quan/Giá-cọc (đa số đã có sẵn
+từ `RentalFormSheet`/`RentalCard` — tái dùng, không viết lại) + `rentalDetailPlaceholder*` (5 câu
+placeholder khác nhau theo tab).
+
+### 15.7. Mã requirement
+
+Không có rule mới — chỉ hiển thị dữ liệu Round 1 đã enforce (`RM-BR-01→26` đã trích ở §12), cộng
+tham chiếu BRD §36 (khung Rental Detail, mức skeleton).
+
+### 15.8. Definition of Done (Round 2)
+
+1. `npx tsc -b`, `npx oxlint`, `npm run build` sạch.
+2. `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+3. Không đụng `rentals/model.ts`/`api.ts` (chỉ `index.ts` +1 dòng export).
+4. *(Chủ dự án tự test)*: click 1 hàng ở `/rentals` → mở đúng `/rentals/:id`; 8 tab đúng nội dung; tab
+   Tổng quan/Giá-cọc/Nhật ký hiển thị dữ liệu thật đúng lượt đang xem (không lẫn lượt khác); nút Xác
+   nhận/Huỷ hoạt động y hệt từ List; 5 tab placeholder hiển thị đúng câu chờ Phase tương ứng.
+5. `docs/IMPLEMENTATION-PLAN.md` tick dòng `RentalDetailScreen`, xoá `ComingSoon` route `/rentals/:id`.
+
+---
+
+## 16. Việc tiếp theo sau khi phê duyệt Round 2
+
+Sau khi qua review `tech-lead` đạt, `features/rentals` hoàn thiện cả List + Detail. Việc tiếp theo
+theo backlog Phase 2 còn lại: `features/contracts` (§8.5) hoặc mở rộng Assignment ở `features/employees`
+(§8.4) — tuỳ ưu tiên chủ dự án chọn, đọc lại BRD tương ứng tại thời điểm đó.

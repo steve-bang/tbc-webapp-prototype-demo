@@ -146,9 +146,12 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
 - [ ] Bảng điều phối trong ngày (dispatch board, trong `calendar` — theo `CLAUDE.md` bản đồ module):
       danh sách giao/nhận hôm nay, lượt sắp đến hạn, quá hạn trả; phân công nhân viên ngay trên bảng.
       Roadmap sơ bộ ở `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.2 — cần `Assignment` (`EA`) chưa build.
-- [ ] `RentalDetailScreen` (`/rentals/:id`): giá snapshot, cọc, phát sinh, trạng thái thanh toán
-      placeholder, assignment, hợp đồng liên kết, lịch sử trạng thái — roadmap ở
-      `docs/RENTAL-MANAGEMENT-PLAN.md` §8.2.
+- [~] `RentalDetailScreen` (`/rentals/:id`): kế hoạch chi tiết đầy đủ ở
+      [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md) §15, trạng thái `PENDING_APPROVAL`
+      (15/09/2026) — chờ phê duyệt trước khi giao `dev`. 8 tab: Tổng quan/Giá-cọc-phát sinh (thật,
+      không cần API mới — chỉ mở rộng barrel `useRental`/`useConfirmRental`/`useCancelRental`)/Thanh
+      toán/Hợp đồng/Giao-nhận/Sự cố/Phân công (placeholder, chờ Phase sau)/Nhật ký thao tác (thật,
+      mirror `VehicleAuditTab.tsx`).
 - [ ] `features/employees`: bổ sung **Assignment** (`ASSIGNED→IN_PROGRESS→DONE`), gán Delivery/Receiving
       Staff, phát hiện trùng lịch nhân viên — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.4.
 - [ ] `features/contracts` (CT): model (Contract, ContractAddendum) · api/hooks/seed · **Danh sách hợp

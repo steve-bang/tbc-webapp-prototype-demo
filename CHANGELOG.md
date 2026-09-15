@@ -13,6 +13,17 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ### 2026-09-15
 
+**Planned**
+
+- Thêm §15/§16 vào [`docs/RENTAL-MANAGEMENT-PLAN.md`](docs/RENTAL-MANAGEMENT-PLAN.md): kế hoạch chi
+  tiết **Round 2 — `RentalDetailScreen`** (`/rentals/:id`). Mirror `CustomerDetailScreen`, **8 tab**:
+  Tổng quan/Giá-cọc-phát sinh (thật — mọi field đã snapshot sẵn trên `Rental` từ Round 1, chỉ hiển
+  thị)/Thanh toán/Hợp đồng/Giao-nhận (gộp Handover+Return Inspection)/Sự cố/Phân công (5 tab
+  placeholder, chờ Phase sau)/Nhật ký thao tác (thật, mirror `VehicleAuditTab.tsx`). **Không cần API
+  mới** — chỉ mở rộng barrel `rentals/index.ts` export `useRental`/`useConfirmRental`/
+  `useCancelRental` đã có sẵn trong `hooks.ts`. Thêm điều hướng click hàng ở `RentalListScreen` →
+  `/rentals/:id`. Trạng thái: `PENDING_APPROVAL` — chờ phê duyệt trước khi giao `dev`.
+
 **Fixed**
 
 - Fix theo phản hồi khách hàng (3 việc độc lập, review 1 vòng `tech-lead`, không Blocker):
