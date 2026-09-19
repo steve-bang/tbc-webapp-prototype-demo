@@ -1,8 +1,18 @@
 # Kế hoạch triển khai — Giao xe & Nhận xe (Vehicle Handover / Vehicle Return)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (15/09/2026, chủ dự án phê duyệt) — Round 1
-(data core + Theo dõi giao/nhận + Biên bản đọc-chi tiết + Chỉnh sửa/Huỷ có kiểm soát + Vehicle
-Condition Timeline bản đầy đủ) đã lên kế hoạch chi tiết, đã giao `dev` implement.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `DONE` (19/09/2026) — Round 1 (data core + Theo dõi
+giao/nhận + Biên bản đọc-chi tiết + Chỉnh sửa/Huỷ có kiểm soát + Vehicle Condition Timeline bản đầy
+đủ) đã implement xong, qua 1 vòng review `tech-lead`, không Blocker.
+
+**Ghi chú review**: đối chiếu `git diff` thật xác nhận `vehicles/model.ts`/`api.ts`/`hooks.ts` và
+`permissions.ts` không bị đụng (§0.4/§0.2), `rentals/model.ts`/`api.ts`/`index.ts` chỉ có đúng phần
+mở rộng §3.4/§9.2, công thức `calcExtraKmFee`/`calcOvertimeFee` khớp BRD, seed data nhất quán với
+`rentals/seed.ts`/`vehicles/seed.ts`. `dev` tự sửa 2 lỗi nhỏ khi code (badge "Trạng thái" gắn nhầm
+field, `watch()` → `useWatch()`/`Controller` cho checkbox trong 2 Edit dialog để tránh oxlint
+warning) và tự quyết định `cancelHandover()` chặn khi đã có `ReturnRecord` `COMPLETED` tham chiếu
+(VH-BR-04) — đều được xác nhận hợp lý. **Góp ý không chặn, để dọn round sau**: 2 khoá i18n
+`vi.vehicles.handoverReturnPlaceholder`/`vi.rentals.handoverReturnPlaceholder` nay mồ côi (không còn
+nơi dùng).
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/VehicleHandover-BRD.md` (v1.5, toàn bộ — đặc
 biệt §6, §9-§10, §12-§16, §22, §29) + `-UseCase.md` (v1.3, đối chiếu §0.1) +

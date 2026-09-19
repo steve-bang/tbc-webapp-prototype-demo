@@ -18,6 +18,8 @@ import {
   calcEstimatedTotal,
   calcPrepaymentAmount,
   canCancel,
+  canCancelHandover,
+  canCancelReturn,
   canConfirm,
   canMarkContractCreated,
   rentalDurationDays,
@@ -253,6 +255,77 @@ export async function markContractCreated(id: string, actor: ActorInfo): Promise
       actorRole: actor.role,
       before: { status: before.status },
       after: { status: 'CONTRACT_CREATED' },
+    })
+    return after
+  })
+}
+
+/**
+ * `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §0.3/§9.2 — ngoại lệ kiến trúc có
+ * chủ đích, chỉ `features/handover-return` (`VH`/`VR`) gọi hàm này (qua
+ * barrel `index.ts`) sau khi ghi `HandoverRecord` `CANCELLED` thành công.
+ * Xoá `actualPickupDateTime` (Round 1 chưa build lại field này khi giao xe
+ * lại — nhân viên nhập lại từ đầu ở lần giao kế tiếp). Mirror `confirm()`/
+ * `markContractCreated()`.
+ */
+export async function revertHandoverCancelled(id: string, actor: ActorInfo): Promise<Rental> {
+  return fakeRequest(() => {
+    const all = readAll()
+    const before = findOrThrow(all, id)
+    if (!canCancelHandover(before)) {
+      throw new Error(`Không thể hoàn tác lượt thuê đang ở trạng thái ${before.status} về Sẵn sàng giao xe`)
+    }
+    const after: Rental = {
+      ...before,
+      status: 'READY_FOR_HANDOVER',
+      actualPickupDateTime: undefined,
+      updatedAt: new Date().toISOString(),
+    }
+    writeAll(all.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'REVERT_HANDOVER_CANCELLED',
+      entity: 'Rental',
+      entityId: id,
+      summary: `Hoàn tác lượt thuê ${before.id} về Sẵn sàng giao xe (do Huỷ biên bản giao xe)`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: 'READY_FOR_HANDOVER' },
+    })
+    return after
+  })
+}
+
+/**
+ * `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §0.3/§9.2 — cùng ngoại lệ kiến
+ * trúc, chỉ `features/handover-return` gọi sau khi ghi `ReturnRecord`
+ * `CANCELLED` thành công. Xoá `actualReturnDateTime`.
+ */
+export async function revertReturnCancelled(id: string, actor: ActorInfo): Promise<Rental> {
+  return fakeRequest(() => {
+    const all = readAll()
+    const before = findOrThrow(all, id)
+    if (!canCancelReturn(before)) {
+      throw new Error(`Không thể hoàn tác lượt thuê đang ở trạng thái ${before.status} về Đang thuê`)
+    }
+    const after: Rental = {
+      ...before,
+      status: 'IN_RENTAL',
+      actualReturnDateTime: undefined,
+      updatedAt: new Date().toISOString(),
+    }
+    writeAll(all.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'REVERT_RETURN_CANCELLED',
+      entity: 'Rental',
+      entityId: id,
+      summary: `Hoàn tác lượt thuê ${before.id} về Đang thuê (do Huỷ biên bản trả xe)`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: 'IN_RENTAL' },
     })
     return after
   })

@@ -16,3 +16,10 @@ export type { RentalFilter } from './api'
 export { canMarkContractCreated } from './model'
 export { useMarkContractCreated } from './hooks'
 export { markContractCreated } from './api'
+// HANDOVER-RETURN-MANAGEMENT-PLAN.md §0.3/§9.2 — ngoại lệ kiến trúc có chủ
+// đích thứ 2 (sau `contracts`), chỉ `features/handover-return` dùng các export
+// này. `handover-return/api.ts` gọi thẳng `revertHandoverCancelled()`/
+// `revertReturnCancelled()` (hàm thuần, không phải hook) trong `cancelHandover()`/
+// `cancelReturn()` — cùng lý do không dùng hook được như `markContractCreated`.
+export { canCancelHandover, canCancelReturn, canMarkHandedOver, canMarkReturned } from './model'
+export { revertHandoverCancelled, revertReturnCancelled } from './api'

@@ -15,6 +15,7 @@ import { RentalCancelDialog } from '../components/RentalCancelDialog'
 import { RentalConfirmDialog } from '../components/RentalConfirmDialog'
 import { RentalContractTab } from '../components/RentalContractTab'
 import { RentalDetailPlaceholder } from '../components/RentalDetailPlaceholder'
+import { RentalHandoverReturnTab } from '../components/RentalHandoverReturnTab'
 import { RentalOverviewTab } from '../components/RentalOverviewTab'
 import { RentalPricingTab } from '../components/RentalPricingTab'
 import { RentalStatusBadge } from '../components/RentalStatusBadge'
@@ -113,7 +114,7 @@ export function RentalDetailScreen() {
           <RentalContractTab rental={rental} />
         </TabsContent>
         <TabsContent value="handoverReturn">
-          <RentalDetailPlaceholder note={vi.rentals.handoverReturnPlaceholder} />
+          <RentalHandoverReturnTab rental={rental} />
         </TabsContent>
         <TabsContent value="incidents">
           <RentalDetailPlaceholder note={vi.rentals.incidentsPlaceholder} />

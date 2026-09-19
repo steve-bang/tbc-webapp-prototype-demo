@@ -17,9 +17,16 @@
  * cần `vehicles` đã seed), nhưng giữ đúng thứ tự nhóm nghiệp vụ 3 sau nhóm 4,
  * và seed của `calendar` tham chiếu 1 Rental `CONFIRMED` cụ thể từ `rentals/seed.ts`.
  *
- * `contracts` chạy cuối cùng — `docs/CONTRACT-MANAGEMENT-PLAN.md` §7 tham
- * chiếu `rentalId`/`customerId`/`vehicleId` thật từ `rentals`/`customers`/
- * `vehicles` đã seed (chỉ chọn Rental status `CONTRACT_CREATED` trở lên).
+ * `contracts` chạy trước `handover-return` — `docs/CONTRACT-MANAGEMENT-PLAN.md`
+ * §7 tham chiếu `rentalId`/`customerId`/`vehicleId` thật từ `rentals`/
+ * `customers`/`vehicles` đã seed (chỉ chọn Rental status `CONTRACT_CREATED`
+ * trở lên).
+ *
+ * `handover-return` chạy cuối cùng — `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`
+ * §7/§9 tham chiếu `rentalId` thật từ `rentals/seed.ts` (các Rental đã ở trạng
+ * thái `HANDED_OVER`/`IN_RENTAL`/`RETURNED`/`SETTLEMENT`/`COMPLETED`/
+ * `CANCELLED`) — không phụ thuộc `contracts`, nhưng giữ đúng thứ tự nhóm
+ * nghiệp vụ 4 (Lượt thuê & hợp đồng) trước nhóm 5 (Giao/nhận & sự cố).
  */
 
 import '@/features/employees/seed'
@@ -29,3 +36,4 @@ import '@/features/maintenance/seed'
 import '@/features/rentals/seed'
 import '@/features/calendar/seed'
 import '@/features/contracts/seed'
+import '@/features/handover-return/seed'

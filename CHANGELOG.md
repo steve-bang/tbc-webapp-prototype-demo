@@ -11,6 +11,47 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ---
 
+### 2026-09-19
+
+**Changed**
+
+- Kế hoạch Handover/Return (`docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`) chuyển `APPROVED` →
+  **`DONE`** sau khi `dev` implement + `tech-lead` review đạt (xem mục `Added` bên dưới).
+
+**Added**
+
+- **Giao xe & Nhận xe (`/handover-return`) — Round 1 `features/handover-return` (VH/VR, Phase 3)
+  `DONE`**: data core `HandoverRecord`/`ReturnRecord` (media = metadata placeholder, Incident Item
+  nhúng trực tiếp trong `ReturnRecord` — tối giản, trạng thái cố định `OPEN`, không phải entity
+  `Incident` độc lập) · màn **Theo dõi giao/nhận** (`/handover-return`, lọc trạng thái/khoảng ngày) ·
+  tab **Giao-nhận** ở Rental Detail (`RentalHandoverReturnTab`: Biên bản giao xe đầy đủ + đối chiếu
+  trước/sau + khoản phát sinh ước tính) · tab **Giao/nhận** + **Hiện trạng xe** ở Vehicle Detail
+  (`VehicleHandoverReturnTab`/`VehicleConditionTimelineTab` — bản đầy đủ theo CR-2026-045, hiển thị
+  cả tài chính, khác bản rút gọn App nhân viên theo CR-2026-052) · Sửa/Huỷ có kiểm soát
+  (`HandoverEditDialog`/`ReturnEditDialog`/`HandoverCancelDialog`/`ReturnCancelDialog`, gate
+  `MANAGER`/`SYSTEM_ADMIN` xử lý ở tầng UI, bắt buộc lý do, audit before/after). Hàm thuần tính khoản
+  phát sinh đúng công thức BRD: `calcExtraKmFee` (vượt km làm tròn lên bội 10km, CR-2026-057),
+  `calcOvertimeFee` (ân hạn 15 phút, bậc thang 10/30/50%, giữ xe qua đêm ½/1 ngày, CR-2026-054),
+  `buildDeliveryFeeCharge`/`buildBaselineAdditionalCharges`/`buildChecklistComparisonDraft`/
+  `suggestMissingAccessoryCharges`. **Quyết định cốt lõi (đúng `CLAUDE.md` §3/`WebappQuanTri.md`
+  §10.1-10.2)**: Webapp KHÔNG build wizard thực hiện giao/nhận thật tại hiện trường (thuộc App nhân
+  viên, ngoài phạm vi repo) — bản ghi `COMPLETED` chỉ đạt qua seed data (12 `HandoverRecord` + 7
+  `ReturnRecord`, tham chiếu `rentalId`/`currentKm` thật từ `rentals/seed.ts`/`vehicles/seed.ts`, mọi
+  khoản phát sinh tính qua đúng hàm thuần chứ không phải số gán tay). **Điểm kiến trúc**: round thứ 2
+  (sau `contracts`) được phép mở rộng có kiểm soát `rentals/model.ts`/`api.ts`/`index.ts` — CHỈ chiều
+  hoàn tác khi Huỷ (`canCancelHandover`/`revertHandoverCancelled`/`canCancelReturn`/
+  `revertReturnCancelled` + 2 hàm thuần chuẩn bị sẵn `canMarkHandedOver`/`canMarkReturned` chưa có UI
+  gọi) — **cố ý không đụng** `vehicles/model.ts`/`api.ts`/`hooks.ts`/`permissions.ts` (hoàn tác
+  Vehicle.status/currentKm khi Huỷ là ngoại lệ kiến trúc thứ 2 vượt phạm vi đã duyệt, để lại roadmap).
+  4 enum mới (`HANDOVER_RETURN_STATUSES`/`CONDITION_ITEM_TYPES`/`INCIDENT_ITEM_TYPES`/
+  `ADDITIONAL_CHARGE_TYPES`) + 6 audit action mới. Qua 1 vòng review `tech-lead` (đối chiếu `git diff`
+  thật, không tin suông báo cáo `dev`): **không Blocker** — xác nhận đúng cả 7 điểm bắt buộc của kế
+  hoạch (ranh giới `vehicles/*`/`permissions.ts` không đụng, phạm vi mở rộng `rentals/*`, công thức
+  phí, seed data, gate quyền, 2 sửa lỗi nhỏ của `dev` hợp lý, `cancelHandover()` chặn khi đã có Return
+  `COMPLETED` đúng ý đã duyệt trước theo `VH-BR-04`). Góp ý không chặn (để dọn round sau): 2 khoá i18n
+  placeholder cũ (`vi.vehicles.handoverReturnPlaceholder`/`vi.rentals.handoverReturnPlaceholder`) nay
+  mồ côi.
+
 ### 2026-09-15
 
 **Planned**

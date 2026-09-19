@@ -7,9 +7,11 @@ import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { VehicleAuditTab } from '../components/VehicleAuditTab'
+import { VehicleConditionTimelineTab } from '../components/VehicleConditionTimelineTab'
 import { VehicleDetailPlaceholder } from '../components/VehicleDetailPlaceholder'
 import { VehicleDocumentsList } from '../components/VehicleDocumentsList'
 import { VehicleFormSheet } from '../components/VehicleFormSheet'
+import { VehicleHandoverReturnTab } from '../components/VehicleHandoverReturnTab'
 import { VehicleMaintenanceTab } from '../components/VehicleMaintenanceTab'
 import { VehicleOverviewTab } from '../components/VehicleOverviewTab'
 import { VehicleRentalHistoryTab } from '../components/VehicleRentalHistoryTab'
@@ -111,7 +113,7 @@ export function VehicleDetailScreen() {
           <VehicleDocumentsList vehicle={vehicle} canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="condition">
-          <VehicleDetailPlaceholder note={vi.vehicles.conditionEmpty} />
+          <VehicleConditionTimelineTab vehicle={vehicle} />
         </TabsContent>
         <TabsContent value="maintenance">
           <VehicleMaintenanceTab vehicle={vehicle} />
@@ -123,7 +125,7 @@ export function VehicleDetailScreen() {
           <VehicleRentalHistoryTab vehicle={vehicle} />
         </TabsContent>
         <TabsContent value="handoverReturn">
-          <VehicleDetailPlaceholder note={vi.vehicles.handoverReturnPlaceholder} />
+          <VehicleHandoverReturnTab vehicle={vehicle} />
         </TabsContent>
         {canViewFinancial && (
           <TabsContent value="revenue">

@@ -1,6 +1,9 @@
 import type {
   AccountStatus,
+  AdditionalChargeType,
   AssignmentStatus,
+  ConditionEventType,
+  ConditionItemType,
   ConsignmentContractStatus,
   ContractAddendumType,
   ContractStatus,
@@ -8,6 +11,8 @@ import type {
   CustomerStatus,
   DocumentStatus,
   EmployeeStatus,
+  HandoverReturnStatus,
+  IncidentItemType,
   IncidentStatus,
   Liability,
   MaintenanceRuleAppliesTo,
@@ -313,9 +318,20 @@ export const vi = {
     trafficFinesPlaceholder: 'Chưa có phase sở hữu rõ trong backlog — hỏi lại BA khi tới lượt build.',
     rentalHistoryEmpty: 'Xe này chưa có lượt thuê nào.',
     handoverReturnPlaceholder: 'Chờ triển khai VehicleHandover/VehicleReturn (Phase 2/3).',
+    handoverReturnEmpty: 'Xe này chưa có dữ liệu giao/nhận nào.',
     revenuePlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',
     costPlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',
     profitPlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',
+    // Tab "Hiện trạng xe" — Vehicle Condition Timeline bản đầy đủ (CR-2026-045, `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §5.4).
+    conditionColumnDate: 'Thời gian',
+    conditionColumnType: 'Loại mốc',
+    conditionColumnSummary: 'Tóm tắt',
+    conditionFilterType: 'Loại mốc',
+    conditionFilterAllTypes: 'Tất cả loại mốc',
+    conditionFilterDateFrom: 'Từ ngày',
+    conditionFilterDateTo: 'Đến ngày',
+    conditionIncidentNotice: 'Chi tiết đầy đủ (Liability/chi phí thực tế/claim) chờ triển khai features/incidents.',
+    conditionViewSourceLink: 'Xem lượt thuê',
     // Tab "Tổng quan" — basic info + tóm tắt giấy tờ/bảo dưỡng (VM-RULE-016/017, CR-2026-036).
     overviewDocumentsTitle: 'Giấy tờ',
     overviewDocumentsExpiringSoon: 'Sắp hết hạn',
@@ -639,6 +655,144 @@ export const vi = {
     releaseSuccess: 'Đã gỡ khoá lịch xe.',
     releaseError: 'Không thể gỡ khoá, vui lòng thử lại.',
   },
+  handoverReturn: {
+    // Màn "Theo dõi giao/nhận" (`/handover-return`) — `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §5.1.
+    title: 'Theo dõi giao/nhận',
+    description: 'Theo dõi biên bản giao xe và trả xe của toàn bộ lượt thuê.',
+    searchPlaceholder: 'Tìm theo tên khách hoặc biển số xe',
+    filterHandoverStatus: 'Trạng thái giao xe',
+    filterReturnStatus: 'Trạng thái trả xe',
+    filterAllStatuses: 'Tất cả trạng thái',
+    filterDateFrom: 'Từ ngày (giao xe)',
+    filterDateTo: 'Đến ngày (giao xe)',
+    columnCustomer: 'Khách hàng',
+    columnVehicle: 'Xe',
+    columnPickup: 'Giao xe thực tế',
+    columnReturn: 'Trả xe thực tế',
+    columnHandoverStatus: 'Trạng thái giao xe',
+    columnReturnStatus: 'Trạng thái trả xe',
+    emptyAll: 'Chưa có dữ liệu giao/nhận nào.',
+    emptyFiltered: 'Không tìm thấy bản ghi phù hợp. Thử xoá bớt bộ lọc.',
+    noValue: 'Chưa có',
+    noReturnValue: '—',
+    // Tab "Giao-nhận" ở Rental Detail (`RentalHandoverReturnTab`) — §5.2.
+    noHandoverNotice: 'Chưa có dữ liệu giao xe — thực hiện trên App nhân viên.',
+    noReturnYetNotice: 'Chưa có dữ liệu trả xe.',
+    sectionHandover: 'Biên bản giao xe',
+    sectionReturn: 'Biên bản trả xe',
+    sectionBeforeAfter: 'Đối chiếu trước/sau',
+    beforeAfterTimeLabel: 'Thời gian thực tế',
+    beforeAfterOdometerLabel: 'Odometer (km)',
+    beforeAfterFuelLabel: 'Mức nhiên liệu',
+    sectionConditionItems: 'Hư hỏng có sẵn (baseline)',
+    sectionChecklist: 'Checklist đồ đi kèm',
+    sectionChecklistComparison: 'Đối chiếu checklist',
+    sectionMedia: 'Ảnh/video (placeholder)',
+    sectionMotorbikeCollateral: 'Tài sản đặt cọc (xe máy)',
+    sectionIncidents: 'Sự cố phát hiện khi nhận xe',
+    sectionAdditionalCharges: 'Khoản phát sinh ước tính',
+    sectionPayment: 'Xác nhận thanh toán',
+    // Field label dùng chung hiển thị + dialog Sửa.
+    actualPickupDateTime: 'Thời gian giao xe thực tế',
+    odometerHandover: 'Odometer giao xe (km)',
+    fuelLevelHandover: 'Mức nhiên liệu giao xe',
+    deliveryStaffEmployeeId: 'Nhân viên giao xe',
+    actualReturnDateTime: 'Thời gian trả xe thực tế',
+    odometerReturn: 'Odometer trả xe (km)',
+    fuelLevelReturn: 'Mức nhiên liệu trả xe',
+    receivingStaffEmployeeId: 'Nhân viên nhận xe',
+    note: 'Ghi chú',
+    customerAcknowledged: 'Khách hàng đã xác nhận',
+    customerAcknowledgedNote: 'Ghi chú xác nhận khách hàng',
+    prepaymentConfirmed: 'Đã xác nhận Prepayment (30%)',
+    fullPaymentConfirmed: 'Đã xác nhận thanh toán đủ (70% + cọc)',
+    motorbikeOdometer: 'Odometer xe máy đặt cọc',
+    motorbikeFuelLevel: 'Mức nhiên liệu xe máy đặt cọc',
+    totalChargesLabel: 'Tổng khoản phát sinh ước tính',
+    yes: 'Có',
+    no: 'Không',
+    // Bảng checklist.
+    checklistColumnItem: 'Hạng mục',
+    checklistColumnStatus: 'Trạng thái',
+    checklistColumnNote: 'Ghi chú',
+    checklistStatusLabels: {
+      DELIVERED: 'Đã giao',
+      NOT_DELIVERED: 'Chưa giao',
+      NOT_APPLICABLE: 'Không áp dụng',
+    },
+    returnChecklistStatusLabels: {
+      OK: 'Đầy đủ',
+      MISSING: 'Thiếu',
+      DAMAGED: 'Hư hỏng',
+      NOT_APPLICABLE: 'Không áp dụng',
+    },
+    // Bảng hư hỏng có sẵn (Condition Item).
+    conditionColumnType: 'Loại',
+    conditionColumnPosition: 'Vị trí',
+    conditionColumnDescription: 'Mô tả',
+    conditionColumnSeverity: 'Mức độ',
+    severityLabels: {
+      MINOR: 'Nhẹ',
+      MODERATE: 'Trung bình',
+      SEVERE: 'Nặng',
+    },
+    // Bảng sự cố (Incident Item).
+    incidentColumnType: 'Loại',
+    incidentColumnPosition: 'Vị trí',
+    incidentColumnDescription: 'Mô tả',
+    incidentColumnBaseline: 'Đối chiếu baseline',
+    incidentColumnEstimatedCost: 'Chi phí dự kiến',
+    incidentColumnAffectsSafety: 'Ảnh hưởng an toàn',
+    incidentColumnApproval: 'Trạng thái duyệt',
+    baselineComparisonLabels: {
+      NEW: 'Mới phát sinh',
+      WORSENED: 'Nặng hơn baseline',
+    },
+    chargeApprovalStatusLabels: {
+      ESTIMATED: 'Ước tính',
+      PENDING_MANAGER_APPROVAL: 'Chờ Manager duyệt',
+      PENDING_GARAGE_BILL: 'Chờ bill garage',
+    },
+    // Bảng khoản phát sinh (Additional Charge).
+    chargeColumnType: 'Loại',
+    chargeColumnAmount: 'Số tiền',
+    chargeColumnNote: 'Ghi chú',
+    // Media placeholder.
+    mediaEmpty: 'Chưa có ảnh/video nào được ghi nhận.',
+    // Nút hành động (gate MANAGER/SYSTEM_ADMIN — §9.3 kế hoạch).
+    editHandoverButton: 'Sửa biên bản giao xe',
+    cancelHandoverButton: 'Huỷ biên bản giao xe',
+    editReturnButton: 'Sửa biên bản trả xe',
+    cancelReturnButton: 'Huỷ biên bản trả xe',
+    // Dialog Sửa.
+    editHandoverDialogTitle: 'Sửa biên bản giao xe',
+    editReturnDialogTitle: 'Sửa biên bản trả xe',
+    editReasonLabel: 'Lý do sửa',
+    editHandoverSuccess: 'Đã cập nhật biên bản giao xe.',
+    editHandoverError: 'Không thể cập nhật biên bản giao xe, vui lòng thử lại.',
+    editReturnSuccess: 'Đã cập nhật biên bản trả xe.',
+    editReturnError: 'Không thể cập nhật biên bản trả xe, vui lòng thử lại.',
+    addConditionItemButton: 'Thêm hư hỏng có sẵn',
+    addChecklistItemButton: 'Thêm hạng mục',
+    addIncidentItemButton: 'Thêm sự cố',
+    addChargeButton: 'Thêm khoản phát sinh',
+    removeItemButton: 'Xoá',
+    itemNamePlaceholder: 'Tên hạng mục (gõ tự do hoặc chọn gợi ý)',
+    // Dialog Huỷ — 2 bước reason → confirm (§5.5 kế hoạch).
+    cancelHandoverDialogTitle: 'Huỷ biên bản giao xe',
+    cancelReturnDialogTitle: 'Huỷ biên bản trả xe',
+    cancelReasonLabel: 'Lý do huỷ',
+    continueAction: 'Tiếp tục',
+    confirmCancelAction: 'Xác nhận huỷ',
+    cancelStep2Title: 'Xác nhận huỷ',
+    cancelStep2Warning: 'Thao tác này sẽ đổi trạng thái lượt thuê liên quan. Bạn có chắc chắn muốn tiếp tục?',
+    cancelStep2VehicleNotice:
+      'Vui lòng tự kiểm tra và cập nhật trạng thái/Odometer của xe (nếu cần) tại trang Chi tiết xe — hệ thống chưa tự động hoàn tác.',
+    cancelHandoverSuccess: 'Đã huỷ biên bản giao xe.',
+    cancelHandoverError: 'Không thể huỷ biên bản giao xe, vui lòng thử lại.',
+    cancelReturnSuccess: 'Đã huỷ biên bản trả xe.',
+    cancelReturnError: 'Không thể huỷ biên bản trả xe, vui lòng thử lại.',
+  },
 } as const
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -809,4 +963,63 @@ export const MAINTENANCE_DUE_STATUS_LABELS: Record<'OK' | 'DUE_SOON' | 'OVERDUE'
   OK: 'Còn hạn',
   DUE_SOON: 'Sắp đến hạn',
   OVERDUE: 'Quá hạn',
+}
+
+// `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §10/§11.
+export const HANDOVER_RETURN_STATUS_LABELS: Record<HandoverReturnStatus, string> = {
+  NOT_STARTED: 'Chưa bắt đầu',
+  IN_PROGRESS: 'Đang thực hiện',
+  COMPLETED: 'Hoàn tất',
+  CANCELLED: 'Đã huỷ',
+  DISCARDED: 'Đã bỏ (nháp)',
+}
+
+export const CONDITION_ITEM_TYPE_LABELS: Record<ConditionItemType, string> = {
+  SCRATCH: 'Trầy xước',
+  DENT: 'Móp méo',
+  CRACK: 'Nứt/vỡ',
+  MISSING_ACCESSORY: 'Thiếu phụ kiện',
+  INTERIOR_DAMAGE: 'Hư hỏng nội thất',
+  STAIN: 'Vết bẩn',
+  OTHER: 'Khác',
+}
+
+export const INCIDENT_ITEM_TYPE_LABELS: Record<IncidentItemType, string> = {
+  SCRATCH: 'Trầy xước',
+  DENT: 'Móp méo',
+  CRACK: 'Nứt/vỡ',
+  FUNCTIONAL_DAMAGE: 'Hư hỏng chức năng',
+  MISSING_ACCESSORY: 'Thiếu phụ kiện',
+  INTERIOR_DAMAGE: 'Hư hỏng nội thất',
+  STAIN: 'Vết bẩn',
+  ACCIDENT: 'Tai nạn',
+  OTHER: 'Khác',
+}
+
+export const ADDITIONAL_CHARGE_TYPE_LABELS: Record<AdditionalChargeType, string> = {
+  EXTRA_KM: 'Vượt Allowed KM',
+  FUEL_DEFICIT: 'Thiếu nhiên liệu',
+  OVERTIME: 'Trễ giờ trả xe',
+  DAMAGE: 'Hư hỏng',
+  VETC: 'Phí VETC',
+  TRAFFIC_FINE: 'Phạt nguội',
+  MISSING_ACCESSORY: 'Thiếu phụ kiện',
+  DELIVERY_FEE: 'Phí giao/nhận tận nơi',
+  OTHER: 'Khác',
+  DISCOUNT: 'Giảm trừ',
+}
+
+/**
+ * `ConditionEventType` dùng cho `VehicleConditionTimelineTab` — CR-2026-045.
+ * 3 giá trị đầu dùng ở Round 1 (`docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`
+ * §5.4); 3 giá trị sau giữ chỗ cho `VehicleConsignment`/`VehicleMaintenance`
+ * round sau (đã scaffold sẵn trong `CONDITION_EVENT_TYPES`).
+ */
+export const CONDITION_EVENT_TYPE_LABELS: Record<ConditionEventType, string> = {
+  HANDOVER_BASELINE: 'Giao xe (baseline)',
+  RETURN: 'Trả xe',
+  INCIDENT: 'Sự cố',
+  CONSIGNMENT_INTAKE: 'Nhận xe ký gửi',
+  CONSIGNMENT_RETURN: 'Trả xe ký gửi',
+  MAINTENANCE: 'Bảo dưỡng',
 }

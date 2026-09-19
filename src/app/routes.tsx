@@ -4,6 +4,7 @@ import { CalendarScreen } from '@/features/calendar'
 import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
+import { HandoverReturnListScreen } from '@/features/handover-return'
 import { MaintenanceScreen } from '@/features/maintenance'
 import { RentalDetailScreen, RentalListScreen } from '@/features/rentals'
 import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
@@ -37,7 +38,7 @@ export function AppRoutes() {
         <Route path={paths.contracts} element={<ContractListScreen />} />
         <Route path="/contracts/:id" element={<ContractDetailScreen />} />
 
-        <Route path={paths.handoverReturnTracking} element={<ComingSoon title="Theo dõi giao / nhận xe" />} />
+        <Route path={paths.handoverReturnTracking} element={<HandoverReturnListScreen />} />
         <Route path={paths.incidents} element={<ComingSoon title="Hồ sơ sự cố" />} />
         <Route path="/incidents/:id" element={<ComingSoon title="Chi tiết sự cố" />} />
 

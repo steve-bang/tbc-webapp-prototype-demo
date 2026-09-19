@@ -233,6 +233,57 @@ export const VEHICLE_BLOCK_STATUSES = ['ACTIVE', 'RELEASED'] as const
 export type VehicleBlockStatus = (typeof VEHICLE_BLOCK_STATUSES)[number]
 
 /**
+ * Vòng đời bản ghi Giao xe/Nhận xe — `VehicleHandover-UseCase.md` §4 /
+ * `VehicleReturn-UseCase.md` §4. Dùng chung 1 enum cho cả 2 entity
+ * (`docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §3.1). `DISCARDED` là nhánh Phase
+ * 2 (bản nháp bị bỏ trước khi hoàn tất) — Round 1 không có action nào đưa bản
+ * ghi tới trạng thái này qua UI, chỉ giữ chỗ enum cho đủ theo tài liệu.
+ */
+export const HANDOVER_RETURN_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'DISCARDED'] as const
+export type HandoverReturnStatus = (typeof HANDOVER_RETURN_STATUSES)[number]
+
+/** Loại hư hỏng/tình trạng có sẵn ghi nhận lúc giao xe — `VehicleHandover-BRD.md` §12. */
+export const CONDITION_ITEM_TYPES = [
+  'SCRATCH',
+  'DENT',
+  'CRACK',
+  'MISSING_ACCESSORY',
+  'INTERIOR_DAMAGE',
+  'STAIN',
+  'OTHER',
+] as const
+export type ConditionItemType = (typeof CONDITION_ITEM_TYPES)[number]
+
+/** Loại sự cố phát hiện lúc nhận xe — `VehicleReturn-BRD.md` §13. */
+export const INCIDENT_ITEM_TYPES = [
+  'SCRATCH',
+  'DENT',
+  'CRACK',
+  'FUNCTIONAL_DAMAGE',
+  'MISSING_ACCESSORY',
+  'INTERIOR_DAMAGE',
+  'STAIN',
+  'ACCIDENT',
+  'OTHER',
+] as const
+export type IncidentItemType = (typeof INCIDENT_ITEM_TYPES)[number]
+
+/** Loại khoản phát sinh ước tính lúc nhận xe — `VehicleReturn-BRD.md` §15. */
+export const ADDITIONAL_CHARGE_TYPES = [
+  'EXTRA_KM',
+  'FUEL_DEFICIT',
+  'OVERTIME',
+  'DAMAGE',
+  'VETC',
+  'TRAFFIC_FINE',
+  'MISSING_ACCESSORY',
+  'DELIVERY_FEE',
+  'OTHER',
+  'DISCOUNT',
+] as const
+export type AdditionalChargeType = (typeof ADDITIONAL_CHARGE_TYPES)[number]
+
+/**
  * Hành động audit — dùng chung cho mọi feature (xem `shared/lib/audit.ts`).
  * 8 giá trị đầu là từ vựng chung (CRUD + xác nhận). Các giá trị nối thêm bên
  * dưới là hành động riêng của `EmployeeAssignment` — danh mục action bắt
@@ -288,5 +339,13 @@ export const AUDIT_ACTIONS = [
   'SET_CONTRACT_SIGNED',
   'VOID_CONTRACT',
   'MARK_CONTRACT_CREATED',
+  // Vehicle Handover/Return (VH/VR) — Sửa/Huỷ có kiểm soát, `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §9.1.
+  'EDIT_HANDOVER',
+  'CANCEL_HANDOVER',
+  'EDIT_RETURN',
+  'CANCEL_RETURN',
+  // Rental (RM) — revert khi Huỷ Handover/Return, `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §9.2.
+  'REVERT_HANDOVER_CANCELLED',
+  'REVERT_RETURN_CANCELLED',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

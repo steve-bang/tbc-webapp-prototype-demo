@@ -214,6 +214,11 @@ export function suggestNextPickup(previousExpectedReturnDateTime: string): strin
 const ROUND1_TRANSITIONS: Partial<Record<RentalStatus, RentalStatus[]>> = {
   DRAFT: ['CONFIRMED', 'CANCELLED'],
   CONFIRMED: ['CANCELLED', 'CONTRACT_CREATED'], // + CONTRACT_CREATED — `docs/CONTRACT-MANAGEMENT-PLAN.md` §0.2/§3.1
+  // + 4 dòng dưới — `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §0.3/§3.4 (revert khi Huỷ Handover/Return có kiểm soát).
+  HANDED_OVER: ['READY_FOR_HANDOVER'], // revert khi Huỷ Handover
+  IN_RENTAL: ['READY_FOR_HANDOVER'], // revert khi Huỷ Handover (nếu đã tự tiến từ HANDED_OVER)
+  RETURNED: ['IN_RENTAL'], // revert khi Huỷ Return
+  SETTLEMENT: ['IN_RENTAL'], // revert khi Huỷ Return (nếu đã tự tiến từ RETURNED)
 }
 
 /**
@@ -257,6 +262,31 @@ export function canCancel(rental: Rental): boolean {
  */
 export function canMarkContractCreated(rental: Rental): boolean {
   return ROUND1_TRANSITIONS[rental.status]?.includes('CONTRACT_CREATED') ?? false
+}
+
+/**
+ * `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §0.3/§3.4 — round THỨ 2 (sau
+ * `contracts`) được phép mở rộng `rentals/model.ts`/`api.ts`/`hooks.ts`/
+ * `index.ts`, giới hạn ở chiều Huỷ có kiểm soát (revert) — không build
+ * transition thuận qua UI. Mirror `canCancel()`/`canMarkContractCreated()`.
+ */
+export function canCancelHandover(rental: Rental): boolean {
+  return ROUND1_TRANSITIONS[rental.status]?.includes('READY_FOR_HANDOVER') ?? false
+}
+export function canCancelReturn(rental: Rental): boolean {
+  return ROUND1_TRANSITIONS[rental.status]?.includes('IN_RENTAL') ?? false
+}
+
+/**
+ * Hàm thuần chuẩn bị sẵn cho round sau (App nhân viên/quick-record) — CHƯA có
+ * UI/action nào gọi ở Round 1 (kế hoạch §1.2 — không build transition thuận
+ * qua UI vì chưa có wizard tạo).
+ */
+export function canMarkHandedOver(rental: Rental): boolean {
+  return ['CONFIRMED', 'CONTRACT_CREATED', 'READY_FOR_HANDOVER'].includes(rental.status) // VH-BR-02
+}
+export function canMarkReturned(rental: Rental): boolean {
+  return rental.status === 'IN_RENTAL' // VR-BR-02
 }
 
 // ---- Form schema ----
