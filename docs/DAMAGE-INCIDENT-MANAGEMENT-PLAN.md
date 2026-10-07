@@ -258,7 +258,15 @@ tạo hồ sơ)" với nút "Tạo hồ sơ sự cố" cho mỗi item (§0.3).
 ### 5.4. Nối mốc `INCIDENT` ở `VehicleConditionTimelineTab`
 
 Thay đoạn ghi chú "chờ `features/incidents`" bằng dữ liệu `Incident` thật của xe (join qua
-`vehicleId`), hiển thị đầy đủ (field-scoping DI-BR-22 vẫn áp dụng theo role người xem).
+`vehicleId`), hiển thị đầy đủ (field-scoping DI-BR-22 vẫn áp dụng theo role người xem). **Lưu ý khi
+sửa (tránh trùng dòng):** code hiện tại sinh event `INCIDENT` bằng cách lặp `r.incidentItems` của
+từng `ReturnRecord` (`VehicleConditionTimelineTab.tsx` dòng ~73-81) — xoá hẳn nhánh lặp này khi nối
+dữ liệu thật, thay bằng danh sách `Incident` lọc theo `vehicleId` (qua `useIncidents`). Nếu chỉ
+"thêm" mà không xoá nhánh cũ, 1-2 Incident `source='RETURN'` ở seed (§7, tạo từ 1
+`ReturnIncidentItem` cụ thể) sẽ hiện **trùng 2 lần** trên timeline (một từ `ReturnRecord.
+incidentItems` cũ, một từ `Incident` mới) — các `ReturnIncidentItem` chưa được "tạo hồ sơ sự cố"
+(chưa có `Incident` tương ứng) thì không còn hiển thị ở mốc này nữa (vẫn còn hiển thị như card nhắc
+"chưa tạo hồ sơ" ở tab "Sự cố" của Rental Detail, §5.3 — không mất thông tin).
 
 ### 5.5. Dialog
 

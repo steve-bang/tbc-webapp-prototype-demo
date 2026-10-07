@@ -29,11 +29,13 @@ Assignment = 2 field `assignedDeliveryStaffId`/`assignedReceivingStaffId` thêm 
 BRD tại thời điểm build, không dùng nội dung phác thảo làm đặc tả cuối" — đúng quy ước dự án.
 `EmployeeAssignment-BRD.md` v1.4 (bản chuẩn, mới hơn, chi tiết hơn) định nghĩa `Assignment` là
 **entity độc lập** với Planned Window, Status lifecycle riêng (6 giá trị), Reassignment History,
-Assigned By/At, Actual Start/End (§9-§10) — và §32 nói rõ nguyên tắc: *"Assignment là 'cái bóng' của
-Rental... không để trở thành nguồn dữ liệu độc lập lệch với Rental"* — tức **Assignment giữ
-`rentalId`** (như `Contract`/`HandoverRecord`/`ReturnRecord` đã làm), không phải field ngược trên
-`Rental`. **Quyết định: build entity `Assignment` riêng theo BRD — KHÔNG thêm field vào
-`rentals/model.ts`, không cần ngoại lệ kiến trúc đụng `rentals`.**
+Assigned By/At, Actual Start/End (§9-§10, sơ đồ khái niệm liệt `Rental` như một field **của**
+`Assignment` — không phải ngược lại). `EmployeeAssignment-UseCase.md` §32 ("Khuyến nghị của BA",
+**sửa lại nguồn trích — bản rà soát trước ghi nhầm là BRD**) nói rõ thêm nguyên tắc: *"Assignment là
+'cái bóng' của Rental... không để trở thành nguồn dữ liệu độc lập lệch với Rental"* — tức
+**Assignment giữ `rentalId`** (như `Contract`/`HandoverRecord`/`ReturnRecord` đã làm), không phải
+field ngược trên `Rental`. **Quyết định: build entity `Assignment` riêng theo BRD — KHÔNG thêm field
+vào `rentals/model.ts`, không cần ngoại lệ kiến trúc đụng `rentals`.**
 
 ### 0.2. `RentalCalendar-BRD.md` §22/`AC-RC-009` viết như field trên Rental — cách diễn đạt màn hình,
 không phải nguồn dữ liệu
@@ -295,8 +297,14 @@ Thêm `vi.employees.assignment*`/`vi.dispatch.*` + `ASSIGNMENT_STATUS_LABELS` (6
 - `rentals/screens/RentalDetailScreen.tsx`: tab `assignment` thay placeholder.
 - `rentals/model.ts`/`api.ts`/`hooks.ts`: **không đụng** (§0.1/§0.3).
 - `handover-return/model.ts`/`api.ts`/`hooks.ts`: **không đụng** (§0.3).
-- `shared/fixtures/registerSeeds.ts`: import `employees` seed Assignment (cùng file `employees/
-  seed.ts` mở rộng, giữ thứ tự hiện có) — thêm sau khi `rentals` đã seed (cần `rentalId` thật).
+- `shared/fixtures/registerSeeds.ts`: **không đổi vị trí import** `@/features/employees/seed` (vẫn
+  chạy đầu tiên — đúng thứ tự `employees → customers → vehicles → maintenance → rentals` đã ghi ở
+  đầu file). Seed Assignment nằm trong cùng file `employees/seed.ts` (hàm `seedAssignments` riêng,
+  thêm 1 lệnh `registerSeedStep` thứ hai trong file) — **không cần đợi `rentals/seed.ts` chạy
+  trước**: `rentalId` chỉ là chuỗi hardcode khớp đúng id đã biết trước trong `rentals/seed.ts`
+  (không có `readJson()` runtime đọc chéo feature trong bất kỳ `seed.ts` nào ở repo — đã xác minh),
+  đúng pattern `calendar/seed.ts` đang tham chiếu cứng `rt_010` dù về mặt thực thi `registerSeedStep`
+  không có ràng buộc đọc-ghi thật giữa 2 feature.
 - `app/routes.tsx`: bỏ `ComingSoon` cho `/dispatch`.
 - `docs/IMPLEMENTATION-PLAN.md`: tick 2 dòng liên quan (Dispatch board + Assignment) ở Phase 2.
 
