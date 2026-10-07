@@ -1,6 +1,7 @@
 import type {
   AccountStatus,
   AdditionalChargeType,
+  AssignmentRole,
   AssignmentStatus,
   ConditionEventType,
   ConditionItemType,
@@ -144,6 +145,39 @@ export const vi = {
     changeRoleTitle: 'Xác nhận đổi vai trò',
     lockAccountTitle: 'Khoá tài khoản',
     reasonRequired: 'Lý do là bắt buộc (tối thiểu 3 ký tự)',
+    // Assignment — `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §10.
+    assignmentRoleDelivery: 'Giao xe',
+    assignmentRoleReceiving: 'Nhận xe',
+    assignmentAssignButton: 'Phân công',
+    assignmentReassignButton: 'Đổi người',
+    assignmentCancelButton: 'Huỷ phân công',
+    assignmentUnassignedBadge: 'Chưa phân công',
+    assignmentPlannedWindow: 'Khung giờ dự kiến',
+    assignmentAssignedAt: 'Phân công lúc',
+    assignmentAssignedBy: 'Người phân công',
+    assignmentNote: 'Ghi chú',
+    assignmentCancelReasonValue: 'Lý do huỷ',
+    assignmentHistoryTitle: 'Lịch sử đổi người',
+    assignmentHistoryEmpty: 'Chưa có lịch sử đổi người.',
+    assignmentHistoryEntry: (from: string, to: string) => `${from} → ${to}`,
+    // Dialog "Phân công".
+    assignmentCreateDialogTitle: 'Phân công nhân viên',
+    assignmentEmployeeLabel: 'Nhân viên phụ trách',
+    assignmentEmployeePlaceholder: 'Chọn nhân viên',
+    assignmentNoEligibleEmployee: 'Không có nhân viên phù hợp (đang hoạt động, đúng vai trò — EA-BR-08/09).',
+    assignmentConflictWarning: 'Cảnh báo: nhân viên này đang có phân công khác trùng hoặc gần thời gian này (EA-BR-10). Vẫn phân công được.',
+    assignmentCreateSuccess: 'Đã phân công nhân viên.',
+    assignmentCreateError: 'Không thể phân công, vui lòng thử lại.',
+    // Dialog "Đổi người phụ trách".
+    assignmentReassignDialogTitle: 'Đổi người phụ trách',
+    assignmentReassignReasonLabel: 'Lý do đổi người',
+    assignmentReassignSuccess: 'Đã đổi người phụ trách.',
+    assignmentReassignError: 'Không thể đổi người, vui lòng thử lại.',
+    // Dialog "Huỷ phân công".
+    assignmentCancelDialogTitle: 'Huỷ phân công',
+    assignmentCancelReasonLabel: 'Lý do huỷ',
+    assignmentCancelSuccess: 'Đã huỷ phân công.',
+    assignmentCancelError: 'Không thể huỷ, vui lòng thử lại.',
   },
   customers: {
     title: 'Khách hàng',
@@ -501,7 +535,6 @@ export const vi = {
     tabAudit: 'Nhật ký thao tác',
     paymentPlaceholder: 'Chờ triển khai Payment (Phase 4).',
     handoverReturnPlaceholder: 'Chờ triển khai VehicleHandover/VehicleReturn (Phase 3).',
-    assignmentPlaceholder: 'Chờ triển khai Employee Assignment.',
     auditEmpty: 'Chưa có thao tác nào được ghi nhận cho lượt thuê này.',
     auditColumnAt: 'Thời gian',
     auditColumnAction: 'Hành động',
@@ -673,12 +706,19 @@ export const vi = {
     columnPickup: 'Giao xe thực tế',
     columnReturn: 'Trả xe thực tế',
     columnHandoverStatus: 'Trạng thái giao xe',
+    // `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §1.1 mục 7 — đọc Assignment (module EA), chỉ hiển thị.
+    columnDeliveryAssignee: 'Nhân viên giao (phân công)',
+    columnReturnAssignee: 'Nhân viên nhận (phân công)',
     columnReturnStatus: 'Trạng thái trả xe',
     emptyAll: 'Chưa có dữ liệu giao/nhận nào.',
     emptyFiltered: 'Không tìm thấy bản ghi phù hợp. Thử xoá bớt bộ lọc.',
     noValue: 'Chưa có',
     noReturnValue: '—',
     // Tab "Giao-nhận" ở Rental Detail (`RentalHandoverReturnTab`) — §5.2.
+    // `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §1.1 mục 7 — chỉ hiển thị,
+    // đọc từ Assignment (module EA), độc lập với deliveryStaffEmployeeId/
+    // receivingStaffEmployeeId ghi trực tiếp trên HandoverRecord/ReturnRecord.
+    assignmentAssigneeLabel: 'Nhân viên phân công (Employee Assignment)',
     noHandoverNotice: 'Chưa có dữ liệu giao xe — thực hiện trên App nhân viên.',
     noReturnYetNotice: 'Chưa có dữ liệu trả xe.',
     sectionHandover: 'Biên bản giao xe',
@@ -937,6 +977,27 @@ export const vi = {
     auditColumnAction: 'Hành động',
     auditColumnActor: 'Người thực hiện',
   },
+  // Màn "Bảng điều phối trong ngày" (`/schedule/dispatch`, module `EA`/`RC`) —
+  // `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §5.1.
+  dispatch: {
+    title: 'Bảng điều phối trong ngày',
+    description: 'Danh sách giao/nhận xe hôm nay — phân công hoặc đổi người phụ trách ngay trên từng dòng.',
+    todayListTitle: 'Giao/nhận hôm nay',
+    emptyToday: 'Hôm nay không có lượt giao/nhận xe nào.',
+    columnTime: 'Giờ',
+    columnType: 'Loại',
+    columnCustomer: 'Khách hàng',
+    columnVehicle: 'Xe',
+    columnLocation: 'Địa điểm',
+    columnAssignee: 'Nhân viên phụ trách',
+    typeDelivery: 'Giao xe',
+    typeReceiving: 'Nhận xe',
+    widgetUpcomingDelivery: 'Sắp giao (24h tới)',
+    widgetUpcomingReceiving: 'Sắp nhận (24h tới)',
+    // TODO(OQ: RentalCalendar-BRD.md §21 — ngưỡng "sắp đến hạn" chưa chốt, Round 1 cố định 24h).
+    widgetOverdueReturn: 'Quá hạn trả',
+    widgetEmpty: 'Không có',
+  },
 } as const
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -1008,6 +1069,14 @@ export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
   ASSIGNED: 'Đã phân công',
   IN_PROGRESS: 'Đang thực hiện',
   DONE: 'Hoàn tất',
+  REASSIGNED: 'Đã đổi người',
+  CANCELLED: 'Đã huỷ',
+  MISSED: 'Bỏ lỡ',
+}
+
+export const ASSIGNMENT_ROLE_LABELS: Record<AssignmentRole, string> = {
+  DELIVERY: 'Giao xe',
+  RECEIVING: 'Nhận xe',
 }
 
 export const RENTAL_STATUS_LABELS: Record<RentalStatus, string> = {

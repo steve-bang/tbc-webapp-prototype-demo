@@ -143,23 +143,27 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       ngày) khiến thiếu lưới xe×ngày ở mobile trong khi Month đã always-on lưới — bỏ hẳn nhánh
       mobile trong `CalendarWeekGrid.tsx`, chỉ còn 1 lưới xe×ngày bọc `overflow-x-auto`, đồng bộ
       Month. Qua 1 vòng review `tech-lead`: không Blocker.
-- [ ] Bảng điều phối trong ngày (dispatch board, trong `calendar` — theo `CLAUDE.md` bản đồ module):
+- [x] Bảng điều phối trong ngày (dispatch board, trong `calendar` — theo `CLAUDE.md` bản đồ module):
       kế hoạch chi tiết đầy đủ ở [`docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`](EMPLOYEE-ASSIGNMENT-
-      DISPATCH-PLAN.md), trạng thái `PENDING_APPROVAL` (07/10/2026). Route `/dispatch`: danh sách
-      giao/nhận hôm nay + 3 widget (sắp giao/sắp nhận/quá hạn trả) + phân công nhân viên ngay trên
-      bảng. Đi kèm entity `Assignment` mới (xem dòng Assignment bên dưới).
+      DISPATCH-PLAN.md), Round 1 `DONE` (07/10/2026). Route `/schedule/dispatch`
+      (`DispatchBoardScreen`): danh sách giao/nhận hôm nay (sort theo giờ, badge "Chưa phân công") +
+      3 widget (sắp giao/sắp nhận 24h tới/quá hạn trả) + nút Phân công/Đổi người ngay trên bảng (mở
+      dialog từ `employees`).
 - [x] `RentalDetailScreen` (`/rentals/:id`): kế hoạch chi tiết đầy đủ ở
       [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md) §15, `DONE` (15/09/2026). 8 tab:
       Tổng quan/Giá-cọc-phát sinh (thật, không cần API mới — chỉ mở rộng barrel
       `useRental`/`useConfirmRental`/`useCancelRental`)/Thanh toán/Hợp đồng/Giao-nhận/Sự cố/Phân công
-      (placeholder, chờ Phase sau)/Nhật ký thao tác (thật, mirror `VehicleAuditTab.tsx`). Điều hướng
-      click hàng/card ở `RentalListScreen` → Detail (mirror `CustomerListScreen`/`CustomerCard`).
-      Qua 1 vòng review `tech-lead`: không Blocker.
-- [ ] `features/employees`: bổ sung **Assignment** (entity độc lập giữ `rentalId`, KHÔNG phải field
+      (thật từ 07/10/2026 — `RentalAssignmentTab`, xem dòng Assignment bên dưới)/Nhật ký thao tác
+      (thật, mirror `VehicleAuditTab.tsx`). Điều hướng click hàng/card ở `RentalListScreen` → Detail
+      (mirror `CustomerListScreen`/`CustomerCard`). Qua 1 vòng review `tech-lead`: không Blocker.
+- [x] `features/employees`: bổ sung **Assignment** (entity độc lập giữ `rentalId`, KHÔNG phải field
       trên `Rental` — xem `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §0.1 lý do lệch roadmap stub
-      cũ), `ASSIGNED→IN_PROGRESS→DONE`+`REASSIGNED`/`CANCELLED`/`MISSED`, gán Delivery/Receiving
-      Staff, phát hiện trùng lịch nhân viên (cảnh báo, không chặn). Trạng thái `PENDING_APPROVAL`
-      (07/10/2026), cùng kế hoạch với Dispatch board ở trên.
+      cũ), `ASSIGNED→IN_PROGRESS→DONE`+`REASSIGNED`/`CANCELLED`/`MISSED`, Phân công/Đổi người (bắt
+      buộc lý do, lưu `reassignmentHistory`)/Huỷ phân công thủ công, phát hiện trùng lịch nhân viên
+      (cảnh báo, không chặn — `hasAssignmentConflict`). Round 1 `DONE` (07/10/2026), cùng kế hoạch
+      với Dispatch board ở trên. `IN_PROGRESS`/`DONE`/`CANCELLED` tự động theo Handover/Return/Rental
+      (EA-BR-13/15) **không** nối dây Round này — chỉ hàm thuần `deriveAssignmentStatusFromRecord()`
+      chuẩn bị sẵn (§0.3 kế hoạch).
 - [x] `features/contracts` (CT): kế hoạch chi tiết đầy đủ Round 1 ở
       [`docs/CONTRACT-MANAGEMENT-PLAN.md`](CONTRACT-MANAGEMENT-PLAN.md), trạng thái `DONE`
       (15/09/2026) — qua 1 vòng review `tech-lead`, không Blocker. Model `Contract`/`ContractAddendum` (enum

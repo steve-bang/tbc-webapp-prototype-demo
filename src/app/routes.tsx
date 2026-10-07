@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
-import { CalendarScreen } from '@/features/calendar'
+import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
 import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
@@ -30,7 +30,7 @@ export function AppRoutes() {
         <Route path={paths.customers} element={<CustomerListScreen />} />
         <Route path="/customers/:id" element={<CustomerDetailScreen />} />
 
-        <Route path={paths.dispatchBoard} element={<ComingSoon title="Bảng điều phối trong ngày" />} />
+        <Route path={paths.dispatchBoard} element={<DispatchBoardScreen />} />
         <Route path={paths.employees} element={<EmployeeListScreen />} />
         <Route path="/employees/:id" element={<ComingSoon title="Chi tiết nhân viên" />} />
 

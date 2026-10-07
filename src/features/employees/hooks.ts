@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSessionStore } from '@/features/auth'
 import type { EmployeeStatus } from '@/shared/domain/enums'
 import * as api from './api'
-import type { ActorInfo, EmployeeFilter, EmployeeFormInput } from './api'
+import type { ActorInfo, AssignmentFilter, EmployeeFilter, EmployeeFormInput } from './api'
 
 /**
  * Người thực hiện thao tác lấy từ phiên đăng nhập demo hiện tại. Fallback khi
@@ -107,6 +107,59 @@ export function useUnlockAccount() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employees'] })
       queryClient.invalidateQueries({ queryKey: ['employees', 'detail', variables.id] })
+    },
+  })
+}
+
+// =====================================================================
+// Assignment — `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §9.2.
+// =====================================================================
+
+export function useAssignments(filter?: AssignmentFilter) {
+  return useQuery({
+    queryKey: ['assignments', filter ?? {}],
+    queryFn: () => api.listAssignments(filter),
+  })
+}
+
+export function useAssignment(id?: string) {
+  return useQuery({
+    queryKey: ['assignments', 'detail', id],
+    queryFn: () => api.getAssignmentById(id as string),
+    enabled: !!id,
+  })
+}
+
+export function useCreateAssignment() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (input: api.AssignmentCreateInput) => api.createAssignment(input, actor),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['assignments'] }),
+  })
+}
+
+export function useReassignAssignment() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, employeeId, reason }: { id: string; employeeId: string; reason: string }) =>
+      api.reassignAssignment(id, { employeeId, reason }, actor),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['assignments'] })
+      queryClient.invalidateQueries({ queryKey: ['assignments', 'detail', variables.id] })
+    },
+  })
+}
+
+export function useCancelAssignment() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.cancelAssignment(id, reason, actor),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['assignments'] })
+      queryClient.invalidateQueries({ queryKey: ['assignments', 'detail', variables.id] })
     },
   })
 }

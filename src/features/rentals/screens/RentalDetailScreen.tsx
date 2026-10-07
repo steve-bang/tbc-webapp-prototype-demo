@@ -10,6 +10,7 @@ import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+import { RentalAssignmentTab } from '../components/RentalAssignmentTab'
 import { RentalAuditTab } from '../components/RentalAuditTab'
 import { RentalCancelDialog } from '../components/RentalCancelDialog'
 import { RentalConfirmDialog } from '../components/RentalConfirmDialog'
@@ -121,7 +122,7 @@ export function RentalDetailScreen() {
           <RentalIncidentsTab rental={rental} />
         </TabsContent>
         <TabsContent value="assignment">
-          <RentalDetailPlaceholder note={vi.rentals.assignmentPlaceholder} />
+          <RentalAssignmentTab rental={rental} />
         </TabsContent>
         <TabsContent value="audit">
           <RentalAuditTab rentalId={rental.id} />

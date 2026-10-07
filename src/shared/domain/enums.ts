@@ -75,8 +75,18 @@ export type CustomerDocumentType = (typeof CUSTOMER_DOCUMENT_TYPES)[number]
 export const EMPLOYEE_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number]
 
-/** Vòng đời phân công giao/nhận — tự cập nhật từ Handover/Return. */
-export const ASSIGNMENT_STATUSES = ['ASSIGNED', 'IN_PROGRESS', 'DONE'] as const
+/**
+ * Vòng đời phân công giao/nhận — `EmployeeAssignment-BRD.md` §10 (6 giá trị
+ * đủ theo tài liệu — mở rộng từ 3 giá trị scaffold ban đầu,
+ * `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §11). `IN_PROGRESS`/`DONE` dự
+ * kiến tự cập nhật theo Handover/Return (EA-BR-13) nhưng Round 1 KHÔNG nối
+ * dây tự động (§0.3 kế hoạch — ngoại lệ kiến trúc chưa mở). `REASSIGNED` là
+ * trạng thái chỉ-seed Round 1 (mirror tiền lệ `DISCARDED` của
+ * `HANDOVER_RETURN_STATUSES`) — hành động "Đổi người" thật ở UI Round 1 giữ
+ * nguyên bản ghi ở `ASSIGNED`, chỉ cập nhật `assigneeEmployeeId` +
+ * `reassignmentHistory` (không tạo bản ghi mới như mô tả đầy đủ ở BRD §10).
+ */
+export const ASSIGNMENT_STATUSES = ['ASSIGNED', 'IN_PROGRESS', 'DONE', 'REASSIGNED', 'CANCELLED', 'MISSED'] as const
 export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number]
 
 export const ASSIGNMENT_ROLES = ['DELIVERY', 'RECEIVING'] as const
@@ -393,5 +403,9 @@ export const AUDIT_ACTIONS = [
   'MARK_INCIDENT_REPAIRED',
   'CLOSE_INCIDENT',
   'CANCEL_INCIDENT',
+  // Employee Assignment (EA) — Phân công/Đổi người/Huỷ, `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §9.1 (EA-BR-07..12/16).
+  'CREATE_ASSIGNMENT',
+  'REASSIGN_ASSIGNMENT',
+  'CANCEL_ASSIGNMENT',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { usePermission } from '@/features/auth'
-// `employees`/`handover-return` chưa export các hook/component này qua barrel
-// — deep-import trực tiếp file, đúng tiền lệ `RentalContractTab`
-// (`@/features/contracts/hooks`).
+// `employees` export `useAssignments` qua barrel (§9.3
+// `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`); `useEmployees`/`handover-return`
+// chưa export các hook/component này qua barrel — deep-import trực tiếp file,
+// đúng tiền lệ `RentalContractTab` (`@/features/contracts/hooks`).
+import { useAssignments } from '@/features/employees'
 import { useEmployees } from '@/features/employees/hooks'
 import { HandoverCancelDialog } from '@/features/handover-return/components/HandoverCancelDialog'
 import { HandoverEditDialog } from '@/features/handover-return/components/HandoverEditDialog'
@@ -54,6 +56,13 @@ export function RentalHandoverReturnTab({ rental }: { rental: Rental }) {
   const { data: employees = [] } = useEmployees()
   const employeeById = new Map(employees.map((e) => [e.id, e]))
 
+  // `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §1.1 mục 7 — CHỈ hiển thị,
+  // không ghi đè `deliveryStaffEmployeeId`/`receivingStaffEmployeeId` đã có
+  // sẵn ở trên (2 nguồn độc lập, không đồng bộ 2 chiều Round này, §0.3).
+  const { data: assignments = [] } = useAssignments({ rentalId: rental.id })
+  const deliveryAssignment = assignments.find((a) => a.role === 'DELIVERY' && a.status !== 'CANCELLED')
+  const receivingAssignment = assignments.find((a) => a.role === 'RECEIVING' && a.status !== 'CANCELLED')
+
   const [editHandoverOpen, setEditHandoverOpen] = useState(false)
   const [cancelHandoverOpen, setCancelHandoverOpen] = useState(false)
   const [editReturnOpen, setEditReturnOpen] = useState(false)
@@ -104,6 +113,10 @@ export function RentalHandoverReturnTab({ rental }: { rental: Rental }) {
                 <Field label={vi.handoverReturn.odometerHandover} value={handover.odometerHandover !== undefined ? `${handover.odometerHandover.toLocaleString('vi-VN')} km` : undefined} />
                 <Field label={vi.handoverReturn.fuelLevelHandover} value={handover.fuelLevelHandover !== undefined ? String(handover.fuelLevelHandover) : undefined} />
                 <Field label={vi.handoverReturn.deliveryStaffEmployeeId} value={handover.deliveryStaffEmployeeId ? (employeeById.get(handover.deliveryStaffEmployeeId)?.fullName ?? handover.deliveryStaffEmployeeId) : undefined} />
+                <Field
+                  label={vi.handoverReturn.assignmentAssigneeLabel}
+                  value={deliveryAssignment ? (employeeById.get(deliveryAssignment.assigneeEmployeeId)?.fullName ?? deliveryAssignment.assigneeEmployeeId) : undefined}
+                />
                 <Field label={vi.handoverReturn.prepaymentConfirmed} value={handover.prepaymentConfirmed ? vi.handoverReturn.yes : vi.handoverReturn.no} />
                 <Field label={vi.handoverReturn.fullPaymentConfirmed} value={handover.fullPaymentConfirmed ? vi.handoverReturn.yes : vi.handoverReturn.no} />
                 <Field label={vi.handoverReturn.customerAcknowledged} value={handover.customerAcknowledged ? vi.handoverReturn.yes : vi.handoverReturn.no} />
@@ -260,6 +273,10 @@ export function RentalHandoverReturnTab({ rental }: { rental: Rental }) {
                 </div>
 
                 <Field label={vi.handoverReturn.receivingStaffEmployeeId} value={returnRecord.receivingStaffEmployeeId ? (employeeById.get(returnRecord.receivingStaffEmployeeId)?.fullName ?? returnRecord.receivingStaffEmployeeId) : undefined} />
+                <Field
+                  label={vi.handoverReturn.assignmentAssigneeLabel}
+                  value={receivingAssignment ? (employeeById.get(receivingAssignment.assigneeEmployeeId)?.fullName ?? receivingAssignment.assigneeEmployeeId) : undefined}
+                />
 
                 {returnRecord.incidentItems.length > 0 && (
                   <>

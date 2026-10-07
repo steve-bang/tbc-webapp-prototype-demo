@@ -1,18 +1,24 @@
-import type { EmployeeStatus, Role } from '@/shared/domain/enums'
+import type { AssignmentRole, AssignmentStatus, EmployeeStatus, Role } from '@/shared/domain/enums'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
   accountStatusFor,
+  canCancelAssignment,
+  canReassign,
   canTransitionStatus,
+  hasActiveAssignment,
   isPhoneTaken,
   nextEmployeeCode,
+  type Assignment,
+  type AssignmentReassignment,
   type Employee,
   type UserAccount,
 } from './model'
 
 export const EMPLOYEES_STORAGE_KEY = 'employees'
+export const ASSIGNMENTS_STORAGE_KEY = 'assignments'
 
 function readAll(): Employee[] {
   return readJson<Employee[]>(EMPLOYEES_STORAGE_KEY) ?? []
@@ -20,6 +26,20 @@ function readAll(): Employee[] {
 
 function writeAll(items: Employee[]): void {
   writeJson(EMPLOYEES_STORAGE_KEY, items)
+}
+
+function readAllAssignments(): Assignment[] {
+  return readJson<Assignment[]>(ASSIGNMENTS_STORAGE_KEY) ?? []
+}
+
+function writeAllAssignments(items: Assignment[]): void {
+  writeJson(ASSIGNMENTS_STORAGE_KEY, items)
+}
+
+function findAssignmentOrThrow(items: Assignment[], id: string): Assignment {
+  const found = items.find((a) => a.id === id)
+  if (!found) throw new Error('Không tìm thấy phân công')
+  return found
 }
 
 export interface EmployeeFilter {
@@ -321,3 +341,162 @@ export async function unlockAccount(id: string, actor: ActorInfo): Promise<Emplo
 }
 
 // EA-BR-06 — không có `remove`: nhân viên đã có assignment không được xóa vật lý, chuyển INACTIVE thay thế.
+
+// =====================================================================
+// Assignment — `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §9.1.
+// =====================================================================
+
+export interface AssignmentFilter {
+  rentalId?: string
+  employeeId?: string
+  role?: AssignmentRole
+  status?: AssignmentStatus
+}
+
+export interface AssignmentCreateInput {
+  rentalId: string
+  role: AssignmentRole
+  assigneeEmployeeId: string
+  plannedWindowStart: string
+  plannedWindowEnd: string
+  note?: string
+}
+
+function matchesAssignment(assignment: Assignment, filter?: AssignmentFilter): boolean {
+  if (!filter) return true
+  if (filter.rentalId && assignment.rentalId !== filter.rentalId) return false
+  if (filter.employeeId && assignment.assigneeEmployeeId !== filter.employeeId) return false
+  if (filter.role && assignment.role !== filter.role) return false
+  if (filter.status && assignment.status !== filter.status) return false
+  return true
+}
+
+export async function listAssignments(filter?: AssignmentFilter): Promise<Assignment[]> {
+  return fakeRequest(() => readAllAssignments().filter((a) => matchesAssignment(a, filter)))
+}
+
+export async function getAssignmentById(id: string): Promise<Assignment | undefined> {
+  return fakeRequest(() => readAllAssignments().find((a) => a.id === id))
+}
+
+/** EA-BR-07 — guard tối đa 1 Assignment hiệu lực/`role`/Rental. */
+export async function createAssignment(input: AssignmentCreateInput, actor: ActorInfo): Promise<Assignment> {
+  return fakeRequest(() => {
+    const current = readAllAssignments()
+    if (hasActiveAssignment(current, input.rentalId, input.role)) {
+      throw new Error('Lượt thuê này đã có phân công hiệu lực cho vai trò này (EA-BR-07)')
+    }
+    const now = new Date().toISOString()
+    const assignment: Assignment = {
+      id: generateId('asg'),
+      rentalId: input.rentalId,
+      role: input.role,
+      assigneeEmployeeId: input.assigneeEmployeeId,
+      plannedWindowStart: input.plannedWindowStart,
+      plannedWindowEnd: input.plannedWindowEnd,
+      status: 'ASSIGNED',
+      assignedByUserId: actor.userId,
+      assignedByName: actor.fullName,
+      assignedByRole: actor.role,
+      assignedAt: now,
+      reassignmentHistory: [],
+      note: input.note?.trim() || undefined,
+      createdAt: now,
+      updatedAt: now,
+    }
+    writeAllAssignments([...current, assignment])
+    appendAudit({
+      action: 'CREATE_ASSIGNMENT',
+      entity: 'Assignment',
+      entityId: assignment.id,
+      summary: `Phân công nhân viên cho Rental ${assignment.rentalId} (${assignment.role})`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: assignment,
+    })
+    return assignment
+  })
+}
+
+/** EA-BR-11/12 — chỉ đổi được khi `ASSIGNED`, bắt buộc lý do, ghi `reassignmentHistory`. */
+export async function reassignAssignment(
+  id: string,
+  input: { employeeId: string; reason: string },
+  actor: ActorInfo,
+): Promise<Assignment> {
+  return fakeRequest(() => {
+    const all = readAllAssignments()
+    const before = findAssignmentOrThrow(all, id)
+    if (!canReassign(before)) {
+      throw new Error(`Không thể đổi người khi phân công đang ở trạng thái ${before.status} (EA-BR-11)`)
+    }
+    const trimmedReason = input.reason.trim()
+    if (!trimmedReason) {
+      throw new Error('Lý do đổi người là bắt buộc (EA-BR-12)')
+    }
+    const historyEntry: AssignmentReassignment = {
+      id: generateId('asgrh'),
+      fromEmployeeId: before.assigneeEmployeeId,
+      toEmployeeId: input.employeeId,
+      reason: trimmedReason,
+      byUserId: actor.userId,
+      byName: actor.fullName,
+      byRole: actor.role,
+      at: new Date().toISOString(),
+    }
+    const after: Assignment = {
+      ...before,
+      assigneeEmployeeId: input.employeeId,
+      reassignmentHistory: [...before.reassignmentHistory, historyEntry],
+      updatedAt: historyEntry.at,
+    }
+    writeAllAssignments(all.map((a) => (a.id === id ? after : a)))
+    appendAudit({
+      action: 'REASSIGN_ASSIGNMENT',
+      entity: 'Assignment',
+      entityId: id,
+      summary: `Đổi người phụ trách Rental ${after.rentalId} (${after.role}): ${trimmedReason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { assigneeEmployeeId: before.assigneeEmployeeId },
+      after: { assigneeEmployeeId: after.assigneeEmployeeId, reason: trimmedReason },
+    })
+    return after
+  })
+}
+
+/** Huỷ phân công thủ công — thay cho cascade tự động theo Rental (§0.3 kế hoạch). */
+export async function cancelAssignment(id: string, reason: string, actor: ActorInfo): Promise<Assignment> {
+  return fakeRequest(() => {
+    const all = readAllAssignments()
+    const before = findAssignmentOrThrow(all, id)
+    if (!canCancelAssignment(before)) {
+      throw new Error(`Không thể huỷ phân công đang ở trạng thái ${before.status}`)
+    }
+    const trimmedReason = reason.trim()
+    if (!trimmedReason) {
+      throw new Error('Lý do huỷ phân công là bắt buộc')
+    }
+    const after: Assignment = {
+      ...before,
+      status: 'CANCELLED',
+      cancelReason: trimmedReason,
+      updatedAt: new Date().toISOString(),
+    }
+    writeAllAssignments(all.map((a) => (a.id === id ? after : a)))
+    appendAudit({
+      action: 'CANCEL_ASSIGNMENT',
+      entity: 'Assignment',
+      entityId: id,
+      summary: `Huỷ phân công Rental ${after.rentalId} (${after.role}): ${trimmedReason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: 'CANCELLED', reason: trimmedReason },
+    })
+    return after
+  })
+}

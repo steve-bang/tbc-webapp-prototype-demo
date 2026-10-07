@@ -5,6 +5,13 @@ import { paths } from '@/app/paths'
 // (không qua barrel `index.ts`) đúng tiền lệ `RentalListScreen`/
 // `VehicleRentalHistoryTab` (`CONVENTIONS.md` §3, ngoại lệ cho lớp `hooks.ts`).
 import { useCustomers } from '@/features/customers/hooks'
+// `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §1.1 mục 7 — CHỈ hiển thị, đọc
+// Assignment (module EA) qua barrel, không ghi đè deliveryStaffEmployeeId/
+// receivingStaffEmployeeId đã có sẵn trên HandoverRecord/ReturnRecord (2
+// nguồn độc lập, không đồng bộ 2 chiều Round này).
+import { useAssignments } from '@/features/employees'
+// `employees` chưa export `useEmployees` qua barrel — deep-import thẳng `hooks.ts`.
+import { useEmployees } from '@/features/employees/hooks'
 import { useRentals } from '@/features/rentals'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { HANDOVER_RETURN_STATUSES, type HandoverReturnStatus } from '@/shared/domain/enums'
@@ -44,11 +51,24 @@ export function HandoverReturnListScreen() {
   const { data: rentals = [] } = useRentals()
   const { data: customers = [] } = useCustomers()
   const { data: vehicles = [] } = useVehicles()
+  const { data: assignments = [] } = useAssignments()
+  const { data: employees = [] } = useEmployees()
 
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers])
   const vehicleById = useMemo(() => new Map(vehicles.map((v) => [v.id, v])), [vehicles])
   const rentalById = useMemo(() => new Map(rentals.map((r) => [r.id, r])), [rentals])
   const returnByRentalId = useMemo(() => new Map((returns ?? []).map((r) => [r.rentalId, r])), [returns])
+  const employeeById = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees])
+  /** EA-BR-07 — chỉ Assignment khác `CANCELLED` được coi là đang hiệu lực/hiển thị. */
+  const activeAssignmentByKey = useMemo(() => {
+    const map = new Map<string, (typeof assignments)[number]>()
+    for (const a of assignments) {
+      if (a.status === 'CANCELLED') continue
+      const key = `${a.rentalId}:${a.role}`
+      if (!map.has(key)) map.set(key, a)
+    }
+    return map
+  }, [assignments])
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -166,27 +186,39 @@ export function HandoverReturnListScreen() {
                 <TableHead>{vi.handoverReturn.columnVehicle}</TableHead>
                 <TableHead>{vi.handoverReturn.columnPickup}</TableHead>
                 <TableHead>{vi.handoverReturn.columnHandoverStatus}</TableHead>
+                <TableHead>{vi.handoverReturn.columnDeliveryAssignee}</TableHead>
                 <TableHead>{vi.handoverReturn.columnReturn}</TableHead>
                 <TableHead>{vi.handoverReturn.columnReturnStatus}</TableHead>
+                <TableHead>{vi.handoverReturn.columnReturnAssignee}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map(({ handover, rental, customer, vehicle, returnRecord }) => (
-                <TableRow key={handover.id} className="cursor-pointer" onClick={() => rental && openDetail(rental.id)}>
-                  <TableCell className="font-medium">{customer?.fullName ?? rental?.customerId}</TableCell>
-                  <TableCell>{vehicle ? `${vehicle.plate} — ${vehicle.brand} ${vehicle.model}` : rental?.vehicleId}</TableCell>
-                  <TableCell>{handover.actualPickupDateTime ? formatDateTime(handover.actualPickupDateTime) : vi.handoverReturn.noValue}</TableCell>
-                  <TableCell>
-                    <HandoverReturnStatusBadge status={handover.status} />
-                  </TableCell>
-                  <TableCell>
-                    {returnRecord?.actualReturnDateTime ? formatDateTime(returnRecord.actualReturnDateTime) : vi.handoverReturn.noReturnValue}
-                  </TableCell>
-                  <TableCell>
-                    {returnRecord ? <HandoverReturnStatusBadge status={returnRecord.status} /> : vi.handoverReturn.noReturnValue}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {rows.map(({ handover, rental, customer, vehicle, returnRecord }) => {
+                const deliveryAssignment = rental ? activeAssignmentByKey.get(`${rental.id}:DELIVERY`) : undefined
+                const receivingAssignment = rental ? activeAssignmentByKey.get(`${rental.id}:RECEIVING`) : undefined
+                return (
+                  <TableRow key={handover.id} className="cursor-pointer" onClick={() => rental && openDetail(rental.id)}>
+                    <TableCell className="font-medium">{customer?.fullName ?? rental?.customerId}</TableCell>
+                    <TableCell>{vehicle ? `${vehicle.plate} — ${vehicle.brand} ${vehicle.model}` : rental?.vehicleId}</TableCell>
+                    <TableCell>{handover.actualPickupDateTime ? formatDateTime(handover.actualPickupDateTime) : vi.handoverReturn.noValue}</TableCell>
+                    <TableCell>
+                      <HandoverReturnStatusBadge status={handover.status} />
+                    </TableCell>
+                    <TableCell>
+                      {deliveryAssignment ? (employeeById.get(deliveryAssignment.assigneeEmployeeId)?.fullName ?? deliveryAssignment.assigneeEmployeeId) : vi.handoverReturn.noValue}
+                    </TableCell>
+                    <TableCell>
+                      {returnRecord?.actualReturnDateTime ? formatDateTime(returnRecord.actualReturnDateTime) : vi.handoverReturn.noReturnValue}
+                    </TableCell>
+                    <TableCell>
+                      {returnRecord ? <HandoverReturnStatusBadge status={returnRecord.status} /> : vi.handoverReturn.noReturnValue}
+                    </TableCell>
+                    <TableCell>
+                      {receivingAssignment ? (employeeById.get(receivingAssignment.assigneeEmployeeId)?.fullName ?? receivingAssignment.assigneeEmployeeId) : vi.handoverReturn.noReturnValue}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

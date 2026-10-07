@@ -48,6 +48,9 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   `RentalDetailScreen.tsx` cùng lúc — cả 2 round đều thay 1 tab khác nhau trong file này).
 - Kế hoạch Hồ sơ sự cố (`docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md`) chuyển `APPROVED` → **`DONE`**
   sau khi `dev` implement + `tech-lead` review đạt (xem mục `Added` bên dưới).
+- Kế hoạch Phân công + Bảng điều phối (`docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`) chuyển
+  `APPROVED` → **`DONE`** sau khi `dev` implement + `tech-lead` review đạt (xem mục `Added` bên
+  dưới).
 
 **Added**
 
@@ -82,6 +85,34 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   "Bổ sung media/mô tả" luôn ✓); seed `handover-return` chỉ có 1 `ReturnIncidentItem` và đã dùng
   hết cho `inc_008` nên sau seed không còn item "chưa tạo hồ sơ" để demo nút "Tạo hồ sơ sự cố" live
   (chấp nhận giới hạn demo); cột "Lượt thuê" ở `IncidentListScreen` hiện raw `rentalId`.
+- **Phân công (Assignment) + Bảng điều phối (`/schedule/dispatch`) — Round 1 `features/employees`
+  + `features/calendar` (EA, Phase 2 còn dở) `DONE`**: entity `Assignment` độc lập giữ `rentalId`
+  (mirror `Contract`/`HandoverRecord`/`ReturnRecord`, KHÔNG thêm field vào `Rental` — đúng quyết định
+  §0.1 kế hoạch). `ASSIGNMENT_STATUSES` mở rộng 3→6 giá trị (`REASSIGNED`/`CANCELLED`/`MISSED`) + 3
+  audit action mới, `ASSIGNMENT_ROLES` giữ nguyên. Phân công (lọc nhân viên `ACTIVE` + vai trò phù
+  hợp — EA-BR-08/09, tối đa 1 Assignment hiệu lực/role/Rental — EA-BR-07) / Đổi người (chỉ khi
+  `ASSIGNED`, bắt buộc lý do, ghi `reassignmentHistory` — EA-BR-11/12) / Huỷ phân công thủ công
+  (thay cho cascade tự động) đều qua UI thật, cảnh báo mềm khi trùng lịch nhân viên (không chặn —
+  `hasAssignmentConflict`, EA-BR-10). `DispatchBoardScreen` (route `/schedule/dispatch` — đã
+  pre-wire sẵn trong `paths.ts` trước round này, không phải `/dispatch` như kế hoạch ghi sơ bộ):
+  danh sách giao/nhận hôm nay sort theo giờ + badge "Chưa phân công" + 3 widget (sắp giao/sắp nhận
+  24h tới/quá hạn trả) + nút Phân công/Đổi người ngay trên dòng. Tab "Phân công" ở Rental Detail
+  (`RentalAssignmentTab`, mới) thay placeholder. Hiển thị thêm tên nhân viên đã phân công (đọc-only,
+  không ghi đè `deliveryStaffEmployeeId`/`receivingStaffEmployeeId` có sẵn) ở cả
+  `HandoverReturnListScreen` và tab "Giao-nhận" của Rental Detail. `EA-BR-13`/`EA-BR-15` (tự động
+  theo Handover/Return/Rental Cancelled) **không** nối dây Round này — chỉ hàm thuần
+  `deriveAssignmentStatusFromRecord()` chuẩn bị sẵn, xác nhận không có nơi gọi (§0.3 kế hoạch). Seed
+  9 `Assignment` tham chiếu đúng `rentalId`/`assigneeEmployeeId` thật, 2 bản ghi `DONE` khớp chính
+  xác `deliveryStaffEmployeeId`/`receivingStaffEmployeeId` đã seed ở `handover-return/seed.ts`
+  (`ho_002`/`rr_002`), 1 `CANCELLED` mirror đúng lý do huỷ thật của `rt_027`; cố ý để vài Rental chưa
+  có Assignment để demo badge "Chưa phân công". Qua 1 vòng review `tech-lead` (đối chiếu `git diff`
+  thật): **không Blocker** — xác nhận `rentals/model.ts`+`api.ts`+`hooks.ts`,
+  `handover-return/model.ts`+`api.ts`+`hooks.ts`, `vehicles/*`, `permissions.ts` không bị đụng
+  (`git diff` trống), `ASSIGNMENT_ROLES` giữ nguyên, `deriveAssignmentStatusFromRecord()` không có
+  trigger, route pre-wire xác nhận đúng. 4 quyết định tự đưa ra của `dev` (seed khớp chính xác dữ
+  liệu `handover-return` có thật, `REASSIGNED` chỉ-seed đúng ý hàm thuần `canReassign`, áp dụng hiển
+  thị nhân viên phân công cho cả 2 màn hình, thêm `ASSIGNMENT_ROLE_LABELS` nhất quán pattern) đều hợp
+  lý.
 
 ### 2026-09-19
 
