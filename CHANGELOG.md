@@ -11,6 +11,33 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ---
 
+### 2026-10-07
+
+**Planned**
+
+- Thêm [`docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md`](docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md): kế
+  hoạch triển khai **Round 1** của **Hồ sơ sự cố** (`/incidents`, module `DI`, Phase 3) — entity
+  `Incident` độc lập (khác `ReturnIncidentItem` nhúng tối giản đã có ở `handover-return`), vòng đời
+  mainline `OPEN→ASSESSING→(WAITING_APPROVAL)→APPROVED→IN_REPAIR→REPAIRED→CLOSED` + `CANCELLED` qua
+  UI thật, nhánh phụ `DISPUTED`/`WRITTEN_OFF`/`CLOSED_NO_ACTION` chỉ seed. **Phát hiện quan trọng**:
+  `DamageIncident-BRD.md` v1.6 (bản chuẩn) định nghĩa đủ 11 trạng thái + 6 giá trị `Liability` —
+  `enums.ts` hiện chỉ scaffold 7/4 theo bản tóm tắt cũ của `WebappQuanTri.md`, cần sửa đúng theo BRD
+  (không phải quyết định nghiệp vụ mới). Chỉ đọc (không sửa) `ReturnIncidentItem` của
+  `handover-return` để tiền điền form "Tạo sự cố từ Return"; không đụng `vehicles/model.ts` (DI-BR-07
+  Vehicle→MAINTENANCE tự động để roadmap, đúng ranh giới đã thiết lập ở Handover/Return §0.4).
+  Trạng thái: `PENDING_APPROVAL`.
+- Thêm [`docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`](docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md): kế
+  hoạch triển khai **Round 1** của **Phân công (Assignment)** + **Bảng điều phối** (`/dispatch`,
+  module `EA`, Phase 2 còn dở) — entity `Assignment` độc lập giữ `rentalId` (mirror
+  `Contract`/`HandoverRecord`/`ReturnRecord`). **Phát hiện quan trọng**: 2 roadmap stub cũ
+  (`RENTAL-MANAGEMENT-PLAN.md` §8.4, `CALENDAR-MANAGEMENT-PLAN.md` §8.3) mô tả Assignment đơn giản
+  hoá thành 2 field trên `Rental` — tự ghi chú là "sơ bộ, không dùng làm đặc tả cuối"; đọc lại
+  `EmployeeAssignment-BRD.md` v1.4 xác nhận Assignment là entity độc lập đầy đủ (Planned Window,
+  Reassignment History) — **không mở ngoại lệ kiến trúc đụng `rentals/model.ts`**. `EA-BR-13`
+  (auto-sync theo Handover/Return) và `EA-BR-15` (cascade khi Rental Cancelled) để roadmap (đòi hỏi
+  đụng lại 2 feature đã `DONE`) — chỉ có hàm thuần chuẩn bị sẵn + action thủ công. Trạng thái:
+  `PENDING_APPROVAL`.
+
 ### 2026-09-19
 
 **Changed**

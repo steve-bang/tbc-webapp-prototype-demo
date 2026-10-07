@@ -144,8 +144,10 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       mobile trong `CalendarWeekGrid.tsx`, chỉ còn 1 lưới xe×ngày bọc `overflow-x-auto`, đồng bộ
       Month. Qua 1 vòng review `tech-lead`: không Blocker.
 - [ ] Bảng điều phối trong ngày (dispatch board, trong `calendar` — theo `CLAUDE.md` bản đồ module):
-      danh sách giao/nhận hôm nay, lượt sắp đến hạn, quá hạn trả; phân công nhân viên ngay trên bảng.
-      Roadmap sơ bộ ở `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.2 — cần `Assignment` (`EA`) chưa build.
+      kế hoạch chi tiết đầy đủ ở [`docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`](EMPLOYEE-ASSIGNMENT-
+      DISPATCH-PLAN.md), trạng thái `PENDING_APPROVAL` (07/10/2026). Route `/dispatch`: danh sách
+      giao/nhận hôm nay + 3 widget (sắp giao/sắp nhận/quá hạn trả) + phân công nhân viên ngay trên
+      bảng. Đi kèm entity `Assignment` mới (xem dòng Assignment bên dưới).
 - [x] `RentalDetailScreen` (`/rentals/:id`): kế hoạch chi tiết đầy đủ ở
       [`docs/RENTAL-MANAGEMENT-PLAN.md`](RENTAL-MANAGEMENT-PLAN.md) §15, `DONE` (15/09/2026). 8 tab:
       Tổng quan/Giá-cọc-phát sinh (thật, không cần API mới — chỉ mở rộng barrel
@@ -153,8 +155,11 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       (placeholder, chờ Phase sau)/Nhật ký thao tác (thật, mirror `VehicleAuditTab.tsx`). Điều hướng
       click hàng/card ở `RentalListScreen` → Detail (mirror `CustomerListScreen`/`CustomerCard`).
       Qua 1 vòng review `tech-lead`: không Blocker.
-- [ ] `features/employees`: bổ sung **Assignment** (`ASSIGNED→IN_PROGRESS→DONE`), gán Delivery/Receiving
-      Staff, phát hiện trùng lịch nhân viên — roadmap ở `docs/RENTAL-MANAGEMENT-PLAN.md` §8.4.
+- [ ] `features/employees`: bổ sung **Assignment** (entity độc lập giữ `rentalId`, KHÔNG phải field
+      trên `Rental` — xem `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §0.1 lý do lệch roadmap stub
+      cũ), `ASSIGNED→IN_PROGRESS→DONE`+`REASSIGNED`/`CANCELLED`/`MISSED`, gán Delivery/Receiving
+      Staff, phát hiện trùng lịch nhân viên (cảnh báo, không chặn). Trạng thái `PENDING_APPROVAL`
+      (07/10/2026), cùng kế hoạch với Dispatch board ở trên.
 - [x] `features/contracts` (CT): kế hoạch chi tiết đầy đủ Round 1 ở
       [`docs/CONTRACT-MANAGEMENT-PLAN.md`](CONTRACT-MANAGEMENT-PLAN.md), trạng thái `DONE`
       (15/09/2026) — qua 1 vòng review `tech-lead`, không Blocker. Model `Contract`/`ContractAddendum` (enum
@@ -201,8 +206,16 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       `git diff` thật): **không Blocker** — xác nhận đúng mọi ranh giới trên, công thức phí khớp BRD,
       seed data (12 Handover + 7 Return, tham chiếu `rentalId` thật) nhất quán. Góp ý không chặn (để
       dọn round sau): 2 khoá i18n placeholder cũ nay mồ côi.
-- [ ] `features/incidents` (DI): model (Incident — lifecycle `OPEN→...→CLOSED`) · api/hooks/seed (vài sự
-      cố đủ mức độ) · **Hồ sơ sự cố** (lifecycle stepper, `Liability`, chi phí ước tính/thực tế/khách chịu).
+- [ ] `features/incidents` (DI): kế hoạch chi tiết đầy đủ ở [`docs/DAMAGE-INCIDENT-MANAGEMENT-
+      PLAN.md`](DAMAGE-INCIDENT-MANAGEMENT-PLAN.md), trạng thái `PENDING_APPROVAL` (07/10/2026).
+      **Phát hiện quan trọng**: BRD gốc có 11 trạng thái (không phải 7 như đã scaffold theo bản tóm
+      tắt `WebappQuanTri.md`) và 6 giá trị `Liability` (không phải 4) — sửa enum đúng theo BRD. Model
+      `Incident` đầy đủ (Source/Type/Severity/Liability/chi phí ước tính-thực tế-khách chịu/sửa
+      chữa/claim tối giản) · **Hồ sơ sự cố** (stepper trạng thái mainline, nhánh phụ `DISPUTED`/
+      `WRITTEN_OFF`/`CLOSED_NO_ACTION` chỉ seed) · nối tab "Sự cố" ở Rental Detail + mốc `INCIDENT`
+      trên Vehicle Condition Timeline. Chỉ đọc (không sửa) `ReturnIncidentItem` của
+      `handover-return` để tiền điền; không đụng `vehicles/model.ts` (DI-BR-07 Vehicle MAINTENANCE
+      tự động để roadmap, đúng ranh giới đã thiết lập ở Handover/Return).
 - [ ] Nối Vehicle Condition Timeline (tab Vehicle Detail) vào dữ liệu Handover/Return/Incident thật.
 - [ ] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng.
 
