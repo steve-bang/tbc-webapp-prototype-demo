@@ -41,6 +41,21 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Changed**
 
+- **Chia nhỏ `docs/IMPLEMENTATION-PLAN.md` "Phase 4 — Tài chính" thành Phase con 4.1/4.2/4.3**
+  (dạng backlog, chưa phải implementation plan chi tiết) — theo báo cáo rà soát của agent `ba` đối
+  với 3 module `RentalSettlement`/PM `Payment`/RV `RevenueCost`: nội dung nghiệp vụ 3 module nhất
+  quán tốt với nhau, nhưng **UseCase tụt hậu so với BRD ở cả 3**, nặng nhất ở `Payment` (`UC-PM-02`
+  ghi mốc thu Security Deposit là `BOOKING`, trong khi BRD hiện hành theo CR-2026-060 đã chốt là
+  `HANDOVER`); enum `SETTLEMENT_STATUSES` đã scaffold trong `src/shared/domain/enums.ts`
+  (`DRAFT/CONFIRMED/CLOSED/REVERSED`) không khớp state machine thật (`DRAFT→PENDING_CUSTOMER→
+  WAITING_APPROVAL→CONFIRMED→COMPLETED`, đảo quyết toán quay về `DRAFT`). `tech-lead` tự xác nhận
+  lại với `RentalSettlement-BRD.md`/`-UseCase.md`, `Payment-BRD.md`/`-UseCase.md`,
+  `RevenueCost-BRD.md`, `WebappQuanTri.md` §11 (không chỉ tin báo cáo `ba` suông) — xác nhận đúng
+  ranh giới chia Phase con theo thứ tự RS (quyết định bao nhiêu) → PM (thực thi thu/chi) → RV
+  (phân tích), và phát hiện thêm: 2 mốc đầu Payment Schedule (`BOOKING`/`HANDOVER`) không phụ thuộc
+  Phase 4.1 vì Settlement chỉ mở sau Rental `RETURNED`. Nhiều Open Question chặn công thức lõi
+  (sự cố nặng, đối trừ cọc tự động, ngưỡng duyệt, làm tròn/VAT, giữ cọc chờ phạt nguội) vẫn còn
+  treo — chưa tự chốt.
 - Cả 2 kế hoạch Round 1 (`docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md`,
   `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`) chuyển `PENDING_APPROVAL` → **`APPROVED`** (chủ dự án
   phê duyệt, sau khi `tech-lead` đã rà soát và sửa 2 điểm sai sót — xem mục `Planned`) — giao agent

@@ -238,12 +238,80 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
 
 ## Phase 4 — Tài chính — `[ ]`
 
-- [ ] `features/finance` (RS/PM/RV): model (Settlement, Transaction, CostRecord, RevenueLine) ·
-      **Quyết toán** (worksheet: tổng hợp khoản, đối trừ cọc, `Final Amount`, đóng lượt) · **Sổ giao dịch**
-      (danh sách, thêm giao dịch thủ công) · **Quỹ tiền mặt** (tổng nộp/đối soát đơn giản) · **Công nợ
-      khách hàng** · **Báo cáo tài chính** (tổng quan theo kỳ + drill-down theo xe, biểu đồ `recharts`).
+**Chia nhỏ 07/10/2026** theo rà soát của agent `ba` (3 module `RentalSettlement`/RS,
+`Payment`/PM, `RevenueCost`/RV) — tái cấu trúc backlog thuần, **chưa phải implementation plan chi
+tiết** (đó là bước sau, khi `tech-lead` giao từng Phase con). Lý do chia + phát hiện quan trọng cần
+`tech-lead` tương lai biết trước khi lên plan chi tiết từng Phase con:
+
+- **Ranh giới 3 module xác nhận đúng** `WebappQuanTri.md` §11 (mở đầu): **Settlement quyết định
+  *bao nhiêu*** → **Payment ghi nhận *đã thu/chi thực tế*** → **Revenue & Cost *phân tích***. Chia
+  Phase con đúng theo ranh giới này: 4.1 = RS, 4.2 = PM, 4.3 = RV.
+- **UseCase tụt hậu so với BRD ở cả 3 module** (nội dung nghiệp vụ giữa 3 BRD vẫn nhất quán tốt với
+  nhau — không phải lỗi nghiệp vụ, chỉ là tài liệu UseCase chưa theo kịp các CR đã APPLIED vào BRD).
+  Nặng nhất ở `Payment`: **`UC-PM-02` (Thu tiền cọc) sai thật** — điều kiện tiên quyết ghi "Payment
+  Request `Source = BOOKING`" cho Security Deposit, trong khi `Payment-BRD.md` §4.1 (theo
+  CR-2026-060, đã APPLIED) chốt **Security Deposit thu ở mốc `HANDOVER`**, không phải `BOOKING`
+  (`BOOKING` giờ chỉ còn Prepayment 30%). Khi lên plan chi tiết 4.2: **bám `Payment-BRD.md`, không
+  bám `Payment-UseCase.md` cho điểm này** — không tự sửa UseCase (việc của BA).
+- **Enum `SETTLEMENT_STATUSES` hiện tại sai so với BRD/UseCase thật** — scaffold ở
+  `src/shared/domain/enums.ts` hiện là `['DRAFT', 'CONFIRMED', 'CLOSED', 'REVERSED']` nhưng
+  `RentalSettlement-UseCase.md` §4 (State Model) định nghĩa đúng là 5 trạng thái theo thứ tự
+  `DRAFT → PENDING_CUSTOMER → WAITING_APPROVAL → CONFIRMED → COMPLETED`, và đảo quyết toán
+  (`UC-RS-16`, chỉ `SYSTEM_ADMIN`) đưa Settlement **quay lại `DRAFT`** (không có `REVERSED` như một
+  state riêng — đó là tên hành động, không phải trạng thái đích). Sửa đúng enum này là việc đầu
+  tiên của Phase 4.1 khi lên plan chi tiết, không phải quyết định nghiệp vụ mới — chỉ là sửa
+  scaffold demo cho khớp tài liệu đã có.
+- Return→Settlement (các dòng ước tính từ `handover-return` → chốt số thực tế) đã khớp tốt theo
+  tài liệu, không có mâu thuẫn cần xử lý trước. `DI-BR-11/16/18` (chi phí sự cố — `Customer
+  Charge`/`Company Cost`) đúng là thuộc phạm vi đọc của RS (dòng khoản mục `INCIDENT`) + RV (Cost
+  Record), Rental Settlement không tự đánh giá sự cố. Consignment → Owner Payout (`VC`, Phase 5)
+  nhất quán với Payment (`OWNER_PAYOUT`, Cost Record `CONSIGNMENT_PAYOUT`) nhưng **thiếu 1 UC cho
+  Payment** phía thực thi chi trả — ghi nhận để không bất ngờ khi lên plan chi tiết 4.2/Phase 5.
+- **Phát hiện thêm khi `tech-lead` tự xác nhận lại tài liệu** (không chỉ tin báo cáo `ba`): **2 mốc
+  đầu của Payment Schedule (`BOOKING`: Prepayment 30%; `HANDOVER`: 70% + Security Deposit) KHÔNG
+  phụ thuộc Phase 4.1** — Settlement chỉ được mở sau khi Rental `RETURNED` (`RentalSettlement-BRD.md`
+  §7, `RS-BR-02`), nghĩa là 2 mốc này xảy ra trước khi Settlement tồn tại. Chỉ phần "Payment **thực
+  thi** yêu cầu thu/hoàn do Settlement điều phối" (mốc `RETURN` + Post-Settlement Charge) mới thật
+  sự phụ thuộc 4.1. Khi lên plan chi tiết 4.2, có thể cân nhắc slice nhỏ hơn theo điểm này (ví dụ
+  làm 2 mốc đầu trước, không nhất thiết chờ 4.1 xong hẳn) — **không tự chốt cách slice ở đây**, để
+  dành cho lúc lên plan chi tiết.
+- Nhiều Open Question còn treo chặn công thức lõi (`RentalSettlement-BRD.md` §28): sự cố nặng khi
+  `Liability` ≠ khách 100%, đối trừ cọc tự động hay cần khách đồng ý, ngưỡng duyệt miễn giảm, quy
+  tắc làm tròn/VAT, giữ cọc chờ phạt nguội. **Không tự chốt** — chỉ `TODO(OQ)` khi tới lượt code.
+
+### Phase 4.1 — Quyết toán (RentalSettlement) — `[ ]`
+
+- [ ] `features/finance` (RS, phần Settlement): model `Settlement`/`SettlementLine` — **sửa đúng
+      `SETTLEMENT_STATUSES`** theo `RentalSettlement-UseCase.md` §4 (không giữ bản scaffold demo
+      sai hiện tại, xem note ở trên) · **Settlement Worksheet** (đọc Additional Charge Item ước
+      tính từ `handover-return` qua barrel, chốt số thực tế từng dòng, miễn giảm/thiện chí theo
+      ngưỡng duyệt, đối trừ cọc, tính `Final Amount`) · **Post-Settlement Charge** (thu/hoàn sau khi
+      Rental `COMPLETED`, không mở lại Settlement kỳ gốc) · đóng lượt thuê
+      (`RETURNED → SETTLEMENT → COMPLETED` — state Rental đã có sẵn, chờ UI thật).
+- [ ] Cập nhật `registerSeeds.ts` phần `Settlement`, xoá `ComingSoon` tương ứng màn Quyết toán.
+
+### Phase 4.2 — Thanh toán (Payment) — `[ ]`
+
+- [ ] `features/finance` (PM): model `Transaction`/`PaymentRequest`/`PaymentSchedule` · **Sổ giao
+      dịch** (danh sách, thêm giao dịch thủ công, `OFFSET`/`REVERSED` — không xoá) · **Quỹ tiền
+      mặt** (tổng nộp/đối soát đơn giản) · **Công nợ khách hàng** · **Biên lai**. Phụ thuộc Phase
+      4.1 **chỉ cho phần** "thực thi yêu cầu thu/hoàn do Settlement điều phối" (mốc `RETURN` +
+      Post-Settlement Charge) — 2 mốc đầu (`BOOKING`: Prepayment 30%; `HANDOVER`: 70% + Security
+      Deposit) không phụ thuộc 4.1 (xem note ở trên). **Bám `Payment-BRD.md` §4.1, không bám
+      `Payment-UseCase.md` UC-PM-02 cho mốc thu Security Deposit** (UseCase sai, đang ghi nhầm
+      `BOOKING` thay vì `HANDOVER`).
+- [ ] Cập nhật `registerSeeds.ts` phần `Transaction`/`PaymentRequest`, xoá `ComingSoon` tương ứng
+      màn Sổ giao dịch/Quỹ tiền mặt/Công nợ khách hàng.
+
+### Phase 4.3 — Phân tích tài chính (RevenueCost) — `[ ]`
+
+- [ ] `features/finance` (RV): model `CostRecord`/`RevenueLine` · **Báo cáo tài chính** (tổng quan
+      theo kỳ + drill-down theo xe, biểu đồ `recharts`; doanh thu ghi nhận `ON_SETTLEMENT` +
+      góc nhìn "thực thu" — CR-2026-048) · **Nhập & điều chỉnh chi phí thủ công** (Category, Amount,
+      Cost Date, Allocation Type `DIRECT`/`INDIRECT`).
 - [ ] Nối 3 tab Revenue/Cost/Profit ở Vehicle Detail vào dữ liệu thật.
-- [ ] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng.
+- [ ] Cập nhật `registerSeeds.ts` phần `CostRecord`/`RevenueLine`, xoá `ComingSoon` còn lại của
+      Phase 4 (nếu còn).
 
 ## Phase 5 — Xe ký gửi — `[ ]`
 
