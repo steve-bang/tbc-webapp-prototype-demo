@@ -46,6 +46,42 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   phê duyệt, sau khi `tech-lead` đã rà soát và sửa 2 điểm sai sót — xem mục `Planned`) — giao agent
   `dev` implement, lần lượt Incidents trước rồi Assignment/Dispatch (tránh 2 agent sửa đồng thời
   `RentalDetailScreen.tsx` cùng lúc — cả 2 round đều thay 1 tab khác nhau trong file này).
+- Kế hoạch Hồ sơ sự cố (`docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md`) chuyển `APPROVED` → **`DONE`**
+  sau khi `dev` implement + `tech-lead` review đạt (xem mục `Added` bên dưới).
+
+**Added**
+
+- **Hồ sơ sự cố (`/incidents`) — Round 1 `features/incidents` (DI, Phase 3) `DONE`**: entity
+  `Incident` độc lập (model/api/hooks/seed/index đầy đủ), enum sửa đúng theo
+  `DamageIncident-BRD.md` v1.6 (`INCIDENT_STATUSES` 7→11, `LIABILITIES` 4→6) + 4 enum mới
+  (`INCIDENT_SOURCES`/`INCIDENT_TYPES`/`INCIDENT_SEVERITIES`/`INCIDENT_BASELINE_REFERENCES`) + 8
+  audit action. Vòng đời mainline qua UI thật (`OPEN→ASSESSING→(WAITING_APPROVAL)→APPROVED→
+  IN_REPAIR→REPAIRED→CLOSED` + `CANCELLED`, đủ guard DI-BR-05/06/08/09/10); nhánh phụ
+  `DISPUTED`/`WRITTEN_OFF`/`CLOSED_NO_ACTION` chỉ seed (không action UI, đúng kế hoạch). Màn
+  `IncidentListScreen` (`/incidents`, lọc status/severity/source/vehicle) + `IncidentDetailScreen`
+  (`/incidents/:id`, stepper 7 mốc + 4 tab, 2 tab "Trách nhiệm & chi phí"/"Sửa chữa" ẩn hoàn toàn
+  khỏi `TabsList` với `OPERATION_STAFF` — DI-BR-22, mirror đúng cách `VehicleDetailScreen` ẩn tab
+  tài chính theo quyền). Tab "Sự cố" ở Rental Detail (`RentalIncidentsTab`, mới) thay placeholder —
+  tạo Incident từ `ReturnIncidentItem` chưa chuyển đổi (DI-BR-14, kế thừa không nhập lại) hoặc tạo
+  mới hoàn toàn. Nối mốc `INCIDENT` trên Vehicle Condition Timeline vào dữ liệu `Incident` thật —
+  xoá hẳn nhánh cũ sinh mốc từ `ReturnRecord.incidentItems` (tránh trùng dòng). Chỉ đọc (không sửa)
+  `ReturnIncidentItem`/`handover-return` để tiền điền; không đụng `vehicles/model.ts` (DI-BR-07
+  Vehicle→MAINTENANCE tự động để roadmap, đúng ranh giới đã thiết lập ở Handover/Return). Seed 12
+  `Incident` phủ đủ 11 trạng thái (`CLOSED` x2), 1 nguồn `RETURN` kế thừa đúng 1
+  `ReturnIncidentItem` có thật trong seed `handover-return`. Qua 1 vòng review `tech-lead` (đối
+  chiếu `git diff` thật, đối chiếu trực tiếp `DamageIncident-BRD.md` §8/§12/§21, không tin suông
+  báo cáo `dev`): **không Blocker** — xác nhận đủ enum khớp BRD, 3 ranh giới `vehicles/*`/
+  `handover-return/model.ts`+`api.ts`+`hooks.ts`/`permissions.ts` không bị đụng (`git diff` trống),
+  không action UI cho 3 trạng thái nhánh phụ, field-scoping DI-BR-22 đúng cách (ẩn hẳn
+  `TabsTrigger`, không chỉ disable), nhánh trùng dòng ở Vehicle Condition Timeline đã xoá sạch. 8
+  quyết định tự đưa ra của `dev` (2 field kỹ thuật `returnRecordId`/`returnIncidentItemId`, mã
+  `IncidentType` tiếng Anh tự đặt, seed 12 bản ghi thay "8-10", mở lại dialog Liability khi
+  `APPROVED`, chặn `canMarkRepaired` thiếu hoá đơn…) đều hợp lý/đúng tài liệu. Góp ý không chặn (để
+  dọn round sau): gate "Đánh giá" nên đổi từ `INCIDENT.CREATE` sang `INCIDENT.ASSESS` + thêm
+  `TODO(OQ)` (BRD §21 để `TBD` riêng cho Operation ở bước xác định Severity/Safety Impact, khác
+  "Bổ sung media/mô tả" luôn ✓); seed `handover-return` chỉ có 1 `ReturnIncidentItem` và đã dùng
+  hết cho `inc_008` nên sau seed không còn item "chưa tạo hồ sơ" để demo nút "Tạo hồ sơ sự cố" live
+  (chấp nhận giới hạn demo); cột "Lượt thuê" ở `IncidentListScreen` hiện raw `rentalId`.
 
 ### 2026-09-19
 

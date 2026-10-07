@@ -12,8 +12,12 @@ import type {
   DocumentStatus,
   EmployeeStatus,
   HandoverReturnStatus,
+  IncidentBaselineReference,
   IncidentItemType,
+  IncidentSeverity,
+  IncidentSource,
   IncidentStatus,
+  IncidentType,
   Liability,
   MaintenanceRuleAppliesTo,
   OwnershipType,
@@ -330,8 +334,8 @@ export const vi = {
     conditionFilterAllTypes: 'Tất cả loại mốc',
     conditionFilterDateFrom: 'Từ ngày',
     conditionFilterDateTo: 'Đến ngày',
-    conditionIncidentNotice: 'Chi tiết đầy đủ (Liability/chi phí thực tế/claim) chờ triển khai features/incidents.',
     conditionViewSourceLink: 'Xem lượt thuê',
+    conditionViewIncidentLink: 'Xem sự cố',
     // Tab "Tổng quan" — basic info + tóm tắt giấy tờ/bảo dưỡng (VM-RULE-016/017, CR-2026-036).
     overviewDocumentsTitle: 'Giấy tờ',
     overviewDocumentsExpiringSoon: 'Sắp hết hạn',
@@ -497,7 +501,6 @@ export const vi = {
     tabAudit: 'Nhật ký thao tác',
     paymentPlaceholder: 'Chờ triển khai Payment (Phase 4).',
     handoverReturnPlaceholder: 'Chờ triển khai VehicleHandover/VehicleReturn (Phase 3).',
-    incidentsPlaceholder: 'Chờ triển khai DamageIncident (Phase 3).',
     assignmentPlaceholder: 'Chờ triển khai Employee Assignment.',
     auditEmpty: 'Chưa có thao tác nào được ghi nhận cho lượt thuê này.',
     auditColumnAt: 'Thời gian',
@@ -793,6 +796,147 @@ export const vi = {
     cancelReturnSuccess: 'Đã huỷ biên bản trả xe.',
     cancelReturnError: 'Không thể huỷ biên bản trả xe, vui lòng thử lại.',
   },
+  incidents: {
+    // Màn "Hồ sơ sự cố" (`/incidents`) — `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §5.1.
+    title: 'Hồ sơ sự cố',
+    description: 'Theo dõi vòng đời sự cố/hư hỏng: ghi nhận, đánh giá, xác định trách nhiệm & chi phí, sửa chữa, đóng hồ sơ.',
+    addButton: 'Báo sự cố mới',
+    searchPlaceholder: 'Tìm theo mã sự cố',
+    filterStatus: 'Trạng thái',
+    filterAllStatuses: 'Tất cả trạng thái',
+    filterSeverity: 'Mức độ',
+    filterAllSeverities: 'Tất cả mức độ',
+    filterSource: 'Nguồn phát sinh',
+    filterAllSources: 'Tất cả nguồn',
+    filterVehicle: 'Xe',
+    filterAllVehicles: 'Tất cả xe',
+    columnCode: 'Mã sự cố',
+    columnVehicle: 'Xe',
+    columnRental: 'Lượt thuê',
+    columnType: 'Loại',
+    columnSeverity: 'Mức độ',
+    columnLiability: 'Trách nhiệm',
+    columnReportedAt: 'Ngày báo cáo',
+    emptyFiltered: 'Không tìm thấy hồ sơ sự cố phù hợp. Thử xoá bớt bộ lọc.',
+    emptyAll: 'Chưa có hồ sơ sự cố nào. Bấm "Báo sự cố mới" để bắt đầu.',
+    notFound: 'Không tìm thấy hồ sơ sự cố.',
+    noValue: 'Chưa có',
+    noRentalValue: '—',
+    // Header actions (Detail) theo trạng thái hiện tại (§1.1 kế hoạch).
+    assessAction: 'Đánh giá',
+    liabilityAction: 'Xác định trách nhiệm & chi phí',
+    approveAction: 'Duyệt',
+    startRepairAction: 'Bắt đầu sửa chữa',
+    completeRepairAction: 'Hoàn tất sửa chữa',
+    closeAction: 'Đóng hồ sơ',
+    cancelAction: 'Huỷ',
+    // 4 tab (§5.2 kế hoạch).
+    tabOverview: 'Tổng quan',
+    tabLiability: 'Trách nhiệm & chi phí',
+    tabRepair: 'Sửa chữa',
+    tabAudit: 'Nhật ký thao tác',
+    staffScopedNotice: 'Một số thông tin tài chính (trách nhiệm/chi phí/claim/sửa chữa) bị ẩn với vai trò Nhân viên vận hành (DI-BR-22).',
+    // Tab Tổng quan.
+    fieldVehicle: 'Xe',
+    fieldRental: 'Lượt thuê',
+    fieldSource: 'Nguồn phát sinh',
+    fieldType: 'Loại sự cố',
+    fieldSeverity: 'Mức độ nghiêm trọng',
+    fieldSafetyImpact: 'Ảnh hưởng an toàn vận hành',
+    fieldLocation: 'Vị trí',
+    fieldDescription: 'Mô tả',
+    fieldBaselineReference: 'Đối chiếu baseline',
+    fieldReportedBy: 'Người báo cáo',
+    fieldReportedAt: 'Thời gian báo cáo',
+    mediaEmpty: 'Chưa có ảnh/video nào được ghi nhận.',
+    disputeNoteLabel: 'Ghi chú tranh chấp',
+    writeOffReasonLabel: 'Lý do ghi giảm giá trị',
+    closedNoActionReasonLabel: 'Lý do đóng — không tính phí',
+    cancelReasonLabel: 'Lý do huỷ',
+    // Tab Trách nhiệm & chi phí.
+    fieldLiability: 'Bên chịu trách nhiệm',
+    fieldLiabilityNote: 'Mô tả tỉ lệ phân chia',
+    fieldEstimatedCost: 'Chi phí dự kiến',
+    fieldActualCostParts: 'Chi phí phụ tùng thực tế',
+    fieldActualCostLabor: 'Chi phí công thực tế',
+    fieldActualCostOther: 'Chi phí khác thực tế',
+    fieldCustomerCharge: 'Khách chịu',
+    fieldCompanyCost: 'Công ty chịu',
+    fieldInsuranceCovered: 'Bảo hiểm chi trả',
+    costAllocationWarning: 'Tổng Khách chịu + Công ty chịu + Bảo hiểm chi trả chưa khớp Actual/Estimated Cost (DI-BR-06).',
+    noLiabilityYet: 'Chưa xác định trách nhiệm & chi phí.',
+    // Tab Sửa chữa.
+    fieldRepairVendor: 'Đơn vị sửa chữa',
+    fieldRepairStartDate: 'Ngày bắt đầu sửa',
+    fieldRepairEndDate: 'Ngày hoàn tất sửa',
+    fieldRepairInvoice: 'Hoá đơn sửa chữa',
+    noRepairYet: 'Chưa có dữ liệu sửa chữa.',
+    fieldInsuranceClaimCode: 'Mã claim bảo hiểm',
+    fieldInsuranceClaimStatus: 'Trạng thái claim',
+    fieldInsuranceClaimAmount: 'Số tiền claim',
+    // Dialog "Báo sự cố mới" / "Tạo hồ sơ sự cố từ Return" (§5.5 kế hoạch).
+    createDialogTitle: 'Báo sự cố mới',
+    createFromReturnDialogTitle: 'Tạo hồ sơ sự cố từ Return',
+    createSuccess: 'Đã tạo hồ sơ sự cố.',
+    createError: 'Không thể tạo hồ sơ sự cố, vui lòng thử lại.',
+    vehicleLabel: 'Xe',
+    vehiclePlaceholder: 'Chọn xe',
+    rentalLabel: 'Lượt thuê (nếu có)',
+    rentalPlaceholder: 'Không gắn lượt thuê',
+    sourceLabel: 'Nguồn phát sinh',
+    typeLabel: 'Loại sự cố',
+    severityLabel: 'Mức độ nghiêm trọng',
+    safetyImpactLabel: 'Ảnh hưởng an toàn vận hành',
+    locationLabel: 'Vị trí hư hỏng',
+    descriptionLabel: 'Mô tả',
+    estimatedCostLabel: 'Chi phí dự kiến (VNĐ)',
+    // Dialog "Đánh giá".
+    assessDialogTitle: 'Đánh giá sự cố',
+    assessSuccess: 'Đã cập nhật đánh giá sự cố.',
+    assessError: 'Không thể cập nhật đánh giá, vui lòng thử lại.',
+    baselineReferenceLabel: 'Đối chiếu baseline',
+    baselineReferenceSelectPlaceholder: 'Chọn đối chiếu baseline',
+    // Dialog "Xác định trách nhiệm & chi phí".
+    liabilityDialogTitle: 'Xác định trách nhiệm & chi phí',
+    liabilitySuccess: 'Đã cập nhật trách nhiệm & chi phí.',
+    liabilityError: 'Không thể cập nhật, vui lòng thử lại.',
+    liabilityLabel: 'Bên chịu trách nhiệm',
+    liabilitySelectPlaceholder: 'Chọn bên chịu trách nhiệm',
+    liabilityNoteLabel: 'Mô tả tỉ lệ phân chia',
+    costBasisLabel: 'Cơ sở chi phí (Actual/Estimated Cost)',
+    costAllocatedLabel: 'Đã phân bổ',
+    // Dialog "Duyệt".
+    approveDialogTitle: 'Duyệt sự cố',
+    approveDialogDescription: 'Xác nhận duyệt hồ sơ sự cố này, chuyển sang trạng thái Đã duyệt.',
+    approveSuccess: 'Đã duyệt sự cố.',
+    approveError: 'Không thể duyệt, vui lòng thử lại.',
+    // Dialog Sửa chữa (2 bước).
+    startRepairDialogTitle: 'Bắt đầu sửa chữa',
+    startRepairSuccess: 'Đã ghi nhận bắt đầu sửa chữa.',
+    startRepairError: 'Không thể ghi nhận, vui lòng thử lại.',
+    completeRepairDialogTitle: 'Hoàn tất sửa chữa',
+    completeRepairSuccess: 'Đã ghi nhận hoàn tất sửa chữa.',
+    completeRepairError: 'Không thể ghi nhận, vui lòng thử lại.',
+    invoiceNoteLabel: 'Số hoá đơn/ghi chú hoá đơn',
+    totalActualCostLabel: 'Tổng chi phí thực tế',
+    // Đóng hồ sơ.
+    closeSuccess: 'Đã đóng hồ sơ sự cố.',
+    closeError: 'Không thể đóng hồ sơ, vui lòng thử lại.',
+    // Dialog "Huỷ".
+    cancelDialogTitle: 'Huỷ hồ sơ sự cố',
+    cancelSuccess: 'Đã huỷ hồ sơ sự cố.',
+    cancelError: 'Không thể huỷ, vui lòng thử lại.',
+    // Tab "Sự cố" ở Rental Detail (`RentalIncidentsTab`, §5.3 kế hoạch).
+    rentalTabEmpty: 'Lượt thuê này chưa có hồ sơ sự cố nào.',
+    rentalTabPendingTitle: 'Sự cố phát hiện khi trả xe (chưa tạo hồ sơ)',
+    rentalTabCreateFromReturnButton: 'Tạo hồ sơ sự cố',
+    rentalTabReportNewButton: 'Báo sự cố mới',
+    // Tab Nhật ký thao tác.
+    auditEmpty: 'Chưa có thao tác nào được ghi nhận cho hồ sơ sự cố này.',
+    auditColumnAt: 'Thời gian',
+    auditColumnAction: 'Hành động',
+    auditColumnActor: 'Người thực hiện',
+  },
 } as const
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -900,21 +1044,79 @@ export const CONTRACT_ADDENDUM_TYPE_LABELS: Record<ContractAddendumType, string>
   TERMINATION_AGREEMENT: 'Thoả thuận chấm dứt sớm',
 }
 
+/** 11 giá trị — `DamageIncident-BRD.md` §8/§20, xem `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §0.1. */
 export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
   OPEN: 'Mới ghi nhận',
   ASSESSING: 'Đang đánh giá',
+  WAITING_APPROVAL: 'Chờ duyệt',
   APPROVED: 'Đã duyệt',
   IN_REPAIR: 'Đang sửa chữa',
   REPAIRED: 'Đã sửa xong',
   CLOSED: 'Đã đóng',
+  DISPUTED: 'Đang tranh chấp',
   CANCELLED: 'Đã hủy',
+  WRITTEN_OFF: 'Ghi giảm giá trị',
+  CLOSED_NO_ACTION: 'Đóng — không tính phí',
 }
 
+/**
+ * Bản rút gọn theo DI-BR-22 (ẩn với `OPERATION_STAFF`): chỉ 4 nhóm chính thức
+ * (Chưa sửa/Đang sửa/Đã sửa/Đã đóng) theo tài liệu; 3 trạng thái nhánh phụ
+ * (`CANCELLED`/`DISPUTED`/`WRITTEN_OFF`) không nằm trong 4 nhóm gốc — BA bổ
+ * sung nhãn hợp lý để không hiển thị trạng thái rỗng.
+ */
+export const INCIDENT_STATUS_REDUCED_LABELS: Record<IncidentStatus, string> = {
+  OPEN: 'Chưa sửa',
+  ASSESSING: 'Chưa sửa',
+  WAITING_APPROVAL: 'Chưa sửa',
+  APPROVED: 'Chưa sửa',
+  IN_REPAIR: 'Đang sửa',
+  REPAIRED: 'Đã sửa',
+  CLOSED: 'Đã đóng',
+  DISPUTED: 'Đang tranh chấp',
+  CANCELLED: 'Đã huỷ',
+  WRITTEN_OFF: 'Đã đóng',
+  CLOSED_NO_ACTION: 'Đã đóng',
+}
+
+/** 6 giá trị — `DamageIncident-BRD.md` §12, xem `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §0.1. */
 export const LIABILITY_LABELS: Record<Liability, string> = {
   CUSTOMER: 'Khách hàng',
   COMPANY: 'Công ty',
   THIRD_PARTY: 'Bên thứ ba',
   INSURANCE: 'Bảo hiểm',
+  SHARED: 'Chia trách nhiệm',
+  UNDETERMINED: 'Chưa xác định',
+}
+
+export const INCIDENT_SOURCE_LABELS: Record<IncidentSource, string> = {
+  RETURN: 'Phát hiện khi trả xe',
+  STANDALONE: 'Báo trong kỳ thuê',
+  INSPECTION: 'Kiểm tra xe',
+  ACCIDENT: 'Tai nạn',
+}
+
+export const INCIDENT_TYPE_LABELS: Record<IncidentType, string> = {
+  EXTERIOR: 'Ngoại thất',
+  INTERIOR: 'Nội thất',
+  FUNCTIONAL: 'Chức năng',
+  ACCESSORY: 'Phụ kiện',
+  HYGIENE: 'Vệ sinh',
+  ACCIDENT: 'Tai nạn',
+  OTHER: 'Khác',
+}
+
+export const INCIDENT_SEVERITY_LABELS: Record<IncidentSeverity, string> = {
+  MINOR: 'Nhẹ',
+  MODERATE: 'Trung bình',
+  MAJOR: 'Nặng',
+  CRITICAL: 'Nghiêm trọng (ảnh hưởng an toàn)',
+}
+
+export const INCIDENT_BASELINE_REFERENCE_LABELS: Record<IncidentBaselineReference, string> = {
+  NEW: 'Mới phát sinh',
+  WORSENED: 'Nặng hơn baseline',
+  PRE_EXISTING: 'Có sẵn trước khi giao',
 }
 
 export const TRANSACTION_STATUS_LABELS: Record<TransactionStatus, string> = {

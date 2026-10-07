@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { paths } from '@/app/paths'
-// `handover-return`/`rentals` — deep-import `hooks.ts` của feature khác đúng
-// tiền lệ `VehicleRentalHistoryTab`.
+import { usePermission } from '@/features/auth'
+// `handover-return`/`rentals`/`incidents` — deep-import `hooks.ts` của feature
+// khác đúng tiền lệ `VehicleRentalHistoryTab`.
 import { useHandoverRecords, useReturnRecords } from '@/features/handover-return/hooks'
+import { useIncidents } from '@/features/incidents/hooks'
 import { useRentals } from '@/features/rentals'
 import type { ConditionEventType } from '@/shared/domain/enums'
-import { CONDITION_EVENT_TYPE_LABELS, vi } from '@/shared/i18n/vi'
+import { CONDITION_EVENT_TYPE_LABELS, INCIDENT_STATUS_REDUCED_LABELS, LIABILITY_LABELS, vi } from '@/shared/i18n/vi'
 import { formatDateTime } from '@/shared/lib/datetime'
+import { formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
@@ -23,7 +26,10 @@ interface ConditionEvent {
   id: string
   type: ConditionEventType
   at: string
-  rentalId: string
+  /** Rental liên quan (có thể rỗng với Incident `STANDALONE`/`INSPECTION` không gắn Rental). */
+  rentalId?: string
+  /** Chỉ có ở mốc `INCIDENT` — dùng để trỏ link "Xem sự cố" thay vì "Xem lượt thuê". */
+  incidentId?: string
   summary: string
 }
 
@@ -31,17 +37,23 @@ const ALL = '__ALL__'
 
 /**
  * Tab "Hiện trạng xe" ở Vehicle Detail — Vehicle Condition Timeline **bản đầy
- * đủ** (CR-2026-045), `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §5.4. Tổng
+ * đủ** (CR-2026-045), `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §5.4. Tổng
  * hợp runtime (không lưu storage riêng) từ `HandoverRecord`
- * (`HANDOVER_BASELINE`) + `ReturnRecord` (`RETURN`) +
- * `ReturnRecord.incidentItems` (`INCIDENT`) của xe. Hiển thị đầy đủ số liệu
- * (khác bản App rút gọn theo CR-2026-052) — mốc `INCIDENT` chờ
- * `features/incidents` cho chi tiết đầy đủ (Liability/chi phí thực tế/claim).
+ * (`HANDOVER_BASELINE`) + `ReturnRecord` (`RETURN`) + `Incident`
+ * (`INCIDENT`, lọc theo `vehicleId` — thay thế hoàn toàn nhánh cũ sinh mốc
+ * `INCIDENT` từ `ReturnRecord.incidentItems`, tránh trùng dòng khi 1 sự cố đã
+ * được "tạo hồ sơ" thành `Incident` thật — xem ghi chú tech-lead ở kế hoạch
+ * §5.4). Hiển thị đầy đủ (field-scoping DI-BR-22 vẫn áp dụng theo role người
+ * xem — ẩn Liability/chi phí khi role hiện tại là `OPERATION_STAFF`).
  */
 export function VehicleConditionTimelineTab({ vehicle }: { vehicle: Vehicle }) {
+  const { role } = usePermission()
+  const isOperationStaff = role === 'OPERATION_STAFF'
+
   const { data: rentals = [] } = useRentals({ vehicleId: vehicle.id })
   const { data: handovers = [] } = useHandoverRecords()
   const { data: returns = [] } = useReturnRecords()
+  const { data: incidents = [] } = useIncidents({ vehicleId: vehicle.id })
 
   const [typeFilter, setTypeFilter] = useState<ConditionEventType | undefined>()
   const [dateFrom, setDateFrom] = useState('')
@@ -70,22 +82,28 @@ export function VehicleConditionTimelineTab({ vehicle }: { vehicle: Vehicle }) {
         rentalId: r.rentalId,
         summary: `Odo ${r.odometerReturn?.toLocaleString('vi-VN') ?? '—'} km · Fuel ${r.fuelLevelReturn ?? '—'} · ${r.incidentItems.length} sự cố mới`,
       })
-      for (const incident of r.incidentItems) {
-        result.push({
-          id: `inc_${incident.id}`,
-          type: 'INCIDENT',
-          at: r.actualReturnDateTime,
-          rentalId: r.rentalId,
-          summary: `${incident.description} — ${vi.handoverReturn.chargeApprovalStatusLabels[incident.chargeApprovalStatus]}`,
-        })
-      }
+    }
+    for (const incident of incidents) {
+      const summary = isOperationStaff
+        ? `${incident.incidentCode} — ${INCIDENT_STATUS_REDUCED_LABELS[incident.status]}` // DI-BR-22 — ẩn Liability/chi phí
+        : `${incident.incidentCode} — ${LIABILITY_LABELS[incident.liability]}${
+            incident.customerCharge !== undefined ? ` · Khách chịu ${formatVnd(incident.customerCharge)}` : ''
+          }`
+      result.push({
+        id: `inc_${incident.id}`,
+        type: 'INCIDENT',
+        at: incident.reportedAt,
+        rentalId: incident.rentalId,
+        incidentId: incident.id,
+        summary,
+      })
     }
     return result
       .filter((e) => !typeFilter || e.type === typeFilter)
       .filter((e) => !dateFrom || e.at.slice(0, 10) >= dateFrom)
       .filter((e) => !dateTo || e.at.slice(0, 10) <= dateTo)
       .sort((a, b) => b.at.localeCompare(a.at))
-  }, [handovers, returns, rentalIds, typeFilter, dateFrom, dateTo])
+  }, [handovers, returns, incidents, rentalIds, typeFilter, dateFrom, dateTo, isOperationStaff])
 
   if (rentals.length === 0 && events.length === 0) {
     return <VehicleDetailPlaceholder note={vi.vehicles.conditionEmpty} />
@@ -141,14 +159,17 @@ export function VehicleConditionTimelineTab({ vehicle }: { vehicle: Vehicle }) {
                   <TableCell>
                     <Badge variant={event.type === 'INCIDENT' ? 'warning' : 'info'}>{CONDITION_EVENT_TYPE_LABELS[event.type]}</Badge>
                   </TableCell>
-                  <TableCell>
-                    {event.summary}
-                    {event.type === 'INCIDENT' && <p className="text-muted-foreground mt-1 text-xs">{vi.vehicles.conditionIncidentNotice}</p>}
-                  </TableCell>
+                  <TableCell>{event.summary}</TableCell>
                   <TableCell className="text-right">
-                    <Link to={paths.rentalDetail(event.rentalId)} className="text-primary text-sm underline underline-offset-2">
-                      {vi.vehicles.conditionViewSourceLink}
-                    </Link>
+                    {event.incidentId ? (
+                      <Link to={paths.incidentDetail(event.incidentId)} className="text-primary text-sm underline underline-offset-2">
+                        {vi.vehicles.conditionViewIncidentLink}
+                      </Link>
+                    ) : event.rentalId ? (
+                      <Link to={paths.rentalDetail(event.rentalId)} className="text-primary text-sm underline underline-offset-2">
+                        {vi.vehicles.conditionViewSourceLink}
+                      </Link>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}

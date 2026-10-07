@@ -1,8 +1,21 @@
 # Kế hoạch triển khai — Hồ sơ sự cố (Damage Incident)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (07/10/2026, chủ dự án phê duyệt) — Round 1
-(data core + vòng đời sự cố mainline + Hồ sơ sự cố + nối Rental Detail/Vehicle Condition Timeline) đã
-lên kế hoạch chi tiết, đã giao `dev` implement.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `DONE` (07/10/2026) — Round 1 (data core + vòng đời
+sự cố mainline + Hồ sơ sự cố + nối Rental Detail/Vehicle Condition Timeline) đã `dev` implement, qua
+1 vòng review `tech-lead` (đối chiếu `git diff` thật): **không Blocker**. Xác nhận đúng mọi ràng buộc
+cứng: enum 11 trạng thái/6 Liability khớp BRD §8/§12 từng ký tự, `vehicles/*` và `handover-return/
+model.ts`/`api.ts`/`hooks.ts` và `permissions.ts` không bị đụng (`git diff` trống), không có action UI
+cho `DISPUTED`/`WRITTEN_OFF`/`CLOSED_NO_ACTION`, tab "Trách nhiệm & chi phí"/"Sửa chữa" ẩn hoàn toàn
+khỏi `TabsList` với `OPERATION_STAFF` (mirror đúng cách `VehicleDetailScreen` ẩn tab Revenue/Cost/
+Profit), nhánh cũ sinh mốc `INCIDENT` từ `ReturnRecord.incidentItems` đã xoá hẳn (không còn trùng
+dòng). Góp ý không chặn (để dọn round sau): gate "Đánh giá" (OPEN→ASSESSING) dùng `INCIDENT.CREATE`
+thay vì `INCIDENT.ASSESS` — BRD §21 tách riêng "Bổ sung media/mô tả" (✓ Operation) với "Xác định
+Severity/Safety Impact" (`TBD` Operation); bước "Đánh giá" gộp cả hai nên vô tình cấp quyền
+Severity/Safety Impact cho `OPERATION_STAFF` dựa trên `TBD` — nên đổi gate + thêm `TODO(OQ)`; seed
+`handover-return` chỉ có 1 `ReturnIncidentItem` và đã dùng hết cho `inc_008` nên sau seed không còn
+item nào "chưa tạo hồ sơ" để demo nút "Tạo hồ sơ sự cố" live (chấp nhận giới hạn demo, có thể bổ sung
+1 item seed ở round sau); cột "Lượt thuê" ở `IncidentListScreen` hiện raw `rentalId` thay vì mã dễ
+đọc hơn.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/DamageIncident-BRD.md` (v1.6, toàn bộ — đặc biệt
 §6-§13, §20, §27) + `-UseCase.md` (v1.1, đối chiếu mâu thuẫn §0.1) + `../thien-bao-car-docs/

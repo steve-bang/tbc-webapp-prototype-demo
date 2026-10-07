@@ -114,21 +114,58 @@ export type ContractStatus = (typeof CONTRACT_STATUSES)[number]
 export const CONTRACT_ADDENDUM_TYPES = ['ADDENDUM_VEHICLE_SWAP', 'TERMINATION_AGREEMENT'] as const
 export type ContractAddendumType = (typeof CONTRACT_ADDENDUM_TYPES)[number]
 
-/** Vòng đời sự cố — `DamageIncident-BRD.md`. */
+/**
+ * Vòng đời sự cố — `DamageIncident-BRD.md` §8/§20 (DI-BR), v1.6. Mở rộng đủ 11
+ * giá trị theo BRD (trước đây chỉ scaffold 7 giá trị khi `features/incidents`
+ * chưa tồn tại — sửa đúng theo tài liệu nguồn, không phải tính năng mới, xem
+ * `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §0.1).
+ */
 export const INCIDENT_STATUSES = [
   'OPEN',
   'ASSESSING',
+  'WAITING_APPROVAL',
   'APPROVED',
   'IN_REPAIR',
   'REPAIRED',
   'CLOSED',
+  'DISPUTED',
   'CANCELLED',
+  'WRITTEN_OFF',
+  'CLOSED_NO_ACTION',
 ] as const
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number]
 
-/** Bên chịu trách nhiệm sự cố. */
-export const LIABILITIES = ['CUSTOMER', 'COMPANY', 'THIRD_PARTY', 'INSURANCE'] as const
+/**
+ * Bên chịu trách nhiệm sự cố — `DamageIncident-BRD.md` §12. Mở rộng đủ 6 giá
+ * trị (trước đây chỉ 4 — thêm `SHARED`/`UNDETERMINED`; `UNDETERMINED` là điều
+ * kiện chặn `APPROVED`/`CLOSED` theo DI-BR-05, xem
+ * `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §0.1).
+ */
+export const LIABILITIES = ['CUSTOMER', 'COMPANY', 'THIRD_PARTY', 'INSURANCE', 'SHARED', 'UNDETERMINED'] as const
 export type Liability = (typeof LIABILITIES)[number]
+
+/** Nguồn phát sinh sự cố — `DamageIncident-BRD.md` §7. */
+export const INCIDENT_SOURCES = ['RETURN', 'STANDALONE', 'INSPECTION', 'ACCIDENT'] as const
+export type IncidentSource = (typeof INCIDENT_SOURCES)[number]
+
+/**
+ * Phân loại sự cố — `DamageIncident-BRD.md` §9.1 (7 nhóm: Ngoại thất/Nội
+ * thất/Chức năng/Phụ kiện/Vệ sinh/Tai nạn/Khác). Tài liệu chỉ liệt kê tên
+ * nhóm tiếng Việt, chưa có mã enum chính thức — BA đặt mã tiếng Anh tương ứng.
+ * Khác `INCIDENT_ITEM_TYPES` (dùng cho `ReturnIncidentItem` của
+ * `VehicleReturn` — giữ nguyên, KHÔNG gộp, xem
+ * `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §2.2).
+ */
+export const INCIDENT_TYPES = ['EXTERIOR', 'INTERIOR', 'FUNCTIONAL', 'ACCESSORY', 'HYGIENE', 'ACCIDENT', 'OTHER'] as const
+export type IncidentType = (typeof INCIDENT_TYPES)[number]
+
+/** Mức độ nghiêm trọng sự cố — `DamageIncident-BRD.md` §9.2. */
+export const INCIDENT_SEVERITIES = ['MINOR', 'MODERATE', 'MAJOR', 'CRITICAL'] as const
+export type IncidentSeverity = (typeof INCIDENT_SEVERITIES)[number]
+
+/** Đối chiếu baseline Handover — `DamageIncident-BRD.md` §11, chỉ áp dụng khi `Incident.source === 'RETURN'`. */
+export const INCIDENT_BASELINE_REFERENCES = ['NEW', 'WORSENED', 'PRE_EXISTING'] as const
+export type IncidentBaselineReference = (typeof INCIDENT_BASELINE_REFERENCES)[number]
 
 /** Loại giao dịch tiền — `Payment-BRD.md`. */
 export const TRANSACTION_TYPES = [
@@ -347,5 +384,14 @@ export const AUDIT_ACTIONS = [
   // Rental (RM) — revert khi Huỷ Handover/Return, `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §9.2.
   'REVERT_HANDOVER_CANCELLED',
   'REVERT_RETURN_CANCELLED',
+  // Damage Incident (DI) — vòng đời sự cố, `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §9.1.
+  'CREATE_INCIDENT',
+  'ASSESS_INCIDENT',
+  'SET_INCIDENT_LIABILITY',
+  'APPROVE_INCIDENT',
+  'START_INCIDENT_REPAIR',
+  'MARK_INCIDENT_REPAIRED',
+  'CLOSE_INCIDENT',
+  'CANCEL_INCIDENT',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

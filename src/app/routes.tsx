@@ -5,6 +5,7 @@ import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
 import { HandoverReturnListScreen } from '@/features/handover-return'
+import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents'
 import { MaintenanceScreen } from '@/features/maintenance'
 import { RentalDetailScreen, RentalListScreen } from '@/features/rentals'
 import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
@@ -39,8 +40,8 @@ export function AppRoutes() {
         <Route path="/contracts/:id" element={<ContractDetailScreen />} />
 
         <Route path={paths.handoverReturnTracking} element={<HandoverReturnListScreen />} />
-        <Route path={paths.incidents} element={<ComingSoon title="Hồ sơ sự cố" />} />
-        <Route path="/incidents/:id" element={<ComingSoon title="Chi tiết sự cố" />} />
+        <Route path={paths.incidents} element={<IncidentListScreen />} />
+        <Route path="/incidents/:id" element={<IncidentDetailScreen />} />
 
         <Route path={paths.financeSettlement} element={<ComingSoon title="Quyết toán" />} />
         <Route path={paths.financeTransactions} element={<ComingSoon title="Sổ giao dịch" />} />

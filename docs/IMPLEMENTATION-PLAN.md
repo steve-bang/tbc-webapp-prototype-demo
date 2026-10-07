@@ -186,7 +186,7 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       `rentals/model.ts`/`api.ts`/`hooks.ts`/`index.ts`). Qua 1 vòng review `tech-lead`: không Blocker.
 - [ ] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng.
 
-## Phase 3 — Giao/nhận xe & sự cố — `[~]`
+## Phase 3 — Giao/nhận xe & sự cố — `[x]`
 
 - [x] `features/handover-return` (VH/VR): kế hoạch chi tiết đầy đủ Round 1 ở
       [`docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`](HANDOVER-RETURN-MANAGEMENT-PLAN.md), trạng thái
@@ -206,18 +206,31 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       `git diff` thật): **không Blocker** — xác nhận đúng mọi ranh giới trên, công thức phí khớp BRD,
       seed data (12 Handover + 7 Return, tham chiếu `rentalId` thật) nhất quán. Góp ý không chặn (để
       dọn round sau): 2 khoá i18n placeholder cũ nay mồ côi.
-- [ ] `features/incidents` (DI): kế hoạch chi tiết đầy đủ ở [`docs/DAMAGE-INCIDENT-MANAGEMENT-
-      PLAN.md`](DAMAGE-INCIDENT-MANAGEMENT-PLAN.md), trạng thái `PENDING_APPROVAL` (07/10/2026).
-      **Phát hiện quan trọng**: BRD gốc có 11 trạng thái (không phải 7 như đã scaffold theo bản tóm
-      tắt `WebappQuanTri.md`) và 6 giá trị `Liability` (không phải 4) — sửa enum đúng theo BRD. Model
-      `Incident` đầy đủ (Source/Type/Severity/Liability/chi phí ước tính-thực tế-khách chịu/sửa
-      chữa/claim tối giản) · **Hồ sơ sự cố** (stepper trạng thái mainline, nhánh phụ `DISPUTED`/
-      `WRITTEN_OFF`/`CLOSED_NO_ACTION` chỉ seed) · nối tab "Sự cố" ở Rental Detail + mốc `INCIDENT`
-      trên Vehicle Condition Timeline. Chỉ đọc (không sửa) `ReturnIncidentItem` của
-      `handover-return` để tiền điền; không đụng `vehicles/model.ts` (DI-BR-07 Vehicle MAINTENANCE
-      tự động để roadmap, đúng ranh giới đã thiết lập ở Handover/Return).
-- [ ] Nối Vehicle Condition Timeline (tab Vehicle Detail) vào dữ liệu Handover/Return/Incident thật.
-- [ ] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng.
+- [x] `features/incidents` (DI): kế hoạch chi tiết đầy đủ ở [`docs/DAMAGE-INCIDENT-MANAGEMENT-
+      PLAN.md`](DAMAGE-INCIDENT-MANAGEMENT-PLAN.md), trạng thái `DONE` (07/10/2026). Sửa đúng enum
+      theo BRD gốc (11 trạng thái/6 `Liability`, không phải 7/4 theo bản tóm tắt cũ
+      `WebappQuanTri.md`). Model `Incident` đầy đủ (Source/Type/Severity/Liability/chi phí ước
+      tính-thực tế-khách chịu/sửa chữa/claim tối giản) · màn `/incidents` + "Hồ sơ sự cố"
+      (`/incidents/:id`, stepper 7 mốc mainline + action đúng gate, nhánh phụ `DISPUTED`/
+      `WRITTEN_OFF`/`CLOSED_NO_ACTION` chỉ seed, không action UI) · tab "Sự cố" ở Rental Detail
+      (`RentalIncidentsTab`, gồm nút "Tạo hồ sơ sự cố" từ `ReturnIncidentItem` chưa chuyển đổi) ·
+      2 tab "Trách nhiệm & chi phí"/"Sửa chữa" ẩn hoàn toàn với `OPERATION_STAFF` (DI-BR-22). Chỉ
+      đọc (không sửa) `ReturnIncidentItem` của `handover-return` để tiền điền; không đụng
+      `vehicles/model.ts` (DI-BR-07 Vehicle MAINTENANCE tự động để roadmap, đúng ranh giới đã thiết
+      lập ở Handover/Return). Qua 1 vòng review `tech-lead` (đối chiếu `git diff` thật): **không
+      Blocker** — xác nhận đủ enum khớp BRD, 3 ranh giới `vehicles/*`/`handover-return/model.ts`+
+      `api.ts`+`hooks.ts`/`permissions.ts` không bị đụng, field-scoping DI-BR-22 đúng cách
+      (`TabsTrigger` điều kiện, không chỉ disable). Góp ý không chặn (để dọn round sau): gate
+      "Đánh giá" nên đổi từ `INCIDENT.CREATE` sang `INCIDENT.ASSESS` (BRD §21 để `TBD` riêng cho
+      Operation ở bước xác định Severity/Safety Impact) + thêm `TODO(OQ)`; seed `handover-return`
+      chỉ còn 0 `ReturnIncidentItem` "chưa tạo hồ sơ" sau khi `inc_008` dùng hết — chấp nhận giới
+      hạn demo, có thể bổ sung 1 item ở round sau; cột "Lượt thuê" ở `IncidentListScreen` hiện raw
+      `rentalId`.
+- [x] Nối Vehicle Condition Timeline (tab Vehicle Detail) vào dữ liệu Handover/Return/Incident thật
+      — nhánh cũ sinh mốc `INCIDENT` từ `ReturnRecord.incidentItems` đã xoá hẳn, thay bằng `Incident`
+      thật lọc theo `vehicleId` (không còn trùng dòng); field-scoping DI-BR-22 áp dụng theo role
+      người xem.
+- [x] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng (`/incidents`, `/incidents/:id`).
 
 ## Phase 4 — Tài chính — `[ ]`
 

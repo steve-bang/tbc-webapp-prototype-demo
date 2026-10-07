@@ -22,11 +22,18 @@
  * `customers`/`vehicles` đã seed (chỉ chọn Rental status `CONTRACT_CREATED`
  * trở lên).
  *
- * `handover-return` chạy cuối cùng — `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md`
- * §7/§9 tham chiếu `rentalId` thật từ `rentals/seed.ts` (các Rental đã ở trạng
- * thái `HANDED_OVER`/`IN_RENTAL`/`RETURNED`/`SETTLEMENT`/`COMPLETED`/
- * `CANCELLED`) — không phụ thuộc `contracts`, nhưng giữ đúng thứ tự nhóm
- * nghiệp vụ 4 (Lượt thuê & hợp đồng) trước nhóm 5 (Giao/nhận & sự cố).
+ * `handover-return` chạy trước `incidents` — `docs/HANDOVER-RETURN-
+ * MANAGEMENT-PLAN.md` §7/§9 tham chiếu `rentalId` thật từ `rentals/seed.ts`
+ * (các Rental đã ở trạng thái `HANDED_OVER`/`IN_RENTAL`/`RETURNED`/
+ * `SETTLEMENT`/`COMPLETED`/`CANCELLED`) — không phụ thuộc `contracts`, nhưng
+ * giữ đúng thứ tự nhóm nghiệp vụ 4 (Lượt thuê & hợp đồng) trước nhóm 5
+ * (Giao/nhận & sự cố).
+ *
+ * `incidents` chạy cuối cùng — `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §7
+ * đọc trực tiếp `ReturnRecord` đã seed (qua `RETURN_RECORDS_STORAGE_KEY` của
+ * `handover-return/api.ts`) để lấy ĐÚNG id một `ReturnIncidentItem` có thật
+ * (không bịa id) khi tạo 1-2 `Incident` nguồn `RETURN` — buộc phải chạy sau
+ * `handover-return/seed`.
  */
 
 import '@/features/employees/seed'
@@ -37,3 +44,4 @@ import '@/features/rentals/seed'
 import '@/features/calendar/seed'
 import '@/features/contracts/seed'
 import '@/features/handover-return/seed'
+import '@/features/incidents/seed'
