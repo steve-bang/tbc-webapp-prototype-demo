@@ -1,8 +1,8 @@
 # Kế hoạch triển khai — Phân công (Assignment) & Bảng điều phối (Dispatch board)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` (07/10/2026) — Round 1 (entity
-`Assignment` + Phân công/Đổi người/Huỷ + Dispatch board + tab "Phân công" ở Rental Detail) đã lên kế
-hoạch chi tiết, **chưa giao `dev`**.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (07/10/2026, chủ dự án phê duyệt) — Round 1
+(entity `Assignment` + Phân công/Đổi người/Huỷ + Dispatch board + tab "Phân công" ở Rental Detail) đã
+lên kế hoạch chi tiết, đã giao `dev` implement.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/EmployeeAssignment-BRD.md` (v1.4, toàn bộ — đặc
 biệt §9-§18, §26) + `-UseCase.md` (v1.4) + `../thien-bao-car-docs/modules/RentalCalendar-BRD.md`

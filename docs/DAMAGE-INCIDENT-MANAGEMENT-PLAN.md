@@ -1,8 +1,8 @@
 # Kế hoạch triển khai — Hồ sơ sự cố (Damage Incident)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `PENDING_APPROVAL` (07/10/2026) — Round 1 (data core
-+ vòng đời sự cố mainline + Hồ sơ sự cố + nối Rental Detail/Vehicle Condition Timeline) đã lên kế
-hoạch chi tiết, **chưa giao `dev`**.
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (07/10/2026, chủ dự án phê duyệt) — Round 1
+(data core + vòng đời sự cố mainline + Hồ sơ sự cố + nối Rental Detail/Vehicle Condition Timeline) đã
+lên kế hoạch chi tiết, đã giao `dev` implement.
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/DamageIncident-BRD.md` (v1.6, toàn bộ — đặc biệt
 §6-§13, §20, §27) + `-UseCase.md` (v1.1, đối chiếu mâu thuẫn §0.1) + `../thien-bao-car-docs/

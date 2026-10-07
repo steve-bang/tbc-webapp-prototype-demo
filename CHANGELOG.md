@@ -36,7 +36,16 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   Reassignment History) — **không mở ngoại lệ kiến trúc đụng `rentals/model.ts`**. `EA-BR-13`
   (auto-sync theo Handover/Return) và `EA-BR-15` (cascade khi Rental Cancelled) để roadmap (đòi hỏi
   đụng lại 2 feature đã `DONE`) — chỉ có hàm thuần chuẩn bị sẵn + action thủ công. Trạng thái:
-  `PENDING_APPROVAL`.
+  `PENDING_APPROVAL` → rà soát bởi `tech-lead` (commit `cb749b1` — sửa 2 điểm sai sót: trích dẫn
+  nguồn nhầm ở §0.1, hướng dẫn seed tự mâu thuẫn ở §11) → **`APPROVED`** (xem mục `Changed`).
+
+**Changed**
+
+- Cả 2 kế hoạch Round 1 (`docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md`,
+  `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`) chuyển `PENDING_APPROVAL` → **`APPROVED`** (chủ dự án
+  phê duyệt, sau khi `tech-lead` đã rà soát và sửa 2 điểm sai sót — xem mục `Planned`) — giao agent
+  `dev` implement, lần lượt Incidents trước rồi Assignment/Dispatch (tránh 2 agent sửa đồng thời
+  `RentalDetailScreen.tsx` cùng lúc — cả 2 round đều thay 1 tab khác nhau trong file này).
 
 ### 2026-09-19
 
