@@ -279,6 +279,35 @@ tiết** (đó là bước sau, khi `tech-lead` giao từng Phase con). Lý do c
   `Liability` ≠ khách 100%, đối trừ cọc tự động hay cần khách đồng ý, ngưỡng duyệt miễn giảm, quy
   tắc làm tròn/VAT, giữ cọc chờ phạt nguội. **Không tự chốt** — chỉ `TODO(OQ)` khi tới lượt code.
 
+#### Open Question đầy đủ (18 câu, nguồn: báo cáo rà soát agent `ba` 07/10/2026, đã tự verify trực
+tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm tới:
+
+**Phase 4.1 — Quyết toán (RentalSettlement), chặn công thức/logic lõi:**
+1. Công thức sự cố nặng khi `Liability` ≠ khách chịu 100% — master BRD §51 Q54.
+2. Đối trừ cọc tự động hay cần khách đồng ý trước — RS §28 Q1.
+3. Ngưỡng miễn giảm: Accountant tự quyết tới đâu, Manager/Admin duyệt từ đâu — RS §14/§28 Q9.
+4. Quy tắc làm tròn (1.000đ/10.000đ) + có VAT không + thứ tự discount/VAT/rounding — RS §19/§28 Q5-8.
+5. Giữ lại một phần cọc chờ phạt nguội — số/tỉ lệ/thời hạn — RS §28 Q3.
+6. Có cho đóng lượt khi còn công nợ không, hạn mức — RS §28 Q11; ai được đóng lượt — Q12.
+7. Khoản tranh chấp giữ Settlement hay tách Post-Settlement; xử lý khi khách từ chối xác nhận hoàn
+   toàn — RS §28 Q13.
+8. Thời hạn truy thu phạt nguội/sự cố sau trả xe + ngưỡng bỏ qua truy thu — RS §28 Q14/15.
+9. Mức xác nhận khách Phase 1 (M0-M4) — RS §28 Q17.
+
+**Phase 4.2 — Thanh toán (Payment), chặn công thức/logic lõi:**
+10. Ai được `REVERSED` giao dịch đã `CONFIRMED` — PM §27 Q15.
+11. Ngưỡng duyệt hoàn tiền — PM §27 Q13.
+12. Có cho tạo Rental mới cho khách đang nợ không, ngưỡng chặn — PM §27 Q7; chính sách xử lý số dư
+    (Credit/Overpayment) — Q8.
+13. Mô hình quỹ tiền mặt (theo ca/ngày/điểm giao dịch), ai là thủ quỹ — PM §27 Q10-11.
+14. Mô hình phí SePay cụ thể (theo giao dịch hay theo tháng) — PM §4.2.
+
+**Phase 4.3 — Phân tích tài chính (RevenueCost), ảnh hưởng phạm vi/UI, không chặn lõi:**
+15. Có làm Period Close (chốt kỳ tháng) ở Phase 1 không, ai chốt/mở lại — RV §28 Q10-12.
+16. Danh mục báo cáo cụ thể & KPI dashboard bắt buộc — RV §28 Q13-16.
+17. Cách xác định "số ngày khả dụng" của xe để tính Utilization — RV §28 Q10.
+18. Danh mục chi phí chuẩn cụ thể của Thiên Bảo Car — RV §28 Q4.
+
 ### Phase 4.1 — Quyết toán (RentalSettlement) — `[ ]`
 
 - [ ] `features/finance` (RS, phần Settlement): model `Settlement`/`SettlementLine` — **sửa đúng

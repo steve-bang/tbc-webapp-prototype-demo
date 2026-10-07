@@ -56,6 +56,9 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   Phase 4.1 vì Settlement chỉ mở sau Rental `RETURNED`. Nhiều Open Question chặn công thức lõi
   (sự cố nặng, đối trừ cọc tự động, ngưỡng duyệt, làm tròn/VAT, giữ cọc chờ phạt nguội) vẫn còn
   treo — chưa tự chốt.
+- Bổ sung đầy đủ danh sách **18 Open Question** của Phase 4 (chia 9/5/4 theo Phase con 4.1/4.2/4.3,
+  trích dẫn section BRD cụ thể cho từng câu) vào `docs/IMPLEMENTATION-PLAN.md`, ngay dưới đoạn note
+  chia Phase 4 ở trên — để khi lên plan chi tiết từng Phase con không phải lật lại báo cáo `ba` cũ.
 - Cả 2 kế hoạch Round 1 (`docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md`,
   `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md`) chuyển `PENDING_APPROVAL` → **`APPROVED`** (chủ dự án
   phê duyệt, sau khi `tech-lead` đã rà soát và sửa 2 điểm sai sót — xem mục `Planned`) — giao agent
