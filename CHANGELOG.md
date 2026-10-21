@@ -11,6 +11,20 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ---
 
+### 2026-10-21
+
+**Planned**
+
+- Thêm [`docs/RENTAL-SETTLEMENT-PLAN.md`](docs/RENTAL-SETTLEMENT-PLAN.md): kế hoạch triển khai
+  **Phase 4.1 — Quyết toán** (module `RS`), chia 2 round — Round 1 = lõi Settlement Worksheet (mở thủ
+  công từ Rental `RETURNED` → chốt dòng → MANUAL/miễn giảm → đối trừ cọc → khách xác nhận → duyệt →
+  yêu cầu thu/hoàn → đóng lượt) + màn `/finance/settlement` + tab "Quyết toán" ở Rental Detail; Round 2
+  = Post-Settlement Charge + Điều chỉnh sau `COMPLETED` + Đảo quyết toán. Sửa `SETTLEMENT_STATUSES`
+  đúng State Model `RentalSettlement-UseCase.md` §4 (bản scaffold cũ sai). `Paid To Date`/cọc suy tạm
+  từ cờ `HandoverRecord` tới khi có Payment (4.2). 9 Open Question xử lý bằng `TODO(OQ)`; 5 điểm lệch
+  tài liệu ghi lại cho BA (§0.4). Trạng thái: `PROPOSED` → **`APPROVED`** (người dùng duyệt
+  21/10/2026), Round 1 giao `dev`.
+
 ### 2026-10-07
 
 **Planned**

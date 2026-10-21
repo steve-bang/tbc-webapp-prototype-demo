@@ -236,7 +236,7 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       người xem.
 - [x] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng (`/incidents`, `/incidents/:id`).
 
-## Phase 4 — Tài chính — `[ ]`
+## Phase 4 — Tài chính — `[~]`
 
 **Chia nhỏ 07/10/2026** theo rà soát của agent `ba` (3 module `RentalSettlement`/RS,
 `Payment`/PM, `RevenueCost`/RV) — tái cấu trúc backlog thuần, **chưa phải implementation plan chi
@@ -308,9 +308,19 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
 17. Cách xác định "số ngày khả dụng" của xe để tính Utilization — RV §28 Q10.
 18. Danh mục chi phí chuẩn cụ thể của Thiên Bảo Car — RV §28 Q4.
 
-### Phase 4.1 — Quyết toán (RentalSettlement) — `[ ]`
+### Phase 4.1 — Quyết toán (RentalSettlement) — `[~]`
 
-- [ ] `features/finance` (RS, phần Settlement): model `Settlement`/`SettlementLine` — **sửa đúng
+- [~] `features/finance` (RS, phần Settlement): kế hoạch chi tiết đầy đủ ở
+      [`docs/RENTAL-SETTLEMENT-PLAN.md`](RENTAL-SETTLEMENT-PLAN.md) (`APPROVED` 21/10/2026, Round 1 đã
+      giao `dev`). Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở thủ công từ Rental `RETURNED` →
+      chốt dòng → MANUAL/miễn giảm → đối trừ cọc → khách xác nhận → duyệt → yêu cầu thu/hoàn → đóng
+      lượt `RETURNED → SETTLEMENT → COMPLETED`) + màn `/finance/settlement` + tab "Quyết toán" ở Rental
+      Detail; Round 2 = Post-Settlement Charge + Điều chỉnh sau `COMPLETED` + Đảo quyết toán. Mở rộng
+      có kiểm soát lần thứ 3 `rentals/model.ts`/`api.ts`/`index.ts` (chỉ thêm transition);
+      `handover-return`/`incidents` chỉ thêm dòng re-export read-only ở `index.ts`. `Paid To Date`/cọc
+      suy tạm từ cờ `HandoverRecord` tới khi có Payment (4.2). 9 Open Question bên dưới xử lý bằng
+      `TODO(OQ)` + giả định tạm (bảng §11 của plan); 5 điểm lệch tài liệu ghi lại cho BA (§0.4).
+      Nội dung backlog gốc: model `Settlement`/`SettlementLine` — **sửa đúng
       `SETTLEMENT_STATUSES`** theo `RentalSettlement-UseCase.md` §4 (không giữ bản scaffold demo
       sai hiện tại, xem note ở trên) · **Settlement Worksheet** (đọc Additional Charge Item ước
       tính từ `handover-return` qua barrel, chốt số thực tế từng dòng, miễn giảm/thiện chí theo
