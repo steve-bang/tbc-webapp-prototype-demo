@@ -295,7 +295,8 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
 9. Mức xác nhận khách Phase 1 (M0-M4) — RS §28 Q17.
 
 **Phase 4.2 — Thanh toán (Payment), chặn công thức/logic lõi:**
-10. Ai được `REVERSED` giao dịch đã `CONFIRMED` — PM §27 Q15.
+10. Ai được `REVERSED` giao dịch đã `CONFIRMED` — PM §27 **Q14** (sửa 21/10/2026, trước ghi nhầm Q15 —
+    Q15 là chính sách hoàn khi huỷ lượt; BRD §21 đã chốt Admin/Manager ✓, chỉ còn treo cột Accountant).
 11. Ngưỡng duyệt hoàn tiền — PM §27 Q13.
 12. Có cho tạo Rental mới cho khách đang nợ không, ngưỡng chặn — PM §27 Q7; chính sách xử lý số dư
     (Credit/Overpayment) — Q8.
@@ -361,9 +362,22 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
 - [x] Cập nhật `registerSeeds.ts` phần `Settlement` (`finance/seed` chạy cuối), xoá `ComingSoon` màn
       Quyết toán (Round 1, 21/10/2026).
 
-### Phase 4.2 — Thanh toán (Payment) — `[ ]`
+### Phase 4.2 — Thanh toán (Payment) — `[~]`
 
-- [ ] `features/finance` (PM): model `Transaction`/`PaymentRequest`/`PaymentSchedule` · **Sổ giao
+- [~] `features/finance` (PM): kế hoạch chi tiết đầy đủ ở [`docs/PAYMENT-PLAN.md`](PAYMENT-PLAN.md)
+      (`APPROVED` 21/10/2026; **Round 1 `DONE` 21/10/2026**; Round 2 chưa giao). Người
+      dùng duyệt nguyên trạng cách chia round, không chờ BA xác nhận các điểm diễn giải §0.4 trước khi
+      code (vẫn ghi lại cho BA). Chia **2 round**: Round 1 = sổ
+      giao dịch lõi (`PaymentRequest`/`Transaction` lưu trữ, `PaymentSchedule` là view suy ra) + lập
+      lịch & thu 2 mốc `BOOKING`/`HANDOVER` + xác nhận/thất bại/huỷ/đảo/điều chỉnh + biên lai + quỹ
+      tiền mặt & đối soát CK/ví + tab "Thanh toán" ở Rental Detail — **không phụ thuộc Settlement**;
+      Round 2 = thực thi yêu cầu thu/hoàn của Settlement + Post-Settlement Charge, `OFFSET` khi
+      Settlement `CONFIRMED`, hoàn tiền + duyệt hoàn, ghi ngược Payment Status, thay `Paid To Date`
+      tạm suy (cờ `HandoverRecord`) bằng sổ giao dịch, màn **Công nợ khách hàng**. Không đụng
+      `rentals/{model,api,hooks,index,seed}.ts` (chỉ `RentalDetailScreen.tsx`), `handover-return`,
+      `incidents`, `vehicles`, `customers`. 7 permission mới, 10+5 audit action; 5 OQ chặn xử lý
+      bằng `TODO(OQ)` (bảng §11 của plan); 7 điểm lệch tài liệu ghi cho BA (§0.4).
+      Nội dung backlog gốc: model `Transaction`/`PaymentRequest`/`PaymentSchedule` · **Sổ giao
       dịch** (danh sách, thêm giao dịch thủ công, `OFFSET`/`REVERSED` — không xoá) · **Quỹ tiền
       mặt** (tổng nộp/đối soát đơn giản) · **Công nợ khách hàng** · **Biên lai**. Phụ thuộc Phase
       4.1 **chỉ cho phần** "thực thi yêu cầu thu/hoàn do Settlement điều phối" (mốc `RETURN` +
@@ -371,6 +385,19 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
       Deposit) không phụ thuộc 4.1 (xem note ở trên). **Bám `Payment-BRD.md` §4.1, không bám
       `Payment-UseCase.md` UC-PM-02 cho mốc thu Security Deposit** (UseCase sai, đang ghi nhầm
       `BOOKING` thay vì `HANDOVER`).
+  - [x] **Round 1 — sổ giao dịch lõi + 2 mốc `BOOKING`/`HANDOVER`** `DONE` (21/10/2026), theo
+        `PAYMENT-PLAN.md` §1.2, §2-§9, §11, §12.1, §14.1, §15.1: 6 enum mới + label,
+        7 permission, 10 audit action; `PaymentRequest`/`Transaction`/`CashDrawerSubmission`; lập lịch,
+        ghi thu, xác nhận/thất bại/huỷ/đảo/điều chỉnh, biên lai dialog, quỹ tiền mặt + đối soát CK/ví;
+        màn `/finance/transactions` + `/finance/cash-drawer` + tab "Thanh toán" ở Rental Detail;
+        `SEED_VERSION` 14 → 15. Qua 2 vòng review `tech-lead`: 2 Blocker vòng 1 đã sửa (biên lai của
+        giao dịch `REVERSED` không xem lại được + thiếu nhãn "Đã vô hiệu" — PM-BR-19; sheet chi tiết giữ
+        object `Transaction` cũ nên không tự cập nhật sau khi thao tác → đổi sang lưu id) + 2 "Nên sửa"
+        (i18n nhãn mốc, guard API chặn `OFFSET`/`ONLINE_GATEWAY` ở ghi thủ công). Lưu ý cho Round 2:
+        `OFFSET` phải sinh qua hàm hệ thống riêng, **không** qua `recordTransaction`/`createAdjustment`
+        (đã chặn có chủ đích).
+  - [ ] **Round 2 — thực thi điều phối Settlement/PSC, `OFFSET`, hoàn tiền + duyệt, Công nợ khách
+        hàng** — Round 1 đã `DONE`, chờ giao `dev` (`PAYMENT-PLAN.md` §10, §12.2, §14.2).
 - [ ] Cập nhật `registerSeeds.ts` phần `Transaction`/`PaymentRequest`, xoá `ComingSoon` tương ứng
       màn Sổ giao dịch/Quỹ tiền mặt/Công nợ khách hàng.
 

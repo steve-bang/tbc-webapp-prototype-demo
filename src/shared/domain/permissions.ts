@@ -381,6 +381,50 @@ const TABLE: PermissionEntry[] = [
     values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, OPERATION_STAFF: false }),
     source: 'WebappQuanTri.md §11.4 — Đối soát quỹ / chuyển khoản',
   },
+  // ---- Payment (PM) — PAYMENT-PLAN.md §5, Round 1 ----
+  {
+    resource: 'PAYMENT',
+    action: 'CREATE',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, OPERATION_STAFF: false }),
+    source: 'Payment-BRD.md §21 — Ghi nhận thu CK/ví · Tạo giao dịch hoàn tiền · (Lập lịch thanh toán)',
+  },
+  {
+    resource: 'PAYMENT',
+    action: 'VOID',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, OPERATION_STAFF: false }),
+    source: 'Payment-BRD.md §21 — VOID giao dịch PENDING',
+  },
+  {
+    resource: 'PAYMENT',
+    action: 'REVERSE',
+    // TODO(OQ: Payment-BRD.md §27 Q14 — Accountant được REVERSED chưa chốt; BRD §21 Admin/Manager ✓, Accountant TBD).
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: 'TBD', OPERATION_STAFF: false }),
+    source: 'Payment-BRD.md §21 — REVERSED giao dịch CONFIRMED (Accountant TBD — PM §27 Q14)',
+  },
+  {
+    resource: 'PAYMENT',
+    action: 'APPROVE',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: false, OPERATION_STAFF: false }),
+    source: 'Payment-BRD.md §21 — Duyệt hoàn tiền vượt ngưỡng (dùng ở Round 2, thêm luôn ở Round 1)',
+  },
+  {
+    resource: 'PAYMENT',
+    action: 'EDIT',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: 'TBD', ACCOUNTANT: true, OPERATION_STAFF: false }),
+    source: 'Payment-UseCase.md §27 — Tạo ADJUSTMENT (BRD §21 chưa có dòng — PAYMENT-PLAN.md §0.4 điểm 7)',
+  },
+  {
+    resource: 'PAYMENT',
+    action: 'EXECUTE',
+    values: { SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALES: true, OPERATION_STAFF: true },
+    source: 'Payment-BRD.md §21 — Nộp quỹ tiền mặt',
+  },
+  {
+    resource: 'PAYMENT',
+    action: 'EXPORT',
+    values: { SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALES: true, OPERATION_STAFF: true },
+    source: 'Payment-BRD.md §21 — Xuất biên lai',
+  },
   {
     resource: 'FINANCE_REPORT',
     action: 'VIEW',

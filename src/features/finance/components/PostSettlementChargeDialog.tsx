@@ -23,7 +23,8 @@ import {
 } from '../model'
 
 /** `docs/RENTAL-SETTLEMENT-PLAN.md` §10.4 — nhãn lý do bị chặn theo khoá i18n (mirror lỗi API ở `finance/api.ts`). */
-const PSC_BLOCKER_LABELS: Record<PscBlockerCode, keyof typeof vi.finance> = {
+// PAYMENT-PLAN.md §7 — `Exclude<…, 'payment'>` vì `vi.finance.payment` (Round 1) là object lồng, không phải chuỗi.
+const PSC_BLOCKER_LABELS: Record<PscBlockerCode, Exclude<keyof typeof vi.finance, 'payment'>> = {
   ALREADY_IN_SETTLEMENT: 'pscBlockerAlreadyInSettlement',
   ALREADY_HAS_PSC: 'pscBlockerAlreadyHasPsc',
   NOT_CUSTOMER_LIABILITY: 'pscBlockerNotCustomerLiability',

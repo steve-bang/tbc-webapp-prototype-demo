@@ -6,7 +6,8 @@ import { useCompleteSettlement } from '../hooks'
 import { getCompletionBlockers, type Settlement, type SettlementBlockerCode } from '../model'
 
 /** UC-RS-13, BRD §16, RS-BR-06/12/20, AC-RS-009/010 — liệt kê điều kiện chưa thoả (AC-RS-009). */
-const BLOCKER_LABELS: Record<SettlementBlockerCode, keyof typeof vi.finance> = {
+// PAYMENT-PLAN.md §7 — `Exclude<…, 'payment'>` vì `vi.finance.payment` (Round 1) là object lồng, không phải chuỗi.
+const BLOCKER_LABELS: Record<SettlementBlockerCode, Exclude<keyof typeof vi.finance, 'payment'>> = {
   DRAFT_LINES: 'blockerDraftLines',
   DISPUTED_LINES: 'blockerDisputedLines',
   DEPOSIT_NOT_RECONCILED: 'blockerDepositNotReconciled',

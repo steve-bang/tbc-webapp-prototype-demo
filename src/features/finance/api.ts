@@ -17,6 +17,9 @@ import {
   type Rental,
 } from '@/features/rentals'
 import type {
+  PaymentMethod,
+  PaymentRequestSource,
+  PaymentRequestStatus,
   PostSettlementChargeSource,
   PostSettlementChargeStatus,
   PostSettlementChargeType,
@@ -24,6 +27,9 @@ import type {
   SettlementRequestType,
   SettlementStatus,
   SettlementWaiverType,
+  TransactionDirection,
+  TransactionStatus,
+  TransactionType,
 } from '@/shared/domain/enums'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
@@ -31,30 +37,43 @@ import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
   buildReversalReset,
+  buildScheduleRequests,
   buildSourceLines,
+  calcCashDrawerBalance,
   calcDepositHeld,
   calcDepositReconciliation,
   calcPaidToDate,
+  calcRequestProgress,
   calcSettlementTotals,
   canAdjustSettlement,
   canCreatePostSettlementCharge,
   canReverseSettlement,
+  canScheduleRental,
+  cashDrawerIdOf,
+  deriveRequestStatus,
+  directionOf,
   fixedPscType,
   getCompletionBlockers,
   getIncidentPscBlocker,
   getLineDiscountedAmount,
   getSubmitBlockers,
   isPscOnHold,
+  isRequestActionable,
   mergeResyncedLines,
+  nextSequenceCode,
   pscAmountForIncident,
   waiverNeedsApproval,
+  type CashDrawerSubmission,
   type DepositReconciliation,
+  type PaymentRequest,
   type PostSettlementCharge,
   type PscBlockerCode,
+  type Receipt,
   type Settlement,
   type SettlementLine,
   type SettlementPaymentRequest,
   type SettlementWaiver,
+  type Transaction,
 } from './model'
 
 export const SETTLEMENTS_STORAGE_KEY = 'settlements'
@@ -1071,4 +1090,558 @@ export async function reverseSettlement(settlementId: string, input: ReverseSett
   })
   await revertSettlementReversed(after.rentalId, actor)
   return after
+}
+
+// ==== Payment (PM) — PAYMENT-PLAN.md §9 ====
+
+export const PAYMENT_REQUESTS_STORAGE_KEY = 'paymentRequests'
+export const TRANSACTIONS_STORAGE_KEY = 'transactions'
+export const CASH_DRAWER_SUBMISSIONS_STORAGE_KEY = 'cashDrawerSubmissions'
+
+function readAllPaymentRequests(): PaymentRequest[] {
+  return readJson<PaymentRequest[]>(PAYMENT_REQUESTS_STORAGE_KEY) ?? []
+}
+function writeAllPaymentRequests(items: PaymentRequest[]): void {
+  writeJson(PAYMENT_REQUESTS_STORAGE_KEY, items)
+}
+function readAllTransactions(): Transaction[] {
+  return readJson<Transaction[]>(TRANSACTIONS_STORAGE_KEY) ?? []
+}
+function writeAllTransactions(items: Transaction[]): void {
+  writeJson(TRANSACTIONS_STORAGE_KEY, items)
+}
+function readAllCashDrawerSubmissions(): CashDrawerSubmission[] {
+  return readJson<CashDrawerSubmission[]>(CASH_DRAWER_SUBMISSIONS_STORAGE_KEY) ?? []
+}
+function writeAllCashDrawerSubmissions(items: CashDrawerSubmission[]): void {
+  writeJson(CASH_DRAWER_SUBMISSIONS_STORAGE_KEY, items)
+}
+
+/** Đồng bộ lại `PaymentRequest.status` sau khi mảng giao dịch thay đổi — gọi trong cùng callback ghi. */
+function syncRequestStatus(prList: PaymentRequest[], requestId: string | undefined, allTxns: Transaction[], now: string): void {
+  if (!requestId) return
+  const request = prList.find((r) => r.id === requestId)
+  if (!request) return
+  const updated: PaymentRequest = { ...request, status: deriveRequestStatus(request, allTxns), updatedAt: now }
+  writeAllPaymentRequests(prList.map((r) => (r.id === requestId ? updated : r)))
+}
+
+export interface PaymentRequestFilter {
+  rentalId?: string
+  customerId?: string
+  source?: PaymentRequestSource
+  status?: PaymentRequestStatus
+}
+
+export async function listPaymentRequests(filter?: PaymentRequestFilter): Promise<PaymentRequest[]> {
+  return fakeRequest(() =>
+    readAllPaymentRequests().filter((r) => {
+      if (filter?.rentalId && r.rentalId !== filter.rentalId) return false
+      if (filter?.customerId && r.customerId !== filter.customerId) return false
+      if (filter?.source && r.source !== filter.source) return false
+      if (filter?.status && r.status !== filter.status) return false
+      return true
+    }),
+  )
+}
+
+export interface TransactionFilter {
+  status?: TransactionStatus
+  type?: TransactionType
+  method?: PaymentMethod
+  direction?: TransactionDirection
+  rentalId?: string
+  customerId?: string
+  /** Tìm theo mã GD / tham chiếu / mã lượt thuê (§7.1 kế hoạch). */
+  search?: string
+}
+
+export async function listTransactions(filter?: TransactionFilter): Promise<Transaction[]> {
+  return fakeRequest(() =>
+    readAllTransactions()
+      .filter((t) => {
+        if (filter?.status && t.status !== filter.status) return false
+        if (filter?.type && t.type !== filter.type) return false
+        if (filter?.method && t.method !== filter.method) return false
+        if (filter?.direction && t.direction !== filter.direction) return false
+        if (filter?.rentalId && t.rentalId !== filter.rentalId) return false
+        if (filter?.customerId && t.customerId !== filter.customerId) return false
+        if (filter?.search) {
+          const q = filter.search.trim().toLowerCase()
+          if (q.length === 0) return true
+          const haystack = `${t.code} ${t.reference ?? ''} ${t.rentalId ?? ''}`.toLowerCase()
+          if (!haystack.includes(q)) return false
+        }
+        return true
+      })
+      .sort((a, b) => b.performedAt.localeCompare(a.performedAt)),
+  )
+}
+
+export interface CashDrawerSubmissionFilter {
+  cashDrawerId?: string
+  status?: CashDrawerSubmission['status']
+}
+
+export async function listCashDrawerSubmissions(filter?: CashDrawerSubmissionFilter): Promise<CashDrawerSubmission[]> {
+  return fakeRequest(() =>
+    readAllCashDrawerSubmissions()
+      .filter((s) => {
+        if (filter?.cashDrawerId && s.cashDrawerId !== filter.cashDrawerId) return false
+        if (filter?.status && s.status !== filter.status) return false
+        return true
+      })
+      .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)),
+  )
+}
+
+/** PM-BR-21, CR-2026-003/060 — "Lập lịch thanh toán" là hành động tường minh (§0.3 điểm 9 kế hoạch). */
+export async function createPaymentSchedule(rentalId: string, actor: ActorInfo): Promise<PaymentRequest[]> {
+  return fakeRequest(() => {
+    const rental = readRentalOrThrow(rentalId)
+    if (!canScheduleRental(rental)) {
+      throw new Error(`Không thể lập lịch thanh toán khi lượt thuê đang ở trạng thái ${rental.status} (PM-BR-21)`)
+    }
+    const existing = readAllPaymentRequests()
+    if (existing.some((r) => r.rentalId === rentalId && (r.source === 'BOOKING' || r.source === 'HANDOVER'))) {
+      throw new Error('Lượt thuê này đã có lịch thanh toán')
+    }
+    const now = new Date().toISOString()
+    const created = buildScheduleRequests(rental, actor.fullName, now)
+    writeAllPaymentRequests([...existing, ...created])
+    appendAudit({
+      action: 'CREATE_PAYMENT_SCHEDULE',
+      entity: 'PaymentRequest',
+      entityId: rentalId,
+      summary: `Lập lịch thanh toán cho lượt thuê ${rentalId}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: created,
+    })
+    return created
+  })
+}
+
+export interface RecordTransactionInput {
+  paymentRequestId: string
+  amount: number
+  method: PaymentMethod
+  reference?: string
+  evidenceNote?: string
+}
+
+/**
+ * UC-PM-01/02/03, PM-BR-09/10/15, AC-PM-001/002/004 — `CASH` → `CONFIRMED` ngay
+ * + gắn quỹ; `BANK_TRANSFER`/`E_WALLET` → `PENDING`. Nhiều lần cho một yêu cầu.
+ */
+export async function recordTransaction(input: RecordTransactionInput, actor: ActorInfo): Promise<Transaction> {
+  return fakeRequest(() => {
+    // PM-BR-18/§0.3 điểm 8 kế hoạch — `OFFSET` (cấn trừ cọc, Round 2) và
+    // `ONLINE_GATEWAY` (webhook SePay) chỉ do hệ thống tự sinh, không phải
+    // phương thức người dùng tự chọn khi ghi nhận thủ công — đã chặn ở form
+    // schema/UI, chặn lại ở API cho chắc (defense in depth, tech-lead review
+    // Phase 4.2 R1 "nên sửa" #2).
+    if (input.method === 'OFFSET' || input.method === 'ONLINE_GATEWAY') {
+      throw new Error('Phương thức này chỉ do hệ thống tự sinh (cấn trừ cọc / webhook SePay) — không ghi nhận thủ công')
+    }
+    if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
+    const prList = readAllPaymentRequests()
+    const request = prList.find((r) => r.id === input.paymentRequestId)
+    if (!request) throw new Error('Không tìm thấy yêu cầu thanh toán')
+    const rental = readRentalOrThrow(request.rentalId)
+    if (!isRequestActionable(request, rental)) {
+      throw new Error('Yêu cầu thanh toán này không còn ở trạng thái cho phép ghi nhận thu')
+    }
+    const txns = readAllTransactions()
+    const { remaining } = calcRequestProgress(request, txns)
+    // TODO(OQ: Payment-BRD.md §27 Q8 — trả thừa → Credit/Overpayment chưa chốt; demo chặn ghi vượt số còn lại).
+    // TODO(OQ: Payment-BRD.md §27 Q7 — khách đang nợ: không cảnh báo/chặn tạo Rental, roadmap §15.2 kế hoạch).
+    if (input.amount > remaining) {
+      throw new Error(`Số tiền ghi nhận (${input.amount.toLocaleString('vi-VN')}đ) vượt số còn lại (${remaining.toLocaleString('vi-VN')}đ)`)
+    }
+    const now = new Date().toISOString()
+    // PM-BR-09 — CK/ví → PENDING, chờ xác nhận.
+    const isCash = input.method === 'CASH'
+    const txn: Transaction = {
+      id: generateId('txn'),
+      code: nextSequenceCode('GD', txns.map((t) => t.code)),
+      type: request.transactionType,
+      direction: directionOf(request.transactionType) ?? 'IN',
+      amount: input.amount,
+      method: input.method,
+      status: isCash ? 'CONFIRMED' : 'PENDING',
+      customerId: request.customerId,
+      rentalId: request.rentalId,
+      paymentRequestId: request.id,
+      reference: input.reference?.trim() || undefined,
+      evidenceNote: input.evidenceNote?.trim() || undefined,
+      // PM-BR-10 — CASH gắn quỹ người thu.
+      cashDrawerId: isCash ? cashDrawerIdOf(actor.userId) : undefined,
+      cashDrawerOwnerName: isCash ? actor.fullName : undefined,
+      performedByUserId: actor.userId,
+      performedByName: actor.fullName,
+      performedAt: now,
+      confirmedByName: isCash ? actor.fullName : undefined,
+      confirmedAt: isCash ? now : undefined,
+      createdAt: now,
+      updatedAt: now,
+    }
+    const allTxns = [...txns, txn]
+    writeAllTransactions(allTxns)
+    syncRequestStatus(prList, request.id, allTxns, now)
+    appendAudit({
+      action: 'CREATE_TRANSACTION',
+      entity: 'Transaction',
+      entityId: txn.id,
+      summary: `Ghi nhận thu ${txn.amount.toLocaleString('vi-VN')}đ (${txn.method}) cho yêu cầu ${request.id}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: txn,
+    })
+    return txn
+  })
+}
+
+export interface ConfirmTransactionInput {
+  amount?: number
+  note?: string
+}
+
+/** UC-PM-06 (A1), BRD §15.2, EX-03 — chỉ `PENDING` CK/ví; cho sửa số theo thực nhận. */
+export async function confirmTransaction(id: string, input: ConfirmTransactionInput, actor: ActorInfo): Promise<Transaction> {
+  return fakeRequest(() => {
+    const txns = readAllTransactions()
+    const before = txns.find((t) => t.id === id)
+    if (!before) throw new Error('Không tìm thấy giao dịch')
+    if (before.status !== 'PENDING') throw new Error('Chỉ xác nhận giao dịch đang chờ xử lý')
+    const amount = input.amount ?? before.amount
+    if (!Number.isInteger(amount) || amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
+    const prList = readAllPaymentRequests()
+    const request = before.paymentRequestId ? prList.find((r) => r.id === before.paymentRequestId) : undefined
+    if (request) {
+      // TODO(OQ: Payment-BRD.md §27 Q8 — trả thừa → Credit/Overpayment chưa chốt; demo chặn ghi vượt số còn lại).
+      const { remaining } = calcRequestProgress(request, txns)
+      if (amount > remaining) {
+        throw new Error(`Số tiền vượt số còn lại (${remaining.toLocaleString('vi-VN')}đ)`)
+      }
+    }
+    const now = new Date().toISOString()
+    const after: Transaction = {
+      ...before,
+      status: 'CONFIRMED',
+      amount,
+      originalAmount: amount !== before.amount ? before.amount : before.originalAmount,
+      confirmedByName: actor.fullName,
+      confirmedAt: now,
+      updatedAt: now,
+    }
+    const allTxns = txns.map((t) => (t.id === id ? after : t))
+    writeAllTransactions(allTxns)
+    syncRequestStatus(prList, before.paymentRequestId, allTxns, now)
+    appendAudit({
+      action: 'CONFIRM_TRANSACTION',
+      entity: 'Transaction',
+      entityId: id,
+      summary: `Xác nhận giao dịch ${before.code}${input.note ? `: ${input.note}` : ''}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { amount: before.amount, status: before.status },
+      after: { amount: after.amount, status: after.status },
+    })
+    return after
+  })
+}
+
+/** Chỉ `PENDING` — EX-03. */
+export async function failTransaction(id: string, reason: string, actor: ActorInfo): Promise<Transaction> {
+  const trimmedReason = reason.trim()
+  if (!trimmedReason) throw new Error('Lý do là bắt buộc')
+  return fakeRequest(() => {
+    const txns = readAllTransactions()
+    const before = txns.find((t) => t.id === id)
+    if (!before) throw new Error('Không tìm thấy giao dịch')
+    if (before.status !== 'PENDING') throw new Error('Chỉ đánh dấu thất bại giao dịch đang chờ xử lý')
+    const now = new Date().toISOString()
+    const after: Transaction = { ...before, status: 'FAILED', failReason: trimmedReason, updatedAt: now }
+    writeAllTransactions(txns.map((t) => (t.id === id ? after : t)))
+    appendAudit({
+      action: 'FAIL_TRANSACTION',
+      entity: 'Transaction',
+      entityId: id,
+      summary: `Đánh dấu thất bại giao dịch ${before.code}: ${trimmedReason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: after.status, reason: trimmedReason },
+    })
+    return after
+  })
+}
+
+/** PM-BR-02 — chỉ huỷ giao dịch `PENDING`, lý do bắt buộc. */
+export async function voidTransaction(id: string, reason: string, actor: ActorInfo): Promise<Transaction> {
+  const trimmedReason = reason.trim()
+  if (!trimmedReason) throw new Error('Lý do là bắt buộc')
+  return fakeRequest(() => {
+    const txns = readAllTransactions()
+    const before = txns.find((t) => t.id === id)
+    if (!before) throw new Error('Không tìm thấy giao dịch')
+    if (before.status !== 'PENDING') throw new Error('Chỉ huỷ giao dịch đang chờ xử lý')
+    const now = new Date().toISOString()
+    const after: Transaction = { ...before, status: 'VOIDED', voidReason: trimmedReason, voidedByName: actor.fullName, voidedAt: now, updatedAt: now }
+    const allTxns = txns.map((t) => (t.id === id ? after : t))
+    writeAllTransactions(allTxns)
+    const prList = readAllPaymentRequests()
+    syncRequestStatus(prList, before.paymentRequestId, allTxns, now)
+    appendAudit({
+      action: 'VOID_TRANSACTION',
+      entity: 'Transaction',
+      entityId: id,
+      summary: `Huỷ giao dịch ${before.code}: ${trimmedReason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: after.status, reason: trimmedReason },
+    })
+    return after
+  })
+}
+
+/**
+ * UC-PM-12, PM-BR-03/05/19, AC-PM-008/013/015 — chỉ `CONFIRMED`, không phải
+ * bản đối ứng, chưa bị đảo, method ≠ `OFFSET` (Round 2 hệ thống tự đảo khi đảo
+ * quyết toán). Sinh giao dịch đối ứng, biên lai gốc bị vô hiệu.
+ */
+export async function reverseTransaction(id: string, reason: string, actor: ActorInfo): Promise<Transaction> {
+  const trimmedReason = reason.trim()
+  if (!trimmedReason) throw new Error('Lý do là bắt buộc')
+  // TODO(OQ: Payment-BRD.md §27 Q14 — Accountant được REVERSED chưa chốt; BRD §21 Admin/Manager ✓, Accountant TBD).
+  return fakeRequest(() => {
+    const txns = readAllTransactions()
+    const before = txns.find((t) => t.id === id)
+    if (!before) throw new Error('Không tìm thấy giao dịch')
+    if (before.status !== 'CONFIRMED') throw new Error('Chỉ đảo giao dịch đã xác nhận')
+    if (before.reversalOfId) throw new Error('Không thể đảo một giao dịch đối ứng')
+    if (before.reversedById) throw new Error('Giao dịch này đã được đảo')
+    if (before.method === 'OFFSET') throw new Error('Giao dịch cấn trừ cọc chỉ được đảo tự động khi đảo quyết toán (Round 2)')
+    const now = new Date().toISOString()
+    const reversal: Transaction = {
+      id: generateId('txn'),
+      code: nextSequenceCode('GD', txns.map((t) => t.code)),
+      type: before.type,
+      direction: before.direction === 'IN' ? 'OUT' : 'IN',
+      amount: before.amount,
+      method: before.method,
+      status: 'CONFIRMED',
+      customerId: before.customerId,
+      rentalId: before.rentalId,
+      paymentRequestId: before.paymentRequestId,
+      settlementId: before.settlementId,
+      reversalOfId: before.id,
+      reverseReason: trimmedReason,
+      cashDrawerId: before.cashDrawerId,
+      cashDrawerOwnerName: before.cashDrawerOwnerName,
+      performedByUserId: actor.userId,
+      performedByName: actor.fullName,
+      performedAt: now,
+      confirmedByName: actor.fullName,
+      confirmedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    }
+    const updatedBefore: Transaction = {
+      ...before,
+      status: 'REVERSED',
+      reversedById: reversal.id,
+      reverseReason: trimmedReason,
+      updatedAt: now,
+      // PM-BR-19 — vô hiệu biên lai gốc.
+      receipt: before.receipt ? { ...before.receipt, voided: true } : before.receipt,
+    }
+    const allTxns = [...txns.map((t) => (t.id === id ? updatedBefore : t)), reversal]
+    writeAllTransactions(allTxns)
+    const prList = readAllPaymentRequests()
+    syncRequestStatus(prList, before.paymentRequestId, allTxns, now)
+    // AC-PM-015 — audit ghi đủ id gốc, id đối ứng và lý do.
+    appendAudit({
+      action: 'REVERSE_TRANSACTION',
+      entity: 'Transaction',
+      entityId: id,
+      summary: `Đảo giao dịch ${before.code} → sinh ${reversal.code}: ${trimmedReason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { id: before.id, code: before.code, status: before.status },
+      after: { originalId: before.id, reversalId: reversal.id, reason: trimmedReason },
+    })
+    return updatedBefore
+  })
+}
+
+export interface CreateAdjustmentInput {
+  direction: TransactionDirection
+  amount: number
+  customerId: string
+  rentalId?: string
+  method: PaymentMethod
+  reason: string
+}
+
+/** UC-PM-13, PM-BR-18 — giao dịch thủ công IN/OUT, gắn Customer (+ Rental tuỳ chọn), lý do bắt buộc. */
+export async function createAdjustment(input: CreateAdjustmentInput, actor: ActorInfo): Promise<Transaction> {
+  const reason = input.reason.trim()
+  if (!reason) throw new Error('Lý do là bắt buộc')
+  if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
+  // PM-BR-18/§0.3 điểm 8 kế hoạch — như `recordTransaction`: `OFFSET`/`ONLINE_GATEWAY`
+  // chỉ do hệ thống tự sinh, chặn cả ở tầng API (tech-lead review Phase 4.2 R1 "nên sửa" #2).
+  if (input.method === 'OFFSET' || input.method === 'ONLINE_GATEWAY') {
+    throw new Error('Phương thức này chỉ do hệ thống tự sinh (cấn trừ cọc / webhook SePay) — không ghi nhận thủ công')
+  }
+  return fakeRequest(() => {
+    const txns = readAllTransactions()
+    const now = new Date().toISOString()
+    const isCash = input.method === 'CASH'
+    const txn: Transaction = {
+      id: generateId('txn'),
+      code: nextSequenceCode('GD', txns.map((t) => t.code)),
+      type: 'ADJUSTMENT',
+      direction: input.direction,
+      amount: input.amount,
+      method: input.method,
+      status: isCash ? 'CONFIRMED' : 'PENDING',
+      customerId: input.customerId,
+      rentalId: input.rentalId,
+      reason,
+      cashDrawerId: isCash ? cashDrawerIdOf(actor.userId) : undefined,
+      cashDrawerOwnerName: isCash ? actor.fullName : undefined,
+      performedByUserId: actor.userId,
+      performedByName: actor.fullName,
+      performedAt: now,
+      confirmedByName: isCash ? actor.fullName : undefined,
+      confirmedAt: isCash ? now : undefined,
+      createdAt: now,
+      updatedAt: now,
+    }
+    writeAllTransactions([...txns, txn])
+    appendAudit({
+      action: 'CREATE_PAYMENT_ADJUSTMENT',
+      entity: 'Transaction',
+      entityId: txn.id,
+      summary: `Tạo điều chỉnh ${input.direction} ${input.amount.toLocaleString('vi-VN')}đ: ${reason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: txn,
+    })
+    return txn
+  })
+}
+
+/** BRD §18, UC-PM-16, AC-PM-014 — chỉ `CONFIRMED`, chưa có biên lai. */
+export async function issueReceipt(transactionId: string, actor: ActorInfo): Promise<Transaction> {
+  return fakeRequest(() => {
+    const txns = readAllTransactions()
+    const before = txns.find((t) => t.id === transactionId)
+    if (!before) throw new Error('Không tìm thấy giao dịch')
+    if (before.status !== 'CONFIRMED') throw new Error('Chỉ xuất biên lai cho giao dịch đã xác nhận')
+    if (before.receipt) throw new Error('Giao dịch đã có biên lai')
+    const now = new Date().toISOString()
+    // TODO(OQ: Payment-BRD.md §27 Q16 — mẫu/đánh số biên lai).
+    const existingReceiptNos = txns.map((t) => t.receipt?.receiptNo).filter((v): v is string => !!v)
+    const receipt: Receipt = { receiptNo: nextSequenceCode('BL', existingReceiptNos), issuedByName: actor.fullName, issuedAt: now, voided: false }
+    const after: Transaction = { ...before, receipt, updatedAt: now }
+    writeAllTransactions(txns.map((t) => (t.id === transactionId ? after : t)))
+    appendAudit({
+      action: 'ISSUE_RECEIPT',
+      entity: 'Transaction',
+      entityId: transactionId,
+      summary: `Xuất biên lai ${receipt.receiptNo} cho giao dịch ${before.code}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: receipt,
+    })
+    return after
+  })
+}
+
+export interface SubmitCashDrawerInput {
+  countedAmount: number
+  varianceReason?: string
+}
+
+/**
+ * BRD §14-§15, UC-PM-14, AC-PM-009, EX-06 — đếm thực tế → chênh lệch + lý do.
+ * TODO(OQ: Payment-BRD.md §27 Q10-Q12 — quỹ theo ca/ngày/điểm, thủ quỹ, xử lý
+ * chênh lệch chưa chốt; demo: quỹ theo người thu, nộp theo ngày, mọi người có
+ * `PAYMENT.RECONCILE` nhận phiếu.)
+ */
+export async function submitCashDrawer(input: SubmitCashDrawerInput, actor: ActorInfo): Promise<CashDrawerSubmission> {
+  if (!Number.isInteger(input.countedAmount) || input.countedAmount < 0) throw new Error('Số đếm phải là số nguyên không âm')
+  return fakeRequest(() => {
+    const drawerId = cashDrawerIdOf(actor.userId)
+    const txns = readAllTransactions()
+    const submissions = readAllCashDrawerSubmissions()
+    const { balance, transactions } = calcCashDrawerBalance(drawerId, txns, submissions)
+    if (transactions.length === 0) throw new Error('Quỹ hiện không có giao dịch nào chưa nộp')
+    const variance = input.countedAmount - balance
+    if (variance !== 0 && !input.varianceReason?.trim()) {
+      throw new Error('Lý do chênh lệch là bắt buộc khi số đếm khác số hệ thống (AC-PM-009)')
+    }
+    const now = new Date().toISOString()
+    const submission: CashDrawerSubmission = {
+      id: generateId('cds'),
+      cashDrawerId: drawerId,
+      ownerName: actor.fullName,
+      transactionIds: transactions.map((t) => t.id),
+      systemAmount: balance,
+      countedAmount: input.countedAmount,
+      variance,
+      varianceReason: variance !== 0 ? input.varianceReason?.trim() : undefined,
+      status: 'SUBMITTED',
+      submittedAt: now,
+    }
+    writeAllCashDrawerSubmissions([...submissions, submission])
+    appendAudit({
+      action: 'SUBMIT_CASH_DRAWER',
+      entity: 'CashDrawerSubmission',
+      entityId: submission.id,
+      summary: `Nộp quỹ ${balance.toLocaleString('vi-VN')}đ (đếm ${input.countedAmount.toLocaleString('vi-VN')}đ)`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: submission,
+    })
+    return submission
+  })
+}
+
+/** Thủ quỹ xác nhận đã nhận — chỉ `SUBMITTED`. */
+export async function receiveCashDrawerSubmission(id: string, actor: ActorInfo): Promise<CashDrawerSubmission> {
+  return fakeRequest(() => {
+    const submissions = readAllCashDrawerSubmissions()
+    const before = submissions.find((s) => s.id === id)
+    if (!before) throw new Error('Không tìm thấy phiếu nộp quỹ')
+    if (before.status !== 'SUBMITTED') throw new Error('Phiếu nộp quỹ này đã được xác nhận')
+    const now = new Date().toISOString()
+    const after: CashDrawerSubmission = { ...before, status: 'RECEIVED', receivedByName: actor.fullName, receivedAt: now }
+    writeAllCashDrawerSubmissions(submissions.map((s) => (s.id === id ? after : s)))
+    appendAudit({
+      action: 'RECEIVE_CASH_DRAWER',
+      entity: 'CashDrawerSubmission',
+      entityId: id,
+      summary: `Xác nhận đã nhận quỹ từ ${before.ownerName}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: after.status },
+    })
+    return after
+  })
 }

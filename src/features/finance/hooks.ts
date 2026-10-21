@@ -5,14 +5,21 @@ import * as api from './api'
 import type {
   ActorInfo,
   AdjustSettlementInput,
+  CashDrawerSubmissionFilter,
   ConfirmLineInput,
+  ConfirmTransactionInput,
+  CreateAdjustmentInput,
   CreatePostSettlementChargeInput,
   CustomerAckInput,
   ManualLineInput,
+  PaymentRequestFilter,
   PostSettlementChargeFilter,
+  RecordTransactionInput,
   ResolveDisputeInput,
   ReverseSettlementInput,
   SettlementFilter,
+  SubmitCashDrawerInput,
+  TransactionFilter,
   WaiverInput,
 } from './api'
 
@@ -232,5 +239,122 @@ export function useReverseSettlement() {
       invalidateSettlements(queryClient, settlement.rentalId, true)
       queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] })
     },
+  })
+}
+
+// ==== Payment (PM) — PAYMENT-PLAN.md §9.2, Round 1 ====
+
+function invalidatePayment(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['finance', 'payment'] })
+}
+
+export function usePaymentRequests(filter?: PaymentRequestFilter) {
+  return useQuery({
+    queryKey: ['finance', 'payment', 'requests', filter ?? {}],
+    queryFn: () => api.listPaymentRequests(filter),
+  })
+}
+
+export function useTransactions(filter?: TransactionFilter) {
+  return useQuery({
+    queryKey: ['finance', 'payment', 'transactions', filter ?? {}],
+    queryFn: () => api.listTransactions(filter),
+  })
+}
+
+export function useCashDrawerSubmissions(filter?: CashDrawerSubmissionFilter) {
+  return useQuery({
+    queryKey: ['finance', 'payment', 'cashDrawerSubmissions', filter ?? {}],
+    queryFn: () => api.listCashDrawerSubmissions(filter),
+  })
+}
+
+export function useCreatePaymentSchedule() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (rentalId: string) => api.createPaymentSchedule(rentalId, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useRecordTransaction() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (input: RecordTransactionInput) => api.recordTransaction(input, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useConfirmTransaction() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConfirmTransactionInput }) => api.confirmTransaction(id, input, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useFailTransaction() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.failTransaction(id, reason, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useVoidTransaction() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.voidTransaction(id, reason, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useReverseTransaction() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.reverseTransaction(id, reason, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useCreateAdjustment() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (input: CreateAdjustmentInput) => api.createAdjustment(input, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useIssueReceipt() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (transactionId: string) => api.issueReceipt(transactionId, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useSubmitCashDrawer() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (input: SubmitCashDrawerInput) => api.submitCashDrawer(input, actor),
+    onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+export function useReceiveCashDrawerSubmission() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (id: string) => api.receiveCashDrawerSubmission(id, actor),
+    onSuccess: () => invalidatePayment(queryClient),
   })
 }

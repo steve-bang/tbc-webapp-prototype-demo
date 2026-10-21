@@ -6,9 +6,16 @@ import type { Incident } from '@/features/incidents'
 import type { Rental } from '@/features/rentals'
 import type {
   AdditionalChargeType,
+  CashDrawerSubmissionStatus,
+  PaymentMethod,
+  PaymentMilestone,
+  PaymentRequestPurpose,
+  PaymentRequestSource,
+  PaymentRequestStatus,
   PostSettlementChargeSource,
   PostSettlementChargeStatus,
   PostSettlementChargeType,
+  RefundApprovalStatus,
   Role,
   SecurityDepositType,
   SettlementLineCategory,
@@ -19,6 +26,9 @@ import type {
   SettlementStatus,
   SettlementWaiverStatus,
   SettlementWaiverType,
+  TransactionDirection,
+  TransactionStatus,
+  TransactionType,
 } from '@/shared/domain/enums'
 import { POST_SETTLEMENT_CHARGE_SOURCES, POST_SETTLEMENT_CHARGE_TYPES, SETTLEMENT_WAIVER_TYPES } from '@/shared/domain/enums'
 import { generateId } from '@/shared/lib/id'
@@ -783,3 +793,426 @@ export const settlementReverseReasonFormSchema = z.object({
   reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự) — UC-RS-16'),
 })
 export type SettlementReverseReasonFormValues = z.infer<typeof settlementReverseReasonFormSchema>
+
+// ==== Payment (PM) — PAYMENT-PLAN.md §2-§3 ====
+
+/** Payment Request — `Payment-BRD.md` §6.2, UseCase §4.2. Module khác "tạo", Payment thực thi. */
+export interface PaymentRequest {
+  id: string
+  source: PaymentRequestSource
+  purpose: PaymentRequestPurpose
+  /** Loại giao dịch sinh ra khi thực thi — quyết định Type của Transaction (BRD §8). */
+  transactionType: TransactionType
+  /** số nguyên đồng > 0 (PM-BR-20). */
+  expectedAmount: number
+  /** `HỆ THỐNG tính (deriveRequestStatus), không sửa tay. */
+  status: PaymentRequestStatus
+  rentalId: string
+  /** Copy từ Rental lúc tạo — lọc nhanh/công nợ. */
+  customerId: string
+  // Round 2:
+  settlementId?: string
+  settlementRequestId?: string
+  postSettlementChargeId?: string
+  note?: string
+  createdByName: string
+  createdAt: string
+  updatedAt: string
+  cancelledByName?: string
+  cancelledAt?: string
+  cancelReason?: string
+}
+
+/** `Payment-BRD.md` §18 — nhúng trong `Transaction`, một giao dịch một biên lai. */
+export interface Receipt {
+  /** `GD-…`/`BL-…` tuần tự — TODO(OQ: Payment-BRD.md §27 Q16 — mẫu/đánh số biên lai). */
+  receiptNo: string
+  issuedByName: string
+  issuedAt: string
+  /** PM-BR-19 — bị vô hiệu khi giao dịch gốc REVERSED. */
+  voided: boolean
+}
+
+/** Giao dịch tiền — `Payment-BRD.md` §6.1. Không bao giờ xoá vật lý (PM-BR-05). */
+export interface Transaction {
+  id: string
+  /** "Transaction Code" BRD §6.1 — `GD-000001` tuần tự, sinh trong callback `fakeRequest`. */
+  code: string
+  type: TransactionType
+  /** Suy từ `type` qua `directionOf` — riêng `ADJUSTMENT` do người dùng chọn. */
+  direction: TransactionDirection
+  amount: number
+  method: PaymentMethod
+  status: TransactionStatus
+  /** PM-BR-16 — bắt buộc. */
+  customerId: string
+  rentalId?: string
+  /** Trống với `ADJUSTMENT`/`OFFSET`. */
+  paymentRequestId?: string
+  /** Round 2 — `OFFSET`. */
+  settlementId?: string
+  /** Mã CK / mã ví / mã SePay. */
+  reference?: string
+  /** Demo: ghi chú chứng từ thay ảnh. */
+  evidenceNote?: string
+  /** Bắt buộc với `ADJUSTMENT`. */
+  reason?: string
+  /** PM-BR-10 — `drawer:<userId>` của người thu khi `method = CASH`. */
+  cashDrawerId?: string
+  cashDrawerOwnerName?: string
+  performedByUserId: string
+  performedByName: string
+  performedAt: string
+  confirmedByName?: string
+  confirmedAt?: string
+  /** UC-PM-06 A1 — số tiền gốc trước khi Accountant sửa lúc xác nhận. */
+  originalAmount?: number
+  failReason?: string
+  voidReason?: string
+  voidedByName?: string
+  voidedAt?: string
+  /** UC-PM-12 — bản đối ứng trỏ bản gốc; bản gốc trỏ bản đối ứng. */
+  reversalOfId?: string
+  reversedById?: string
+  reverseReason?: string
+  /** Round 2 — PM-BR-12, chỉ giao dịch hoàn tiền vượt ngưỡng. */
+  approval?: { status: RefundApprovalStatus; decidedByName?: string; decidedAt?: string; note?: string }
+  /** Round 2 — PM-BR-13, bắt buộc với giao dịch OUT hoàn tiền. */
+  refundRecipient?: string
+  /** BRD §18. */
+  receipt?: Receipt
+  createdAt: string
+  updatedAt: string
+}
+
+/** Phiếu nộp quỹ — `Payment-BRD.md` §14, §15.1, UC-PM-14. Quỹ = theo người thu (BRD §14). */
+export interface CashDrawerSubmission {
+  id: string
+  /** `drawer:<userId>`. */
+  cashDrawerId: string
+  ownerName: string
+  /** Giao dịch CASH được "chốt" vào phiếu này — mỗi giao dịch chỉ thuộc tối đa 1 phiếu. */
+  transactionIds: string[]
+  /** Σ CASH IN − Σ CASH OUT (hiệu lực) của `transactionIds`. */
+  systemAmount: number
+  countedAmount: number
+  variance: number
+  /** Bắt buộc khi `variance ≠ 0` (EX-06, AC-PM-009). */
+  varianceReason?: string
+  status: CashDrawerSubmissionStatus
+  submittedAt: string
+  /** "thủ quỹ" — TODO(OQ: Payment-BRD.md §27 Q11). */
+  receivedByName?: string
+  receivedAt?: string
+}
+
+/** View suy ra (không lưu) — lịch thanh toán 3 mốc, `Payment-BRD.md` §4.1. */
+export interface PaymentMilestoneView {
+  milestone: PaymentMilestone
+  requests: PaymentRequest[]
+  expectedTotal: number
+  /** Σ giao dịch IN hiệu lực của các yêu cầu này. */
+  collectedTotal: number
+  /** Σ giao dịch `PENDING` (chưa tính vào đã thu). */
+  pendingTotal: number
+  state: 'NOT_SCHEDULED' | 'OPEN' | 'PARTIAL' | 'DONE' | 'CANCELLED' | 'BY_SETTLEMENT'
+  /** `HANDOVER` + `MOTORBIKE` → hiện dòng vật bảo đảm (PM-BR-22). */
+  motorbikeCollateral?: boolean
+}
+
+/** View suy ra (không lưu) — tổng hợp thanh toán của một Rental, `Payment-BRD.md` §13. */
+export interface RentalPaymentSummary {
+  totalPayable: number
+  totalPayableIsEstimate: boolean
+  paidToDate: number
+  depositHeld: number
+  refunded: number
+  balanceDue: number
+  paymentStatus: SettlementPaymentStatus
+}
+
+/** Bảng `type → direction` cố định (BRD §8) — `ADJUSTMENT` không nằm trong 2 danh sách, do người dùng chọn. */
+const IN_TRANSACTION_TYPES: TransactionType[] = ['DEPOSIT', 'RENTAL_PAYMENT', 'ADDITIONAL_CHARGE', 'POST_SETTLEMENT_COLLECT']
+const OUT_TRANSACTION_TYPES: TransactionType[] = ['DEPOSIT_REFUND', 'OVERPAYMENT_REFUND', 'GOODWILL_REFUND', 'OWNER_PAYOUT']
+
+export function directionOf(type: TransactionType): TransactionDirection | undefined {
+  if (IN_TRANSACTION_TYPES.includes(type)) return 'IN'
+  if (OUT_TRANSACTION_TYPES.includes(type)) return 'OUT'
+  return undefined
+}
+
+/** PM-BR-01/04 + §0.3 điểm 4 `PAYMENT-PLAN.md` — loại CẢ cặp đảo khỏi mọi phép cộng. */
+export function isEffectiveTransaction(t: Transaction): boolean {
+  return t.status === 'CONFIRMED' && !t.reversalOfId
+}
+
+/** PM-BR-21 — các trạng thái Rental còn cho lập lịch/ghi nhận thanh toán. */
+const SCHEDULABLE_RENTAL_STATUSES: Rental['status'][] = [
+  'CONFIRMED',
+  'CONTRACT_CREATED',
+  'READY_FOR_HANDOVER',
+  'HANDED_OVER',
+  'IN_RENTAL',
+  'RETURNED',
+  'SETTLEMENT',
+]
+
+export function canScheduleRental(rental: Rental): boolean {
+  return SCHEDULABLE_RENTAL_STATUSES.includes(rental.status)
+}
+
+/** `Payment-BRD.md` §8 / PM-BR-21 (CR-2026-060) — sinh 2-3 Payment Request mốc `BOOKING`/`HANDOVER`. */
+export function buildScheduleRequests(rental: Rental, actorName: string, now: string): PaymentRequest[] {
+  const base = {
+    rentalId: rental.id,
+    customerId: rental.customerId,
+    purpose: 'COLLECT' as const,
+    status: 'OPEN' as const,
+    createdByName: actorName,
+    createdAt: now,
+    updatedAt: now,
+  }
+  const requests: PaymentRequest[] = [
+    {
+      id: generateId('prq'),
+      source: 'BOOKING',
+      transactionType: 'RENTAL_PAYMENT',
+      expectedAmount: rental.prepaymentAmount,
+      ...base,
+    },
+    {
+      id: generateId('prq'),
+      source: 'HANDOVER',
+      transactionType: 'RENTAL_PAYMENT',
+      expectedAmount: rental.baseAmount - rental.prepaymentAmount,
+      ...base,
+    },
+  ]
+  // PM-BR-22 + CR-2026-003 — MOTORBIKE không sinh yêu cầu/giao dịch cọc.
+  if (rental.securityDepositType === 'CASH_20M') {
+    requests.push({
+      id: generateId('prq'),
+      source: 'HANDOVER',
+      transactionType: 'DEPOSIT',
+      expectedAmount: rental.securityDepositAmount ?? 20_000_000,
+      ...base,
+    })
+  }
+  return requests
+}
+
+/** UC-PM-01 bước 3 — `collected` chỉ tính giao dịch hiệu lực (PM-BR-15: một yêu cầu — nhiều giao dịch). */
+export function calcRequestProgress(request: PaymentRequest, txns: Transaction[]): { collected: number; pending: number; remaining: number } {
+  const related = txns.filter((t) => t.paymentRequestId === request.id)
+  const collected = related.filter(isEffectiveTransaction).reduce((sum, t) => sum + (t.direction === 'IN' ? t.amount : -t.amount), 0)
+  const pending = related.filter((t) => t.status === 'PENDING').reduce((sum, t) => sum + t.amount, 0)
+  const remaining = Math.max(0, request.expectedAmount - collected)
+  return { collected, pending, remaining }
+}
+
+/** `Payment-UseCase.md` §4.2. */
+export function deriveRequestStatus(request: PaymentRequest, txns: Transaction[]): PaymentRequestStatus {
+  if (request.status === 'CANCELLED') return 'CANCELLED'
+  const { collected } = calcRequestProgress(request, txns)
+  if (collected <= 0) return 'OPEN'
+  if (collected < request.expectedAmount) return 'PARTIALLY_FULFILLED'
+  return 'FULFILLED'
+}
+
+/** PM-BR-21; huỷ lượt = TODO(OQ: Payment-BRD.md §27 Q15 / master §51 Q57 — hoàn/giữ khi huỷ lượt; không build). */
+const PAYMENT_BLOCKED_RENTAL_STATUSES: Rental['status'][] = ['CANCELLED', 'NO_SHOW', 'DISPUTED', 'COMPLETED']
+
+export function isRequestActionable(request: PaymentRequest, rental: Rental): boolean {
+  if (request.status !== 'OPEN' && request.status !== 'PARTIALLY_FULFILLED') return false
+  return !PAYMENT_BLOCKED_RENTAL_STATUSES.includes(rental.status)
+}
+
+/** `Payment-BRD.md` §4.1 — `PaymentMilestoneView[]`; `RETURN` Round 1 luôn `BY_SETTLEMENT`. */
+export function buildPaymentSchedule(rental: Rental, requests: PaymentRequest[], txns: Transaction[]): PaymentMilestoneView[] {
+  const milestones: PaymentMilestone[] = ['BOOKING', 'HANDOVER', 'RETURN']
+  return milestones.map((milestone): PaymentMilestoneView => {
+    if (milestone === 'RETURN') {
+      return { milestone, requests: [], expectedTotal: 0, collectedTotal: 0, pendingTotal: 0, state: 'BY_SETTLEMENT' }
+    }
+    const reqs = requests.filter((r) => r.source === milestone)
+    const expectedTotal = reqs.reduce((sum, r) => sum + r.expectedAmount, 0)
+    let collectedTotal = 0
+    let pendingTotal = 0
+    for (const r of reqs) {
+      const progress = calcRequestProgress(r, txns)
+      collectedTotal += progress.collected
+      pendingTotal += progress.pending
+    }
+    let state: PaymentMilestoneView['state']
+    if (reqs.length === 0) {
+      state = 'NOT_SCHEDULED'
+    } else if (reqs.every((r) => r.status === 'CANCELLED')) {
+      state = 'CANCELLED'
+    } else if (reqs.every((r) => r.status === 'FULFILLED' || r.status === 'CANCELLED')) {
+      state = 'DONE'
+    } else if (collectedTotal > 0 || pendingTotal > 0) {
+      state = 'PARTIAL'
+    } else {
+      state = 'OPEN'
+    }
+    // PM-BR-22 — HANDOVER + MOTORBIKE → dòng vật bảo đảm, không sinh giao dịch tiền.
+    const motorbikeCollateral = milestone === 'HANDOVER' && rental.securityDepositType === 'MOTORBIKE'
+    return { milestone, requests: reqs, expectedTotal, collectedTotal, pendingTotal, state, motorbikeCollateral }
+  })
+}
+
+/**
+ * `Payment-BRD.md` §11/§13, PM-BR-06/14 — §2.5 `PAYMENT-PLAN.md`.
+ * TODO(OQ: Payment-BRD.md §27 Q9 — hạn thanh toán; không tính `OVERDUE`).
+ */
+export function deriveRentalPaymentSummary(
+  rental: Rental,
+  requests: PaymentRequest[],
+  txns: Transaction[],
+  settlement?: Settlement,
+): RentalPaymentSummary {
+  const rentalTxns = txns.filter((t) => t.rentalId === rental.id)
+  const effective = rentalTxns.filter(isEffectiveTransaction)
+
+  let totalPayable = rental.estimatedTotal
+  let totalPayableIsEstimate = true
+  if (settlement?.status === 'COMPLETED' && settlement.completedTotals) {
+    totalPayable = settlement.completedTotals.finalAmount
+    totalPayableIsEstimate = false
+  } else if (settlement?.status === 'CONFIRMED') {
+    totalPayable = calcSettlementTotals(settlement.lines, settlement.waivers).finalAmount
+    totalPayableIsEstimate = false
+  }
+
+  // §0.3 điểm 5 kế hoạch — Paid To Date KHÔNG tính `DEPOSIT`, CÓ tính `OFFSET` (method OFFSET vẫn type khác DEPOSIT).
+  const paidToDate = effective
+    .filter((t) => t.direction === 'IN' && t.type !== 'DEPOSIT')
+    .reduce((sum, t) => sum + t.amount, 0)
+  const depositIn = effective.filter((t) => t.type === 'DEPOSIT').reduce((sum, t) => sum + t.amount, 0)
+  const offsetUsed = effective.filter((t) => t.method === 'OFFSET').reduce((sum, t) => sum + t.amount, 0)
+  const depositRefundOut = effective.filter((t) => t.type === 'DEPOSIT_REFUND').reduce((sum, t) => sum + t.amount, 0)
+  const depositHeld = depositIn - offsetUsed - depositRefundOut
+  const refunded = effective.filter((t) => t.direction === 'OUT' && t.type !== 'ADJUSTMENT').reduce((sum, t) => sum + t.amount, 0)
+  const balanceDue = totalPayable - paidToDate
+
+  const rentalRequests = requests.filter((r) => r.rentalId === rental.id)
+  const refundRequests = rentalRequests.filter((r) => r.purpose === 'REFUND')
+  const hasOpenRefund = refundRequests.some((r) => r.status === 'OPEN' || r.status === 'PARTIALLY_FULFILLED')
+  const hasOnlyClosedRefunds = refundRequests.length > 0 && refundRequests.every((r) => r.status === 'FULFILLED' || r.status === 'CANCELLED')
+
+  let paymentStatus: SettlementPaymentStatus
+  if (hasOpenRefund) {
+    paymentStatus = 'REFUND_PENDING'
+  } else if (hasOnlyClosedRefunds && balanceDue <= 0) {
+    paymentStatus = 'REFUNDED'
+  } else if (paidToDate <= 0) {
+    paymentStatus = 'UNPAID'
+  } else if (paidToDate < totalPayable) {
+    paymentStatus = 'PARTIALLY_PAID'
+  } else {
+    paymentStatus = 'PAID'
+  }
+
+  return { totalPayable, totalPayableIsEstimate, paidToDate, depositHeld, refunded, balanceDue, paymentStatus }
+}
+
+/** `Payment-BRD.md` §14. */
+export function cashDrawerIdOf(userId: string): string {
+  return `drawer:${userId}`
+}
+
+/** `Payment-BRD.md` §14, UC-PM-14 — Σ CASH hiệu lực chưa thuộc phiếu nào (IN +, OUT −). */
+export function calcCashDrawerBalance(
+  drawerId: string,
+  txns: Transaction[],
+  submissions: CashDrawerSubmission[],
+): { balance: number; transactions: Transaction[] } {
+  const submittedIds = new Set(submissions.flatMap((s) => s.transactionIds))
+  const related = txns.filter((t) => t.method === 'CASH' && t.cashDrawerId === drawerId && isEffectiveTransaction(t) && !submittedIds.has(t.id))
+  const balance = related.reduce((sum, t) => sum + (t.direction === 'IN' ? t.amount : -t.amount), 0)
+  return { balance, transactions: related }
+}
+
+/** `Payment-BRD.md` §6.1/§18 — `GD-000001` / `BL-000001`. */
+export function nextSequenceCode(prefix: string, existingCodes: string[]): string {
+  let max = 0
+  const re = new RegExp(`^${prefix}-(\\d+)$`)
+  for (const code of existingCodes) {
+    const match = re.exec(code)
+    if (match) max = Math.max(max, Number(match[1]))
+  }
+  return `${prefix}-${String(max + 1).padStart(6, '0')}`
+}
+
+// ---- §3.1 kế hoạch — Form schema (dùng thật trong dialog, §0.2) ----
+
+export const transactionRecordFormSchema = z
+  .object({
+    paymentRequestId: z.string().trim().min(1, 'Chọn yêu cầu thanh toán'),
+    amount: z
+      .string()
+      .trim()
+      .min(1, 'Số tiền là bắt buộc')
+      .refine((v) => NUMERIC_RE.test(v) && Number(v) > 0, { message: 'Số tiền phải là số nguyên dương (PM-BR-20)' }),
+    method: z.enum(['CASH', 'BANK_TRANSFER', 'E_WALLET']),
+    reference: z.string().trim().optional(),
+    evidenceNote: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // `Payment-BRD.md` §9 — mã tham chiếu bắt buộc khi CK/ví.
+    if ((data.method === 'BANK_TRANSFER' || data.method === 'E_WALLET') && !data.reference) {
+      ctx.addIssue({ code: 'custom', path: ['reference'], message: 'Mã tham chiếu là bắt buộc với chuyển khoản/ví' })
+    }
+  })
+export type TransactionRecordFormValues = z.infer<typeof transactionRecordFormSchema>
+
+/** UC-PM-06 A1 — sửa số theo thực nhận lúc xác nhận CK/ví. */
+export const transactionConfirmFormSchema = z.object({
+  amount: z
+    .string()
+    .trim()
+    .min(1, 'Số tiền là bắt buộc')
+    .refine((v) => NUMERIC_RE.test(v) && Number(v) > 0, { message: 'Số tiền phải là số nguyên dương' }),
+  note: z.string().trim().optional(),
+})
+export type TransactionConfirmFormValues = z.infer<typeof transactionConfirmFormSchema>
+
+/** Dùng chung cho Thất bại / Huỷ / Đảo. */
+export const transactionReasonFormSchema = z.object({
+  reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự)'),
+})
+export type TransactionReasonFormValues = z.infer<typeof transactionReasonFormSchema>
+
+/** PM-BR-18 — giao dịch thủ công IN/OUT, gắn Customer (+ Rental tuỳ chọn), lý do bắt buộc. */
+export const adjustmentFormSchema = z.object({
+  direction: z.enum(['IN', 'OUT']),
+  amount: z
+    .string()
+    .trim()
+    .min(1, 'Số tiền là bắt buộc')
+    .refine((v) => NUMERIC_RE.test(v) && Number(v) > 0, { message: 'Số tiền phải là số nguyên dương' }),
+  customerId: z.string().trim().min(1, 'Chọn khách hàng'),
+  rentalId: z.string().trim().optional(),
+  method: z.enum(['CASH', 'BANK_TRANSFER', 'E_WALLET']),
+  reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự) — PM-BR-18'),
+})
+export type AdjustmentFormValues = z.infer<typeof adjustmentFormSchema>
+
+/** AC-PM-009 — bắt buộc lý do khi `countedAmount ≠ systemAmount` (EX-06). */
+export function makeCashDrawerSubmitSchema(systemAmount: number) {
+  return z
+    .object({
+      countedAmount: z
+        .string()
+        .trim()
+        .min(1, 'Số đếm thực tế là bắt buộc')
+        .refine((v) => NUMERIC_RE.test(v), { message: 'Số đếm phải là số nguyên không âm' }),
+      varianceReason: z.string().trim().optional(),
+    })
+    .superRefine((data, ctx) => {
+      if (Number(data.countedAmount) !== systemAmount && !data.varianceReason) {
+        ctx.addIssue({ code: 'custom', path: ['varianceReason'], message: 'Lý do chênh lệch là bắt buộc khi số đếm khác số hệ thống' })
+      }
+    })
+}
+export type CashDrawerSubmitFormValues = z.infer<ReturnType<typeof makeCashDrawerSubmitSchema>>

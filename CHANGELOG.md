@@ -15,6 +15,15 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 4.2 Round 1 — Thanh toán: sổ giao dịch lõi + 2 mốc đặt xe/giao xe** (`features/finance`,
+  module `PM`, theo [`docs/PAYMENT-PLAN.md`](docs/PAYMENT-PLAN.md)) — màn `/finance/transactions` (Sổ
+  giao dịch) + `/finance/cash-drawer` (Quỹ tiền mặt & đối soát CK/ví) + tab "Thanh toán" ở Rental
+  Detail. Lập lịch thu `BOOKING` (Prepayment 30%) / `HANDOVER` (70% + Security Deposit), ghi thu nhiều
+  lần, xác nhận/thất bại/huỷ, đảo giao dịch (`REVERSED`, không xoá), điều chỉnh thủ công, biên lai dạng
+  dialog (vô hiệu khi đảo), nộp/nhận quỹ tiền mặt. 7 permission + 10 audit action mới, `SEED_VERSION`
+  15. Qua 2 vòng review `tech-lead`: 2 Blocker vòng 1 đã sửa (biên lai của giao dịch đã đảo không xem
+  lại được/thiếu nhãn vô hiệu — PM-BR-19; sheet chi tiết giao dịch không tự cập nhật sau thao tác) + 2
+  "Nên sửa". Round 2 (thực thi điều phối Settlement, `OFFSET`, hoàn tiền, Công nợ khách hàng) chưa làm.
 - **Phase 4.1 Round 2 — Quyết toán: phát sinh sau quyết toán, điều chỉnh, đảo quyết toán**
   (`features/finance`, theo [`docs/RENTAL-SETTLEMENT-PLAN.md`](docs/RENTAL-SETTLEMENT-PLAN.md) §10) —
   Phase 4.1 hoàn tất. Entity riêng Post-Settlement Charge (không mở lại Settlement kỳ gốc — RS-BR-13):

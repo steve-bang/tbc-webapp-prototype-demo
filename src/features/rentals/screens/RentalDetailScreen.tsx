@@ -6,8 +6,8 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { useCustomers } from '@/features/customers/hooks'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { usePermission } from '@/features/auth'
-// RENTAL-SETTLEMENT-PLAN.md §5.3 — tab "Quyết toán", qua barrel `@/features/finance`.
-import { SettlementWorksheet } from '@/features/finance'
+// RENTAL-SETTLEMENT-PLAN.md §5.3 — tab "Quyết toán"; PAYMENT-PLAN.md §7.2 — tab "Thanh toán". Qua barrel `@/features/finance`.
+import { RentalPaymentTab, SettlementWorksheet } from '@/features/finance'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
@@ -17,7 +17,6 @@ import { RentalAuditTab } from '../components/RentalAuditTab'
 import { RentalCancelDialog } from '../components/RentalCancelDialog'
 import { RentalConfirmDialog } from '../components/RentalConfirmDialog'
 import { RentalContractTab } from '../components/RentalContractTab'
-import { RentalDetailPlaceholder } from '../components/RentalDetailPlaceholder'
 import { RentalHandoverReturnTab } from '../components/RentalHandoverReturnTab'
 import { RentalIncidentsTab } from '../components/RentalIncidentsTab'
 import { RentalOverviewTab } from '../components/RentalOverviewTab'
@@ -40,6 +39,8 @@ export function RentalDetailScreen() {
   const canConfirmAction = can('RENTAL', 'CONFIRM') // dùng chung cho cả Xác nhận lẫn Huỷ — nguồn permissions.ts
   // RENTAL-SETTLEMENT-PLAN.md §5.3 — ẩn hẳn tab khi thiếu quyền (tiền lệ ẩn tab DI-BR-22).
   const canViewSettlement = can('SETTLEMENT', 'VIEW')
+  // PAYMENT-PLAN.md §7.2 — mirror cách gate tab "Quyết toán".
+  const canViewPayment = can('PAYMENT', 'VIEW')
   const defaultTab = searchParams.get('tab') ?? 'overview'
 
   const { data: rental, isLoading } = useRental(id)
@@ -102,7 +103,7 @@ export function RentalDetailScreen() {
           <TabsTrigger value="overview">{vi.rentals.tabOverview}</TabsTrigger>
           <TabsTrigger value="pricing">{vi.rentals.tabPricing}</TabsTrigger>
           {canViewSettlement && <TabsTrigger value="settlement">{vi.rentals.tabSettlement}</TabsTrigger>}
-          <TabsTrigger value="payment">{vi.rentals.tabPayment}</TabsTrigger>
+          {canViewPayment && <TabsTrigger value="payment">{vi.rentals.tabPayment}</TabsTrigger>}
           <TabsTrigger value="contract">{vi.rentals.tabContract}</TabsTrigger>
           <TabsTrigger value="handoverReturn">{vi.rentals.tabHandoverReturn}</TabsTrigger>
           <TabsTrigger value="incidents">{vi.rentals.tabIncidents}</TabsTrigger>
@@ -121,9 +122,11 @@ export function RentalDetailScreen() {
             <SettlementWorksheet rentalId={rental.id} />
           </TabsContent>
         )}
-        <TabsContent value="payment">
-          <RentalDetailPlaceholder note={vi.rentals.paymentPlaceholder} />
-        </TabsContent>
+        {canViewPayment && (
+          <TabsContent value="payment">
+            <RentalPaymentTab rental={rental} />
+          </TabsContent>
+        )}
         <TabsContent value="contract">
           <RentalContractTab rental={rental} />
         </TabsContent>

@@ -200,6 +200,32 @@ export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number]
 export const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'E_WALLET', 'OFFSET', 'ONLINE_GATEWAY'] as const
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
+// ---- Payment (PM) — `docs/PAYMENT-PLAN.md` §2.6, Round 1. ----
+
+/** `Payment-BRD.md` §6.2 + BA đề xuất `HANDOVER` (BRD §4.1/§8/PM-BR-21 — §0.4 điểm 3 `PAYMENT-PLAN.md`). `CONSIGNMENT` thuộc Phase 5, chưa thêm. */
+export const PAYMENT_REQUEST_SOURCES = ['BOOKING', 'HANDOVER', 'SETTLEMENT', 'POST_SETTLEMENT_CHARGE'] as const
+export type PaymentRequestSource = (typeof PAYMENT_REQUEST_SOURCES)[number]
+
+/** `Payment-BRD.md` §6.2 — `PAYOUT` thuộc Phase 5 (`VC`), chưa thêm. */
+export const PAYMENT_REQUEST_PURPOSES = ['COLLECT', 'REFUND'] as const
+export type PaymentRequestPurpose = (typeof PAYMENT_REQUEST_PURPOSES)[number]
+
+/** `Payment-UseCase.md` §4.2. */
+export const PAYMENT_REQUEST_STATUSES = ['OPEN', 'PARTIALLY_FULFILLED', 'FULFILLED', 'CANCELLED'] as const
+export type PaymentRequestStatus = (typeof PAYMENT_REQUEST_STATUSES)[number]
+
+/** `Payment-BRD.md` §4.1, PM-BR-21 (CR-2026-004/060). */
+export const PAYMENT_MILESTONES = ['BOOKING', 'HANDOVER', 'RETURN'] as const
+export type PaymentMilestone = (typeof PAYMENT_MILESTONES)[number]
+
+/** BA đề xuất — BRD §14/UC-PM-14 mô tả "nộp quỹ" + "thủ quỹ xác nhận đã nhận", chưa đặt tên trạng thái. */
+export const CASH_DRAWER_SUBMISSION_STATUSES = ['SUBMITTED', 'RECEIVED'] as const
+export type CashDrawerSubmissionStatus = (typeof CASH_DRAWER_SUBMISSION_STATUSES)[number]
+
+/** Round 2 — BA đề xuất, UC-PM-09 ("chờ duyệt" / Đồng ý / Từ chối). Khai ở Round 1 vì kiểu field `Transaction.approval?` cần nó. */
+export const REFUND_APPROVAL_STATUSES = ['PENDING_APPROVAL', 'APPROVED', 'REJECTED'] as const
+export type RefundApprovalStatus = (typeof REFUND_APPROVAL_STATUSES)[number]
+
 /**
  * Trạng thái quyết toán (Settlement) — `RentalSettlement-UseCase.md` §4 (State
  * Model, đã verify) · `docs/RENTAL-SETTLEMENT-PLAN.md` §0.1. Sửa đúng theo tài
@@ -501,5 +527,16 @@ export const AUDIT_ACTIONS = [
   'ADJUST_SETTLEMENT',
   'REVERSE_SETTLEMENT',
   'REVERT_RENTAL_SETTLEMENT_REVERSED',
+  // Payment (PM) — PAYMENT-PLAN.md §6 (UC-PM-21), Round 1.
+  'CREATE_PAYMENT_SCHEDULE',
+  'CREATE_TRANSACTION',
+  'CONFIRM_TRANSACTION',
+  'FAIL_TRANSACTION',
+  'VOID_TRANSACTION',
+  'REVERSE_TRANSACTION',
+  'CREATE_PAYMENT_ADJUSTMENT',
+  'ISSUE_RECEIPT',
+  'SUBMIT_CASH_DRAWER',
+  'RECEIVE_CASH_DRAWER',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
