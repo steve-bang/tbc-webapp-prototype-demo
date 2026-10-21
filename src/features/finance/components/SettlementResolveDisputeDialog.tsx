@@ -8,9 +8,13 @@ import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Textarea } from '@/shared/ui/textarea'
 import { useResolveSettlementDispute } from '../hooks'
-import { settlementResolveDisputeFormSchema, type SettlementLine } from '../model'
+import { WAIVER_APPROVAL_THRESHOLD, settlementResolveDisputeFormSchema, waiverNeedsApproval, type SettlementLine } from '../model'
 
-/** UC-RS-17 — Giữ nguyên / Điều chỉnh số / Miễn (3/4 nhánh Round 1, xem §1.2 kế hoạch). */
+/**
+ * UC-RS-17 — Giữ nguyên / Điều chỉnh số / Miễn (3/4 nhánh Round 1, xem §1.2 kế
+ * hoạch). Nợ 3 (N3, `docs/RENTAL-SETTLEMENT-PLAN.md` §10.7, RS-BR-07/08) —
+ * nhánh Miễn cũng phải qua ngưỡng duyệt: hiện ghi chú khi vượt ngưỡng.
+ */
 export function SettlementResolveDisputeDialog({
   settlementId,
   line,
@@ -37,6 +41,9 @@ export function SettlementResolveDisputeDialog({
       setError(null)
     }
   }
+
+  const waiveAmount = line?.actualAmount ?? line?.estimatedAmount ?? 0
+  const waiveNeedsApproval = resolution === 'WAIVE' && waiverNeedsApproval(waiveAmount)
 
   async function handleConfirm() {
     const result = settlementResolveDisputeFormSchema.safeParse({ resolution, actualAmount, reason })
@@ -95,6 +102,11 @@ export function SettlementResolveDisputeDialog({
             <Label htmlFor="srd-reason">{vi.finance.resolveDisputeReasonLabel} *</Label>
             <Textarea id="srd-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
+          {waiveNeedsApproval && (
+            <p className="text-status-pending text-sm">
+              {vi.finance.resolveDisputeWaiveNeedsApprovalNotice} ({'>'} {WAIVER_APPROVAL_THRESHOLD.toLocaleString('vi-VN')}đ)
+            </p>
+          )}
           {error && <p className="text-destructive text-sm">{error}</p>}
         </div>
         <DialogFooter>

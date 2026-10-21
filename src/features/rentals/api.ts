@@ -24,6 +24,7 @@ import {
   canConfirm,
   canMarkContractCreated,
   canOpenSettlement,
+  canRevertSettlementReversed,
   rentalDurationDays,
   type Rental,
 } from './model'
@@ -387,6 +388,36 @@ export async function markRentalCompleted(id: string, actor: ActorInfo): Promise
       actorRole: actor.role,
       before: { status: before.status },
       after: { status: 'COMPLETED' },
+    })
+    return after
+  })
+}
+
+/**
+ * `docs/RENTAL-SETTLEMENT-PLAN.md` §0.2/§10.5 — ngoại lệ kiến trúc có chủ đích,
+ * cùng round thứ 3 (`features/finance`), mirror y hệt `markRentalCompleted()`.
+ * Chỉ `features/finance` gọi (qua barrel `index.ts`) sau khi ghi `Settlement`
+ * `DRAFT` (đảo quyết toán) thành công — UC-RS-16.
+ */
+export async function revertSettlementReversed(id: string, actor: ActorInfo): Promise<Rental> {
+  return fakeRequest(() => {
+    const all = readAll()
+    const before = findOrThrow(all, id)
+    if (!canRevertSettlementReversed(before)) {
+      throw new Error(`Không thể chuyển lượt thuê đang ở trạng thái ${before.status} về Đang quyết toán`)
+    }
+    const after: Rental = { ...before, status: 'SETTLEMENT', updatedAt: new Date().toISOString() }
+    writeAll(all.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'REVERT_RENTAL_SETTLEMENT_REVERSED',
+      entity: 'Rental',
+      entityId: id,
+      summary: `Đảo quyết toán — lượt thuê ${before.id} về Đang quyết toán`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: 'SETTLEMENT' },
     })
     return after
   })

@@ -10,17 +10,23 @@ import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Textarea } from '@/shared/ui/textarea'
 import { useApplySettlementWaiver } from '../hooks'
-import { WAIVER_APPROVAL_THRESHOLD, settlementWaiverFormSchema, waiverNeedsApproval, type SettlementLine } from '../model'
+import { WAIVER_APPROVAL_THRESHOLD, getLineDiscountedAmount, settlementWaiverFormSchema, waiverNeedsApproval, type SettlementLine, type SettlementWaiver } from '../model'
 
-/** UC-RS-05, BRD §12, RS-BR-07/08 — vượt `WAIVER_APPROVAL_THRESHOLD` → `PENDING_APPROVAL`. */
+/**
+ * UC-RS-05, BRD §12, RS-BR-07/08 — vượt `WAIVER_APPROVAL_THRESHOLD` →
+ * `PENDING_APPROVAL`. Nợ 2 (N2, `docs/RENTAL-SETTLEMENT-PLAN.md` §10.7) —
+ * `PARTIAL_DISCOUNT` hiện "Còn được giảm tối đa" và chặn vượt tổng trước khi gửi.
+ */
 export function SettlementWaiverDialog({
   settlementId,
   lines,
+  waivers,
   open,
   onOpenChange,
 }: {
   settlementId: string
   lines: SettlementLine[]
+  waivers: SettlementWaiver[]
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -50,6 +56,8 @@ export function SettlementWaiverDialog({
   const isWaiveLine = type === 'WAIVE_LINE'
   const effectiveAmount = isWaiveLine && selectedLine ? String(selectedLine.actualAmount ?? 0) : amount
   const needsApproval = waiverNeedsApproval(Number(effectiveAmount) || 0)
+  const alreadyDiscounted = type === 'PARTIAL_DISCOUNT' && lineId ? getLineDiscountedAmount(lineId, waivers) : 0
+  const remainingForPartialDiscount = selectedLine ? Math.max(0, (selectedLine.actualAmount ?? 0) - alreadyDiscounted) : 0
 
   function handleLineChange(nextLineId: string) {
     setLineId(nextLineId)
@@ -64,6 +72,10 @@ export function SettlementWaiverDialog({
     }
     if (type === 'PARTIAL_DISCOUNT' && selectedLine && Number(result.data.amount) > (selectedLine.actualAmount ?? 0)) {
       setError('Số tiền giảm không được vượt số thực tế của dòng')
+      return
+    }
+    if (type === 'PARTIAL_DISCOUNT' && Number(result.data.amount) > remainingForPartialDiscount) {
+      setError(`Tổng giảm một phần vượt số thực tế của dòng (còn được giảm tối đa ${remainingForPartialDiscount.toLocaleString('vi-VN')}đ)`)
       return
     }
     try {
@@ -135,6 +147,9 @@ export function SettlementWaiverDialog({
             <Label htmlFor="sw-reason">{vi.finance.waiverReasonLabel}</Label>
             <Textarea id="sw-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
+          {type === 'PARTIAL_DISCOUNT' && selectedLine && (
+            <p className="text-muted-foreground text-sm">{vi.finance.waiverRemainingPartialDiscountNote.replace('{amount}', remainingForPartialDiscount.toLocaleString('vi-VN'))}</p>
+          )}
           {needsApproval && (
             <p className="text-status-pending text-sm">
               {vi.finance.waiverNeedsApprovalNotice} ({'>'} {WAIVER_APPROVAL_THRESHOLD.toLocaleString('vi-VN')}đ)

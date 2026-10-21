@@ -25,8 +25,8 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
-import { useRemoveSettlementManualLine, useResyncSettlementSources, useSettlementByRental, useSubmitSettlementForCustomer } from '../hooks'
-import { calcSettlementTotals, countPendingReturnIncidentItems, isWorksheetEditable, type SettlementLine } from '../model'
+import { usePostSettlementCharges, useRemoveSettlementManualLine, useResyncSettlementSources, useSettlementByRental, useSubmitSettlementForCustomer } from '../hooks'
+import { calcSettlementTotals, canReverseSettlement, countPendingReturnIncidentItems, isWorksheetEditable, type SettlementLine } from '../model'
 import { SettlementApprovalDialog } from './SettlementApprovalDialog'
 import { SettlementCompleteDialog } from './SettlementCompleteDialog'
 import { SettlementCustomerAckDialog } from './SettlementCustomerAckDialog'
@@ -36,7 +36,10 @@ import { SettlementLineConfirmDialog } from './SettlementLineConfirmDialog'
 import { SettlementManualLineDialog } from './SettlementManualLineDialog'
 import { SettlementOpenDialog } from './SettlementOpenDialog'
 import { SettlementPaymentRequestDialog } from './SettlementPaymentRequestDialog'
+import { PostSettlementChargeSection } from './PostSettlementChargeSection'
 import { SettlementResolveDisputeDialog } from './SettlementResolveDisputeDialog'
+import { SettlementReverseDialog } from './SettlementReverseDialog'
+import { SettlementReversalHistory } from './SettlementReversalHistory'
 import { SettlementStatusBadge } from './SettlementStatusBadge'
 import { SettlementWaiverDialog } from './SettlementWaiverDialog'
 
@@ -51,12 +54,14 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
   const { can } = usePermission()
   const canConfirmAction = can('SETTLEMENT', 'CONFIRM')
   const canApproveAction = can('SETTLEMENT', 'APPROVE')
+  const canReverseAction = can('SETTLEMENT', 'REVERSE')
 
   const { data: rental, isLoading: loadingRental } = useRental(rentalId)
   const { data: settlement, isLoading: loadingSettlement } = useSettlementByRental(rentalId)
   const { data: returns = [] } = useReturnRecords({ rentalId })
   const { data: handovers = [] } = useHandoverRecords({ rentalId })
   const { data: incidents = [] } = useIncidents({ rentalId })
+  const { data: pscs = [] } = usePostSettlementCharges({ settlementId: settlement?.id })
 
   const resync = useResyncSettlementSources()
   const submitForCustomer = useSubmitSettlementForCustomer()
@@ -72,6 +77,7 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
   const [ackDialogOpen, setAckDialogOpen] = useState(false)
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false)
+  const [reverseDialogOpen, setReverseDialogOpen] = useState(false)
   const [paymentRequestTarget, setPaymentRequestTarget] = useState<{ type: SettlementRequestType; amount: number } | null>(null)
 
   if (loadingRental || loadingSettlement) {
@@ -180,7 +186,16 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
         {!hasHandoverCompleted && <Banner text={vi.finance.bannerNoHandover} />}
         {returnCancelled && <Banner text={vi.finance.bannerReturnCancelled} />}
         {rental.securityDepositType === 'MOTORBIKE' && <Banner text={vi.finance.bannerMotorbikeDeposit} />}
+        {settlement.status === 'DRAFT' && settlement.reversals && settlement.reversals.length > 0 && (
+          <Banner
+            text={vi.finance.reversedBanner
+              .replace('{at}', formatDateTime(settlement.reversals[settlement.reversals.length - 1].reversedAt))
+              .replace('{reason}', settlement.reversals[settlement.reversals.length - 1].reason)}
+          />
+        )}
       </div>
+
+      {settlement.reversals && settlement.reversals.length > 0 && <SettlementReversalHistory reversals={settlement.reversals} />}
 
       {/* Bảng dòng khoản mục */}
       <Card>
@@ -350,9 +365,13 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
           ) : (
             <div className="flex flex-col gap-2">
               {settlement.paymentRequests.map((r) => (
-                <div key={r.id} className="border-border flex items-center justify-between rounded-md border p-3 text-sm">
-                  <span>{SETTLEMENT_REQUEST_TYPE_LABELS[r.type]}</span>
-                  <span className="font-medium">{formatVnd(r.amount)}</span>
+                <div
+                  key={r.id}
+                  className={`border-border flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${r.status === 'CANCELLED' ? 'opacity-50' : ''}`}
+                >
+                  <span className={r.status === 'CANCELLED' ? 'line-through' : ''}>{SETTLEMENT_REQUEST_TYPE_LABELS[r.type]}</span>
+                  <span className={`font-medium ${r.status === 'CANCELLED' ? 'line-through' : ''}`}>{formatVnd(r.amount)}</span>
+                  {r.status === 'CANCELLED' && <Badge variant="destructive">{vi.finance.cancelledRequestLabel}</Badge>}
                 </div>
               ))}
             </div>
@@ -404,7 +423,17 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
               {vi.finance.completeButton}
             </Button>
           )}
+          {settlement.status === 'COMPLETED' && canReverseAction && canReverseSettlement(settlement, rental) && (
+            <Button size="sm" variant="destructive" onClick={() => setReverseDialogOpen(true)}>
+              {vi.finance.reverseButton}
+            </Button>
+          )}
         </div>
+      )}
+
+      {/* Round 2 — Post-Settlement Charge (RS-BR-13) */}
+      {(settlement.status === 'COMPLETED' || pscs.length > 0) && (
+        <PostSettlementChargeSection settlement={settlement} rental={rental} incidents={incidents} pscs={pscs} />
       )}
 
       {/* Lịch sử thao tác */}
@@ -436,7 +465,7 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
       <SettlementDisputeDialog settlementId={settlement.id} line={disputeTarget} open={!!disputeTarget} onOpenChange={(o) => !o && setDisputeTarget(null)} />
       <SettlementResolveDisputeDialog settlementId={settlement.id} line={resolveDisputeTarget} open={!!resolveDisputeTarget} onOpenChange={(o) => !o && setResolveDisputeTarget(null)} />
       <SettlementManualLineDialog settlementId={settlement.id} open={manualLineOpen} onOpenChange={setManualLineOpen} />
-      <SettlementWaiverDialog settlementId={settlement.id} lines={settlement.lines} open={waiverOpen} onOpenChange={setWaiverOpen} />
+      <SettlementWaiverDialog settlementId={settlement.id} lines={settlement.lines} waivers={settlement.waivers} open={waiverOpen} onOpenChange={setWaiverOpen} />
       <SettlementDepositDialog settlement={settlement} open={depositDialogOpen} onOpenChange={setDepositDialogOpen} />
       <SettlementCustomerAckDialog settlementId={settlement.id} lines={settlement.lines} open={ackDialogOpen} onOpenChange={setAckDialogOpen} />
       <SettlementApprovalDialog settlementId={settlement.id} open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen} />
@@ -448,6 +477,7 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
         onOpenChange={(o) => !o && setPaymentRequestTarget(null)}
       />
       <SettlementCompleteDialog settlement={settlement} open={completeDialogOpen} onOpenChange={setCompleteDialogOpen} />
+      <SettlementReverseDialog settlement={settlement} open={reverseDialogOpen} onOpenChange={setReverseDialogOpen} />
     </div>
   )
 }

@@ -15,6 +15,15 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 4.1 Round 2 — Quyết toán: phát sinh sau quyết toán, điều chỉnh, đảo quyết toán**
+  (`features/finance`, theo [`docs/RENTAL-SETTLEMENT-PLAN.md`](docs/RENTAL-SETTLEMENT-PLAN.md) §10) —
+  Phase 4.1 hoàn tất. Entity riêng Post-Settlement Charge (không mở lại Settlement kỳ gốc — RS-BR-13):
+  tạo khoản phạt nguội/VETC/sự cố/khác, "Điều chỉnh" sau `COMPLETED` (UC-RS-15), đánh dấu tất toán thủ
+  công (chặn khi sự cố liên quan đang tranh chấp); luật chống tính trùng tiền sự cố giữa quyết toán và
+  PSC. Đảo quyết toán (chỉ `SYSTEM_ADMIN`, xác nhận 2 bước, lưu snapshot lịch sử, huỷ yêu cầu thu/hoàn
+  đang chờ, Rental `COMPLETED → SETTLEMENT`). Trả 4 nợ nhỏ Round 1 (đọc storage trong `fakeRequest`,
+  chặn cộng dồn giảm một phần, "Miễn" khi kết luận tranh chấp qua ngưỡng duyệt, chặn Return-huỷ ở tầng
+  API). Seed 3 PSC, `SEED_VERSION` 14. Đạt ở vòng review `tech-lead` đầu tiên, không Blocker.
 - **Phase 4.1 Round 1 — Quyết toán lượt thuê** (`features/finance`, module `RS`) theo
   [`docs/RENTAL-SETTLEMENT-PLAN.md`](docs/RENTAL-SETTLEMENT-PLAN.md): màn `/finance/settlement` + tab
   "Quyết toán" ở Rental Detail; Settlement Worksheet mở thủ công từ Rental `RETURNED` → chốt dòng →
@@ -23,7 +32,7 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   `SETTLEMENT_STATUSES` đúng State Model, seed Settlement chạy cuối, `SEED_VERSION` 13. Qua 2 vòng
   review `tech-lead`: 3 Blocker vòng 1 đã sửa (miễn nguyên dòng ghi đè `actualAmount`; trả lại quyết
   toán không khôi phục dòng `WAIVED`; đóng lượt/gửi khách khi biên bản trả xe đã huỷ) + 8 điểm "Nên
-  sửa". Round 2 (Post-Settlement Charge, điều chỉnh sau `COMPLETED`, đảo quyết toán) chưa làm.
+  sửa". Round 2 xem mục bên trên.
 
 **Planned**
 

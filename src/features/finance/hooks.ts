@@ -4,10 +4,14 @@ import type { SettlementRequestType } from '@/shared/domain/enums'
 import * as api from './api'
 import type {
   ActorInfo,
+  AdjustSettlementInput,
   ConfirmLineInput,
+  CreatePostSettlementChargeInput,
   CustomerAckInput,
   ManualLineInput,
+  PostSettlementChargeFilter,
   ResolveDisputeInput,
+  ReverseSettlementInput,
   SettlementFilter,
   WaiverInput,
 } from './api'
@@ -179,5 +183,54 @@ export function useCompleteSettlement() {
   return useMutation({
     mutationFn: (id: string) => api.completeSettlement(id, actor),
     onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId, true),
+  })
+}
+
+// ---- Round 2 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.8) — Post-Settlement Charge / Điều chỉnh / Đảo quyết toán ----
+
+export function usePostSettlementCharges(filter?: PostSettlementChargeFilter) {
+  return useQuery({
+    queryKey: ['postSettlementCharges', filter ?? {}],
+    queryFn: () => api.listPostSettlementCharges(filter),
+  })
+}
+
+export function useCreatePostSettlementCharge() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ settlementId, input }: { settlementId: string; input: CreatePostSettlementChargeInput }) =>
+      api.createPostSettlementCharge(settlementId, input, actor),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] }),
+  })
+}
+
+export function useAdjustSettlement() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ settlementId, input }: { settlementId: string; input: AdjustSettlementInput }) => api.adjustSettlement(settlementId, input, actor),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] }),
+  })
+}
+
+export function useClosePostSettlementCharge() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ pscId, closeNote }: { pscId: string; closeNote?: string }) => api.closePostSettlementCharge(pscId, closeNote, actor),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] }),
+  })
+}
+
+export function useReverseSettlement() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ settlementId, input }: { settlementId: string; input: ReverseSettlementInput }) => api.reverseSettlement(settlementId, input, actor),
+    onSuccess: (settlement) => {
+      invalidateSettlements(queryClient, settlement.rentalId, true)
+      queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] })
+    },
   })
 }

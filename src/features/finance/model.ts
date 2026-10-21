@@ -6,6 +6,9 @@ import type { Incident } from '@/features/incidents'
 import type { Rental } from '@/features/rentals'
 import type {
   AdditionalChargeType,
+  PostSettlementChargeSource,
+  PostSettlementChargeStatus,
+  PostSettlementChargeType,
   Role,
   SecurityDepositType,
   SettlementLineCategory,
@@ -17,7 +20,7 @@ import type {
   SettlementWaiverStatus,
   SettlementWaiverType,
 } from '@/shared/domain/enums'
-import { SETTLEMENT_WAIVER_TYPES } from '@/shared/domain/enums'
+import { POST_SETTLEMENT_CHARGE_SOURCES, POST_SETTLEMENT_CHARGE_TYPES, SETTLEMENT_WAIVER_TYPES } from '@/shared/domain/enums'
 import { generateId } from '@/shared/lib/id'
 
 /**
@@ -91,6 +94,10 @@ export interface SettlementPaymentRequest {
   status: 'REQUESTED' | 'CANCELLED'
   createdByName: string
   createdAt: string
+  /** Round 2 (UC-RS-16) — chỉ có khi `status = CANCELLED` do đảo quyết toán. */
+  cancelledByName?: string
+  cancelledAt?: string
+  cancelReason?: string
 }
 
 export interface SettlementTotals {
@@ -136,6 +143,52 @@ export interface Settlement {
   openedAt: string
   createdAt: string
   updatedAt: string
+  /** UC-RS-16 — "giữ toàn bộ lịch sử phiên bản trước" (RS-BR-14). */
+  reversals?: SettlementReversal[]
+}
+
+/** UC-RS-16 — bản Settlement `COMPLETED` ngay trước khi đảo (RS-BR-14), `docs/RENTAL-SETTLEMENT-PLAN.md` §10.3. */
+export interface SettlementReversal {
+  id: string
+  reason: string
+  reversedByName: string
+  reversedByRole: Role
+  reversedAt: string
+  snapshot: Omit<Settlement, 'reversals'>
+  cancelledPaymentRequestIds: string[]
+}
+
+/**
+ * Post-Settlement Charge — `RentalSettlement-BRD.md` §17, UC-RS-14/15. Entity
+ * riêng, KHÔNG nhúng vào `Settlement` (RS-BR-13, BRD §25.4), storage key
+ * `postSettlementCharges` (hằng số `POST_SETTLEMENT_CHARGES_STORAGE_KEY` ở
+ * `finance/api.ts`).
+ */
+export interface PostSettlementCharge {
+  id: string
+  /** Settlement kỳ gốc (tham chiếu — BRD §6). */
+  settlementId: string
+  /** Copy từ Settlement — List/4.2/4.3 lọc nhanh. */
+  rentalId: string
+  customerId: string
+  vehicleId: string
+  source: PostSettlementChargeSource
+  type: PostSettlementChargeType
+  /** Số nguyên dương (đồng), chiều do `type`. */
+  amount: number
+  /** Bắt buộc khi `source = INCIDENT`. */
+  incidentId?: string
+  /** Bắt buộc (UC-RS-21 §25.3). */
+  reason: string
+  /** "chứng từ" UC-RS-14 bước 2 — demo chỉ ghi chú text (số biên bản phạt, mã GD VETC…). */
+  evidenceNote?: string
+  status: PostSettlementChargeStatus
+  createdByName: string
+  createdByRole: Role
+  createdAt: string
+  closedByName?: string
+  closedAt?: string
+  closeNote?: string
 }
 
 // ---- §3.1 kế hoạch — Sinh dòng từ nguồn (RS-BR-03, `RentalSettlement-BRD.md` §8) ----
@@ -459,6 +512,144 @@ export function mergeResyncedLines(existing: SettlementLine[], fresh: Settlement
   return merged
 }
 
+// ---- §10.4 kế hoạch (Round 2) — Post-Settlement Charge / Điều chỉnh / Đảo quyết toán (hàm thuần) ----
+
+/** UC-RS-14 §18.3, RS-BR-13 — Settlement + Rental cùng phải `COMPLETED`. */
+export function canCreatePostSettlementCharge(settlement: Settlement, rental: Rental): boolean {
+  return settlement.status === 'COMPLETED' && rental.status === 'COMPLETED'
+}
+
+/** UC-RS-15 §19.3 — cùng điều kiện `canCreatePostSettlementCharge`. */
+export function canAdjustSettlement(settlement: Settlement, rental: Rental): boolean {
+  return settlement.status === 'COMPLETED' && rental.status === 'COMPLETED'
+}
+
+/** UC-RS-16, AC-RS-013 "Settlement `COMPLETED`" — cùng điều kiện. */
+export function canReverseSettlement(settlement: Settlement, rental: Rental): boolean {
+  return settlement.status === 'COMPLETED' && rental.status === 'COMPLETED'
+}
+
+/**
+ * §10.2 điểm 5 kế hoạch — BA đề xuất: `TRAFFIC_FINE`/`VETC`/`INCIDENT` luôn
+ * `RECEIVABLE`; `ADJUSTMENT`/`OTHER` để người dùng chọn (`undefined`).
+ */
+export function fixedPscType(source: PostSettlementChargeSource): PostSettlementChargeType | undefined {
+  if (source === 'TRAFFIC_FINE' || source === 'VETC' || source === 'INCIDENT') return 'RECEIVABLE'
+  return undefined
+}
+
+/** Nguồn cho dialog "Tạo khoản phát sinh" — không có `ADJUSTMENT` (đi qua `adjustSettlement`). */
+export const POST_SETTLEMENT_CHARGE_CREATABLE_SOURCES = POST_SETTLEMENT_CHARGE_SOURCES.filter((s) => s !== 'ADJUSTMENT')
+
+export type PscBlockerCode = 'ALREADY_IN_SETTLEMENT' | 'ALREADY_HAS_PSC' | 'NOT_CUSTOMER_LIABILITY' | 'INCIDENT_VOID' | 'CUSTOMER_CHARGE_NOT_FINAL'
+
+const PSC_INCIDENT_VOID_STATUSES: Incident['status'][] = ['CANCELLED', 'CLOSED_NO_ACTION', 'WRITTEN_OFF']
+const PSC_INCIDENT_NOT_FINAL_STATUSES: Incident['status'][] = ['OPEN', 'ASSESSING', 'WAITING_APPROVAL']
+const PSC_NOT_CUSTOMER_LIABILITIES: Incident['liability'][] = ['COMPANY', 'THIRD_PARTY', 'INSURANCE']
+
+/**
+ * Luật chống tính trùng sự cố giữa Settlement kỳ gốc và Post-Settlement Charge
+ * — RS-BR-13 + "ba con số khác nhau" (`CLAUDE.md` §4). Cho phép tạo khi
+ * `APPROVED`/`IN_REPAIR`/`REPAIRED`/`CLOSED` và `DISPUTED` (hiển thị "Tạm giữ").
+ */
+export function getIncidentPscBlocker(incident: Incident, settlement: Settlement, existingPscs: PostSettlementCharge[]): PscBlockerCode | undefined {
+  if (settlement.lines.some((l) => l.sourceRef?.incidentId === incident.id)) return 'ALREADY_IN_SETTLEMENT'
+  if (existingPscs.some((p) => p.incidentId === incident.id)) return 'ALREADY_HAS_PSC'
+  if (PSC_NOT_CUSTOMER_LIABILITIES.includes(incident.liability)) return 'NOT_CUSTOMER_LIABILITY'
+  if (PSC_INCIDENT_VOID_STATUSES.includes(incident.status)) return 'INCIDENT_VOID'
+  if (incident.liability === 'UNDETERMINED' || PSC_INCIDENT_NOT_FINAL_STATUSES.includes(incident.status)) return 'CUSTOMER_CHARGE_NOT_FINAL'
+  return undefined
+}
+
+/**
+ * RS-BR-04/AC-RS-003 mirror — khoá số, không cho sửa.
+ * TODO(OQ: master BRD §51 Q54 / RentalSettlement-BRD.md §28 Q21 — công thức sự
+ * cố nặng khi Liability ≠ khách 100%; PSC chỉ đọc Customer Charge từ DI.)
+ * RS-BR-24.
+ */
+export function pscAmountForIncident(incident: Incident): number {
+  return incident.customerCharge ?? incident.estimatedCost
+}
+
+/**
+ * Suy diễn khi render, KHÔNG lưu, không phải enum — UC-RS-14 A1: PSC `OPEN`
+ * gắn Incident đang `DISPUTED` → "Tạm giữ", chặn "Đánh dấu đã tất toán".
+ */
+export function isPscOnHold(psc: PostSettlementCharge, incidents: Incident[]): boolean {
+  if (psc.status !== 'OPEN' || !psc.incidentId) return false
+  return incidents.find((i) => i.id === psc.incidentId)?.status === 'DISPUTED'
+}
+
+/** Cho khối tổng PSC + cột List. KHÔNG bao giờ cộng vào `completedTotals`/Final Amount (BRD §25.4). */
+export function summarizePscs(pscs: PostSettlementCharge[]): { openReceivable: number; openRefund: number; openCount: number; closedCount: number } {
+  let openReceivable = 0
+  let openRefund = 0
+  let openCount = 0
+  let closedCount = 0
+  for (const p of pscs) {
+    if (p.status === 'OPEN') {
+      openCount += 1
+      if (p.type === 'RECEIVABLE') openReceivable += p.amount
+      else openRefund += p.amount
+    } else {
+      closedCount += 1
+    }
+  }
+  return { openReceivable, openRefund, openCount, closedCount }
+}
+
+/** Nợ 2 (N2) — Σ số tiền các waiver `PARTIAL_DISCOUNT` còn hiệu lực của một dòng. */
+export function getLineDiscountedAmount(lineId: string, waivers: SettlementWaiver[]): number {
+  return waivers
+    .filter((w) => w.type === 'PARTIAL_DISCOUNT' && w.lineId === lineId && (w.status === 'APPROVED' || w.status === 'PENDING_APPROVAL'))
+    .reduce((sum, w) => sum + w.amount, 0)
+}
+
+/**
+ * UC-RS-16 — gom toàn bộ logic reset khi đảo quyết toán thành hàm thuần (dễ
+ * review, tách khỏi `api.ts`). Diễn giải §10.2 điểm 2 kế hoạch: giữ nguyên
+ * `lines`/`waivers` (đã nằm trong `snapshot`), chỉ xoá kết quả quy trình.
+ */
+export function buildReversalReset(
+  settlement: Settlement,
+  actor: { fullName: string; role: Role },
+  reason: string,
+  now: string,
+): { after: Settlement; reversal: SettlementReversal } {
+  const { reversals, ...snapshot } = settlement
+  const cancelledPaymentRequestIds: string[] = []
+  const paymentRequests = settlement.paymentRequests.map((r) => {
+    if (r.status !== 'REQUESTED') return r
+    cancelledPaymentRequestIds.push(r.id)
+    return { ...r, status: 'CANCELLED' as const, cancelledByName: actor.fullName, cancelledAt: now, cancelReason: reason }
+  })
+  const reversal: SettlementReversal = {
+    id: generateId('rev'),
+    reason,
+    reversedByName: actor.fullName,
+    reversedByRole: actor.role,
+    reversedAt: now,
+    snapshot,
+    cancelledPaymentRequestIds,
+  }
+  const after: Settlement = {
+    ...settlement,
+    status: 'DRAFT',
+    paymentRequests,
+    customerAck: undefined,
+    depositReconciliation: undefined,
+    approval: undefined,
+    completedTotals: undefined,
+    completedWithDebt: undefined,
+    completedByName: undefined,
+    completedAt: undefined,
+    paymentStatus: undefined,
+    reversals: [...(reversals ?? []), reversal],
+    updatedAt: now,
+  }
+  return { after, reversal }
+}
+
 // ---- Form schema (react-hook-form + zod, `CONVENTIONS.md` §7) ----
 
 const NUMERIC_RE = /^\d+$/
@@ -544,3 +735,51 @@ export const settlementApprovalFormSchema = z
     }
   })
 export type SettlementApprovalFormValues = z.infer<typeof settlementApprovalFormSchema>
+
+// ---- Round 2 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.10) — Post-Settlement Charge / Điều chỉnh / Đảo quyết toán ----
+
+export const postSettlementChargeFormSchema = z
+  .object({
+    source: z.enum(POST_SETTLEMENT_CHARGE_SOURCES),
+    type: z.enum(POST_SETTLEMENT_CHARGE_TYPES).optional(),
+    incidentId: z.string().trim().optional(),
+    amount: z.string().trim().optional(),
+    reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự) — UC-RS-21'),
+    evidenceNote: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.source === 'INCIDENT') {
+      if (!data.incidentId) ctx.addIssue({ code: 'custom', path: ['incidentId'], message: 'Chọn sự cố liên quan' })
+      return
+    }
+    if (!data.amount || !NUMERIC_RE.test(data.amount) || Number(data.amount) <= 0) {
+      ctx.addIssue({ code: 'custom', path: ['amount'], message: 'Số tiền phải là số nguyên dương' })
+    }
+    if (!fixedPscType(data.source) && !data.type) {
+      ctx.addIssue({ code: 'custom', path: ['type'], message: 'Chọn loại khoản' })
+    }
+  })
+export type PostSettlementChargeFormValues = z.infer<typeof postSettlementChargeFormSchema>
+
+export const postSettlementChargeCloseFormSchema = z.object({
+  closeNote: z.string().trim().optional(),
+})
+export type PostSettlementChargeCloseFormValues = z.infer<typeof postSettlementChargeCloseFormSchema>
+
+export const settlementAdjustmentFormSchema = z.object({
+  direction: z.enum(['INCREASE', 'DECREASE']),
+  amount: z
+    .string()
+    .trim()
+    .min(1, 'Số tiền là bắt buộc')
+    .refine((v) => NUMERIC_RE.test(v) && Number(v) > 0, { message: 'Số tiền phải là số nguyên dương' }),
+  reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự) — UC-RS-15'),
+  evidenceNote: z.string().trim().optional(),
+})
+export type SettlementAdjustmentFormValues = z.infer<typeof settlementAdjustmentFormSchema>
+
+/** Bước 1 (lý do) — bước 2 (gõ lại mã lượt thuê) so khớp trực tiếp trong component, không qua schema. */
+export const settlementReverseReasonFormSchema = z.object({
+  reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự) — UC-RS-16'),
+})
+export type SettlementReverseReasonFormValues = z.infer<typeof settlementReverseReasonFormSchema>

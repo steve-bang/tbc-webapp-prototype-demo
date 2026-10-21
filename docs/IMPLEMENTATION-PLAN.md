@@ -308,11 +308,11 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
 17. Cách xác định "số ngày khả dụng" của xe để tính Utilization — RV §28 Q10.
 18. Danh mục chi phí chuẩn cụ thể của Thiên Bảo Car — RV §28 Q4.
 
-### Phase 4.1 — Quyết toán (RentalSettlement) — `[~]`
+### Phase 4.1 — Quyết toán (RentalSettlement) — `[x]`
 
-- [~] `features/finance` (RS, phần Settlement): kế hoạch chi tiết đầy đủ ở
+- [x] `features/finance` (RS, phần Settlement): kế hoạch chi tiết đầy đủ ở
       [`docs/RENTAL-SETTLEMENT-PLAN.md`](RENTAL-SETTLEMENT-PLAN.md) (`APPROVED` 21/10/2026; Round 1
-      `DONE` 21/10/2026, Round 2 chưa giao). Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở thủ công từ Rental `RETURNED` →
+      `DONE` 21/10/2026; Round 2 `DONE` 21/10/2026 — cả Phase 4.1 xong). Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở thủ công từ Rental `RETURNED` →
       chốt dòng → MANUAL/miễn giảm → đối trừ cọc → khách xác nhận → duyệt → yêu cầu thu/hoàn → đóng
       lượt `RETURNED → SETTLEMENT → COMPLETED`) + màn `/finance/settlement` + tab "Quyết toán" ở Rental
       Detail; Round 2 = Post-Settlement Charge + Điều chỉnh sau `COMPLETED` + Đảo quyết toán. Mở rộng
@@ -340,7 +340,24 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
         cũ sau độ trễ); `PARTIAL_DISCOUNT` chưa chặn tổng nhiều lần vượt `actualAmount` của dòng;
         `resolveDispute` nhánh Miễn chưa đi qua ngưỡng duyệt miễn giảm (RS-BR-07/08); các thao tác
         `recordCustomerAck`/`approve`/`reject` chỉ chặn Return-huỷ ở UI, chưa chặn ở API.
-  - [ ] **Round 2** — Post-Settlement Charge + Điều chỉnh sau `COMPLETED` + Đảo quyết toán (plan §1).
+  - [x] **Round 2** `DONE` (21/10/2026) — Post-Settlement Charge + Điều chỉnh sau `COMPLETED` + Đảo
+        quyết toán + 4 nợ nhỏ Round 1, theo `RENTAL-SETTLEMENT-PLAN.md` §10. Entity riêng
+        `PostSettlementCharge` (key `postSettlementCharges`, không ghi vào Settlement kỳ gốc — RS-BR-13/
+        BRD §25.4) + 3 enum `POST_SETTLEMENT_CHARGE_TYPES/STATUSES/SOURCES`; tạo PSC (`SETTLEMENT.CREATE`)
+        / Điều chỉnh (`SETTLEMENT.EDIT`) / Đánh dấu tất toán thủ công (thay Payment 4.2, chặn khi "Tạm giữ"
+        — sự cố `DISPUTED`); luật chống tính trùng sự cố giữa Settlement và PSC (`getIncidentPscBlocker`,
+        resync lọc sự cố đã có PSC); Đảo quyết toán (`SETTLEMENT.REVERSE`, chỉ `SYSTEM_ADMIN`, 2 bước,
+        snapshot `reversals[]`, yêu cầu thu/hoàn `REQUESTED → CANCELLED`, giữ `lines`/`waivers`, Rental
+        `COMPLETED → SETTLEMENT` qua `revertSettlementReversed`); 6 component mới, cột "Phát sinh sau QT"
+        ở List; 5 audit action mới; seed 3 PSC, `SEED_VERSION` 13 → 14. Nợ N1-N4 đã trả (đọc storage trong
+        `fakeRequest`, chặn cộng dồn `PARTIAL_DISCOUNT`, "Miễn" khi kết luận tranh chấp qua ngưỡng duyệt,
+        `assertRentalInSettlement` ở 12 hàm API). Đạt ở **vòng review 1**, không Blocker. Nợ nhỏ (Nên sửa,
+        để sau): `PostSettlementChargeDialog` tự validate inline thay vì dùng `postSettlementChargeFormSchema`
+        (schema này + `postSettlementChargeCloseFormSchema` đang không dùng); thông điệp
+        `assertRentalInSettlement` cố định đuôi "không thể gửi khách xác nhận" cho cả 12 hàm;
+        `usePostSettlementCharges({ settlementId: undefined })` tải toàn bộ PSC khi Settlement chưa có.
+        Ngoài phạm vi (giữ `TODO(OQ)`): tách tranh chấp ra PSC (RS §28 Q13), thời hạn truy thu/bỏ qua khoản
+        nhỏ (Q14/Q15). Ghi cho BA: trùng mã `RS-BR-21` giữa BRD §21 và UseCase §26 (§10.2).
 - [x] Cập nhật `registerSeeds.ts` phần `Settlement` (`finance/seed` chạy cuối), xoá `ComingSoon` màn
       Quyết toán (Round 1, 21/10/2026).
 

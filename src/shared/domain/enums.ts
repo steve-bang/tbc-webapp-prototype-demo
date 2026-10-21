@@ -263,6 +263,18 @@ export type SettlementPaymentStatus = (typeof SETTLEMENT_PAYMENT_STATUSES)[numbe
 export const SETTLEMENT_REQUEST_TYPES = ['COLLECT', 'DEPOSIT_REFUND', 'OVERPAYMENT_REFUND'] as const
 export type SettlementRequestType = (typeof SETTLEMENT_REQUEST_TYPES)[number]
 
+/** `RentalSettlement-BRD.md` §17 — loại Post-Settlement Charge. */
+export const POST_SETTLEMENT_CHARGE_TYPES = ['RECEIVABLE', 'REFUND'] as const
+export type PostSettlementChargeType = (typeof POST_SETTLEMENT_CHARGE_TYPES)[number]
+
+/** BRD §17 (`CLOSED`); `OPEN` BA đề xuất — `docs/RENTAL-SETTLEMENT-PLAN.md` §10.3. */
+export const POST_SETTLEMENT_CHARGE_STATUSES = ['OPEN', 'CLOSED'] as const
+export type PostSettlementChargeStatus = (typeof POST_SETTLEMENT_CHARGE_STATUSES)[number]
+
+/** BRD §17 dòng 1 + WebappQuanTri.md §11.2 — BA đề xuất mã (tài liệu chỉ có tên tiếng Việt). `ADJUSTMENT` = UC-RS-15. */
+export const POST_SETTLEMENT_CHARGE_SOURCES = ['TRAFFIC_FINE', 'VETC', 'INCIDENT', 'ADJUSTMENT', 'OTHER'] as const
+export type PostSettlementChargeSource = (typeof POST_SETTLEMENT_CHARGE_SOURCES)[number]
+
 /** Danh mục chi phí — `RevenueCost-BRD.md`. */
 export const COST_CATEGORIES = [
   'MAINTENANCE',
@@ -483,5 +495,11 @@ export const AUDIT_ACTIONS = [
   // Rentals (RM) — đi cùng Settlement (RENTAL-SETTLEMENT-PLAN.md §3.8/§9.4).
   'MARK_RENTAL_SETTLEMENT',
   'COMPLETE_RENTAL',
+  // Rental Settlement (RS) — Round 2, RENTAL-SETTLEMENT-PLAN.md §10.9 (UC-RS-21).
+  'CREATE_POST_SETTLEMENT_CHARGE',
+  'CLOSE_POST_SETTLEMENT_CHARGE',
+  'ADJUST_SETTLEMENT',
+  'REVERSE_SETTLEMENT',
+  'REVERT_RENTAL_SETTLEMENT_REVERSED',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

@@ -15,8 +15,8 @@ import { Input } from '@/shared/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { SettlementStatusBadge } from '../components/SettlementStatusBadge'
-import { useSettlements } from '../hooks'
-import { calcSettlementTotals, type Settlement } from '../model'
+import { usePostSettlementCharges, useSettlements } from '../hooks'
+import { calcSettlementTotals, summarizePscs, type PostSettlementCharge, type Settlement } from '../model'
 
 /** Giá trị đại diện "Tất cả"/"Chờ mở" trong Select — Radix Select không cho phép value rỗng. */
 const ALL = '__ALL__'
@@ -40,9 +40,19 @@ export function SettlementListScreen() {
   const { data: rentals, isLoading: loadingRentals } = useRentals()
   const { data: customers = [] } = useCustomers()
   const { data: vehicles = [] } = useVehicles()
+  const { data: pscs = [] } = usePostSettlementCharges()
 
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers])
   const vehicleById = useMemo(() => new Map(vehicles.map((v) => [v.id, v])), [vehicles])
+  const pscsBySettlementId = useMemo(() => {
+    const map = new Map<string, PostSettlementCharge[]>()
+    for (const p of pscs) {
+      const list = map.get(p.settlementId) ?? []
+      list.push(p)
+      map.set(p.settlementId, list)
+    }
+    return map
+  }, [pscs])
 
   const rows: Row[] = useMemo(() => {
     const result: Row[] = []
@@ -126,12 +136,16 @@ export function SettlementListScreen() {
                 <TableHead>{vi.finance.columnBalanceDue}</TableHead>
                 <TableHead>{vi.finance.columnPaymentStatus}</TableHead>
                 <TableHead>{vi.finance.columnOpenedAt}</TableHead>
+                <TableHead>{vi.finance.columnPostSettlement}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredRows.map((row) => {
                 const totals = row.settlement ? row.settlement.completedTotals ?? calcSettlementTotals(row.settlement.lines, row.settlement.waivers) : undefined
                 const reconciliation = row.settlement?.completedTotals ?? row.settlement?.depositReconciliation
+                const rowPscs = row.settlement ? pscsBySettlementId.get(row.settlement.id) ?? [] : []
+                const pscSummary = summarizePscs(rowPscs)
+                const pscNet = pscSummary.openReceivable - pscSummary.openRefund
                 return (
                   <TableRow key={row.rentalId} className="cursor-pointer" onClick={() => openWorksheet(row.rentalId)}>
                     <TableCell className="font-medium">{row.rentalId}</TableCell>
@@ -144,6 +158,15 @@ export function SettlementListScreen() {
                     <TableCell>{reconciliation ? formatVnd(reconciliation.balanceDue) : '—'}</TableCell>
                     <TableCell>{row.settlement?.paymentStatus ? SETTLEMENT_PAYMENT_STATUS_LABELS[row.settlement.paymentStatus] : '—'}</TableCell>
                     <TableCell>{row.settlement ? formatDateTime(row.settlement.openedAt) : '—'}</TableCell>
+                    <TableCell>
+                      {pscSummary.openCount > 0 ? (
+                        <span className={pscNet > 0 ? 'text-status-pending' : pscNet < 0 ? 'text-status-info' : 'text-muted-foreground'}>
+                          {pscSummary.openCount} {vi.finance.pscSummaryOpenLabel.toLowerCase()} · {formatVnd(pscNet)}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
                   </TableRow>
                 )
               })}

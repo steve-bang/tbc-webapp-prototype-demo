@@ -220,6 +220,7 @@ const ROUND1_TRANSITIONS: Partial<Record<RentalStatus, RentalStatus[]>> = {
   // + SETTLEMENT/COMPLETED — `docs/RENTAL-SETTLEMENT-PLAN.md` §3.8 (UC-RS-01/UC-RS-13), round THỨ 3 mở rộng.
   RETURNED: ['IN_RENTAL', 'SETTLEMENT'], // revert khi Huỷ Return / mở quyết toán
   SETTLEMENT: ['IN_RENTAL', 'COMPLETED'], // revert khi Huỷ Return (nếu đã tự tiến từ RETURNED) / đóng lượt
+  COMPLETED: ['SETTLEMENT'], // đảo quyết toán — RENTAL-SETTLEMENT-PLAN.md §10.5 (UC-RS-16)
 }
 
 /**
@@ -292,6 +293,16 @@ export function canOpenSettlement(rental: Rental): boolean {
 }
 export function canCompleteRental(rental: Rental): boolean {
   return ROUND1_TRANSITIONS[rental.status]?.includes('COMPLETED') ?? false
+}
+
+/**
+ * `docs/RENTAL-SETTLEMENT-PLAN.md` §10.5 (UC-RS-16) — đảo quyết toán, chỉ
+ * `SYSTEM_ADMIN`. Bẫy cần tránh: KHÔNG viết
+ * `ROUND1_TRANSITIONS[rental.status]?.includes('SETTLEMENT')` — `RETURNED`
+ * cũng map tới `SETTLEMENT` nên sẽ trả `true` sai cho Rental `RETURNED`.
+ */
+export function canRevertSettlementReversed(rental: Rental): boolean {
+  return rental.status === 'COMPLETED' && (ROUND1_TRANSITIONS.COMPLETED?.includes('SETTLEMENT') ?? false)
 }
 
 /**

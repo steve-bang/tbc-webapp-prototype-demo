@@ -27,5 +27,5 @@ export { revertHandoverCancelled, revertReturnCancelled } from './api'
 // (sau `contracts`, `handover-return`), chỉ `features/finance` dùng các export
 // này. `RENTALS_STORAGE_KEY` cho phép `finance/api.ts`/`seed.ts` đọc Rental qua
 // `readJson()` (vẫn qua barrel, không deep-import `rentals/api.ts`).
-export { canCompleteRental, canOpenSettlement } from './model'
-export { RENTALS_STORAGE_KEY, markRentalCompleted, markSettlementOpened } from './api'
+export { canCompleteRental, canOpenSettlement, canRevertSettlementReversed } from './model'
+export { RENTALS_STORAGE_KEY, markRentalCompleted, markSettlementOpened, revertSettlementReversed } from './api'

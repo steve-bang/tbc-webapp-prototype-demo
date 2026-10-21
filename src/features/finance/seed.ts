@@ -7,14 +7,16 @@ import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
-import { SETTLEMENTS_STORAGE_KEY } from './api'
+import { POST_SETTLEMENT_CHARGES_STORAGE_KEY, SETTLEMENTS_STORAGE_KEY } from './api'
 import {
   buildSourceLines,
   calcDepositHeld,
   calcDepositReconciliation,
   calcPaidToDate,
   calcSettlementTotals,
+  pscAmountForIncident,
   type DepositReconciliation,
+  type PostSettlementCharge,
   type Settlement,
   type SettlementLine,
   type SettlementPaymentRequest,
@@ -66,6 +68,11 @@ function seedFinance(): void {
   }
   function incidentsOf(rentalId: string): Incident[] {
     return incidents.filter((i) => i.rentalId === rentalId)
+  }
+  function incidentOrThrow(id: string): Incident {
+    const i = incidents.find((x) => x.id === id)
+    if (!i) throw new Error(`finance/seed.ts: không tìm thấy Incident ${id}`)
+    return i
   }
 
   const settlementsToSeed: Settlement[] = []
@@ -327,6 +334,64 @@ function seedFinance(): void {
   }
 
   writeJson(SETTLEMENTS_STORAGE_KEY, settlementsToSeed)
+
+  // ---- Round 2 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.12) — Post-Settlement Charge. ----
+  // Thời điểm tạo = `completedAt` của Settlement seed tương ứng + vài ngày
+  // (luôn trong quá khứ nên tự động `≤ now`).
+  const pscsToSeed: PostSettlementCharge[] = [
+    {
+      id: 'psc_001',
+      settlementId: 'stl_024',
+      rentalId: 'rt_024',
+      customerId: rentalOrThrow('rt_024').customerId,
+      vehicleId: rentalOrThrow('rt_024').vehicleId,
+      source: 'TRAFFIC_FINE',
+      type: 'RECEIVABLE',
+      amount: 700_000,
+      reason: 'Phạt nguội vi phạm tốc độ trong kỳ thuê, biên bản về sau.',
+      evidenceNote: 'Biên bản phạt nguội số BB-2026-00482 (CSGT TP.HCM).',
+      status: 'OPEN',
+      createdByName: ACCOUNTANT,
+      createdByRole: 'ACCOUNTANT',
+      createdAt: dt(-14, 10),
+    },
+    {
+      id: 'psc_002',
+      settlementId: 'stl_025',
+      rentalId: 'rt_025',
+      customerId: rentalOrThrow('rt_025').customerId,
+      vehicleId: rentalOrThrow('rt_025').vehicleId,
+      source: 'ADJUSTMENT',
+      type: 'REFUND',
+      amount: 200_000,
+      reason: 'Tính thừa phí giao nhận, phát hiện sau khi đóng lượt.',
+      status: 'CLOSED',
+      createdByName: ACCOUNTANT,
+      createdByRole: 'ACCOUNTANT',
+      createdAt: dt(-24, 10),
+      closedByName: ACCOUNTANT,
+      closedAt: dt(-23, 11),
+      closeNote: 'Đã hoàn qua chuyển khoản QR.',
+    },
+    {
+      id: 'psc_003',
+      settlementId: 'stl_026',
+      rentalId: 'rt_026',
+      customerId: rentalOrThrow('rt_026').customerId,
+      vehicleId: rentalOrThrow('rt_026').vehicleId,
+      source: 'INCIDENT',
+      type: 'RECEIVABLE',
+      // RS-BR-24 — lấy nguyên từ Customer Charge của inc_010 (DISPUTED), không gõ tay số.
+      amount: pscAmountForIncident(incidentOrThrow('inc_010')),
+      incidentId: 'inc_010',
+      reason: 'Trầy xước cánh cửa sau phát hiện khi nhận xe, chốt sau khi quyết toán đã đóng.',
+      status: 'OPEN',
+      createdByName: ACCOUNTANT,
+      createdByRole: 'ACCOUNTANT',
+      createdAt: dt(-9, 10),
+    },
+  ]
+  writeJson(POST_SETTLEMENT_CHARGES_STORAGE_KEY, pscsToSeed)
 }
 
 registerSeedStep(seedFinance)

@@ -13,24 +13,44 @@ import {
   canOpenSettlement,
   markRentalCompleted,
   markSettlementOpened,
+  revertSettlementReversed,
   type Rental,
 } from '@/features/rentals'
-import type { Role, SettlementRequestType, SettlementStatus, SettlementWaiverType } from '@/shared/domain/enums'
+import type {
+  PostSettlementChargeSource,
+  PostSettlementChargeStatus,
+  PostSettlementChargeType,
+  Role,
+  SettlementRequestType,
+  SettlementStatus,
+  SettlementWaiverType,
+} from '@/shared/domain/enums'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
+  buildReversalReset,
   buildSourceLines,
   calcDepositHeld,
   calcDepositReconciliation,
   calcPaidToDate,
   calcSettlementTotals,
+  canAdjustSettlement,
+  canCreatePostSettlementCharge,
+  canReverseSettlement,
+  fixedPscType,
   getCompletionBlockers,
+  getIncidentPscBlocker,
+  getLineDiscountedAmount,
   getSubmitBlockers,
+  isPscOnHold,
   mergeResyncedLines,
+  pscAmountForIncident,
   waiverNeedsApproval,
   type DepositReconciliation,
+  type PostSettlementCharge,
+  type PscBlockerCode,
   type Settlement,
   type SettlementLine,
   type SettlementPaymentRequest,
@@ -38,6 +58,7 @@ import {
 } from './model'
 
 export const SETTLEMENTS_STORAGE_KEY = 'settlements'
+export const POST_SETTLEMENT_CHARGES_STORAGE_KEY = 'postSettlementCharges'
 
 /** Người thực hiện thao tác — dùng để ghi audit (RS-BR-07/14, UC-RS-21). */
 export interface ActorInfo {
@@ -63,6 +84,40 @@ function readRentalOrThrow(rentalId: string): Rental {
   const rental = (readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? []).find((r) => r.id === rentalId)
   if (!rental) throw new Error('Không tìm thấy lượt thuê')
   return rental
+}
+
+/**
+ * Nợ 4 (N4, `docs/RENTAL-SETTLEMENT-PLAN.md` §10.7) — chặn mọi thao tác sửa
+ * Worksheet khi biên bản trả xe đã bị huỷ (Rental không còn ở `SETTLEMENT`).
+ * Cùng thông điệp với guard cũ của `submitForCustomer`.
+ */
+function assertRentalInSettlement(rentalId: string): Rental {
+  const rental = readRentalOrThrow(rentalId)
+  if (rental.status !== 'SETTLEMENT') {
+    throw new Error(`Biên bản trả xe không còn hiệu lực (lượt thuê đang ở trạng thái ${rental.status}) — không thể gửi khách xác nhận`)
+  }
+  return rental
+}
+
+function readAllPsc(): PostSettlementCharge[] {
+  return readJson<PostSettlementCharge[]>(POST_SETTLEMENT_CHARGES_STORAGE_KEY) ?? []
+}
+function writeAllPsc(items: PostSettlementCharge[]): void {
+  writeJson(POST_SETTLEMENT_CHARGES_STORAGE_KEY, items)
+}
+function findPscOrThrow(items: PostSettlementCharge[], id: string): PostSettlementCharge {
+  const found = items.find((p) => p.id === id)
+  if (!found) throw new Error('Không tìm thấy khoản phát sinh sau quyết toán')
+  return found
+}
+
+/** Vietnamese cho từng `PscBlockerCode` (§10.4 kế hoạch) — dùng chung lỗi API + nhãn UI (`PostSettlementChargeDialog`). */
+export const PSC_BLOCKER_MESSAGES: Record<PscBlockerCode, string> = {
+  ALREADY_IN_SETTLEMENT: 'Sự cố đã có dòng trong quyết toán kỳ gốc — dùng Điều chỉnh nếu sai số.',
+  ALREADY_HAS_PSC: 'Sự cố đã có khoản phát sinh sau quyết toán.',
+  NOT_CUSTOMER_LIABILITY: 'Sự cố không do khách chịu trách nhiệm.',
+  INCIDENT_VOID: 'Sự cố đã huỷ/đóng không tính phí/ghi giảm giá trị.',
+  CUSTOMER_CHARGE_NOT_FINAL: 'Sự cố chưa chốt Customer Charge (chưa duyệt hoặc chưa xác định trách nhiệm).',
 }
 
 export interface SettlementFilter {
@@ -101,16 +156,18 @@ async function loadSources(rentalId: string): Promise<{ returnRecord?: ReturnRec
 /** UC-RS-01, RS-BR-01/02/03 — mở quyết toán thủ công từ Rental `RETURNED`/`SETTLEMENT` (seed cũ). */
 export async function openSettlement(rentalId: string, actor: ActorInfo): Promise<Settlement> {
   const rental = readRentalOrThrow(rentalId)
-  const existing = readAll()
-  if (existing.some((s) => s.rentalId === rentalId)) {
-    throw new Error('Lượt thuê này đã có quyết toán (RS-BR-01)')
-  }
   if (!canOpenSettlement(rental)) {
     throw new Error(`Không thể mở quyết toán khi lượt thuê đang ở trạng thái ${rental.status} (RS-BR-02)`)
   }
   const { returnRecord, handover, incidents } = await loadSources(rentalId)
 
   const settlement = await fakeRequest(() => {
+    // N1 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.7) — đọc lại + kiểm lại guard
+    // chống trùng TRONG callback, không dùng mảng đọc trước độ trễ.
+    const existing = readAll()
+    if (existing.some((s) => s.rentalId === rentalId)) {
+      throw new Error('Lượt thuê này đã có quyết toán (RS-BR-01)')
+    }
     const now = new Date().toISOString()
     const result: Settlement = {
       id: generateId('stl'),
@@ -151,19 +208,29 @@ export async function openSettlement(rentalId: string, actor: ActorInfo): Promis
 
 /** RS-BR-04, EX-05 — Return/Incident đổi sau khi mở → đồng bộ lại, chỉ khi Settlement `DRAFT`. */
 export async function resyncSettlementSources(id: string, actor: ActorInfo): Promise<Settlement> {
-  const existing = readAll()
-  const before = findOrThrow(existing, id)
+  const before = findOrThrow(readAll(), id)
   if (before.status !== 'DRAFT') {
     throw new Error('Chỉ đồng bộ lại khi quyết toán đang Đang soạn')
   }
   const rental = readRentalOrThrow(before.rentalId)
-  const { returnRecord, handover, incidents } = await loadSources(before.rentalId)
+  // RS-BR-13 — sự cố đã đi qua PSC không đưa lại vào Settlement khi làm lại
+  // sau đảo quyết toán (RENTAL-SETTLEMENT-PLAN.md §10.2 điểm 3).
+  const pscIncidentIds = new Set(readAllPsc().filter((p) => p.rentalId === before.rentalId && p.incidentId).map((p) => p.incidentId))
+  const { returnRecord, handover, incidents: sourceIncidents } = await loadSources(before.rentalId)
+  const incidents = sourceIncidents.filter((i) => !pscIncidentIds.has(i.id))
 
   return fakeRequest(() => {
+    // N1 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.7) — đọc lại + kiểm lại guard
+    // (`status === 'DRAFT'`) TRONG callback, không dùng `before` đọc trước độ trễ.
+    const existing = readAll()
+    const current = findOrThrow(existing, id)
+    if (current.status !== 'DRAFT') {
+      throw new Error('Chỉ đồng bộ lại khi quyết toán đang Đang soạn')
+    }
     const freshLines = buildSourceLines({ rental, returnRecord, incidents })
     const after: Settlement = {
-      ...before,
-      lines: mergeResyncedLines(before.lines, freshLines),
+      ...current,
+      lines: mergeResyncedLines(current.lines, freshLines),
       paidToDate: calcPaidToDate(rental, handover),
       depositHeld: calcDepositHeld(rental, handover),
       depositReconciliation: undefined, // mọi lần resync xoá đối trừ cọc (§3.7 kế hoạch)
@@ -178,7 +245,7 @@ export async function resyncSettlementSources(id: string, actor: ActorInfo): Pro
       actorUserId: actor.userId,
       actorName: actor.fullName,
       actorRole: actor.role,
-      before: { lines: before.lines },
+      before: { lines: current.lines },
       after: { lines: after.lines },
     })
     return after
@@ -195,6 +262,7 @@ export async function confirmLine(id: string, lineId: string, input: ConfirmLine
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'DRAFT') throw new Error('Chỉ chốt dòng khi quyết toán đang Đang soạn')
     const line = before.lines.find((l) => l.id === lineId)
     if (!line) throw new Error('Không tìm thấy dòng khoản mục')
@@ -243,6 +311,7 @@ export async function addManualLine(id: string, input: ManualLineInput, actor: A
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'DRAFT') throw new Error('Chỉ thêm dòng thủ công khi quyết toán đang Đang soạn')
     const now = new Date().toISOString()
     const newLine: SettlementLine = {
@@ -278,6 +347,7 @@ export async function removeManualLine(id: string, lineId: string, actor: ActorI
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'DRAFT') throw new Error('Chỉ xoá dòng thủ công khi quyết toán đang Đang soạn')
     const line = before.lines.find((l) => l.id === lineId)
     if (!line || line.source !== 'MANUAL') throw new Error('Chỉ xoá được dòng khoản mục thủ công')
@@ -316,6 +386,7 @@ export async function applyWaiver(id: string, input: WaiverInput, actor: ActorIn
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'DRAFT') throw new Error('Chỉ áp dụng miễn giảm khi quyết toán đang Đang soạn')
     let amount = input.amount
     if (input.type === 'WAIVE_LINE' || input.type === 'PARTIAL_DISCOUNT') {
@@ -325,10 +396,24 @@ export async function applyWaiver(id: string, input: WaiverInput, actor: ActorIn
       if (line.direction !== 'CHARGE' || line.status !== 'CONFIRMED') {
         throw new Error('Chỉ áp dụng miễn giảm cho dòng Thu đang Đã chốt')
       }
+      // Nợ 2 (N2, §10.7) — chống cộng dồn `PARTIAL_DISCOUNT` vượt số thực tế +
+      // chặn ngược `WAIVE_LINE` trên dòng đã có giảm một phần còn hiệu lực
+      // (tránh trừ trùng trong `calcSettlementTotals`).
+      const alreadyDiscounted = getLineDiscountedAmount(input.lineId, before.waivers)
       if (input.type === 'WAIVE_LINE') {
+        if (alreadyDiscounted > 0) {
+          throw new Error('Dòng này đã có giảm một phần còn hiệu lực — không thể miễn hẳn (tránh trừ trùng)')
+        }
         amount = line.actualAmount ?? 0
-      } else if (amount > (line.actualAmount ?? 0)) {
-        throw new Error('Số tiền giảm không được vượt số thực tế của dòng')
+      } else {
+        if (amount > (line.actualAmount ?? 0)) {
+          throw new Error('Số tiền giảm không được vượt số thực tế của dòng')
+        }
+        if (alreadyDiscounted + amount > (line.actualAmount ?? 0)) {
+          throw new Error(
+            `Tổng giảm một phần vượt số thực tế của dòng (còn được giảm tối đa ${((line.actualAmount ?? 0) - alreadyDiscounted).toLocaleString('vi-VN')}đ)`,
+          )
+        }
       }
     }
     const now = new Date().toISOString()
@@ -374,6 +459,7 @@ export async function disputeLine(id: string, lineId: string, disputeNote: strin
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'DRAFT' && before.status !== 'PENDING_CUSTOMER') {
       throw new Error('Chỉ đánh dấu tranh chấp khi quyết toán đang Đang soạn hoặc Chờ khách xác nhận (RS-BR-12)')
     }
@@ -415,24 +501,39 @@ export async function resolveDispute(id: string, lineId: string, input: ResolveD
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'DRAFT') throw new Error('Chỉ kết luận tranh chấp khi quyết toán đang Đang soạn (RS-BR-12)')
     const line = before.lines.find((l) => l.id === lineId)
     if (!line || line.status !== 'DISPUTED') throw new Error('Dòng này không ở trạng thái tranh chấp')
+    const now = new Date().toISOString()
     let updatedLine: SettlementLine
+    let waivers = before.waivers
     if (input.resolution === 'KEEP') {
       updatedLine = { ...line, status: 'CONFIRMED', disputeNote: undefined, note: input.reason }
     } else if (input.resolution === 'ADJUST') {
       updatedLine = { ...line, status: 'CONFIRMED', actualAmount: input.actualAmount, disputeNote: undefined, note: input.reason }
     } else {
-      updatedLine = {
-        ...line,
-        status: 'WAIVED',
-        actualAmount: input.actualAmount ?? line.actualAmount ?? line.estimatedAmount ?? 0,
-        disputeNote: undefined,
-        note: input.reason,
+      // Nợ 3 (N3, §10.7, RS-BR-07/08) — Miễn khi kết luận tranh chấp cũng phải
+      // qua ngưỡng duyệt: tạo kèm `SettlementWaiver` `WAIVE_LINE`.
+      const amount = input.actualAmount ?? line.actualAmount ?? line.estimatedAmount ?? 0
+      updatedLine = { ...line, status: 'WAIVED', actualAmount: amount, disputeNote: undefined, note: input.reason }
+      const needsApproval = waiverNeedsApproval(amount)
+      const waiver: SettlementWaiver = {
+        id: generateId('wvr'),
+        type: 'WAIVE_LINE',
+        lineId: line.id,
+        amount,
+        reason: input.reason,
+        status: needsApproval ? 'PENDING_APPROVAL' : 'APPROVED',
+        requestedByName: actor.fullName,
+        requestedByRole: actor.role,
+        requestedAt: now,
+        decidedByName: needsApproval ? undefined : actor.fullName,
+        decidedAt: needsApproval ? undefined : now,
       }
+      waivers = [...before.waivers, waiver]
     }
-    const after: Settlement = { ...before, lines: before.lines.map((l) => (l.id === lineId ? updatedLine : l)), updatedAt: new Date().toISOString() }
+    const after: Settlement = { ...before, lines: before.lines.map((l) => (l.id === lineId ? updatedLine : l)), waivers, updatedAt: now }
     writeAll(existing.map((s) => (s.id === id ? after : s)))
     appendAudit({
       action: 'RESOLVE_SETTLEMENT_DISPUTE',
@@ -442,8 +543,8 @@ export async function resolveDispute(id: string, lineId: string, input: ResolveD
       actorUserId: actor.userId,
       actorName: actor.fullName,
       actorRole: actor.role,
-      before: line,
-      after: updatedLine,
+      before: { line, waivers: before.waivers },
+      after: { line: updatedLine, waivers },
     })
     return after
   })
@@ -454,6 +555,7 @@ export async function reconcileDeposit(id: string, actor: ActorInfo): Promise<Se
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'DRAFT') throw new Error('Chỉ đối trừ cọc khi quyết toán đang Đang soạn')
     if (before.lines.some((l) => l.status === 'DRAFT' || l.status === 'DISPUTED')) {
       throw new Error('Còn dòng chưa chốt hoặc đang tranh chấp (RS-BR-06)')
@@ -489,10 +591,7 @@ export async function submitForCustomer(id: string, actor: ActorInfo): Promise<S
     const existing = readAll()
     const before = findOrThrow(existing, id)
     if (before.status !== 'DRAFT') throw new Error('Quyết toán không ở trạng thái Đang soạn')
-    const rental = readRentalOrThrow(before.rentalId)
-    if (rental.status !== 'SETTLEMENT') {
-      throw new Error(`Biên bản trả xe không còn hiệu lực (lượt thuê đang ở trạng thái ${rental.status}) — không thể gửi khách xác nhận`)
-    }
+    assertRentalInSettlement(before.rentalId)
     const blockers = getSubmitBlockers(before)
     if (blockers.length > 0) throw new Error('Chưa đủ điều kiện gửi khách xác nhận.')
     const after: Settlement = { ...before, status: 'PENDING_CUSTOMER', updatedAt: new Date().toISOString() }
@@ -529,6 +628,7 @@ export async function recordCustomerAck(id: string, input: CustomerAckInput, act
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'PENDING_CUSTOMER') throw new Error('Quyết toán không ở trạng thái Chờ khách xác nhận')
     const now = new Date().toISOString()
     if (input.disputedLineIds.length > 0) {
@@ -571,6 +671,7 @@ export async function approveSettlement(id: string, note: string | undefined, ac
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'WAITING_APPROVAL') throw new Error('Quyết toán không ở trạng thái Chờ duyệt')
     const now = new Date().toISOString()
     const waivers = before.waivers.map((w) =>
@@ -611,6 +712,7 @@ export async function rejectSettlement(id: string, note: string, actor: ActorInf
     if (!trimmedNote) throw new Error('Ghi chú trả lại là bắt buộc (EX-06)')
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'WAITING_APPROVAL') throw new Error('Quyết toán không ở trạng thái Chờ duyệt')
     const now = new Date().toISOString()
     const rejectedWaiveLineIds = new Set(
@@ -649,6 +751,7 @@ export async function createPaymentRequest(id: string, type: SettlementRequestTy
   return fakeRequest(() => {
     const existing = readAll()
     const before = findOrThrow(existing, id)
+    assertRentalInSettlement(before.rentalId)
     if (before.status !== 'CONFIRMED') throw new Error('Chỉ tạo yêu cầu thu/hoàn khi quyết toán đã Đã chốt')
     if (before.paymentRequests.some((r) => r.type === type && r.status === 'REQUESTED')) {
       throw new Error('Đã có yêu cầu cùng loại đang chờ xử lý cho quyết toán này')
@@ -685,17 +788,19 @@ export async function createPaymentRequest(id: string, type: SettlementRequestTy
  * (tech-lead review Phase 4.1 R1 Blocker 3).
  */
 export async function completeSettlement(id: string, actor: ActorInfo): Promise<Settlement> {
-  const existing = readAll()
-  const before = findOrThrow(existing, id)
-  const blockers = getCompletionBlockers(before)
-  if (blockers.length > 0) {
-    throw new Error('Chưa đủ điều kiện đóng lượt thuê (RS-BR-06/20, AC-RS-009).')
-  }
-  const rental = readRentalOrThrow(before.rentalId)
-  if (!canCompleteRental(rental)) {
-    throw new Error(`Lượt thuê đang ở trạng thái ${rental.status}, không thể đóng lượt (biên bản trả xe có thể đã bị huỷ).`)
-  }
   const after = await fakeRequest(() => {
+    // N1 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.7) — đọc storage + kiểm guard
+    // TRONG callback, không dùng snapshot đọc trước độ trễ.
+    const existing = readAll()
+    const before = findOrThrow(existing, id)
+    const blockers = getCompletionBlockers(before)
+    if (blockers.length > 0) {
+      throw new Error('Chưa đủ điều kiện đóng lượt thuê (RS-BR-06/20, AC-RS-009).')
+    }
+    const rental = readRentalOrThrow(before.rentalId)
+    if (!canCompleteRental(rental)) {
+      throw new Error(`Lượt thuê đang ở trạng thái ${rental.status}, không thể đóng lượt (biên bản trả xe có thể đã bị huỷ).`)
+    }
     const totals = calcSettlementTotals(before.lines, before.waivers)
     const now = new Date().toISOString()
     const completedWithDebt = (before.depositReconciliation?.balanceDue ?? 0) > 0
@@ -722,6 +827,248 @@ export async function completeSettlement(id: string, actor: ActorInfo): Promise<
     })
     return result
   })
-  await markRentalCompleted(before.rentalId, actor)
+  await markRentalCompleted(after.rentalId, actor)
+  return after
+}
+
+// ---- Round 2 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.6) — Post-Settlement Charge / Điều chỉnh / Đảo quyết toán ----
+
+export interface PostSettlementChargeFilter {
+  settlementId?: string
+  rentalId?: string
+  status?: PostSettlementChargeStatus
+}
+
+export async function listPostSettlementCharges(filter?: PostSettlementChargeFilter): Promise<PostSettlementCharge[]> {
+  return fakeRequest(() =>
+    readAllPsc().filter((p) => {
+      if (filter?.settlementId && p.settlementId !== filter.settlementId) return false
+      if (filter?.rentalId && p.rentalId !== filter.rentalId) return false
+      if (filter?.status && p.status !== filter.status) return false
+      return true
+    }),
+  )
+}
+
+export interface CreatePostSettlementChargeInput {
+  source: PostSettlementChargeSource
+  type?: PostSettlementChargeType
+  amount?: number
+  incidentId?: string
+  reason: string
+  evidenceNote?: string
+}
+
+/**
+ * UC-RS-14, RS-BR-13, AC-RS-011, EX-08, RS-BR-24 — tạo Post-Settlement Charge
+ * khi Settlement + Rental đã `COMPLETED`. KHÔNG mở lại/ghi vào Settlement kỳ
+ * gốc (chỉ ghi key `postSettlementCharges`).
+ * TODO(OQ: RentalSettlement-BRD.md §28 Q14/Q15 — thời hạn truy thu + ngưỡng bỏ
+ * qua khoản nhỏ; demo: không giới hạn thời hạn, không đề xuất bỏ qua (UC-RS-14
+ * A2 chưa build)).
+ */
+export async function createPostSettlementCharge(settlementId: string, input: CreatePostSettlementChargeInput, actor: ActorInfo): Promise<PostSettlementCharge> {
+  const reason = input.reason.trim()
+  if (!reason) throw new Error('Lý do là bắt buộc')
+  if (input.source === 'ADJUSTMENT') {
+    throw new Error('Điều chỉnh sau khi đóng lượt dùng chức năng "Điều chỉnh" (UC-RS-15), không tạo qua đây')
+  }
+
+  let incident: Incident | undefined
+  if (input.source === 'INCIDENT') {
+    if (!input.incidentId) throw new Error('Chọn sự cố liên quan')
+    const incidents = await listIncidents()
+    incident = incidents.find((i) => i.id === input.incidentId)
+    if (!incident) throw new Error('Không tìm thấy hồ sơ sự cố')
+  } else if (!input.amount || !Number.isInteger(input.amount) || input.amount <= 0) {
+    throw new Error('Số tiền phải là số nguyên dương')
+  }
+
+  return fakeRequest(() => {
+    const settlement = findOrThrow(readAll(), settlementId)
+    const rental = readRentalOrThrow(settlement.rentalId)
+    if (!canCreatePostSettlementCharge(settlement, rental)) {
+      throw new Error('Chỉ tạo khoản phát sinh sau quyết toán khi quyết toán và lượt thuê đã Hoàn tất (RS-BR-13)')
+    }
+    const existingPscs = readAllPsc()
+    let resolvedAmount: number
+    let resolvedType: PostSettlementChargeType
+    if (incident) {
+      if (incident.rentalId !== settlement.rentalId) throw new Error('Sự cố không thuộc lượt thuê này')
+      const blocker = getIncidentPscBlocker(incident, settlement, existingPscs)
+      if (blocker) throw new Error(PSC_BLOCKER_MESSAGES[blocker])
+      resolvedAmount = pscAmountForIncident(incident)
+      resolvedType = 'RECEIVABLE'
+    } else {
+      resolvedAmount = input.amount as number
+      const fixed = fixedPscType(input.source)
+      if (fixed) {
+        resolvedType = fixed
+      } else {
+        if (!input.type) throw new Error('Chọn loại khoản (phải thu thêm/phải hoàn)')
+        resolvedType = input.type
+      }
+    }
+    const now = new Date().toISOString()
+    const psc: PostSettlementCharge = {
+      id: generateId('psc'),
+      settlementId,
+      rentalId: settlement.rentalId,
+      customerId: settlement.customerId,
+      vehicleId: settlement.vehicleId,
+      source: input.source,
+      type: resolvedType,
+      amount: resolvedAmount,
+      incidentId: input.incidentId,
+      reason,
+      evidenceNote: input.evidenceNote?.trim() || undefined,
+      status: 'OPEN',
+      createdByName: actor.fullName,
+      createdByRole: actor.role,
+      createdAt: now,
+    }
+    writeAllPsc([...existingPscs, psc])
+    appendAudit({
+      action: 'CREATE_POST_SETTLEMENT_CHARGE',
+      entity: 'Settlement',
+      entityId: settlementId,
+      summary: `Tạo khoản phát sinh sau quyết toán (${input.source}, ${resolvedAmount.toLocaleString('vi-VN')}đ): ${reason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: psc,
+    })
+    return psc
+  })
+}
+
+export interface AdjustSettlementInput {
+  direction: 'INCREASE' | 'DECREASE'
+  amount: number
+  reason: string
+  evidenceNote?: string
+}
+
+/**
+ * UC-RS-15, BRD §18.2, AC-RS-012 — điều chỉnh sau `COMPLETED` = tạo PSC
+ * `source = 'ADJUSTMENT'`. KHÔNG ghi key `settlements`.
+ * TODO(OQ: RentalSettlement-BRD.md §28 Q16 — ai được điều chỉnh sau
+ * `COMPLETED`; Accountant = `TBD` — xem `permissions.ts`).
+ */
+export async function adjustSettlement(settlementId: string, input: AdjustSettlementInput, actor: ActorInfo): Promise<PostSettlementCharge> {
+  const reason = input.reason.trim()
+  if (!reason) throw new Error('Lý do là bắt buộc')
+  if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương')
+
+  return fakeRequest(() => {
+    const settlement = findOrThrow(readAll(), settlementId)
+    const rental = readRentalOrThrow(settlement.rentalId)
+    if (!canAdjustSettlement(settlement, rental)) {
+      throw new Error('Chỉ điều chỉnh khi quyết toán và lượt thuê đã Hoàn tất (RS-BR-13)')
+    }
+    const now = new Date().toISOString()
+    const psc: PostSettlementCharge = {
+      id: generateId('psc'),
+      settlementId,
+      rentalId: settlement.rentalId,
+      customerId: settlement.customerId,
+      vehicleId: settlement.vehicleId,
+      source: 'ADJUSTMENT',
+      type: input.direction === 'INCREASE' ? 'RECEIVABLE' : 'REFUND',
+      amount: input.amount,
+      reason,
+      evidenceNote: input.evidenceNote?.trim() || undefined,
+      status: 'OPEN',
+      createdByName: actor.fullName,
+      createdByRole: actor.role,
+      createdAt: now,
+    }
+    writeAllPsc([...readAllPsc(), psc])
+    appendAudit({
+      action: 'ADJUST_SETTLEMENT',
+      entity: 'Settlement',
+      entityId: settlementId,
+      summary: `Điều chỉnh sau quyết toán (${input.direction}, ${input.amount.toLocaleString('vi-VN')}đ): ${reason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: psc,
+    })
+    return psc
+  })
+}
+
+/** BRD §17 bước cuối, UC-RS-14 bước 6 — đánh dấu PSC `OPEN → CLOSED` thủ công (thay cho Payment chưa có, §0.3 kế hoạch). */
+export async function closePostSettlementCharge(pscId: string, closeNote: string | undefined, actor: ActorInfo): Promise<PostSettlementCharge> {
+  const incidents = await listIncidents()
+  return fakeRequest(() => {
+    const existing = readAllPsc()
+    const before = findPscOrThrow(existing, pscId)
+    if (before.status !== 'OPEN') throw new Error('Khoản phát sinh đã được tất toán')
+    if (isPscOnHold(before, incidents)) {
+      throw new Error('Khoản phát sinh đang Tạm giữ — sự cố liên quan còn đang tranh chấp (UC-RS-14 A1)')
+    }
+    const now = new Date().toISOString()
+    const after: PostSettlementCharge = { ...before, status: 'CLOSED', closedByName: actor.fullName, closedAt: now, closeNote: closeNote?.trim() || undefined }
+    writeAllPsc(existing.map((p) => (p.id === pscId ? after : p)))
+    appendAudit({
+      action: 'CLOSE_POST_SETTLEMENT_CHARGE',
+      entity: 'Settlement',
+      entityId: before.settlementId,
+      summary: `Đánh dấu đã tất toán khoản phát sinh ${pscId}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: after.status, pscId },
+    })
+    // TODO(Phase 4.2): đóng tự động khi Payment `POST_SETTLEMENT_COLLECT`/`REFUND` `CONFIRMED` (AC-PM-012).
+    return after
+  })
+}
+
+export interface ReverseSettlementInput {
+  reason: string
+  confirmRentalId: string
+}
+
+/**
+ * UC-RS-16, BRD §18.2, RS-BR-14, AC-RS-013, EX-09 — đảo quyết toán
+ * `COMPLETED → DRAFT` + Rental `COMPLETED → SETTLEMENT`. Xác nhận 2 bước
+ * (lý do + gõ lại mã lượt thuê) — kiểm cả ở đây, không chỉ ở UI.
+ */
+export async function reverseSettlement(settlementId: string, input: ReverseSettlementInput, actor: ActorInfo): Promise<Settlement> {
+  const reason = input.reason.trim()
+  if (!reason) throw new Error('Lý do là bắt buộc')
+
+  const after = await fakeRequest(() => {
+    const existing = readAll()
+    const before = findOrThrow(existing, settlementId)
+    if (input.confirmRentalId !== before.rentalId) {
+      throw new Error('Mã lượt thuê xác nhận không khớp')
+    }
+    const rental = readRentalOrThrow(before.rentalId)
+    if (!canReverseSettlement(before, rental)) {
+      throw new Error('Chỉ đảo quyết toán khi quyết toán và lượt thuê đã Hoàn tất (AC-RS-013)')
+    }
+    const now = new Date().toISOString()
+    const { after: result, reversal } = buildReversalReset(before, actor, reason, now)
+    writeAll(existing.map((s) => (s.id === settlementId ? result : s)))
+    appendAudit({
+      action: 'REVERSE_SETTLEMENT',
+      entity: 'Settlement',
+      entityId: settlementId,
+      summary: `Đảo quyết toán ${settlementId}: ${reason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status, completedTotals: before.completedTotals },
+      after: { status: result.status, cancelledPaymentRequestIds: reversal.cancelledPaymentRequestIds },
+    })
+    // TODO(Phase 4.2): bút toán đảo giao dịch đã `CONFIRMED` liên quan tới quyết toán này.
+    // TODO(Phase 4.3): gỡ chốt doanh thu kỳ gốc (UC-RS-16 bước 2).
+    return result
+  })
+  await revertSettlementReversed(after.rentalId, actor)
   return after
 }

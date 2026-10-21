@@ -1,8 +1,8 @@
 # Kế hoạch triển khai — Quyết toán lượt thuê (Rental Settlement)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (21/10/2026 — người dùng duyệt) · **Round 1
-`DONE`** (21/10/2026 — đạt sau 2 vòng review `tech-lead`) · Round 2 chưa giao — kế hoạch chi
-tiết Phase 4.1. Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở → chốt → khách xác nhận →
+`DONE`** (21/10/2026 — đạt sau 2 vòng review `tech-lead`) · **Round 2 `DONE`** (21/10/2026 —
+đạt ở vòng review `tech-lead` đầu tiên, không Blocker) — kế hoạch chi tiết Phase 4.1. Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở → chốt → khách xác nhận →
 duyệt → yêu cầu thu/hoàn → đóng lượt); Round 2 = Post-Settlement Charge + Điều chỉnh sau `COMPLETED`
 + Đảo quyết toán.
 
@@ -241,6 +241,7 @@ lại tức thời"). Khi `COMPLETED` mới đóng băng vào `completedTotals`.
 | `SETTLEMENT_REQUEST_TYPES` | `COLLECT, DEPOSIT_REFUND, OVERPAYMENT_REFUND` | BRD §15 + EX-03 (BA đề xuất mã) |
 | `POST_SETTLEMENT_CHARGE_TYPES` *(Round 2)* | `RECEIVABLE, REFUND` | BRD §17 |
 | `POST_SETTLEMENT_CHARGE_STATUSES` *(Round 2)* | `OPEN, CLOSED` | BRD §17 (`CLOSED`); `OPEN` BA đề xuất |
+| `POST_SETTLEMENT_CHARGE_SOURCES` *(Round 2)* | `TRAFFIC_FINE, VETC, INCIDENT, ADJUSTMENT, OTHER` | BRD §17 dòng 1 + `WebappQuanTri.md` §11.2 chỉ có tên tiếng Việt → **BA đề xuất mã** (chi tiết §10.3) |
 
 Mỗi enum có label map tương ứng trong `vi.ts`.
 
@@ -444,9 +445,11 @@ loại) · `23/25/27` (dòng trễ giờ/phí giao nhận/nhiên liệu nhận t
 | Duyệt / Trả lại (ghi chú bắt buộc) | `WAITING_APPROVAL →` `CONFIRMED` / `DRAFT` | `SETTLEMENT.APPROVE` | `APPROVE_SETTLEMENT` / `REJECT_SETTLEMENT` |
 | Tạo yêu cầu thu / hoàn | `CONFIRMED` | `SETTLEMENT.CONFIRM` | `CREATE_SETTLEMENT_COLLECT_REQUEST` / `CREATE_SETTLEMENT_REFUND_REQUEST` |
 | Đóng lượt | `CONFIRMED → COMPLETED` | `SETTLEMENT.CONFIRM` | `COMPLETE_SETTLEMENT` (+ `COMPLETE_RENTAL`) |
-| *(R2)* Tạo Post-Settlement Charge / đánh dấu tất toán | `COMPLETED` | `SETTLEMENT.CREATE` | `CREATE_POST_SETTLEMENT_CHARGE` / `CLOSE_POST_SETTLEMENT_CHARGE` |
+| *(R2)* Tạo Post-Settlement Charge / đánh dấu tất toán | tạo: `COMPLETED`; tất toán: mọi trạng thái | `SETTLEMENT.CREATE` | `CREATE_POST_SETTLEMENT_CHARGE` / `CLOSE_POST_SETTLEMENT_CHARGE` |
 | *(R2)* Điều chỉnh sau `COMPLETED` | `COMPLETED` | `SETTLEMENT.EDIT` (Accountant = `TBD`) | `ADJUST_SETTLEMENT` |
 | *(R2)* Đảo quyết toán | `COMPLETED → DRAFT` | `SETTLEMENT.REVERSE` (chỉ `SYSTEM_ADMIN`) | `REVERSE_SETTLEMENT` (+ `REVERT_RENTAL_SETTLEMENT_REVERSED`) |
+
+Chi tiết đầy đủ các dòng *(R2)* ở §10.10.
 
 `SALES` = `MANAGER` ở mọi dòng (đã qua `likeManager()`), trừ `REVERSE` (CR-2026-035). Nút bị ẩn khi thiếu
 quyền (không chỉ disable). Mọi kiểm tra quyền qua `usePermission()` — không `if (role === …)`.
@@ -544,7 +547,7 @@ Round 1: `OPEN_SETTLEMENT` · `SYNC_SETTLEMENT_SOURCES` · `CONFIRM_SETTLEMENT_L
 `COMPLETE_SETTLEMENT` · (rentals) `MARK_RENTAL_SETTLEMENT` · `COMPLETE_RENTAL`.
 
 Round 2: `CREATE_POST_SETTLEMENT_CHARGE` · `CLOSE_POST_SETTLEMENT_CHARGE` · `ADJUST_SETTLEMENT` ·
-`REVERSE_SETTLEMENT` · (rentals) `REVERT_RENTAL_SETTLEMENT_REVERSED`.
+`REVERSE_SETTLEMENT` · (rentals) `REVERT_RENTAL_SETTLEMENT_REVERSED` — chi tiết §10.9.
 
 Ánh xạ UC-RS-21: `OPEN/CONFIRM_LINE/UPDATE_LINE/ADD_MANUAL_LINE/APPLY_WAIVER/DEPOSIT_RECONCILE/
 CUSTOMER_ACK/APPROVE/REJECT/CREATE_COLLECT_REQUEST/CREATE_REFUND_REQUEST/COMPLETE/POST_SETTLEMENT_CHARGE/
@@ -556,24 +559,421 @@ trả lại, đóng có công nợ, Post-Settlement Charge, điều chỉnh, đ�
 
 ---
 
-## 10. Round 2 — Post-Settlement Charge, Điều chỉnh, Đảo quyết toán (giao sau khi Round 1 `DONE`)
+## 10. Round 2 — Post-Settlement Charge, Điều chỉnh sau `COMPLETED`, Đảo quyết toán + 4 nợ nhỏ Round 1
 
-- Entity `PostSettlementCharge` (storage key `postSettlementCharges`): `id, settlementId, rentalId,
-  customerId, incidentId?, type (RECEIVABLE|REFUND), amount, reason, isAdjustment, status (OPEN|CLOSED),
-  createdBy…, closedBy…/closedAt?`. Không mở lại Settlement gốc, không đổi `completedTotals` (RS-BR-13,
-  BRD §25.4).
-- UC-RS-14: tạo PSC (`SETTLEMENT.CREATE`), chỉ khi Rental `COMPLETED`; "Đánh dấu đã tất toán" thủ công →
-  `CLOSED` (`// TODO(Phase 4.2): đóng theo Payment`). `// TODO(OQ: RS §28 Q14/Q15 — thời hạn truy thu,
-  ngưỡng bỏ qua)`.
-- UC-RS-15: Điều chỉnh (`SETTLEMENT.EDIT`, Accountant `TBD` → ẩn) = PSC `isAdjustment = true`, lý do bắt buộc.
-- UC-RS-16: Đảo quyết toán (`SETTLEMENT.REVERSE`): dialog 2 bước (lý do bắt buộc + gõ lại mã lượt thuê),
-  Settlement `COMPLETED → DRAFT`, lưu bản trước vào `reversals[]` (giữ toàn bộ lịch sử), xoá
-  `customerAck`/`depositReconciliation`/`approval`/`completedTotals`, yêu cầu thanh toán → `CANCELLED`,
-  Rental `COMPLETED → SETTLEMENT` qua `revertSettlementReversed()`. PSC đã có giữ nguyên.
-- Phần PSC trong worksheet (khi `COMPLETED`) + cột "PSC đang mở" ở List.
-- Seed: `rt_024` PSC `RECEIVABLE` `OPEN` (phạt nguội về sau — AC-RS-011); `rt_025` PSC `REFUND`
-  `isAdjustment` `CLOSED` 200k (AC-RS-012); `rt_026` PSC `RECEIVABLE` `OPEN` 900k gắn `inc_010`
-  (RS-BR-24). Bump `SEED_VERSION`.
+**Trạng thái:** `DONE` (21/10/2026 — đạt ở vòng review `tech-lead` đầu tiên, không Blocker; trước đó
+`APPROVED` 21/10/2026 — người dùng duyệt, kế hoạch chi tiết lập cùng ngày bởi `tech-lead`). Người dùng duyệt luôn phần mở rộng so với nợ gốc Round 1: N1 áp cả `openSettlement`/
+`resyncSettlementSources` (đọc lại + kiểm lại guard trong `fakeRequest`), N4 áp `assertRentalInSettlement` cho
+cả `createPaymentRequest` + mọi hàm sửa worksheet `DRAFT` (§10.7). Không chờ BA xác nhận trước 5 điểm diễn giải
+§10.2 — vẫn ghi lại để BA xem sau.
+Thay thế hoàn toàn bản phác thảo §10 cũ (6 gạch đầu dòng) — khác biệt chính so với bản phác: bỏ cờ
+`isAdjustment` thay bằng enum nguồn `POST_SETTLEMENT_CHARGE_SOURCES` (`ADJUSTMENT` ≡ UC-RS-15); thêm luật
+chống tính trùng sự cố giữa Settlement và PSC (§10.4); gộp 4 nợ nhỏ Round 1 (§10.7).
+
+**Nguồn nghiệp vụ Round 2 (bản chuẩn):** `RentalSettlement-BRD.md` §6 (cây entity — "Post-Settlement
+Charges[] (tham chiếu)"), §16.3, **§17**, **§18.2**, §21 (RS-BR-12/13/14/24), §22 (3 dòng cuối), §23
+(**AC-RS-011/012/013**), §25.4, §28 Q13-Q16. `RentalSettlement-UseCase.md` **§18 (UC-RS-14)**, **§19
+(UC-RS-15)**, **§20 (UC-RS-16)**, §21 (UC-RS-17 — chỉ để biết nhánh 4 *không* làm), §25 (UC-RS-21),
+§29 EX-08/EX-09. `WebappQuanTri.md` §11.2 (gạch "Post-Settlement Charge"), §11.3 ("Kỳ đã đóng thì bất
+biến", "Đảo quyết toán"). Tham khảo ranh giới với Payment: `Payment-BRD.md` §5 (dòng "Yêu cầu thanh
+toán"), §7 (`Source = POST_SETTLEMENT_CHARGE`), AC-PM-012 — **chỉ đọc để biết 4.2 sẽ nối vào đâu, không
+build gì của Payment**.
+
+### 10.1. Phạm vi
+
+**Trong phạm vi Round 2**
+
+| # | Hạng mục | Nguồn |
+| --- | --- | --- |
+| R2-1 | Enum `POST_SETTLEMENT_CHARGE_TYPES/STATUSES/SOURCES` + label map `vi.ts` + 5 audit action (§10.9) | BRD §17, UC-RS-21 |
+| R2-2 | Entity `PostSettlementCharge` (storage riêng `postSettlementCharges`) + hàm thuần §10.4 | BRD §6/§17, UC-RS-14 |
+| R2-3 | **Tạo Post-Settlement Charge** (phạt nguội / VETC về trễ / sự cố chốt sau / khác) từ Settlement `COMPLETED` + Rental `COMPLETED`; **không** mở lại Settlement, **không** đổi `completedTotals` | UC-RS-14, RS-BR-13, AC-RS-011, EX-08, RS-BR-24 |
+| R2-4 | **Đánh dấu đã tất toán** PSC (`OPEN → CLOSED`) thủ công — thay cho Payment chưa có | BRD §17 bước cuối, UC-RS-14 bước 6, §0.3 |
+| R2-5 | **Điều chỉnh sau `COMPLETED`** = tạo PSC `source = ADJUSTMENT` (tăng → `RECEIVABLE`, giảm → `REFUND`), lý do bắt buộc | UC-RS-15, BRD §18.2, AC-RS-012 |
+| R2-6 | **Đảo quyết toán**: Settlement `COMPLETED → DRAFT`, Rental `COMPLETED → SETTLEMENT`, yêu cầu thu/hoàn → `CANCELLED`, lưu bản trước vào `reversals[]`, xác nhận 2 bước | UC-RS-16, BRD §18.2, RS-BR-14, AC-RS-013, EX-09 |
+| R2-7 | Mở rộng `features/rentals` (vẫn ngoại lệ có kiểm soát lần thứ 3 — cùng Phase 4.1): transition `COMPLETED → SETTLEMENT` + `canRevertSettlementReversed` + `revertSettlementReversed` | §3.8 (đã dự trù), UC-RS-16 |
+| R2-8 | UI: khối "Phát sinh sau quyết toán" + khối "Lịch sử đảo quyết toán" + nút "Đảo quyết toán" trong Worksheet; cột "Phát sinh sau QT" ở List | `WebappQuanTri.md` §11.2 |
+| R2-9 | Seed 3 PSC (rt_024/025/026), `SEED_VERSION` 13 → 14 | §10.12 |
+| R2-10 | **4 nợ nhỏ Round 1** (cùng file `finance/api.ts` + 2 dialog) | §10.7 |
+
+**Quyết định về 4 nợ nhỏ: ĐƯA VÀO Round 2.** Lý do: cả 4 nằm trong `finance/api.ts` (+ `model.ts` và 2
+dialog liên quan), là file Round 2 đằng nào cũng sửa nhiều; Round 2 thêm `reverseSettlement` cần đúng
+pattern "đọc storage bên trong `fakeRequest`" (nợ 1) và đường "Rental còn `SETTLEMENT`" (nợ 4) — sửa
+chung một lượt rẻ hơn và tránh để 2 pattern lẫn lộn trong cùng file. Nợ 3 (`resolveDispute` Miễn bỏ qua
+ngưỡng) chạm đúng RS-BR-07/08 — một BR cốt lõi, không nên để trôi sang Phase 4.2.
+
+**Ngoài phạm vi Round 2 — lý do**
+
+| Hạng mục | Lý do / nơi xử lý |
+| --- | --- |
+| UC-RS-17 nhánh 4 "Tách khoản tranh chấp ra Post-Settlement" | Không nằm trong phạm vi Round 2 đã chốt; phụ thuộc **OQ RS §28 Q13** (giữ hay tách — "theo chính sách"). Giữ 3 nhánh của Round 1, `TODO(OQ)` tại dialog kết luận |
+| UC-RS-14 A2 "đề xuất bỏ qua khoản nhỏ" + chặn theo thời hạn truy thu | OQ RS §28 Q14/Q15 — không có ngưỡng, không có thời hạn; `TODO(OQ)` |
+| UC-RS-14 A1 "khách không đồng ý PSC" → quy trình tranh chấp riêng cho PSC | Không có state/entity tài liệu cho tranh chấp PSC. Chỉ hiển thị **suy diễn** "Tạm giữ" khi PSC gắn Incident đang `DISPUTED` (§10.4) — không thêm trạng thái |
+| Huỷ / xoá PSC | Tài liệu không có hành động huỷ PSC; tạo nhầm → tạo PSC `ADJUSTMENT` ngược chiều (đúng tinh thần "không xoá" của RS/PM). Không build nút huỷ |
+| Sinh Payment Request / Transaction `POST_SETTLEMENT_COLLECT`, đóng PSC tự động khi Payment `CONFIRMED` (AC-PM-012), bút toán đảo Payment khi đảo quyết toán | Phase 4.2 (`Payment`). `TODO(Phase 4.2)` |
+| Ghi nhận doanh thu/chi phí điều chỉnh theo kỳ phát sinh của PSC; gỡ chốt doanh thu khi đảo quyết toán | Phase 4.3 (`RevenueCost`). `TODO(Phase 4.3)` |
+| Màn/route riêng "Post-Settlement Charge" hay "Công nợ khách hàng" | `nav.tsx` không có mục PSC riêng; công nợ = `/finance/receivables` thuộc 4.2. Round 2 chỉ hiển thị PSC trong Worksheet + cột ở List |
+| Giữ cọc chờ phạt nguội (EX-04 — cấn PSC vào phần cọc giữ lại) | OQ RS §28 Q3 — Round 1 đã hoàn toàn bộ cọc dư; không đổi |
+| Tạo PSC từ màn Incident / Vehicle Return ("kích hoạt từ" UC-RS-14 bước 1) | Phải sửa `incidents/*` / `handover-return/*` — **cấm** (§0.2). Tạo từ Worksheet, chọn Incident trong danh sách |
+| Notification "phát sinh sau" (BRD §20) | Phase 6 (`NT`) |
+| Đóng Incident liên kết khi PSC `CLOSED` | Ghi vào `incidents/*` — cấm (§0.2), giống §1.2 |
+
+### 10.2. Điểm tài liệu chưa nhất quán / diễn giải — ghi lại cho BA, không tự sửa tài liệu
+
+1. **Trùng mã `RS-BR-21`**: BRD §21 `RS-BR-21` = "`Paid To Date` gồm Prepayment 30% + 70%…"; UseCase §26
+   `RS-BR-21` = "Post-Settlement Charge tính vào doanh thu/chi phí điều chỉnh theo kỳ phát sinh". Cùng mã,
+   hai nội dung. Code Round 2 **không trích `RS-BR-21` cho PSC** — trích `RentalSettlement-BRD.md §17 BR`
+   thay thế. Báo BA.
+2. **Đảo quyết toán: dòng/miễn giảm đã chốt xử lý thế nào khi quay `DRAFT`?** UC-RS-16 chỉ nói "Settlement
+   quay `DRAFT`… Accountant thực hiện lại quy trình". Diễn giải: **giữ nguyên `lines`/`waivers`** (đã nằm
+   trong snapshot `reversals[]`), chỉ xoá kết quả quy trình (`customerAck`, `depositReconciliation`,
+   `approval`, `completedTotals`, `completedWithDebt`, `completedByName/At`, `paymentStatus`). Accountant
+   chỉnh lại trên nền cũ (chốt lại dòng, "Đồng bộ lại từ nguồn", MANUAL, miễn giảm) rồi đi lại từ đầu —
+   đủ đáp ứng "làm lại", không bắt nhập lại từ số 0.
+3. **PSC đã có khi đảo quyết toán**: tài liệu không nói. Diễn giải: **giữ nguyên** (UC-RS-14 §18.6 "theo
+   dõi độc lập với Settlement gốc"); để tránh tính trùng khi làm lại, áp luật chống trùng sự cố §10.4 +
+   banner cảnh báo trong Worksheet.
+4. **Quyền "Đánh dấu đã tất toán"**: BRD §22 không có dòng riêng (tài liệu để Payment đóng PSC). Diễn giải:
+   dùng chung `SETTLEMENT.CREATE` (cùng nhóm người tạo PSC) — **không thêm entry `permissions.ts`**; comment
+   `BA đề xuất — tạm thay Payment (Phase 4.2)`.
+5. **Chiều thu/hoàn theo nguồn**: BRD §17 không quy định nguồn nào được `REFUND`. Diễn giải (BA đề xuất):
+   `TRAFFIC_FINE`/`VETC`/`INCIDENT` luôn `RECEIVABLE`; `OTHER` (khiếu nại hoàn tiền, bảo hiểm điều chỉnh) và
+   `ADJUSTMENT` chọn được cả hai chiều.
+
+### 10.3. Data model
+
+**Enum mới** (`shared/domain/enums.ts`, đặt **ngay sau** `SETTLEMENT_REQUEST_TYPES` — khối enum mới, không
+chèn vào giữa mảng nào; mỗi khối 1 dòng comment nguồn):
+
+```ts
+/** `RentalSettlement-BRD.md` §17 — loại Post-Settlement Charge. */
+POST_SETTLEMENT_CHARGE_TYPES    = ['RECEIVABLE', 'REFUND']
+/** BRD §17 (`CLOSED`); `OPEN` BA đề xuất — `docs/RENTAL-SETTLEMENT-PLAN.md` §10.3. */
+POST_SETTLEMENT_CHARGE_STATUSES = ['OPEN', 'CLOSED']
+/** BRD §17 dòng 1 + WebappQuanTri.md §11.2 — BA đề xuất mã (tài liệu chỉ có tên tiếng Việt). ADJUSTMENT = UC-RS-15. */
+POST_SETTLEMENT_CHARGE_SOURCES  = ['TRAFFIC_FINE', 'VETC', 'INCIDENT', 'ADJUSTMENT', 'OTHER']
+```
+
+Label map trong `vi.ts`: `POST_SETTLEMENT_CHARGE_TYPE_LABELS` ("Phải thu thêm" / "Phải hoàn"),
+`POST_SETTLEMENT_CHARGE_STATUS_LABELS` ("Đang mở" / "Đã tất toán"), `POST_SETTLEMENT_CHARGE_SOURCE_LABELS`
+("Phạt nguội" / "VETC về trễ" / "Sự cố chốt sau" / "Điều chỉnh sau quyết toán" / "Khác").
+
+**Entity mới — `features/finance/model.ts`, storage key `postSettlementCharges`** (hằng số
+`POST_SETTLEMENT_CHARGES_STORAGE_KEY` ở `finance/api.ts`, cạnh `SETTLEMENTS_STORAGE_KEY`):
+
+```ts
+/** RentalSettlement-BRD.md §17, UC-RS-14/15 — entity riêng, KHÔNG nhúng vào Settlement (RS-BR-13, BRD §25.4). */
+interface PostSettlementCharge {
+  id: string                         // generateId('psc')
+  settlementId: string               // Settlement kỳ gốc (tham chiếu — BRD §6)
+  rentalId: string; customerId: string; vehicleId: string   // copy từ Settlement — List/4.2/4.3 lọc nhanh
+  source: PostSettlementChargeSource
+  type: PostSettlementChargeType     // RECEIVABLE | REFUND
+  amount: number                     // số nguyên dương (đồng), chiều do `type`
+  incidentId?: string                // bắt buộc khi source = INCIDENT
+  reason: string                     // bắt buộc (UC-RS-21 §25.3)
+  evidenceNote?: string              // "chứng từ" UC-RS-14 bước 2 — demo chỉ ghi chú text (số biên bản phạt, mã GD VETC…)
+  status: PostSettlementChargeStatus // OPEN | CLOSED
+  createdByName: string; createdByRole: Role; createdAt: string
+  closedByName?: string; closedAt?: string; closeNote?: string
+}
+```
+
+**Mở rộng entity hiện có (chỉ thêm field optional — dữ liệu Round 1 vẫn đọc được):**
+
+```ts
+/** UC-RS-16 — "giữ toàn bộ lịch sử phiên bản trước" (RS-BR-14). */
+interface SettlementReversal {
+  id: string                          // generateId('rev')
+  reason: string
+  reversedByName: string; reversedByRole: Role; reversedAt: string
+  snapshot: Omit<Settlement, 'reversals'>   // bản Settlement COMPLETED ngay trước khi đảo (đủ lines/waivers/completedTotals/paymentRequests)
+  cancelledPaymentRequestIds: string[]
+}
+Settlement            += reversals?: SettlementReversal[]        // đọc bằng `?? []`
+SettlementPaymentRequest += cancelledByName?: string; cancelledAt?: string; cancelReason?: string
+```
+
+Không đổi `SettlementStatus` (đảo = `COMPLETED → DRAFT`, `SETTLEMENT_TRANSITIONS.COMPLETED` đã có `['DRAFT']`
+từ Round 1). Không có field PSC nào trong `Settlement` — quan hệ Settlement → PSC tra theo `settlementId`.
+
+### 10.4. Hàm thuần (`features/finance/model.ts`)
+
+- `canCreatePostSettlementCharge(settlement, rental): boolean` = `settlement.status === 'COMPLETED' &&
+  rental.status === 'COMPLETED'` (UC-RS-14 §18.3, RS-BR-13).
+- `canAdjustSettlement(settlement, rental)` = cùng điều kiện (UC-RS-15 §19.3).
+- `canReverseSettlement(settlement, rental)` = cùng điều kiện (UC-RS-16; AC-RS-013 "Settlement `COMPLETED`").
+- `fixedPscType(source): PostSettlementChargeType | undefined` — `TRAFFIC_FINE`/`VETC`/`INCIDENT` →
+  `'RECEIVABLE'`; `ADJUSTMENT`/`OTHER` → `undefined` (người dùng chọn) — §10.2 điểm 5.
+- `getIncidentPscBlocker(incident, settlement, existingPscs): PscBlockerCode | undefined` — **luật chống
+  tính trùng sự cố** (RS-BR-13 + "ba con số khác nhau"):
+  - Incident đã có dòng trong `settlement.lines` (`sourceRef.incidentId` khớp) → `ALREADY_IN_SETTLEMENT`
+    (đã thu ở kỳ gốc; sai số → dùng Điều chỉnh).
+  - Đã có PSC (mọi trạng thái) cùng `incidentId` → `ALREADY_HAS_PSC`.
+  - `liability ∈ {COMPANY, THIRD_PARTY, INSURANCE}` → `NOT_CUSTOMER_LIABILITY` (cùng luật §3.1).
+  - `status ∈ {CANCELLED, CLOSED_NO_ACTION, WRITTEN_OFF}` → `INCIDENT_VOID`.
+  - `status ∈ {OPEN, ASSESSING, WAITING_APPROVAL}` → `CUSTOMER_CHARGE_NOT_FINAL` (EX-01 tương tự: chưa chốt
+    Customer Charge). `liability = UNDETERMINED` → cũng `CUSTOMER_CHARGE_NOT_FINAL`.
+  - Cho phép: `APPROVED`/`IN_REPAIR`/`REPAIRED`/`CLOSED` **và** `DISPUTED` (để ghi nhận khoản, hiển thị
+    "Tạm giữ" — UC-RS-14 A1).
+- `pscAmountForIncident(incident)` = `incident.customerCharge ?? incident.estimatedCost` — **khoá số**, không
+  cho sửa (mirror dòng `INCIDENT` RS-BR-04/AC-RS-003). `// TODO(OQ: master BRD §51 Q54 / RS §28 Q21 — công
+  thức sự cố nặng khi Liability ≠ khách 100%; PSC chỉ đọc Customer Charge từ DI)` + trích `RS-BR-24`.
+- `isPscOnHold(psc, incidents)` = `psc.status === 'OPEN' && psc.incidentId` trỏ Incident đang `DISPUTED` →
+  hiển thị badge "Tạm giữ — sự cố đang tranh chấp (UC-RS-14 A1)" + **chặn "Đánh dấu đã tất toán"**. Suy
+  diễn khi render, **không lưu**, không phải enum.
+- `summarizePscs(pscs)` → `{ openReceivable, openRefund, openCount, closedCount }` (Σ `amount` theo `type`
+  của PSC `OPEN`) — cho khối tổng PSC + cột List. **Không bao giờ cộng vào `completedTotals`/Final Amount**
+  (BRD §25.4, `CLAUDE.md` §4 "ba con số").
+- `getLineDiscountedAmount(lineId, waivers)` (nợ 2) = Σ `amount` các waiver `PARTIAL_DISCOUNT` cùng `lineId`
+  có `status ∈ {APPROVED, PENDING_APPROVAL}`. Dùng ở API + dialog miễn giảm.
+- `buildReversalReset(settlement, actor, reason, now)` → `{ after: Settlement, reversal: SettlementReversal }`
+  — gom logic reset §10.6 thành hàm thuần (dễ review, tách khỏi `api.ts`).
+
+### 10.5. Mở rộng `features/rentals` (đã dự trù ở §3.8 — chỉ thêm, không sửa cái cũ)
+
+- `model.ts` — `ROUND1_TRANSITIONS`: **thêm 1 dòng** `COMPLETED: ['SETTLEMENT'], // đảo quyết toán —
+  RENTAL-SETTLEMENT-PLAN.md §10.5 (UC-RS-16)`. Đã rà: không guard hiện có nào `includes()` giá trị
+  `SETTLEMENT`, nên dòng mới không làm guard cũ trả `true` sai.
+- `model.ts` — `canRevertSettlementReversed(rental)` = **`rental.status === 'COMPLETED'`** `&&
+  ROUND1_TRANSITIONS.COMPLETED?.includes('SETTLEMENT')`. **Bẫy cần tránh:** không viết kiểu
+  `ROUND1_TRANSITIONS[rental.status]?.includes('SETTLEMENT')` — `RETURNED` cũng map tới `SETTLEMENT` nên sẽ
+  trả `true` sai cho Rental `RETURNED` (cùng lý do `canOpenSettlement` không dùng map).
+- `api.ts` — `revertSettlementReversed(id, actor)`: mirror y hệt `markRentalCompleted` (bọc `fakeRequest`,
+  đọc trong callback, guard, ghi, `appendAudit` action `REVERT_RENTAL_SETTLEMENT_REVERSED`, `before/after`
+  status). JSDoc ghi ngoại lệ kiến trúc giống 2 hàm Round 1.
+- `index.ts` — thêm `canRevertSettlementReversed` vào dòng export model và `revertSettlementReversed` vào
+  dòng export api của **khối comment Phase 4.1 đã có** (không mở khối comment mới).
+- **Không** đụng `rentals/hooks.ts`, `rentals/seed.ts`, màn hình rentals.
+
+### 10.6. API mới (`features/finance/api.ts`)
+
+**Quy tắc chung cho mọi hàm mới (và là chuẩn khi sửa nợ 1):** toàn bộ đọc storage + guard + ghi + audit nằm
+**bên trong callback `fakeRequest()`**; chỉ lời gọi chéo feature bất đồng bộ (`revertSettlementReversed`) nằm
+ngoài, **sau** khi ghi thành công.
+
+| Hàm | Guard (ném lỗi tiếng Việt, trích mã) | Ghi | Audit (`entity: 'Settlement'`, `entityId: settlementId`) |
+| --- | --- | --- | --- |
+| `listPostSettlementCharges(filter?: { settlementId?; rentalId?; status? })` | — | — | — |
+| `createPostSettlementCharge(settlementId, input, actor)` — input `{ source, type?, amount?, incidentId?, reason, evidenceNote? }` | `canCreatePostSettlementCharge` (đọc Rental qua `readRentalOrThrow`); `source !== 'ADJUSTMENT'` (đi đường `adjustSettlement`); `reason.trim()` rỗng → lỗi; `INCIDENT`: `incidentId` bắt buộc, đọc Incident qua `listIncidents` **trước** `fakeRequest` (như `loadSources`) rồi `getIncidentPscBlocker` **trong** callback trên bản đọc lại PSC; `amount` = `pscAmountForIncident` (bỏ qua input); nguồn khác: `amount` nguyên > 0; `type` = `fixedPscType(source) ?? input.type` | thêm PSC `OPEN` vào `postSettlementCharges`; **không ghi `settlements`** | `CREATE_POST_SETTLEMENT_CHARGE`, `summary` gồm nguồn + số tiền + lý do, `after: psc` |
+| `adjustSettlement(settlementId, { direction: 'INCREASE' \| 'DECREASE', amount, reason, evidenceNote? }, actor)` | `canAdjustSettlement`; lý do bắt buộc; `amount` nguyên > 0 | PSC `source = 'ADJUSTMENT'`, `type = INCREASE ? 'RECEIVABLE' : 'REFUND'`, `OPEN`; **không ghi `settlements`** (UC-RS-15 bước 4) | `ADJUST_SETTLEMENT`, `after: psc` |
+| `closePostSettlementCharge(pscId, closeNote?, actor)` | PSC `OPEN`; không `isPscOnHold` (đọc Incident trước callback) | `status = 'CLOSED'`, `closedByName/At`, `closeNote` | `CLOSE_POST_SETTLEMENT_CHARGE`, `before/after: { status }` · `// TODO(Phase 4.2): đóng tự động khi Payment POST_SETTLEMENT_COLLECT/REFUND CONFIRMED (AC-PM-012)` |
+| `reverseSettlement(settlementId, { reason, confirmRentalId }, actor)` | lý do bắt buộc; `confirmRentalId === settlement.rentalId` (bước xác nhận 2 — kiểm cả ở API); `canReverseSettlement` (Settlement + Rental cùng `COMPLETED`) | `buildReversalReset`: đẩy snapshot vào `reversals`; `status = 'DRAFT'`; xoá `customerAck`/`depositReconciliation`/`approval`/`completedTotals`/`completedWithDebt`/`completedByName`/`completedAt`/`paymentStatus`; mọi `paymentRequests` `REQUESTED` → `CANCELLED` + `cancelledByName/At/Reason`; `lines`/`waivers` giữ nguyên (§10.2 điểm 2). **Sau** khi ghi xong (ngoài callback): `await revertSettlementReversed(rentalId, actor)` | `REVERSE_SETTLEMENT`, `summary` gồm lý do, `before: { status, completedTotals }`, `after: { status: 'DRAFT', cancelledPaymentRequestIds }` · `// TODO(Phase 4.2): bút toán đảo giao dịch đã CONFIRMED` · `// TODO(Phase 4.3): gỡ chốt doanh thu kỳ gốc (UC-RS-16 bước 2)` |
+
+**Sửa hàm Round 1 do Round 2 kéo theo (bắt buộc):**
+
+- `resyncSettlementSources`: trước khi gọi `buildSourceLines`, **lọc bỏ Incident đã có PSC** (mọi trạng
+  thái, cùng `rentalId`) khỏi danh sách `incidents` — comment `// RS-BR-13 — sự cố đã đi qua PSC không đưa lại
+  vào Settlement khi làm lại sau đảo quyết toán (RENTAL-SETTLEMENT-PLAN.md §10.2 điểm 3)`. Không đổi chữ ký
+  `buildSourceLines`. Ví dụ demo: đảo quyết toán `rt_026` rồi "Đồng bộ lại" → **không** sinh dòng `inc_010`
+  (đã có PSC 900k).
+- `getCompletionBlockers`/`createPaymentRequest`: đã chỉ xét `status === 'REQUESTED'` → yêu cầu `CANCELLED`
+  sau đảo không chặn tạo lại. **Không cần sửa**, chỉ xác nhận khi review.
+
+### 10.7. Bốn nợ nhỏ Round 1 — đưa vào Round 2 (§10.1)
+
+| # | Nợ (review vòng 2 Round 1) | Sửa ở đâu | Cách sửa — tiêu chí review |
+| --- | --- | --- | --- |
+| N1 | `completeSettlement` đọc `readAll()`/Rental **ngoài** `fakeRequest` → dùng snapshot cũ sau độ trễ | `finance/api.ts` | Chuyển `readAll`/`findOrThrow`/`getCompletionBlockers`/`readRentalOrThrow`/`canCompleteRental` **vào trong** callback; `markRentalCompleted` vẫn gọi sau. **Cùng loại lỗi, sửa luôn:** `openSettlement` và `resyncSettlementSources` buộc phải `await loadSources()` trước, nhưng phải **đọc lại `readAll()` + kiểm lại guard** (RS-BR-01 trùng; `status === 'DRAFT'`) bên trong callback cuối, không dùng mảng `existing` đọc từ trước |
+| N2 | `applyWaiver` `PARTIAL_DISCOUNT` chỉ chặn từng lần — cộng dồn nhiều lần vượt `actualAmount` | `finance/model.ts` (`getLineDiscountedAmount`), `finance/api.ts`, `SettlementWaiverDialog.tsx` | API: `getLineDiscountedAmount(lineId) + amount ≤ actualAmount`, lỗi "Tổng giảm một phần vượt số thực tế của dòng (còn được giảm tối đa X)". Thêm chặn ngược: `WAIVE_LINE` trên dòng đã có `PARTIAL_DISCOUNT` hiệu lực → lỗi (vì `calcSettlementTotals` cộng cả dòng `WAIVED` lẫn waiver giảm một phần → trừ trùng). Dialog: hiện "Còn được giảm tối đa: X" khi chọn `PARTIAL_DISCOUNT`, validate trước khi gửi |
+| N3 | `resolveDispute` nhánh `WAIVE` chuyển dòng `WAIVED` **không qua ngưỡng** (RS-BR-07/08) | `finance/api.ts`, `SettlementResolveDisputeDialog.tsx` | Nhánh `WAIVE`: tính `amount = input.actualAmount ?? line.actualAmount ?? line.estimatedAmount ?? 0`, đặt `line.actualAmount = amount`, `status = 'WAIVED'`, **đồng thời tạo `SettlementWaiver` `WAIVE_LINE`** (`reason` = lý do kết luận, `status` theo `waiverNeedsApproval(amount)`, `decidedBy*` như `applyWaiver`). Audit `RESOLVE_SETTLEMENT_DISPUTE` ghi cả waiver trong `after`. Kết quả: > ngưỡng → sau khi khách xác nhận Settlement vào `WAITING_APPROVAL` (logic sẵn có); bị Trả lại → `rejectSettlement` sẵn có đưa dòng về `CONFIRMED`. Dialog: chọn "Miễn" + số > ngưỡng → hiện ghi chú "Sẽ cần duyệt (vượt ngưỡng)" giống `SettlementWaiverDialog` |
+| N4 | `recordCustomerAck`/`approveSettlement`/`rejectSettlement` chỉ chặn Return-huỷ ở UI | `finance/api.ts` | Thêm helper nội bộ `assertRentalInSettlement(rentalId)` (đọc `readRentalOrThrow`, ném cùng thông điệp với `submitForCustomer`) và gọi **trong callback** của: `recordCustomerAck`, `approveSettlement`, `rejectSettlement` (bắt buộc — đúng nợ), `createPaymentRequest` + các hàm sửa worksheet `DRAFT` (`confirmLine`, `addManualLine`, `removeManualLine`, `applyWaiver`, `disputeLine`, `resolveDispute`, `reconcileDeposit`) — mỗi chỗ 1 dòng. `submitForCustomer` đổi sang dùng helper. **Không** áp cho hàm PSC/đảo (dùng guard Rental `COMPLETED` riêng) |
+
+### 10.8. Hooks & barrel
+
+- `hooks.ts`: `usePostSettlementCharges(filter?)` — query key `['postSettlementCharges', filter ?? {}]`;
+  mutation `useCreatePostSettlementCharge`, `useAdjustSettlement`, `useClosePostSettlementCharge` →
+  invalidate `['postSettlementCharges']`; `useReverseSettlement` → invalidate `['settlements']`,
+  `['settlements','byRental',rentalId]`, `['postSettlementCharges']` **và** Rental (dùng nhánh
+  `invalidateRental = true` của `invalidateSettlements` sẵn có).
+- `index.ts`: thêm `type PostSettlementCharge` + `usePostSettlementCharges` (để 4.2 nối vào sau) — chỉ thêm dòng.
+
+### 10.9. Audit action — nối **cuối** `AUDIT_ACTIONS`, khối comment mới `// Rental Settlement (RS) — Round 2, RENTAL-SETTLEMENT-PLAN.md §10.9 (UC-RS-21)`
+
+`CREATE_POST_SETTLEMENT_CHARGE` (UC-RS-21 `POST_SETTLEMENT_CHARGE`) · `CLOSE_POST_SETTLEMENT_CHARGE` (BA đề
+xuất) · `ADJUST_SETTLEMENT` (`ADJUST`) · `REVERSE_SETTLEMENT` (`REVERSE`) · `REVERT_RENTAL_SETTLEMENT_REVERSED`
+(rentals). **Lý do bắt buộc** ở cả 4 action RS (UC-RS-21 §25.3) — ghi vào `summary`. Mọi audit PSC dùng
+`entity: 'Settlement'` + `entityId: settlementId` (không phải id PSC) để khối "Lịch sử thao tác" của
+Worksheet (lọc theo `Settlement` + id, §5.2 mục 8) hiện luôn — đúng UC-RS-21 "Settlement ID" là khoá audit;
+id PSC nằm trong `after`.
+
+### 10.10. UI
+
+**Worksheet (`SettlementWorksheet.tsx`) — tách component mới, không nhồi thêm vào file 466 dòng:**
+
+1. **`PostSettlementChargeSection.tsx`** — hiện khi Settlement `COMPLETED` **hoặc** đã có ≥ 1 PSC (sau đảo
+   quyết toán vẫn phải thấy). Gồm:
+   - Câu dẫn cố định: "Khoản phát sinh sau khi đóng lượt — không làm thay đổi số liệu quyết toán kỳ gốc
+     (RS-BR-13)".
+   - Tổng: "Đang mở — phải thu thêm: X · phải hoàn: Y" (`summarizePscs`), **tách hẳn** khối Tổng hợp kỳ gốc.
+   - Bảng (≥ md) / card (< md): Nguồn (badge) · Loại (Phải thu/Phải hoàn, màu `text-status-*`) · Số tiền ·
+     Sự cố (link `/incidents/:id` nếu có) · Lý do + chứng từ · Trạng thái (+ badge suy diễn "Tạm giữ") ·
+     Người tạo/ngày · Thao tác ("Đánh dấu đã tất toán" — ẩn nếu thiếu `SETTLEMENT.CREATE`, disable kèm
+     tooltip/ghi chú khi Tạm giữ).
+   - Nút "Tạo khoản phát sinh" (`SETTLEMENT.CREATE` + `canCreatePostSettlementCharge`) và "Điều chỉnh"
+     (`SETTLEMENT.EDIT` + `canAdjustSettlement` — `ACCOUNTANT` = `TBD` → **ẩn**).
+   - Ghi chú: "Thu/hoàn thực tế ghi nhận ở Sổ giao dịch (Phase 4.2)".
+2. **`SettlementReversalHistory.tsx`** — hiện khi `reversals.length > 0`: mỗi lần đảo 1 dòng (thời điểm,
+   người, lý do, Final Amount + Balance Due của bản cũ từ `snapshot.completedTotals`, số yêu cầu thanh toán
+   bị huỷ) + nút "Xem bản trước" mở dialog chỉ-đọc liệt kê dòng khoản mục (khoản mục, nguồn, thực tế, trạng
+   thái) + miễn giảm + tổng của snapshot. Đáp ứng DoD "lịch sử bản cũ còn xem được".
+3. **Banner mới** (Settlement `DRAFT` và có `reversals`): "Quyết toán đã bị đảo lúc … — lý do: …. Làm lại
+   quy trình; khoản đã chuyển sang phát sinh sau quyết toán (N khoản) không đưa lại vào bảng."
+4. **Thanh hành động** khi `COMPLETED`: thêm nút "Đảo quyết toán" (variant destructive) — chỉ khi
+   `can('SETTLEMENT','REVERSE')` + `canReverseSettlement`. Trạng thái `COMPLETED` vẫn chỉ-đọc toàn bộ phần
+   kỳ gốc.
+5. Khối "Yêu cầu thanh toán": yêu cầu `CANCELLED` hiển thị gạch/mờ + nhãn "Đã huỷ do đảo quyết toán".
+
+**Dialog mới (`features/finance/components/`, `react-hook-form` + `zod` schema trong `model.ts`):**
+
+- `PostSettlementChargeDialog.tsx` — chọn Nguồn (không có `ADJUSTMENT`); `INCIDENT` → chọn Incident của
+  lượt thuê, mục bị chặn hiện lý do (`getIncidentPscBlocker` → khoá i18n), số tiền **chỉ-đọc** = Customer
+  Charge; nguồn khác → nhập số; Loại khoá theo `fixedPscType` hoặc cho chọn (`OTHER`); Lý do bắt buộc;
+  Chứng từ (tuỳ chọn). Ghi chú `TODO(OQ: RS §28 Q14/Q15)` trong JSDoc component.
+- `SettlementAdjustmentDialog.tsx` — Tăng (thu thêm) / Giảm (hoàn); số tiền; lý do bắt buộc; chứng từ; câu
+  cảnh báo "Sai sót toàn bộ → dùng Đảo quyết toán (chỉ Quản trị hệ thống)" (UC-RS-15 A1).
+- `PostSettlementChargeCloseDialog.tsx` — xác nhận + ghi chú tuỳ chọn ("đã thu/hoàn qua …").
+- `SettlementReverseDialog.tsx` — **2 bước** (UC-RS-16 "xác nhận nhiều bước"): bước 1 = cảnh báo hệ quả
+  (Rental về Đang quyết toán, yêu cầu thu/hoàn bị huỷ, PSC giữ nguyên, lịch sử giữ) + lý do bắt buộc →
+  "Tiếp tục"; bước 2 = gõ lại đúng mã lượt thuê (so khớp tuyệt đối) → nút "Đảo quyết toán" mới bật.
+- Dialog xem snapshot (mục 2 ở trên).
+
+**`SettlementListScreen`** — thêm cột "Phát sinh sau QT": `N đang mở` + net (thu − hoàn) màu trạng thái, "—"
+khi không có. Dùng `usePostSettlementCharges()` một lần, gom theo `settlementId` bằng `useMemo`. Card
+mobile thêm 1 dòng tương ứng. Không thêm bộ lọc mới.
+
+**Hành động × quyền × trạng thái (Round 2):**
+
+| Hành động | Điều kiện | Quyền | Audit |
+| --- | --- | --- | --- |
+| Tạo khoản phát sinh | Settlement + Rental `COMPLETED` | `SETTLEMENT.CREATE` | `CREATE_POST_SETTLEMENT_CHARGE` |
+| Điều chỉnh sau `COMPLETED` | Settlement + Rental `COMPLETED` | `SETTLEMENT.EDIT` (`ACCOUNTANT` `TBD` → ẩn) | `ADJUST_SETTLEMENT` |
+| Đánh dấu đã tất toán | PSC `OPEN`, không Tạm giữ (mọi trạng thái Settlement) | `SETTLEMENT.CREATE` (§10.2 điểm 4) | `CLOSE_POST_SETTLEMENT_CHARGE` |
+| Đảo quyết toán | Settlement + Rental `COMPLETED` | `SETTLEMENT.REVERSE` (chỉ `SYSTEM_ADMIN`; `SALES` ✗ — CR-2026-035) | `REVERSE_SETTLEMENT` + `REVERT_RENTAL_SETTLEMENT_REVERSED` |
+
+Nút thiếu quyền → **ẩn**. Không `if (role === …)`. **Không sửa `permissions.ts`** — 3 entry
+`CREATE`/`EDIT`/`REVERSE` đã có từ Round 1 (§8).
+
+**Responsive:** như §6 — bảng PSC `overflow-x-auto` ≥ md / card < md; dialog đảo 2 bước không vỡ ở ~375px.
+
+### 10.11. Ranh giới kiến trúc Round 2
+
+| Khu vực | Được phép | Không được phép |
+| --- | --- | --- |
+| `features/finance/*` | Sửa/tạo theo §10.3-§10.10, §10.7 | Gọi `localStorage` trực tiếp; deep-import feature khác |
+| `features/rentals/model.ts` · `api.ts` · `index.ts` | Chỉ đúng §10.5 (1 dòng transition + 1 guard + 1 hàm api + export) | Sửa transition/guard/hàm hiện có; `hooks.ts`, `seed.ts`, screens |
+| `features/handover-return/*`, `features/incidents/*` | Đọc qua barrel đã có (`listIncidents`, `useIncidents`) | **Không đụng một ký tự** — kể cả `index.ts` (Round 2 không cần re-export mới) |
+| `shared/domain/enums.ts` | Thêm 3 enum §10.3 sau `SETTLEMENT_REQUEST_TYPES`; nối 5 audit action **cuối** `AUDIT_ACTIONS` | Sửa/chèn enum khác |
+| `shared/domain/permissions.ts` | — | **Không sửa** |
+| `shared/i18n/vi.ts` | Thêm khoá `vi.finance.*` + 3 label map | Sửa khoá hiện có của feature khác |
+| `shared/fixtures/seedAll.ts` | `SEED_VERSION` 13 → 14 | — |
+| `shared/fixtures/registerSeeds.ts`, `app/routes.tsx`, `app/paths.ts`, `shared/layout/nav.tsx` | — | **Không sửa** (PSC seed nằm trong `finance/seed.ts` sẵn có, không route mới) |
+
+### 10.12. Seed (`features/finance/seed.ts` — cùng `seedFinance()`, ghi thêm key `postSettlementCharges`)
+
+Thời điểm tạo PSC tính **động** = `completedAt` của Settlement seed tương ứng + vài ngày, kẹp `≤ now`.
+Người tạo dùng tên nhân viên kế toán đã có trong seed (như Settlement Round 1).
+
+| Rental | PSC | Minh hoạ |
+| --- | --- | --- |
+| `rt_024` (`CASH_20M`, cọc đã đề nghị hoàn) | `TRAFFIC_FINE` · `RECEIVABLE` · **700.000** · `OPEN` · lý do "Phạt nguội vi phạm tốc độ trong kỳ thuê, biên bản về sau" · `evidenceNote` số biên bản giả lập | AC-RS-011, EX-08 (số tiền mirror AC-PM-012); `completedTotals` của rt_024 không đổi |
+| `rt_025` | `ADJUSTMENT` · `REFUND` · **200.000** · `CLOSED` (có `closedByName/At`, `closeNote`) · lý do "Tính thừa phí giao nhận, phát hiện sau khi đóng lượt" | AC-RS-012 |
+| `rt_026` (`MOTORBIKE`) | `INCIDENT` · `RECEIVABLE` · **900.000** (= `inc_010.customerCharge`) · `incidentId: 'inc_010'` · `OPEN` → hiển thị **Tạm giữ** vì `inc_010` `DISPUTED` | RS-BR-24, UC-RS-14 A1; khoá "Đánh dấu đã tất toán" |
+
+Không seed Settlement đã đảo (SYSTEM_ADMIN tự demo trên rt_024/025/026). Không seed audit. Dựng PSC bằng
+literal + `generateId('psc')`; số tiền `INCIDENT` lấy từ `pscAmountForIncident(inc_010)` (không gõ tay).
+
+### 10.13. `TODO` bắt buộc trong code Round 2
+
+- `TODO(OQ: RentalSettlement-BRD.md §28 Q14/Q15 — thời hạn truy thu + ngưỡng bỏ qua khoản nhỏ; demo: không
+  giới hạn thời hạn, không đề xuất bỏ qua (UC-RS-14 A2 chưa build))` — tại `createPostSettlementCharge`.
+- `TODO(OQ: RentalSettlement-BRD.md §28 Q16 — ai được điều chỉnh sau COMPLETED; Accountant = TBD)` — tại
+  `adjustSettlement` (permissions đã có `TBD`).
+- `TODO(OQ: RentalSettlement-BRD.md §28 Q13 — nhánh 4 "tách khoản tranh chấp ra Post-Settlement" chưa
+  build)` — giữ/cập nhật tại `resolveDispute` + `SettlementResolveDisputeDialog`.
+- `TODO(OQ: master BRD §51 Q54 / RS §28 Q21)` — tại `pscAmountForIncident`.
+- `TODO(Phase 4.2)` — sinh Payment Request `Source = POST_SETTLEMENT_CHARGE`; đóng PSC theo Payment
+  (AC-PM-012); bút toán đảo khi đảo quyết toán.
+- `TODO(Phase 4.3)` — PSC → doanh thu/chi phí điều chỉnh theo kỳ phát sinh (BRD §17 BR); gỡ chốt doanh thu khi
+  đảo (UC-RS-16).
+
+### 10.14. Danh sách file `dev` đọc trước khi code Round 2 (đọc đúng danh sách, không scan rộng)
+
+**Tài liệu nghiệp vụ**
+- `../thien-bao-car-docs/modules/RentalSettlement-BRD.md` §6 (dòng ~145-185), §16.3-§18 (dòng ~464-520),
+  §21 (RS-BR-12/13/14/24), §22, §23 AC-RS-011/012/013 (dòng ~687-708), §25.4, §28 Q13-Q16.
+- `../thien-bao-car-docs/modules/RentalSettlement-UseCase.md` §18-§20 (dòng ~626-733), §21 (dòng ~736-767),
+  §25.3 (dòng ~868-884), §29 EX-08/EX-09 (dòng ~1088-1110).
+- `../thien-bao-car-docs/WebappQuanTri.md` §11.2-§11.3 (dòng ~652-685).
+- Kế hoạch này: §0.2, §0.3, §2.1, §3.3, §3.6, §3.7, §3.8, §5.2, §9.4 và **toàn bộ §10**.
+
+**Code tham chiếu**
+- `src/features/finance/model.ts` (toàn bộ — Round 2 mở rộng chính file này), `src/features/finance/api.ts`
+  (toàn bộ — 4 nợ nhỏ + hàm mới), `src/features/finance/hooks.ts`, `src/features/finance/index.ts`,
+  `src/features/finance/seed.ts` (khối rt_024/025/026, dòng ~150-332).
+- `src/features/finance/components/SettlementWorksheet.tsx`, `SettlementWaiverDialog.tsx`,
+  `SettlementResolveDisputeDialog.tsx`, `SettlementCompleteDialog.tsx` (mẫu dialog xác nhận),
+  `SettlementApprovalDialog.tsx` (mẫu lý do bắt buộc), `src/features/finance/screens/SettlementListScreen.tsx`.
+- `src/features/rentals/model.ts` dòng ~205-300 (`ROUND1_TRANSITIONS`, `canOpenSettlement`,
+  `canCompleteRental`), `src/features/rentals/api.ts` dòng ~335-400 (`markSettlementOpened`,
+  `markRentalCompleted` — mẫu cho `revertSettlementReversed`), `src/features/rentals/index.ts`.
+- `src/features/incidents/model.ts` (interface `Incident`: `status`, `liability`, `customerCharge`,
+  `estimatedCost`) + `src/features/incidents/seed.ts` khối `inc_010` (dòng ~314-345).
+- `src/shared/domain/enums.ts` dòng ~200-265 (khối Settlement) + cuối `AUDIT_ACTIONS` (dòng ~465-490);
+  `src/shared/domain/permissions.ts` dòng ~322-360 (chỉ để biết entry `CREATE`/`EDIT`/`REVERSE`, không sửa);
+  `src/shared/i18n/vi.ts` khối `finance` (dòng ~991) + các `SETTLEMENT_*_LABELS` (dòng ~1478-1545);
+  `src/shared/lib/audit.ts`; `src/shared/fixtures/seedAll.ts`.
+
+### 10.15. File dự kiến tạo / sửa (Round 2)
+
+**Tạo mới:** `src/features/finance/components/{PostSettlementChargeSection.tsx, PostSettlementChargeDialog.tsx,
+PostSettlementChargeCloseDialog.tsx, SettlementAdjustmentDialog.tsx, SettlementReverseDialog.tsx,
+SettlementReversalHistory.tsx}` (+ dialog xem snapshot — được gộp vào `SettlementReversalHistory.tsx` nếu ngắn).
+
+**Sửa:** `src/features/finance/{model.ts, api.ts, hooks.ts, seed.ts, index.ts}` ·
+`src/features/finance/components/{SettlementWorksheet.tsx, SettlementWaiverDialog.tsx,
+SettlementResolveDisputeDialog.tsx}` · `src/features/finance/screens/SettlementListScreen.tsx` ·
+`src/features/rentals/{model.ts, api.ts, index.ts}` (§10.5) · `src/shared/domain/enums.ts` ·
+`src/shared/i18n/vi.ts` · `src/shared/fixtures/seedAll.ts` (`SEED_VERSION` 14).
+
+### 10.16. Definition of Done — Round 2
+
+1. `npx tsc -b`, `npx oxlint`, `npm run build` sạch; `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. `git diff` **trống** ở `src/features/handover-return/`, `src/features/incidents/`, `src/shared/domain/permissions.ts`,
+   `src/shared/fixtures/registerSeeds.ts`, `src/app/`, `src/shared/layout/`, `rentals/{hooks.ts, seed.ts, screens/, components/}`;
+   `rentals/model.ts` chỉ **thêm** 1 dòng transition + 1 hàm; enum mới đúng từng ký tự §10.3, audit action
+   chỉ nối cuối mảng.
+3. PSC lưu ở key `postSettlementCharges`; tạo/điều chỉnh/tất toán PSC **không ghi** key `settlements`
+   (`completedTotals`, `lines`, `paymentStatus` của Settlement kỳ gốc giữ nguyên — RS-BR-13, BRD §25.4,
+   AC-RS-011/012).
+4. Luật chống trùng §10.4 đúng: không tạo được PSC `INCIDENT` cho sự cố đã có dòng trong Settlement hoặc đã
+   có PSC; số tiền PSC `INCIDENT` khoá = Customer Charge; resync sau đảo không đưa lại sự cố đã có PSC.
+5. Đảo quyết toán: chỉ `SYSTEM_ADMIN` thấy nút; lý do + gõ mã lượt thuê (kiểm cả ở API); Settlement
+   `DRAFT`, Rental `SETTLEMENT`; yêu cầu thu/hoàn `CANCELLED` (không xoá); `reversals[]` có snapshot đầy đủ
+   và xem lại được trên UI; PSC giữ nguyên; `canRevertSettlementReversed` trả `false` cho Rental `RETURNED`.
+6. "Điều chỉnh" ẩn với `ACCOUNTANT` (`TBD`), hiện với `MANAGER`/`SALES`/`SYSTEM_ADMIN`; "Tạo khoản phát sinh"
+   hiện với `ACCOUNTANT`; `OPERATION_STAFF`/`DISPATCHER` vẫn không thấy tab "Quyết toán".
+7. 4 nợ nhỏ §10.7 đã sửa đúng tiêu chí từng dòng (N1: không còn `readAll()` ngoài callback ở hàm ghi nào của
+   `finance/api.ts`; N2: cộng dồn giảm một phần bị chặn + chặn `WAIVE_LINE` trên dòng đã giảm một phần; N3:
+   Miễn khi kết luận tranh chấp sinh `SettlementWaiver` theo ngưỡng; N4: helper gọi trong các hàm liệt kê).
+8. Mọi `TODO` §10.13 có mặt, trỏ đúng mã.
+9. Seed đúng §10.12, `SEED_VERSION` = 14.
+10. *(Chủ dự án tự test)*: `rt_024` (ACCOUNTANT) → tạo PSC phạt nguội → Final Amount kỳ gốc không đổi; đổi
+    `MANAGER` → Điều chỉnh giảm 200k → PSC `REFUND`; `rt_026` → PSC 900k hiện "Tạm giữ", nút tất toán bị
+    khoá; đổi `SYSTEM_ADMIN` → Đảo quyết toán `rt_025` (2 bước) → Rental về "Đang quyết toán", yêu cầu hoàn
+    cọc "Đã huỷ", "Lịch sử đảo quyết toán" xem được bản cũ → làm lại tới Đóng lượt; đảo `rt_026` → "Đồng bộ
+    lại" không sinh dòng `inc_010`; thử giảm một phần 2 lần vượt số dòng trên `rt_022` → bị chặn.
+11. `docs/IMPLEMENTATION-PLAN.md` cập nhật.
+
+### 10.17. Thứ tự làm đề xuất cho `dev` (một lượt, cùng một task)
+
+1. Nợ N1 + N4 (`api.ts` — sửa pattern trước để hàm mới bám theo) → N2 + N3 (`model.ts`/`api.ts`/2 dialog).
+2. Enum + label map + audit action → model PSC/Reversal + hàm thuần §10.4.
+3. `rentals` §10.5 → API §10.6 (+ sửa `resyncSettlementSources`) → hooks/barrel.
+4. UI Worksheet (2 component mới + banner + nút đảo) → dialog → cột List.
+5. Seed + `SEED_VERSION` → chạy 3 cổng.
+
+Phụ thuộc: Round 1 `DONE` (đã thoả). Không phụ thuộc Phase 4.2/4.3.
 
 ---
 
@@ -587,8 +987,8 @@ trả lại, đóng có công nợ, Post-Settlement Charge, điều chỉnh, đ�
 | 4 | Làm tròn / VAT / thứ tự — RS §19, §28 Q5-Q8 | `Tax`, `Rounding`, `Final Amount` | VAT = 0, Rounding = 0, hiển thị "Chưa áp dụng"; thứ tự cố định Gross → Discount → (VAT) → (Rounding); TODO tại `calcSettlementTotals` |
 | 5 | Giữ cọc chờ phạt nguội — RS §28 Q3 | `Deposit Refundable`, EX-04 | Hoàn toàn bộ phần dư; TODO tại hàm đối trừ cọc + dialog yêu cầu hoàn |
 | 6 | Đóng lượt khi còn công nợ, hạn mức — RS §28 Q11; ai được đóng — Q12 | `getCompletionBlockers` | Theo đề xuất BRD §15: cho đóng nếu đã có yêu cầu `COLLECT`, gắn `completedWithDebt` + cảnh báo; không hạn mức. Người đóng = `SETTLEMENT.CONFIRM` theo ma trận §22 (Accountant ✓); TODO tại hàm |
-| 7 | Khoản tranh chấp giữ trong Settlement hay tách Post-Settlement; khách từ chối toàn bộ — RS §28 Q13 | UC-RS-17 nhánh 4, UC-RS-08 A2 | Chỉ build 3 nhánh giữ/điều chỉnh/miễn; "từ chối toàn bộ" = đánh dấu mọi dòng `DISPUTED` → về `DRAFT`; TODO tại dialog kết luận |
-| 8 | Thời hạn truy thu + ngưỡng bỏ qua — RS §28 Q14/Q15 | Post-Settlement Charge (Round 2) | Không giới hạn thời hạn, không đề xuất bỏ qua; TODO tại hàm tạo PSC |
+| 7 | Khoản tranh chấp giữ trong Settlement hay tách Post-Settlement; khách từ chối toàn bộ — RS §28 Q13 | UC-RS-17 nhánh 4, UC-RS-08 A2 | Chỉ build 3 nhánh giữ/điều chỉnh/miễn; "từ chối toàn bộ" = đánh dấu mọi dòng `DISPUTED` → về `DRAFT`; TODO tại dialog kết luận. **Round 2 giữ nguyên** — nhánh 4 "tách ra Post-Settlement" vẫn không build (§10.1); nhánh Miễn đi qua ngưỡng duyệt (§10.7 N3) |
+| 8 | Thời hạn truy thu + ngưỡng bỏ qua — RS §28 Q14/Q15 | Post-Settlement Charge (Round 2) | Không giới hạn thời hạn, không đề xuất bỏ qua (UC-RS-14 A2 không build); TODO tại `createPostSettlementCharge` (§10.13) |
 | 9 | Mức xác nhận khách Phase 1 (M0-M4) — RS §28 Q17 | Bước `PENDING_CUSTOMER` | Luôn đi qua `PENDING_CUSTOMER`; nhân viên ghi nhận thay khách (gần M1 — mức BRD đề xuất tối thiểu); TODO tại `recordCustomerAck` |
 
 Không chặn nhưng cần BA xem: 5 điểm lệch tài liệu ở §0.4 (thứ tự `WAITING_APPROVAL`; trừ trùng `WAIVED`;
@@ -596,7 +996,7 @@ huỷ Return khi Settlement đã mở; `DAMAGE` ở Return vs Incident; `Rental.
 
 ---
 
-## 12. Danh sách file `dev` đọc trước khi code (đọc đúng danh sách, không scan rộng)
+## 12. Danh sách file `dev` đọc trước khi code — Round 1 (Round 2: xem §10.14)
 
 **Tài liệu nghiệp vụ**
 - `../thien-bao-car-docs/modules/RentalSettlement-BRD.md` §6-§16, §21-§24, §28 (toàn bộ khoảng này).
@@ -614,7 +1014,7 @@ huỷ Return khi Settlement đã mở; `DAMAGE` ở Return vs Incident; `Rental.
 
 ---
 
-## 13. File dự kiến tạo / sửa
+## 13. File dự kiến tạo / sửa — Round 1 (Round 2: xem §10.15)
 
 **Tạo mới:** `src/features/finance/{model.ts, api.ts, hooks.ts, seed.ts, index.ts}`,
 `src/features/finance/screens/SettlementListScreen.tsx`, `src/features/finance/components/` (
@@ -652,15 +1052,14 @@ component nếu dài).
 
 ## 15. Definition of Done — Round 2
 
-1. Cổng 1 + điểm 3-4 của Round 1 vẫn đúng. 2. PSC không đổi `completedTotals` của Settlement gốc. 3. Đảo
-quyết toán chỉ hiện với `SYSTEM_ADMIN`, cần lý do + xác nhận 2 bước, Rental về `SETTLEMENT`, lịch sử bản
-cũ còn xem được. 4. "Điều chỉnh sau COMPLETED" ẩn với `ACCOUNTANT` (`TBD`). 5. Seed PSC đúng §10.
+Xem **§10.16** (bản chi tiết thay cho 5 điểm tóm tắt cũ ở đây, 21/10/2026).
 
 ---
 
 ## 16. Phụ thuộc & thứ tự
 
 Round 1 không phụ thuộc gì chưa xong (Phase 3 `DONE`). Round 2 phụ thuộc Round 1. Phase 4.2 (Payment) phụ
-thuộc 4.1 **chỉ** ở phần thực thi `paymentRequests` + đồng bộ `paymentStatus`/`Paid To Date` (§0.3); 2 mốc
+thuộc 4.1 **chỉ** ở phần thực thi `paymentRequests` + đồng bộ `paymentStatus`/`Paid To Date` (§0.3) + thu/hoàn
+Post-Settlement Charge và đóng PSC theo giao dịch (Round 2, §10.13 `TODO(Phase 4.2)`); 2 mốc
 thanh toán đầu (`BOOKING`/`HANDOVER`) không phụ thuộc. Phase 4.3 đọc Settlement `COMPLETED`
 (`completedTotals`) để sinh Revenue Line `ON_SETTLEMENT` (CR-2026-048).
