@@ -1,0 +1,183 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSessionStore } from '@/features/auth'
+import type { SettlementRequestType } from '@/shared/domain/enums'
+import * as api from './api'
+import type {
+  ActorInfo,
+  ConfirmLineInput,
+  CustomerAckInput,
+  ManualLineInput,
+  ResolveDisputeInput,
+  SettlementFilter,
+  WaiverInput,
+} from './api'
+
+/** Mirror `rentals/hooks.ts`/`incidents/hooks.ts` — fallback khi mất session là `OPERATION_STAFF` (quyền thấp nhất). */
+function useActor(): ActorInfo {
+  const user = useSessionStore((s) => s.user)
+  return {
+    userId: user?.userId ?? '',
+    fullName: user?.fullName ?? '',
+    role: user?.role ?? 'OPERATION_STAFF',
+  }
+}
+
+export function useSettlements(filter?: SettlementFilter) {
+  return useQuery({
+    queryKey: ['settlements', filter ?? {}],
+    queryFn: () => api.listSettlements(filter),
+  })
+}
+
+export function useSettlementByRental(rentalId?: string) {
+  return useQuery({
+    queryKey: ['settlements', 'byRental', rentalId],
+    queryFn: () => api.getSettlementByRentalId(rentalId as string),
+    enabled: !!rentalId,
+  })
+}
+
+/** Invalidate chung cho mọi mutation — `['settlements']` luôn; `['rentals']` khi đổi trạng thái Rental (mở/đóng lượt). */
+function invalidateSettlements(queryClient: ReturnType<typeof useQueryClient>, rentalId?: string, invalidateRental = false) {
+  queryClient.invalidateQueries({ queryKey: ['settlements'] })
+  if (rentalId) queryClient.invalidateQueries({ queryKey: ['settlements', 'byRental', rentalId] })
+  if (invalidateRental && rentalId) {
+    queryClient.invalidateQueries({ queryKey: ['rentals'] })
+    queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', rentalId] })
+  }
+}
+
+export function useOpenSettlement() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (rentalId: string) => api.openSettlement(rentalId, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId, true),
+  })
+}
+
+export function useResyncSettlementSources() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (id: string) => api.resyncSettlementSources(id, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useConfirmSettlementLine() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, lineId, input }: { id: string; lineId: string; input: ConfirmLineInput }) => api.confirmLine(id, lineId, input, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useAddSettlementManualLine() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ManualLineInput }) => api.addManualLine(id, input, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useRemoveSettlementManualLine() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, lineId }: { id: string; lineId: string }) => api.removeManualLine(id, lineId, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useApplySettlementWaiver() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: WaiverInput }) => api.applyWaiver(id, input, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useDisputeSettlementLine() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, lineId, disputeNote }: { id: string; lineId: string; disputeNote: string }) => api.disputeLine(id, lineId, disputeNote, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useResolveSettlementDispute() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, lineId, input }: { id: string; lineId: string; input: ResolveDisputeInput }) => api.resolveDispute(id, lineId, input, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useReconcileSettlementDeposit() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (id: string) => api.reconcileDeposit(id, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useSubmitSettlementForCustomer() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (id: string) => api.submitForCustomer(id, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useRecordSettlementCustomerAck() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: CustomerAckInput }) => api.recordCustomerAck(id, input, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useApproveSettlement() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string; note?: string }) => api.approveSettlement(id, note, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useRejectSettlement() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string }) => api.rejectSettlement(id, note, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useCreateSettlementPaymentRequest() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, type }: { id: string; type: SettlementRequestType }) => api.createPaymentRequest(id, type, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+  })
+}
+
+export function useCompleteSettlement() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (id: string) => api.completeSettlement(id, actor),
+    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId, true),
+  })
+}

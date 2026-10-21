@@ -311,8 +311,8 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
 ### Phase 4.1 — Quyết toán (RentalSettlement) — `[~]`
 
 - [~] `features/finance` (RS, phần Settlement): kế hoạch chi tiết đầy đủ ở
-      [`docs/RENTAL-SETTLEMENT-PLAN.md`](RENTAL-SETTLEMENT-PLAN.md) (`APPROVED` 21/10/2026, Round 1 đã
-      giao `dev`). Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở thủ công từ Rental `RETURNED` →
+      [`docs/RENTAL-SETTLEMENT-PLAN.md`](RENTAL-SETTLEMENT-PLAN.md) (`APPROVED` 21/10/2026; Round 1
+      `DONE` 21/10/2026, Round 2 chưa giao). Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở thủ công từ Rental `RETURNED` →
       chốt dòng → MANUAL/miễn giảm → đối trừ cọc → khách xác nhận → duyệt → yêu cầu thu/hoàn → đóng
       lượt `RETURNED → SETTLEMENT → COMPLETED`) + màn `/finance/settlement` + tab "Quyết toán" ở Rental
       Detail; Round 2 = Post-Settlement Charge + Điều chỉnh sau `COMPLETED` + Đảo quyết toán. Mở rộng
@@ -327,7 +327,22 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
       ngưỡng duyệt, đối trừ cọc, tính `Final Amount`) · **Post-Settlement Charge** (thu/hoàn sau khi
       Rental `COMPLETED`, không mở lại Settlement kỳ gốc) · đóng lượt thuê
       (`RETURNED → SETTLEMENT → COMPLETED` — state Rental đã có sẵn, chờ UI thật).
-- [ ] Cập nhật `registerSeeds.ts` phần `Settlement`, xoá `ComingSoon` tương ứng màn Quyết toán.
+  - [x] **Round 1 — lõi Settlement Worksheet** `DONE` (21/10/2026): `features/finance` (model/api/
+        hooks/seed/index + 13 component Worksheet/dialog/badge + `SettlementListScreen`), route `/finance/settlement`,
+        tab "Quyết toán" ở Rental Detail, sửa `SETTLEMENT_STATUSES` đúng UseCase §4, 2 transition
+        Rental `RETURNED → SETTLEMENT → COMPLETED`, `SEED_VERSION` 12 → 13. Qua **2 vòng review
+        `tech-lead`**: vòng 1 có 3 Blocker — (1) `applyWaiver` `WAIVE_LINE` ghi đè `actualAmount`
+        làm mất số gốc khỏi Final Amount, (2) `rejectSettlement` không trả dòng `WAIVED` về
+        `CONFIRMED` khi waiver bị `REJECTED`, (3) đóng lượt/gửi khách không kiểm Rental còn
+        `SETTLEMENT` (Return bị huỷ) — kèm 8 điểm "Nên sửa" (guard trạng thái `confirmLine`/
+        `disputeLine`/`resolveDispute`, chặn trùng yêu cầu thu/hoàn, chuỗi i18n…), tất cả đã sửa;
+        vòng 2 đạt. Nợ nhỏ để Round 2: `completeSettlement` đọc storage ngoài `fakeRequest` (snapshot
+        cũ sau độ trễ); `PARTIAL_DISCOUNT` chưa chặn tổng nhiều lần vượt `actualAmount` của dòng;
+        `resolveDispute` nhánh Miễn chưa đi qua ngưỡng duyệt miễn giảm (RS-BR-07/08); các thao tác
+        `recordCustomerAck`/`approve`/`reject` chỉ chặn Return-huỷ ở UI, chưa chặn ở API.
+  - [ ] **Round 2** — Post-Settlement Charge + Điều chỉnh sau `COMPLETED` + Đảo quyết toán (plan §1).
+- [x] Cập nhật `registerSeeds.ts` phần `Settlement` (`finance/seed` chạy cuối), xoá `ComingSoon` màn
+      Quyết toán (Round 1, 21/10/2026).
 
 ### Phase 4.2 — Thanh toán (Payment) — `[ ]`
 

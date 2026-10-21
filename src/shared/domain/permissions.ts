@@ -346,6 +346,18 @@ const TABLE: PermissionEntry[] = [
     source: 'WebappQuanTri.md §11.4 — Đảo quyết toán (chỉ SYSTEM_ADMIN)',
   },
   {
+    resource: 'SETTLEMENT',
+    action: 'CREATE',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, OPERATION_STAFF: false }),
+    source: 'RentalSettlement-BRD.md §22 — Tạo Post-Settlement Charge (Round 2, docs/RENTAL-SETTLEMENT-PLAN.md §8)',
+  },
+  {
+    resource: 'SETTLEMENT',
+    action: 'EDIT',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: 'TBD', OPERATION_STAFF: false }),
+    source: 'RentalSettlement-BRD.md §22 — Điều chỉnh sau COMPLETED (Accountant TBD — RS §28 Q16, Round 2)',
+  },
+  {
     resource: 'PAYMENT',
     action: 'RECORD_CASH',
     values: {

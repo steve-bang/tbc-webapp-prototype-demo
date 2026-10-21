@@ -29,11 +29,18 @@
  * giữ đúng thứ tự nhóm nghiệp vụ 4 (Lượt thuê & hợp đồng) trước nhóm 5
  * (Giao/nhận & sự cố).
  *
- * `incidents` chạy cuối cùng — `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §7
+ * `incidents` chạy trước `finance` — `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §7
  * đọc trực tiếp `ReturnRecord` đã seed (qua `RETURN_RECORDS_STORAGE_KEY` của
  * `handover-return/api.ts`) để lấy ĐÚNG id một `ReturnIncidentItem` có thật
  * (không bịa id) khi tạo 1-2 `Incident` nguồn `RETURN` — buộc phải chạy sau
  * `handover-return/seed`.
+ *
+ * `finance` chạy cuối cùng — `docs/RENTAL-SETTLEMENT-PLAN.md` §7 đọc trực tiếp
+ * `Rental`/`ReturnRecord`/`HandoverRecord`/`Incident` đã seed (qua storage key
+ * export từ barrel `@/features/rentals`/`@/features/handover-return`/
+ * `@/features/incidents`) để dựng `Settlement` bằng chính hàm thuần
+ * `buildSourceLines`/`calcSettlementTotals`/`calcDepositReconciliation` — buộc
+ * phải chạy sau cả 3 feature nguồn.
  */
 
 import '@/features/employees/seed'
@@ -45,3 +52,4 @@ import '@/features/calendar/seed'
 import '@/features/contracts/seed'
 import '@/features/handover-return/seed'
 import '@/features/incidents/seed'
+import '@/features/finance/seed'

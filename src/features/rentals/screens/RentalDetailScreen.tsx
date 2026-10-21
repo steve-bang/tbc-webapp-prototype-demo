@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 // `customers`/`vehicles` chưa export `useCustomers`/`useVehicles` qua barrel
 // `index.ts` nên import thẳng từ `hooks.ts` của feature đó — cùng tinh thần
 // `RentalListScreen`/`RentalFormSheet`.
 import { useCustomers } from '@/features/customers/hooks'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { usePermission } from '@/features/auth'
+// RENTAL-SETTLEMENT-PLAN.md §5.3 — tab "Quyết toán", qua barrel `@/features/finance`.
+import { SettlementWorksheet } from '@/features/finance'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
@@ -33,8 +35,12 @@ import { canCancel } from '../model'
  */
 export function RentalDetailScreen() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const { can } = usePermission()
   const canConfirmAction = can('RENTAL', 'CONFIRM') // dùng chung cho cả Xác nhận lẫn Huỷ — nguồn permissions.ts
+  // RENTAL-SETTLEMENT-PLAN.md §5.3 — ẩn hẳn tab khi thiếu quyền (tiền lệ ẩn tab DI-BR-22).
+  const canViewSettlement = can('SETTLEMENT', 'VIEW')
+  const defaultTab = searchParams.get('tab') ?? 'overview'
 
   const { data: rental, isLoading } = useRental(id)
   const { data: allRentals } = useRentals()
@@ -91,10 +97,11 @@ export function RentalDetailScreen() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={defaultTab}>
         <TabsList className="max-w-full">
           <TabsTrigger value="overview">{vi.rentals.tabOverview}</TabsTrigger>
           <TabsTrigger value="pricing">{vi.rentals.tabPricing}</TabsTrigger>
+          {canViewSettlement && <TabsTrigger value="settlement">{vi.rentals.tabSettlement}</TabsTrigger>}
           <TabsTrigger value="payment">{vi.rentals.tabPayment}</TabsTrigger>
           <TabsTrigger value="contract">{vi.rentals.tabContract}</TabsTrigger>
           <TabsTrigger value="handoverReturn">{vi.rentals.tabHandoverReturn}</TabsTrigger>
@@ -109,6 +116,11 @@ export function RentalDetailScreen() {
         <TabsContent value="pricing">
           <RentalPricingTab rental={rental} />
         </TabsContent>
+        {canViewSettlement && (
+          <TabsContent value="settlement">
+            <SettlementWorksheet rentalId={rental.id} />
+          </TabsContent>
+        )}
         <TabsContent value="payment">
           <RentalDetailPlaceholder note={vi.rentals.paymentPlaceholder} />
         </TabsContent>

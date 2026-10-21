@@ -20,8 +20,10 @@ import {
   canCancel,
   canCancelHandover,
   canCancelReturn,
+  canCompleteRental,
   canConfirm,
   canMarkContractCreated,
+  canOpenSettlement,
   rentalDurationDays,
   type Rental,
 } from './model'
@@ -326,6 +328,65 @@ export async function revertReturnCancelled(id: string, actor: ActorInfo): Promi
       actorRole: actor.role,
       before: { status: before.status },
       after: { status: 'IN_RENTAL' },
+    })
+    return after
+  })
+}
+
+/**
+ * `docs/RENTAL-SETTLEMENT-PLAN.md` §0.2/§3.8 — ngoại lệ kiến trúc có chủ đích,
+ * round THỨ 3 (sau `contracts`, `handover-return`), chỉ `features/finance`
+ * (`RS`) gọi hàm này (qua barrel `index.ts`) sau khi ghi `Settlement` `DRAFT`
+ * thành công. Mirror `markContractCreated()`.
+ */
+export async function markSettlementOpened(id: string, actor: ActorInfo): Promise<Rental> {
+  return fakeRequest(() => {
+    const all = readAll()
+    const before = findOrThrow(all, id)
+    if (!canOpenSettlement(before)) {
+      throw new Error(`Không thể chuyển lượt thuê đang ở trạng thái ${before.status} sang Đang quyết toán`)
+    }
+    const after: Rental = { ...before, status: 'SETTLEMENT', updatedAt: new Date().toISOString() }
+    writeAll(all.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'MARK_RENTAL_SETTLEMENT',
+      entity: 'Rental',
+      entityId: id,
+      summary: `Mở quyết toán cho lượt thuê ${before.id}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: 'SETTLEMENT' },
+    })
+    return after
+  })
+}
+
+/**
+ * `docs/RENTAL-SETTLEMENT-PLAN.md` §0.2/§3.8 — cùng ngoại lệ kiến trúc, chỉ
+ * `features/finance` gọi sau khi ghi `Settlement` `COMPLETED` thành công
+ * (UC-RS-13).
+ */
+export async function markRentalCompleted(id: string, actor: ActorInfo): Promise<Rental> {
+  return fakeRequest(() => {
+    const all = readAll()
+    const before = findOrThrow(all, id)
+    if (!canCompleteRental(before)) {
+      throw new Error(`Không thể chuyển lượt thuê đang ở trạng thái ${before.status} sang Hoàn tất`)
+    }
+    const after: Rental = { ...before, status: 'COMPLETED', updatedAt: new Date().toISOString() }
+    writeAll(all.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'COMPLETE_RENTAL',
+      entity: 'Rental',
+      entityId: id,
+      summary: `Đóng lượt thuê ${before.id}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: 'COMPLETED' },
     })
     return after
   })

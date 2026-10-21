@@ -201,12 +201,67 @@ export const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'E_WALLET', 'OFFSET', '
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
 /**
- * Trạng thái quyết toán (Settlement) — BA đề xuất cho bản demo, tài liệu gốc
- * chỉ mô tả bằng hành vi ("chốt từng dòng" → "đóng lượt"), chưa đặt tên state
- * machine riêng. Dùng tạm để dựng UI; xác nhận lại với BA khi làm SRS thật.
+ * Trạng thái quyết toán (Settlement) — `RentalSettlement-UseCase.md` §4 (State
+ * Model, đã verify) · `docs/RENTAL-SETTLEMENT-PLAN.md` §0.1. Sửa đúng theo tài
+ * liệu (trước đây là enum scaffold sai `['DRAFT','CONFIRMED','CLOSED','REVERSED']`
+ * do tài liệu gốc chưa đọc tới — KHÔNG có chỗ nào trong `src/` dùng
+ * `SettlementStatus` ngoài chính định nghĩa này nên sửa an toàn). `REVERSED` là
+ * tên HÀNH ĐỘNG (audit action `REVERSE_SETTLEMENT`), không phải state đích —
+ * đảo quyết toán đưa `COMPLETED` quay lại `DRAFT` (UC-RS-16, Round 2).
  */
-export const SETTLEMENT_STATUSES = ['DRAFT', 'CONFIRMED', 'CLOSED', 'REVERSED'] as const
+export const SETTLEMENT_STATUSES = ['DRAFT', 'PENDING_CUSTOMER', 'WAITING_APPROVAL', 'CONFIRMED', 'COMPLETED'] as const
 export type SettlementStatus = (typeof SETTLEMENT_STATUSES)[number]
+
+/** `docs/RENTAL-SETTLEMENT-PLAN.md` §2.2 — nguồn dòng khoản mục quyết toán, `RentalSettlement-BRD.md` §6. */
+export const SETTLEMENT_LINE_SOURCES = ['RENTAL', 'RETURN', 'INCIDENT', 'MANUAL', 'SYSTEM'] as const
+export type SettlementLineSource = (typeof SETTLEMENT_LINE_SOURCES)[number]
+
+/** `docs/RENTAL-SETTLEMENT-PLAN.md` §2.2 — trạng thái dòng khoản mục, `RentalSettlement-BRD.md` §6. */
+export const SETTLEMENT_LINE_STATUSES = ['DRAFT', 'CONFIRMED', 'WAIVED', 'DISPUTED'] as const
+export type SettlementLineStatus = (typeof SETTLEMENT_LINE_STATUSES)[number]
+
+/**
+ * `docs/RENTAL-SETTLEMENT-PLAN.md` §2.2 — danh mục khoản mục quyết toán.
+ * `RentalSettlement-BRD.md` §8 chỉ liệt kê tên tiếng Việt, chưa có mã enum
+ * chính thức — BA đề xuất mã, ánh xạ 1-1 với `ADDITIONAL_CHARGE_TYPES` của
+ * `VehicleReturn` (`EXTRA_KM→EXTRA_KM`, `FUEL_DEFICIT→FUEL_DEFICIT`,
+ * `OVERTIME→OVERTIME`, `DAMAGE→DAMAGE`, `VETC→VETC`, `TRAFFIC_FINE→TRAFFIC_FINE`,
+ * `MISSING_ACCESSORY→MISSING_ACCESSORY`, `DELIVERY_FEE→DELIVERY_FEE`,
+ * `OTHER→RETURN_OTHER`, `DISCOUNT→RETURN_DISCOUNT`).
+ */
+export const SETTLEMENT_LINE_CATEGORIES = [
+  'BASE_RENTAL',
+  'CONTRACT_DISCOUNT',
+  'EXTRA_KM',
+  'FUEL_DEFICIT',
+  'OVERTIME',
+  'DELIVERY_FEE',
+  'DAMAGE',
+  'MISSING_ACCESSORY',
+  'VETC',
+  'TRAFFIC_FINE',
+  'RETURN_DISCOUNT',
+  'RETURN_OTHER',
+  'INCIDENT',
+  'MANUAL_OTHER',
+] as const
+export type SettlementLineCategory = (typeof SETTLEMENT_LINE_CATEGORIES)[number]
+
+/** `docs/RENTAL-SETTLEMENT-PLAN.md` §2.2 — `RentalSettlement-BRD.md` §12. */
+export const SETTLEMENT_WAIVER_TYPES = ['WAIVE_LINE', 'PARTIAL_DISCOUNT', 'GOODWILL_CREDIT'] as const
+export type SettlementWaiverType = (typeof SETTLEMENT_WAIVER_TYPES)[number]
+
+/** `docs/RENTAL-SETTLEMENT-PLAN.md` §2.2 — BA đề xuất (BRD §14 chỉ mô tả hành vi, chưa đặt tên trạng thái). */
+export const SETTLEMENT_WAIVER_STATUSES = ['APPROVED', 'PENDING_APPROVAL', 'REJECTED'] as const
+export type SettlementWaiverStatus = (typeof SETTLEMENT_WAIVER_STATUSES)[number]
+
+/** `docs/RENTAL-SETTLEMENT-PLAN.md` §2.2 — `RentalSettlement-BRD.md` §15 (đồng bộ từ Payment, RS-BR-11; Phase 4.1 chỉ dùng `UNPAID`/`REFUND_PENDING`, §0.3). */
+export const SETTLEMENT_PAYMENT_STATUSES = ['UNPAID', 'PARTIALLY_PAID', 'PAID', 'REFUND_PENDING', 'REFUNDED'] as const
+export type SettlementPaymentStatus = (typeof SETTLEMENT_PAYMENT_STATUSES)[number]
+
+/** `docs/RENTAL-SETTLEMENT-PLAN.md` §2.2 — `RentalSettlement-BRD.md` §15 + EX-03 (BA đề xuất mã). */
+export const SETTLEMENT_REQUEST_TYPES = ['COLLECT', 'DEPOSIT_REFUND', 'OVERPAYMENT_REFUND'] as const
+export type SettlementRequestType = (typeof SETTLEMENT_REQUEST_TYPES)[number]
 
 /** Danh mục chi phí — `RevenueCost-BRD.md`. */
 export const COST_CATEGORIES = [
@@ -407,5 +462,26 @@ export const AUDIT_ACTIONS = [
   'CREATE_ASSIGNMENT',
   'REASSIGN_ASSIGNMENT',
   'CANCEL_ASSIGNMENT',
+  // Rental Settlement (RS) — RENTAL-SETTLEMENT-PLAN.md §9.4 (UC-RS-21), Round 1.
+  'OPEN_SETTLEMENT',
+  'SYNC_SETTLEMENT_SOURCES',
+  'CONFIRM_SETTLEMENT_LINE',
+  'UPDATE_SETTLEMENT_LINE',
+  'ADD_SETTLEMENT_MANUAL_LINE',
+  'REMOVE_SETTLEMENT_MANUAL_LINE',
+  'APPLY_SETTLEMENT_WAIVER',
+  'DISPUTE_SETTLEMENT_LINE',
+  'RESOLVE_SETTLEMENT_DISPUTE',
+  'RECONCILE_SETTLEMENT_DEPOSIT',
+  'SUBMIT_SETTLEMENT_FOR_CUSTOMER',
+  'RECORD_SETTLEMENT_CUSTOMER_ACK',
+  'APPROVE_SETTLEMENT',
+  'REJECT_SETTLEMENT',
+  'CREATE_SETTLEMENT_COLLECT_REQUEST',
+  'CREATE_SETTLEMENT_REFUND_REQUEST',
+  'COMPLETE_SETTLEMENT',
+  // Rentals (RM) — đi cùng Settlement (RENTAL-SETTLEMENT-PLAN.md §3.8/§9.4).
+  'MARK_RENTAL_SETTLEMENT',
+  'COMPLETE_RENTAL',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

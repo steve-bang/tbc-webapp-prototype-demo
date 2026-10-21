@@ -217,8 +217,9 @@ const ROUND1_TRANSITIONS: Partial<Record<RentalStatus, RentalStatus[]>> = {
   // + 4 dòng dưới — `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §0.3/§3.4 (revert khi Huỷ Handover/Return có kiểm soát).
   HANDED_OVER: ['READY_FOR_HANDOVER'], // revert khi Huỷ Handover
   IN_RENTAL: ['READY_FOR_HANDOVER'], // revert khi Huỷ Handover (nếu đã tự tiến từ HANDED_OVER)
-  RETURNED: ['IN_RENTAL'], // revert khi Huỷ Return
-  SETTLEMENT: ['IN_RENTAL'], // revert khi Huỷ Return (nếu đã tự tiến từ RETURNED)
+  // + SETTLEMENT/COMPLETED — `docs/RENTAL-SETTLEMENT-PLAN.md` §3.8 (UC-RS-01/UC-RS-13), round THỨ 3 mở rộng.
+  RETURNED: ['IN_RENTAL', 'SETTLEMENT'], // revert khi Huỷ Return / mở quyết toán
+  SETTLEMENT: ['IN_RENTAL', 'COMPLETED'], // revert khi Huỷ Return (nếu đã tự tiến từ RETURNED) / đóng lượt
 }
 
 /**
@@ -275,6 +276,22 @@ export function canCancelHandover(rental: Rental): boolean {
 }
 export function canCancelReturn(rental: Rental): boolean {
   return ROUND1_TRANSITIONS[rental.status]?.includes('IN_RENTAL') ?? false
+}
+
+/**
+ * `docs/RENTAL-SETTLEMENT-PLAN.md` §3.8 — round THỨ 3 được phép mở rộng
+ * `rentals/model.ts`/`api.ts`/`index.ts`, giới hạn ở 2 transition thuận
+ * `RETURNED → SETTLEMENT` (UC-RS-01, RS-BR-02) và `SETTLEMENT → COMPLETED`
+ * (UC-RS-13). Mirror `canMarkContractCreated()`. Trả `true` cho cả `RETURNED`
+ * (mở quyết toán lần đầu) và `SETTLEMENT` (đã mở — để nhánh "không gọi lại
+ * `markSettlementOpened`" ở `finance/api.ts` chạy tới; tech-lead review Phase
+ * 4.1 R1 Nên sửa 4) — không dùng `ROUND1_TRANSITIONS` vì nó không tự-map.
+ */
+export function canOpenSettlement(rental: Rental): boolean {
+  return rental.status === 'RETURNED' || rental.status === 'SETTLEMENT'
+}
+export function canCompleteRental(rental: Rental): boolean {
+  return ROUND1_TRANSITIONS[rental.status]?.includes('COMPLETED') ?? false
 }
 
 /**

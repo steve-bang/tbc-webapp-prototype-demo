@@ -1,7 +1,8 @@
 # Kế hoạch triển khai — Quyết toán lượt thuê (Rental Settlement)
 
-**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (21/10/2026 — người dùng duyệt) — kế hoạch chi
-tiết Phase 4.1, Round 1 đã giao `dev`. Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở → chốt → khách xác nhận →
+**Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (21/10/2026 — người dùng duyệt) · **Round 1
+`DONE`** (21/10/2026 — đạt sau 2 vòng review `tech-lead`) · Round 2 chưa giao — kế hoạch chi
+tiết Phase 4.1. Chia **2 round**: Round 1 = lõi Settlement Worksheet (mở → chốt → khách xác nhận →
 duyệt → yêu cầu thu/hoàn → đóng lượt); Round 2 = Post-Settlement Charge + Điều chỉnh sau `COMPLETED`
 + Đảo quyết toán.
 

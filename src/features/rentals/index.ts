@@ -23,3 +23,9 @@ export { markContractCreated } from './api'
 // `cancelReturn()` — cùng lý do không dùng hook được như `markContractCreated`.
 export { canCancelHandover, canCancelReturn, canMarkHandedOver, canMarkReturned } from './model'
 export { revertHandoverCancelled, revertReturnCancelled } from './api'
+// RENTAL-SETTLEMENT-PLAN.md §0.2/§3.8 — ngoại lệ kiến trúc có chủ đích thứ 3
+// (sau `contracts`, `handover-return`), chỉ `features/finance` dùng các export
+// này. `RENTALS_STORAGE_KEY` cho phép `finance/api.ts`/`seed.ts` đọc Rental qua
+// `readJson()` (vẫn qua barrel, không deep-import `rentals/api.ts`).
+export { canCompleteRental, canOpenSettlement } from './model'
+export { RENTALS_STORAGE_KEY, markRentalCompleted, markSettlementOpened } from './api'

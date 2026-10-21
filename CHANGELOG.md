@@ -13,6 +13,18 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ### 2026-10-21
 
+**Added**
+
+- **Phase 4.1 Round 1 — Quyết toán lượt thuê** (`features/finance`, module `RS`) theo
+  [`docs/RENTAL-SETTLEMENT-PLAN.md`](docs/RENTAL-SETTLEMENT-PLAN.md): màn `/finance/settlement` + tab
+  "Quyết toán" ở Rental Detail; Settlement Worksheet mở thủ công từ Rental `RETURNED` → chốt dòng →
+  dòng MANUAL / miễn giảm theo ngưỡng duyệt → đối trừ cọc → khách xác nhận → duyệt/trả lại → yêu cầu
+  thu/hoàn (chỉ ghi yêu cầu, chưa có Payment) → đóng lượt `RETURNED → SETTLEMENT → COMPLETED`. Sửa
+  `SETTLEMENT_STATUSES` đúng State Model, seed Settlement chạy cuối, `SEED_VERSION` 13. Qua 2 vòng
+  review `tech-lead`: 3 Blocker vòng 1 đã sửa (miễn nguyên dòng ghi đè `actualAmount`; trả lại quyết
+  toán không khôi phục dòng `WAIVED`; đóng lượt/gửi khách khi biên bản trả xe đã huỷ) + 8 điểm "Nên
+  sửa". Round 2 (Post-Settlement Charge, điều chỉnh sau `COMPLETED`, đảo quyết toán) chưa làm.
+
 **Planned**
 
 - Thêm [`docs/RENTAL-SETTLEMENT-PLAN.md`](docs/RENTAL-SETTLEMENT-PLAN.md): kế hoạch triển khai

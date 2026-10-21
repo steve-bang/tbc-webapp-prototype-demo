@@ -1,0 +1,332 @@
+// `handover-return`/`incidents`/`rentals` — CHỈ qua barrel (RENTAL-SETTLEMENT-PLAN.md §0.2),
+// đọc trực tiếp storage key đã export để lấy dữ liệu seed thật (tiền lệ `incidents/seed.ts`
+// đọc `RETURN_RECORDS_STORAGE_KEY`).
+import { HANDOVER_RECORDS_STORAGE_KEY, RETURN_RECORDS_STORAGE_KEY, type HandoverRecord, type ReturnRecord } from '@/features/handover-return'
+import { INCIDENTS_STORAGE_KEY, type Incident } from '@/features/incidents'
+import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
+import { registerSeedStep } from '@/shared/fixtures/seedAll'
+import { generateId } from '@/shared/lib/id'
+import { readJson, writeJson } from '@/shared/lib/storage'
+import { SETTLEMENTS_STORAGE_KEY } from './api'
+import {
+  buildSourceLines,
+  calcDepositHeld,
+  calcDepositReconciliation,
+  calcPaidToDate,
+  calcSettlementTotals,
+  type DepositReconciliation,
+  type Settlement,
+  type SettlementLine,
+  type SettlementPaymentRequest,
+  type SettlementWaiver,
+} from './model'
+
+/** Mirror `dt()` của `incidents/seed.ts`/`handover-return/seed.ts` — tính ngày động từ hôm nay. */
+function dt(daysOffset: number, hour: number, minute = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + daysOffset)
+  d.setHours(hour, minute, 0, 0)
+  return d.toISOString()
+}
+
+const ACCOUNTANT = 'Lý Thị Kế Toán' // mirror vai trò ACCOUNTANT dùng ở auth demo
+const MANAGER = 'Trần Thị Quản Lý'
+
+/** Chốt mọi dòng `DRAFT` thành `CONFIRMED` với `actualAmount = estimatedAmount` — demo "đã xử lý xong". */
+function confirmAllLines(lines: SettlementLine[], confirmedAt: string): SettlementLine[] {
+  return lines.map((line) =>
+    line.status === 'DRAFT'
+      ? { ...line, status: 'CONFIRMED' as const, actualAmount: line.estimatedAmount ?? 0, confirmedByName: ACCOUNTANT, confirmedAt }
+      : line,
+  )
+}
+
+/**
+ * `docs/RENTAL-SETTLEMENT-PLAN.md` §7 — seed 5 Settlement dựng bằng chính các
+ * hàm thuần (`buildSourceLines`/`calcSettlementTotals`/`calcDepositReconciliation`),
+ * không gõ tay số tổng (tiền lệ `handover-return/seed.ts`). `rt_020`/`rt_021`
+ * KHÔNG seed (demo "Mở quyết toán" + EX-01 từ UI).
+ */
+function seedFinance(): void {
+  const rentals = readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? []
+  const returns = readJson<ReturnRecord[]>(RETURN_RECORDS_STORAGE_KEY) ?? []
+  const handovers = readJson<HandoverRecord[]>(HANDOVER_RECORDS_STORAGE_KEY) ?? []
+  const incidents = readJson<Incident[]>(INCIDENTS_STORAGE_KEY) ?? []
+
+  function rentalOrThrow(id: string): Rental {
+    const r = rentals.find((x) => x.id === id)
+    if (!r) throw new Error(`finance/seed.ts: không tìm thấy Rental ${id}`)
+    return r
+  }
+  function completedReturnOf(rentalId: string): ReturnRecord | undefined {
+    return returns.find((r) => r.rentalId === rentalId && r.status === 'COMPLETED')
+  }
+  function completedHandoverOf(rentalId: string): HandoverRecord | undefined {
+    return handovers.find((h) => h.rentalId === rentalId && h.status === 'COMPLETED')
+  }
+  function incidentsOf(rentalId: string): Incident[] {
+    return incidents.filter((i) => i.rentalId === rentalId)
+  }
+
+  const settlementsToSeed: Settlement[] = []
+
+  // ---- rt_022 — DRAFT: dòng RENTAL CONFIRMED, 2 dòng DRAFT (FUEL_DEFICIT + inc_008), chưa đối trừ cọc. ----
+  {
+    const rentalId = 'rt_022'
+    const rental = rentalOrThrow(rentalId)
+    const returnRecord = completedReturnOf(rentalId)
+    const handover = completedHandoverOf(rentalId)
+    const openedAt = dt(-2, 10)
+    const settlement: Settlement = {
+      id: 'stl_022',
+      rentalId,
+      customerId: rental.customerId,
+      vehicleId: rental.vehicleId,
+      status: 'DRAFT',
+      lines: buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }),
+      waivers: [],
+      securityDepositType: rental.securityDepositType,
+      paidToDate: calcPaidToDate(rental, handover),
+      depositHeld: calcDepositHeld(rental, handover),
+      paymentRequests: [],
+      openedByName: ACCOUNTANT,
+      openedAt,
+      createdAt: openedAt,
+      updatedAt: openedAt,
+    }
+    settlementsToSeed.push(settlement)
+  }
+
+  // ---- rt_023 — WAITING_APPROVAL: mọi dòng CONFIRMED, 1 GOODWILL_CREDIT 300k PENDING_APPROVAL
+  //      (mirror AC-RS-006), đã đối trừ cọc (Held 0, MOTORBIKE), có customerAck. ----
+  {
+    const rentalId = 'rt_023'
+    const rental = rentalOrThrow(rentalId)
+    const returnRecord = completedReturnOf(rentalId)
+    const handover = completedHandoverOf(rentalId)
+    const openedAt = dt(-8, 10)
+    const confirmedAt = dt(-7, 11)
+    const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }), confirmedAt)
+    const waiver: SettlementWaiver = {
+      id: generateId('wvr'),
+      type: 'GOODWILL_CREDIT',
+      amount: 300_000,
+      reason: 'Khách là khách quen, tặng thiện chí do chờ xe hơi lâu lúc giao xe.',
+      status: 'PENDING_APPROVAL',
+      requestedByName: ACCOUNTANT,
+      requestedByRole: 'ACCOUNTANT',
+      requestedAt: dt(-7, 14),
+    }
+    const paidToDate = calcPaidToDate(rental, handover)
+    const depositHeld = calcDepositHeld(rental, handover)
+    const totals = calcSettlementTotals(lines, [waiver])
+    const reconciliation: DepositReconciliation = {
+      ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
+      reconciledByName: ACCOUNTANT,
+      reconciledAt: dt(-7, 15),
+    }
+    const settlement: Settlement = {
+      id: 'stl_023',
+      rentalId,
+      customerId: rental.customerId,
+      vehicleId: rental.vehicleId,
+      status: 'WAITING_APPROVAL',
+      lines,
+      waivers: [waiver],
+      securityDepositType: rental.securityDepositType,
+      paidToDate,
+      depositHeld,
+      depositReconciliation: reconciliation,
+      customerAck: { recordedByName: ACCOUNTANT, recordedAt: dt(-7, 16), note: 'Khách đồng ý toàn bộ bảng quyết toán qua Zalo.' },
+      paymentRequests: [],
+      openedByName: ACCOUNTANT,
+      openedAt,
+      createdAt: openedAt,
+      updatedAt: dt(-7, 16),
+    }
+    settlementsToSeed.push(settlement)
+  }
+
+  // ---- rt_024 — COMPLETED: đủ dòng, đối trừ một phần cọc, yêu cầu DEPOSIT_REFUND, REFUND_PENDING. ----
+  {
+    const rentalId = 'rt_024'
+    const rental = rentalOrThrow(rentalId)
+    const returnRecord = completedReturnOf(rentalId)
+    const handover = completedHandoverOf(rentalId)
+    const openedAt = dt(-18, 10)
+    const confirmedAt = dt(-17, 11)
+    const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }), confirmedAt)
+    const paidToDate = calcPaidToDate(rental, handover)
+    const depositHeld = calcDepositHeld(rental, handover)
+    const totals = calcSettlementTotals(lines, [])
+    const reconciliation: DepositReconciliation = {
+      ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
+      reconciledByName: ACCOUNTANT,
+      reconciledAt: dt(-17, 15),
+    }
+    const refundRequest: SettlementPaymentRequest = {
+      id: generateId('pyr'),
+      type: 'DEPOSIT_REFUND',
+      amount: reconciliation.depositRefundable,
+      status: 'REQUESTED',
+      createdByName: ACCOUNTANT,
+      createdAt: dt(-17, 17),
+    }
+    const completedAt = dt(-17, 18)
+    const settlement: Settlement = {
+      id: 'stl_024',
+      rentalId,
+      customerId: rental.customerId,
+      vehicleId: rental.vehicleId,
+      status: 'COMPLETED',
+      lines,
+      waivers: [],
+      securityDepositType: rental.securityDepositType,
+      paidToDate,
+      depositHeld,
+      depositReconciliation: reconciliation,
+      customerAck: { recordedByName: ACCOUNTANT, recordedAt: dt(-17, 16) },
+      approval: undefined,
+      paymentRequests: [refundRequest],
+      paymentStatus: 'REFUND_PENDING',
+      completedWithDebt: false,
+      completedTotals: { ...totals, ...reconciliation },
+      completedByName: MANAGER,
+      completedAt,
+      openedByName: ACCOUNTANT,
+      openedAt,
+      createdAt: openedAt,
+      updatedAt: completedAt,
+    }
+    settlementsToSeed.push(settlement)
+  }
+
+  // ---- rt_025 — COMPLETED: có 1 PARTIAL_DISCOUNT ≤ ngưỡng, APPROVED; yêu cầu DEPOSIT_REFUND. ----
+  {
+    const rentalId = 'rt_025'
+    const rental = rentalOrThrow(rentalId)
+    const returnRecord = completedReturnOf(rentalId)
+    const handover = completedHandoverOf(rentalId)
+    const openedAt = dt(-28, 10)
+    const confirmedAt = dt(-27, 11)
+    const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }), confirmedAt)
+    const trafficFineLine = lines.find((l) => l.category === 'TRAFFIC_FINE')
+    const waiver: SettlementWaiver = {
+      id: generateId('wvr'),
+      type: 'PARTIAL_DISCOUNT',
+      lineId: trafficFineLine?.id,
+      amount: 50_000,
+      reason: 'Giảm một phần phạt nguội do khách chủ động báo sớm (≤ ngưỡng, Accountant tự duyệt).',
+      status: 'APPROVED',
+      requestedByName: ACCOUNTANT,
+      requestedByRole: 'ACCOUNTANT',
+      requestedAt: dt(-27, 12),
+      decidedByName: ACCOUNTANT,
+      decidedAt: dt(-27, 12),
+    }
+    const paidToDate = calcPaidToDate(rental, handover)
+    const depositHeld = calcDepositHeld(rental, handover)
+    const totals = calcSettlementTotals(lines, [waiver])
+    const reconciliation: DepositReconciliation = {
+      ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
+      reconciledByName: ACCOUNTANT,
+      reconciledAt: dt(-27, 15),
+    }
+    const refundRequest: SettlementPaymentRequest = {
+      id: generateId('pyr'),
+      type: 'DEPOSIT_REFUND',
+      amount: reconciliation.depositRefundable,
+      status: 'REQUESTED',
+      createdByName: ACCOUNTANT,
+      createdAt: dt(-27, 17),
+    }
+    const completedAt = dt(-27, 18)
+    const settlement: Settlement = {
+      id: 'stl_025',
+      rentalId,
+      customerId: rental.customerId,
+      vehicleId: rental.vehicleId,
+      status: 'COMPLETED',
+      lines,
+      waivers: [waiver],
+      securityDepositType: rental.securityDepositType,
+      paidToDate,
+      depositHeld,
+      depositReconciliation: reconciliation,
+      customerAck: { recordedByName: ACCOUNTANT, recordedAt: dt(-27, 16) },
+      paymentRequests: [refundRequest],
+      paymentStatus: 'REFUND_PENDING',
+      completedWithDebt: false,
+      completedTotals: { ...totals, ...reconciliation },
+      completedByName: MANAGER,
+      completedAt,
+      openedByName: ACCOUNTANT,
+      openedAt,
+      createdAt: openedAt,
+      updatedAt: completedAt,
+    }
+    settlementsToSeed.push(settlement)
+  }
+
+  // ---- rt_026 — COMPLETED: KHÔNG có dòng sự cố (inc_010 DISPUTED chốt sau — RS-BR-24, §7 kế hoạch);
+  //      còn Balance Due → yêu cầu COLLECT, `completedWithDebt = true` (chưa qua Payment). ----
+  {
+    const rentalId = 'rt_026'
+    const rental = rentalOrThrow(rentalId)
+    const returnRecord = completedReturnOf(rentalId)
+    const handover = completedHandoverOf(rentalId)
+    const openedAt = dt(-13, 10)
+    const confirmedAt = dt(-12, 11)
+    // inc_010 (DISPUTED) CỐ Ý không truyền vào `incidents` — Settlement này đã đóng trước khi
+    // sự cố bị tranh chấp lại (Round 2 sẽ thêm Post-Settlement Charge cho inc_010).
+    const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: [] }), confirmedAt)
+    const paidToDate = calcPaidToDate(rental, handover)
+    const depositHeld = calcDepositHeld(rental, handover)
+    const totals = calcSettlementTotals(lines, [])
+    const reconciliation: DepositReconciliation = {
+      ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
+      reconciledByName: ACCOUNTANT,
+      reconciledAt: dt(-12, 15),
+    }
+    const collectRequest: SettlementPaymentRequest = {
+      id: generateId('pyr'),
+      type: 'COLLECT',
+      amount: reconciliation.balanceDue,
+      status: 'REQUESTED',
+      createdByName: ACCOUNTANT,
+      createdAt: dt(-12, 17),
+    }
+    const completedAt = dt(-12, 18)
+    const settlement: Settlement = {
+      id: 'stl_026',
+      rentalId,
+      customerId: rental.customerId,
+      vehicleId: rental.vehicleId,
+      status: 'COMPLETED',
+      lines,
+      waivers: [],
+      securityDepositType: rental.securityDepositType,
+      paidToDate,
+      depositHeld,
+      depositReconciliation: reconciliation,
+      customerAck: { recordedByName: ACCOUNTANT, recordedAt: dt(-12, 16) },
+      paymentRequests: [collectRequest],
+      paymentStatus: 'UNPAID',
+      // TODO(OQ: RentalSettlement-BRD.md §28 Q11/Q12 — đóng lượt khi còn công nợ; demo: cho đóng vì
+      // đã tạo yêu cầu thu, đánh dấu completedWithDebt, chờ Payment (Phase 4.2) xác nhận đã thu đủ.
+      completedWithDebt: true,
+      completedTotals: { ...totals, ...reconciliation },
+      completedByName: MANAGER,
+      completedAt,
+      openedByName: ACCOUNTANT,
+      openedAt,
+      createdAt: openedAt,
+      updatedAt: completedAt,
+    }
+    settlementsToSeed.push(settlement)
+  }
+
+  writeJson(SETTLEMENTS_STORAGE_KEY, settlementsToSeed)
+}
+
+registerSeedStep(seedFinance)
