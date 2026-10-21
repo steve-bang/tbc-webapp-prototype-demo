@@ -3,7 +3,7 @@ import { usePermission, useSessionStore } from '@/features/auth'
 // `customers` chưa export `useCustomers` qua barrel — deep-import thẳng
 // `hooks.ts`, cùng tiền lệ `SettlementListScreen`.
 import { useCustomers } from '@/features/customers/hooks'
-import { PAYMENT_METHOD_LABELS, vi } from '@/shared/i18n/vi'
+import { PAYMENT_METHOD_LABELS, TRANSACTION_DIRECTION_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
@@ -187,30 +187,42 @@ export function CashDrawerScreen() {
                           <TableRow>
                             <TableHead>{vi.finance.payment.ledgerColumnCode}</TableHead>
                             <TableHead>{vi.finance.payment.ledgerColumnPerformedAt}</TableHead>
+                            <TableHead>{vi.finance.payment.ledgerColumnDirection}</TableHead>
                             <TableHead>{vi.finance.payment.ledgerColumnAmount}</TableHead>
                             <TableHead>{vi.finance.payment.ledgerColumnMethod}</TableHead>
                             <TableHead>{vi.common.actions}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {reconcileList.map((t) => (
-                            <TableRow key={t.id}>
-                              <TableCell className="font-mono text-xs">{t.code}</TableCell>
-                              <TableCell>{formatDateTime(t.performedAt)}</TableCell>
-                              <TableCell>{formatVnd(t.amount)}</TableCell>
-                              <TableCell>{PAYMENT_METHOD_LABELS[t.method]}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button size="sm" onClick={() => setConfirmTxn(t)}>
-                                    {vi.finance.payment.actionConfirm}
-                                  </Button>
-                                  <Button size="sm" variant="outline" onClick={() => setFailTxn(t)}>
-                                    {vi.finance.payment.actionFail}
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          {reconcileList.map((t) => {
+                            // Round 2 (§10.9) — ẩn nút Xác nhận inline khi giao dịch hoàn đang `PENDING_APPROVAL`.
+                            const awaitingApproval = t.approval?.status === 'PENDING_APPROVAL'
+                            return (
+                              <TableRow key={t.id}>
+                                <TableCell className="font-mono text-xs">{t.code}</TableCell>
+                                <TableCell>{formatDateTime(t.performedAt)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={t.direction === 'IN' ? 'success' : 'warning'}>{TRANSACTION_DIRECTION_LABELS[t.direction]}</Badge>
+                                </TableCell>
+                                <TableCell>{formatVnd(t.amount)}</TableCell>
+                                <TableCell>{PAYMENT_METHOD_LABELS[t.method]}</TableCell>
+                                <TableCell>
+                                  {awaitingApproval ? (
+                                    <Badge variant="warning">{vi.finance.payment.cashDrawerPendingApprovalBadge}</Badge>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <Button size="sm" onClick={() => setConfirmTxn(t)}>
+                                        {t.direction === 'OUT' ? vi.finance.payment.actionConfirmPaid : vi.finance.payment.actionConfirm}
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => setFailTxn(t)}>
+                                        {vi.finance.payment.actionFail}
+                                      </Button>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
                         </TableBody>
                       </Table>
                     </div>

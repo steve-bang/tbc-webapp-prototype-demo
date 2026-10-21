@@ -10,7 +10,9 @@ import type {
   ConfirmTransactionInput,
   CreateAdjustmentInput,
   CreatePostSettlementChargeInput,
+  CreateRefundTransactionInput,
   CustomerAckInput,
+  DecideRefundApprovalInput,
   ManualLineInput,
   PaymentRequestFilter,
   PostSettlementChargeFilter,
@@ -22,6 +24,20 @@ import type {
   TransactionFilter,
   WaiverInput,
 } from './api'
+
+/**
+ * PAYMENT-PLAN.md §10.10 — F5: Settlement dùng key `['settlements']`, PSC dùng
+ * `['postSettlementCharges']`, Payment dùng `['finance','payment']`; Round 2 có
+ * ghi chéo ba phía nên mọi mutation Payment VÀ mọi mutation Settlement có ghi
+ * chéo sang Payment (OFFSET, huỷ yêu cầu, đóng PSC tự động…) phải invalidate
+ * đủ cả ba namespace.
+ */
+function invalidateFinanceAll(queryClient: ReturnType<typeof useQueryClient>, rentalId?: string) {
+  queryClient.invalidateQueries({ queryKey: ['finance', 'payment'] })
+  queryClient.invalidateQueries({ queryKey: ['settlements'] })
+  if (rentalId) queryClient.invalidateQueries({ queryKey: ['settlements', 'byRental', rentalId] })
+  queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] })
+}
 
 /** Mirror `rentals/hooks.ts`/`incidents/hooks.ts` — fallback khi mất session là `OPERATION_STAFF` (quyền thấp nhất). */
 function useActor(): ActorInfo {
@@ -63,7 +79,10 @@ export function useOpenSettlement() {
   const actor = useActor()
   return useMutation({
     mutationFn: (rentalId: string) => api.openSettlement(rentalId, actor),
-    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId, true),
+    onSuccess: (settlement) => {
+      invalidateSettlements(queryClient, settlement.rentalId, true)
+      invalidateFinanceAll(queryClient, settlement.rentalId)
+    },
   })
 }
 
@@ -72,7 +91,10 @@ export function useResyncSettlementSources() {
   const actor = useActor()
   return useMutation({
     mutationFn: (id: string) => api.resyncSettlementSources(id, actor),
-    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+    onSuccess: (settlement) => {
+      invalidateSettlements(queryClient, settlement.rentalId)
+      invalidateFinanceAll(queryClient, settlement.rentalId)
+    },
   })
 }
 
@@ -153,7 +175,7 @@ export function useRecordSettlementCustomerAck() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: CustomerAckInput }) => api.recordCustomerAck(id, input, actor),
-    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+    onSuccess: (settlement) => invalidateFinanceAll(queryClient, settlement.rentalId),
   })
 }
 
@@ -162,7 +184,7 @@ export function useApproveSettlement() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, note }: { id: string; note?: string }) => api.approveSettlement(id, note, actor),
-    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+    onSuccess: (settlement) => invalidateFinanceAll(queryClient, settlement.rentalId),
   })
 }
 
@@ -180,7 +202,7 @@ export function useCreateSettlementPaymentRequest() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, type }: { id: string; type: SettlementRequestType }) => api.createPaymentRequest(id, type, actor),
-    onSuccess: (settlement) => invalidateSettlements(queryClient, settlement.rentalId),
+    onSuccess: (settlement) => invalidateFinanceAll(queryClient, settlement.rentalId),
   })
 }
 
@@ -208,7 +230,7 @@ export function useCreatePostSettlementCharge() {
   return useMutation({
     mutationFn: ({ settlementId, input }: { settlementId: string; input: CreatePostSettlementChargeInput }) =>
       api.createPostSettlementCharge(settlementId, input, actor),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] }),
+    onSuccess: (psc) => invalidateFinanceAll(queryClient, psc.rentalId),
   })
 }
 
@@ -217,16 +239,7 @@ export function useAdjustSettlement() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ settlementId, input }: { settlementId: string; input: AdjustSettlementInput }) => api.adjustSettlement(settlementId, input, actor),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] }),
-  })
-}
-
-export function useClosePostSettlementCharge() {
-  const queryClient = useQueryClient()
-  const actor = useActor()
-  return useMutation({
-    mutationFn: ({ pscId, closeNote }: { pscId: string; closeNote?: string }) => api.closePostSettlementCharge(pscId, closeNote, actor),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] }),
+    onSuccess: (psc) => invalidateFinanceAll(queryClient, psc.rentalId),
   })
 }
 
@@ -237,7 +250,7 @@ export function useReverseSettlement() {
     mutationFn: ({ settlementId, input }: { settlementId: string; input: ReverseSettlementInput }) => api.reverseSettlement(settlementId, input, actor),
     onSuccess: (settlement) => {
       invalidateSettlements(queryClient, settlement.rentalId, true)
-      queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] })
+      invalidateFinanceAll(queryClient, settlement.rentalId)
     },
   })
 }
@@ -283,7 +296,7 @@ export function useRecordTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: (input: RecordTransactionInput) => api.recordTransaction(input, actor),
-    onSuccess: () => invalidatePayment(queryClient),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
   })
 }
 
@@ -292,7 +305,7 @@ export function useConfirmTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: ConfirmTransactionInput }) => api.confirmTransaction(id, input, actor),
-    onSuccess: () => invalidatePayment(queryClient),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
   })
 }
 
@@ -301,7 +314,7 @@ export function useFailTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.failTransaction(id, reason, actor),
-    onSuccess: () => invalidatePayment(queryClient),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
   })
 }
 
@@ -310,7 +323,7 @@ export function useVoidTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.voidTransaction(id, reason, actor),
-    onSuccess: () => invalidatePayment(queryClient),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
   })
 }
 
@@ -319,7 +332,7 @@ export function useReverseTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.reverseTransaction(id, reason, actor),
-    onSuccess: () => invalidatePayment(queryClient),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
   })
 }
 
@@ -328,7 +341,26 @@ export function useCreateAdjustment() {
   const actor = useActor()
   return useMutation({
     mutationFn: (input: CreateAdjustmentInput) => api.createAdjustment(input, actor),
-    onSuccess: () => invalidatePayment(queryClient),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+  })
+}
+
+// Round 2 — PAYMENT-PLAN.md §10.10.
+export function useCreateRefundTransaction() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ requestId, input }: { requestId: string; input: CreateRefundTransactionInput }) => api.createRefundTransaction(requestId, input, actor),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+  })
+}
+
+export function useDecideRefundApproval() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ transactionId, input }: { transactionId: string; input: DecideRefundApprovalInput }) => api.decideRefundApproval(transactionId, input, actor),
+    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
   })
 }
 

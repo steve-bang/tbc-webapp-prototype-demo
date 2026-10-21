@@ -15,6 +15,17 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 4.2 Round 2 — Thanh toán: thực thi điều phối quyết toán, hoàn tiền, công nợ**
+  (`features/finance`, theo [`docs/PAYMENT-PLAN.md`](docs/PAYMENT-PLAN.md) §10) — Phase 4.2 hoàn tất.
+  Yêu cầu thanh toán `SETTLEMENT`/`POST_SETTLEMENT_CHARGE` 1-1 với yêu cầu thu/hoàn của quyết toán và
+  khoản phát sinh sau quyết toán; cấn trừ cọc `OFFSET` tự động khi quyết toán `CONFIRMED` (hàm hệ thống
+  riêng); hoàn tiền + duyệt hoàn vượt ngưỡng 1tr (PM-BR-12, ngưỡng tạm — OQ); chặn chi tiền mặt vượt
+  quỹ; ghi ngược Payment Status về quyết toán + tự tất toán PSC (bỏ đóng PSC thủ công); đảo quyết toán
+  huỷ yêu cầu/giao dịch chờ + đảo `OFFSET`; `Paid To Date`/cọc đang giữ đọc từ sổ giao dịch. Màn mới
+  `/finance/receivables` (Công nợ khách hàng) + sheet số dư khách, dialog tạo/duyệt hoàn. Sửa kèm 5 lỗi
+  tiềm ẩn của Round 1 (§10.1 F1-F5). `SEED_VERSION` 17. Qua 3 vòng review `tech-lead`: 1 Blocker vòng
+  2 đã sửa (seed xác nhận giao dịch hoàn trước khi được duyệt — trái PM-BR-12) + 3 "Nên sửa" (mốc
+  `updatedAt` giao dịch thất bại, bỏ tham chiếu plan/mã UC khỏi chuỗi hiển thị).
 - **Phase 4.2 Round 1 — Thanh toán: sổ giao dịch lõi + 2 mốc đặt xe/giao xe** (`features/finance`,
   module `PM`, theo [`docs/PAYMENT-PLAN.md`](docs/PAYMENT-PLAN.md)) — màn `/finance/transactions` (Sổ
   giao dịch) + `/finance/cash-drawer` (Quỹ tiền mặt & đối soát CK/ví) + tab "Thanh toán" ở Rental
@@ -23,7 +34,7 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
   dialog (vô hiệu khi đảo), nộp/nhận quỹ tiền mặt. 7 permission + 10 audit action mới, `SEED_VERSION`
   15. Qua 2 vòng review `tech-lead`: 2 Blocker vòng 1 đã sửa (biên lai của giao dịch đã đảo không xem
   lại được/thiếu nhãn vô hiệu — PM-BR-19; sheet chi tiết giao dịch không tự cập nhật sau thao tác) + 2
-  "Nên sửa". Round 2 (thực thi điều phối Settlement, `OFFSET`, hoàn tiền, Công nợ khách hàng) chưa làm.
+  "Nên sửa".
 - **Phase 4.1 Round 2 — Quyết toán: phát sinh sau quyết toán, điều chỉnh, đảo quyết toán**
   (`features/finance`, theo [`docs/RENTAL-SETTLEMENT-PLAN.md`](docs/RENTAL-SETTLEMENT-PLAN.md) §10) —
   Phase 4.1 hoàn tất. Entity riêng Post-Settlement Charge (không mở lại Settlement kỳ gốc — RS-BR-13):

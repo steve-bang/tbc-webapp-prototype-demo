@@ -10,3 +10,5 @@ export { TransactionLedgerScreen } from './screens/TransactionLedgerScreen'
 export { CashDrawerScreen } from './screens/CashDrawerScreen'
 export { RentalPaymentTab } from './components/RentalPaymentTab'
 export type { Transaction, PaymentRequest } from './model'
+// PAYMENT-PLAN.md §10.8 — Round 2.
+export { CustomerReceivablesScreen } from './screens/CustomerReceivablesScreen'

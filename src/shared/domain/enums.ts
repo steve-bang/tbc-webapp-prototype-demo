@@ -538,5 +538,11 @@ export const AUDIT_ACTIONS = [
   'ISSUE_RECEIPT',
   'SUBMIT_CASH_DRAWER',
   'RECEIVE_CASH_DRAWER',
+  // Payment (PM) — Round 2, PAYMENT-PLAN.md §10.11.
+  'CREATE_PAYMENT_REQUEST',
+  'CANCEL_PAYMENT_REQUEST',
+  'OFFSET_DEPOSIT',
+  'APPROVE_REFUND',
+  'REJECT_REFUND',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

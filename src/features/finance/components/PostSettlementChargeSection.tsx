@@ -16,8 +16,9 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
-import { canAdjustSettlement, canCreatePostSettlementCharge, isPscOnHold, summarizePscs, type PostSettlementCharge, type Settlement } from '../model'
-import { PostSettlementChargeCloseDialog } from './PostSettlementChargeCloseDialog'
+import { usePaymentRequests, useTransactions } from '../hooks'
+import { canAdjustSettlement, canCreatePostSettlementCharge, isPscOnHold, summarizePscs, summarizePscPayments, type PostSettlementCharge, type Settlement } from '../model'
+import { PaymentRequestStatusBadge } from './PaymentRequestStatusBadge'
 import { PostSettlementChargeDialog } from './PostSettlementChargeDialog'
 import { SettlementAdjustmentDialog } from './SettlementAdjustmentDialog'
 
@@ -43,9 +44,11 @@ export function PostSettlementChargeSection({
 
   const [createOpen, setCreateOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
-  const [closeTarget, setCloseTarget] = useState<PostSettlementCharge | null>(null)
 
   const summary = summarizePscs(pscs)
+  const { data: requests = [] } = usePaymentRequests({ rentalId: rental.id })
+  const { data: txns = [] } = useTransactions({ rentalId: rental.id })
+  const pscPayments = summarizePscPayments(pscs, requests, txns)
 
   return (
     <Card>
@@ -94,12 +97,14 @@ export function PostSettlementChargeSection({
                     <TableHead>{vi.finance.pscColumnReason}</TableHead>
                     <TableHead>{vi.finance.pscColumnStatus}</TableHead>
                     <TableHead>{vi.finance.pscColumnCreatedBy}</TableHead>
-                    <TableHead>{vi.finance.pscColumnActions}</TableHead>
+                    <TableHead>{vi.finance.payment.pscPaymentColumn}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pscs.map((psc) => {
                     const onHold = isPscOnHold(psc, incidents)
+                    const item = pscPayments.items.find((i) => i.psc.id === psc.id)
+                    const requestClosedButNotFulfilled = psc.status === 'CLOSED' && item?.request && item.request.status !== 'FULFILLED'
                     return (
                       <TableRow key={psc.id}>
                         <TableCell>
@@ -137,11 +142,22 @@ export function PostSettlementChargeSection({
                           </div>
                         </TableCell>
                         <TableCell>
-                          {psc.status === 'OPEN' && canCreate && (
-                            <Button size="sm" variant="outline" disabled={onHold} title={onHold ? vi.finance.pscOnHoldNote : undefined} onClick={() => setCloseTarget(psc)}>
-                              {vi.finance.pscCloseButton}
-                            </Button>
-                          )}
+                          <div className="flex flex-col gap-1 text-xs">
+                            {item?.request ? (
+                              <>
+                                <PaymentRequestStatusBadge status={item.request.status} />
+                                <span>
+                                  {vi.finance.payment.milestoneCollected}: {formatVnd(item.done)}
+                                </span>
+                              </>
+                            ) : (
+                              '—'
+                            )}
+                            {requestClosedButNotFulfilled && <span className="text-status-error">{vi.finance.payment.pscReversedWarning}</span>}
+                            <Link to={`${paths.rentalDetail(rental.id)}?tab=payment`} className="text-primary underline underline-offset-2">
+                              {vi.finance.payment.pscPaymentLink}
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
@@ -153,6 +169,8 @@ export function PostSettlementChargeSection({
             <div className="flex flex-col gap-3 md:hidden">
               {pscs.map((psc) => {
                 const onHold = isPscOnHold(psc, incidents)
+                const item = pscPayments.items.find((i) => i.psc.id === psc.id)
+                const requestClosedButNotFulfilled = psc.status === 'CLOSED' && item?.request && item.request.status !== 'FULFILLED'
                 return (
                   <div key={psc.id} className="border-border flex flex-col gap-2 rounded-md border p-3 text-sm">
                     <div className="flex items-center justify-between gap-2">
@@ -173,11 +191,18 @@ export function PostSettlementChargeSection({
                     <span className="text-muted-foreground text-xs">
                       {psc.createdByName} · {formatDateTime(psc.createdAt)}
                     </span>
-                    {psc.status === 'OPEN' && canCreate && (
-                      <Button size="sm" variant="outline" disabled={onHold} className="self-start" onClick={() => setCloseTarget(psc)}>
-                        {vi.finance.pscCloseButton}
-                      </Button>
+                    {item?.request && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <PaymentRequestStatusBadge status={item.request.status} />
+                        <span>
+                          {vi.finance.payment.milestoneCollected}: {formatVnd(item.done)}
+                        </span>
+                      </div>
                     )}
+                    {requestClosedButNotFulfilled && <span className="text-status-error text-xs">{vi.finance.payment.pscReversedWarning}</span>}
+                    <Link to={`${paths.rentalDetail(rental.id)}?tab=payment`} className="text-primary self-start text-xs underline underline-offset-2">
+                      {vi.finance.payment.pscPaymentLink}
+                    </Link>
                   </div>
                 )
               })}
@@ -190,7 +215,6 @@ export function PostSettlementChargeSection({
 
       <PostSettlementChargeDialog settlement={settlement} rental={rental} incidents={incidents} existingPscs={pscs} open={createOpen} onOpenChange={setCreateOpen} />
       <SettlementAdjustmentDialog settlementId={settlement.id} open={adjustOpen} onOpenChange={setAdjustOpen} />
-      <PostSettlementChargeCloseDialog psc={closeTarget} open={!!closeTarget} onOpenChange={(o) => !o && setCloseTarget(null)} />
     </Card>
   )
 }

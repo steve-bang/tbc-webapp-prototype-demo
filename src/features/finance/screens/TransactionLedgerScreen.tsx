@@ -52,6 +52,8 @@ export function TransactionLedgerScreen() {
   const [type, setType] = useState<string>(ALL)
   const [method, setMethod] = useState<string>(ALL)
   const [direction, setDirection] = useState<string>(ALL)
+  // Round 2 (§10.9) — bộ lọc "Chờ duyệt hoàn".
+  const [approvalPendingOnly, setApprovalPendingOnly] = useState(false)
 
   const [recordOpen, setRecordOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
@@ -68,13 +70,18 @@ export function TransactionLedgerScreen() {
       if (type !== ALL && t.type !== type) return false
       if (method !== ALL && t.method !== method) return false
       if (direction !== ALL && t.direction !== direction) return false
+      if (approvalPendingOnly && t.approval?.status !== 'PENDING_APPROVAL') return false
       if (q.length > 0) {
         const haystack = `${t.code} ${t.reference ?? ''} ${t.rentalId ?? ''}`.toLowerCase()
         if (!haystack.includes(q)) return false
       }
       return true
     })
-  }, [txns, search, status, type, method, direction])
+  }, [txns, search, status, type, method, direction, approvalPendingOnly])
+
+  // §10.9 góp ý R1-#1 — giữ nguyên cách sheet resolve theo id; chỉ thêm chú thích khi giao dịch
+  // đang mở không còn khớp bộ lọc hiện tại (không sửa lại cơ chế resolve).
+  const outsideFilter = !!detailTxnId && !filtered.some((t) => t.id === detailTxnId)
 
   const totals = useMemo(() => {
     const effective = filtered.filter(isEffectiveTransaction)
@@ -176,6 +183,9 @@ export function TransactionLedgerScreen() {
             ))}
           </SelectContent>
         </Select>
+        <Button type="button" size="sm" variant={approvalPendingOnly ? 'default' : 'outline'} onClick={() => setApprovalPendingOnly((v) => !v)}>
+          {vi.finance.payment.ledgerFilterApprovalPending}
+        </Button>
       </div>
 
       {isLoading ? (
@@ -262,6 +272,7 @@ export function TransactionLedgerScreen() {
         transaction={detailTxn}
         allTransactions={txns}
         customerName={detailTxn ? customerById.get(detailTxn.customerId)?.fullName : undefined}
+        outsideFilter={outsideFilter}
         open={!!detailTxn}
         onOpenChange={(o) => !o && setDetailTxnId(null)}
       />

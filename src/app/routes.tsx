@@ -4,7 +4,7 @@ import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
 import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
-import { CashDrawerScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance'
+import { CashDrawerScreen, CustomerReceivablesScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance'
 import { HandoverReturnListScreen } from '@/features/handover-return'
 import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents'
 import { MaintenanceScreen } from '@/features/maintenance'
@@ -47,7 +47,7 @@ export function AppRoutes() {
         <Route path={paths.financeSettlement} element={<SettlementListScreen />} />
         <Route path={paths.financeTransactions} element={<TransactionLedgerScreen />} />
         <Route path={paths.financeCashDrawer} element={<CashDrawerScreen />} />
-        <Route path={paths.financeReceivables} element={<ComingSoon title="Công nợ khách hàng" />} />
+        <Route path={paths.financeReceivables} element={<CustomerReceivablesScreen />} />
         <Route path={paths.financeReports} element={<ComingSoon title="Báo cáo tài chính" />} />
 
         <Route path={paths.consignmentOwners} element={<ComingSoon title="Hồ sơ chủ xe" />} />

@@ -2,7 +2,7 @@
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (21/10/2026 — người dùng duyệt nguyên trạng,
 giữ cách chia 2 round, không chờ BA xác nhận các điểm diễn giải §0.4 trước khi code) · **Round 1
-`DONE` (21/10/2026, đạt ở vòng review 2)** · Round 2 chưa giao — kế hoạch chi tiết Phase 4.2. Chia **2 round**: Round 1 = sổ giao dịch lõi + lịch thanh toán 2
+`DONE` (21/10/2026, đạt ở vòng review 2)** · **Round 2 `DONE` (21/10/2026, đạt ở vòng review 3)** — Phase 4.2 hoàn tất — kế hoạch chi tiết Phase 4.2. Chia **2 round**: Round 1 = sổ giao dịch lõi + lịch thanh toán 2
 mốc đầu (`BOOKING`/`HANDOVER`) + biên lai + quỹ tiền mặt — **không phụ thuộc Settlement**; Round 2 =
 thực thi yêu cầu thu/hoàn do Settlement/Post-Settlement Charge điều phối (mốc `RETURN`), cấn trừ cọc
 `OFFSET`, hoàn tiền + duyệt hoàn, đồng bộ Payment Status ngược về Settlement, Công nợ khách hàng.
@@ -42,7 +42,7 @@ PM-BR-21 (CR-2026-060)` tại hằng số/hàm sinh lịch thanh toán.
 
 | Khu vực | Được phép | Không được phép |
 | --- | --- | --- |
-| `features/finance/*` | Mở rộng `model.ts` · `api.ts` · `hooks.ts` · `seed.ts` · `index.ts` + component/screen mới. Round 2: sửa có kiểm soát các hàm Settlement/PSC đã có (§10.4) | Đổi hành vi Settlement ngoài đúng các điểm §10.4 |
+| `features/finance/*` | Mở rộng `model.ts` · `api.ts` · `hooks.ts` · `seed.ts` · `index.ts` + component/screen mới. Round 2: sửa có kiểm soát các hàm Settlement/PSC đã có (§10.5-§10.6) | Đổi hành vi Settlement ngoài đúng các điểm §10.5-§10.6 |
 | `features/rentals/screens/RentalDetailScreen.tsx` | Thay `RentalDetailPlaceholder` của tab "Thanh toán" bằng `<RentalPaymentTab>` từ barrel `@/features/finance` + gate tab theo `PAYMENT.VIEW` (§7.2) | Đổi các tab khác |
 | `features/rentals/model.ts` · `api.ts` · `hooks.ts` · `index.ts` · `seed.ts` | **Không đụng một ký tự.** Payment không cần transition Rental mới, không cần field mới trên `Rental` (Payment Status của Rental là **giá trị suy ra** hiển thị ở tab Thanh toán — §0.3 điểm 6) | Thêm field `paymentStatus` vào `Rental`; gọi `features/finance` từ `rentals/api.ts` (sẽ tạo phụ thuộc vòng `rentals ↔ finance`) |
 | `features/handover-return/*` · `features/incidents/*` | Chỉ **đọc** qua export barrel **đã có** (`useHandoverRecords`, `listHandovers`, `Incident`…) | Sửa bất kỳ file nào, kể cả `index.ts` (không cần export mới) |
@@ -91,7 +91,7 @@ viết ra nhưng dialog tự validate inline).
 6. **Payment Status của Rental = giá trị suy ra** (`deriveRentalPaymentSummary`), hiển thị ở tab Thanh
    toán — không ghi field vào `Rental` (§0.2). **Riêng Settlement** đã có field `paymentStatus` (Phase 4.1)
    → Round 2 **ghi ngược** giá trị suy ra vào field này sau mỗi thay đổi giao dịch/yêu cầu (RS-BR-11,
-   PM-BR-14) qua một helper duy nhất (§10.3).
+   PM-BR-14) qua một helper duy nhất (§10.4).
 7. **`Settlement.paymentRequests[]` (Phase 4.1) giữ nguyên** làm bản ghi "Settlement đã điều phối gì";
    Round 2 tạo thêm `PaymentRequest` của Payment liên kết 1-1 qua `settlementRequestId`, ghi **trong cùng
    callback** `createPaymentRequest` của Settlement. Không gộp/đổi kiểu `SettlementPaymentRequest` (đỡ
@@ -428,8 +428,8 @@ Mọi số tiền là số nguyên (PM-BR-20); validate `Number.isInteger(amount
 | PM-BR-20 | validate số tiền |
 | PM-BR-21 (nghĩa BRD) + CR-2026-060 | `buildScheduleRequests` |
 | PM-BR-22 + CR-2026-003 | nhánh `MOTORBIKE` trong `buildScheduleRequests` |
-| *(Round 2)* PM-BR-07/08 | `executeDepositOffset` |
-| *(Round 2)* PM-BR-11 | `confirmTransaction` nhánh CASH OUT |
+| *(Round 2)* PM-BR-07/08 | `applyDepositOffsetInCallback` (§10.5), `createRefundTransaction` (hoàn cọc ≤ Deposit Held) |
+| *(Round 2)* PM-BR-11 | `confirmTransaction` nhánh CASH OUT + `createAdjustment` CASH OUT (§10.6) |
 | *(Round 2)* PM-BR-12/13 | `createRefundTransaction`, `decideRefundApproval` |
 | *(Round 2)* RS-BR-11 / RS-BR-13 | `syncFinanceAfterPaymentChange` / đóng PSC |
 
@@ -464,7 +464,7 @@ Round 1 — khối comment `// Payment (PM) — PAYMENT-PLAN.md §6 (UC-PM-21), 
 `VOID_TRANSACTION`, `REVERSE_TRANSACTION`, `CREATE_PAYMENT_ADJUSTMENT`, `ISSUE_RECEIPT`,
 `SUBMIT_CASH_DRAWER`, `RECEIVE_CASH_DRAWER`.
 
-Round 2 — khối comment `// Payment (PM) — Round 2, PAYMENT-PLAN.md §10.7.`:
+Round 2 — khối comment `// Payment (PM) — Round 2, PAYMENT-PLAN.md §10.11.`:
 `CREATE_PAYMENT_REQUEST`, `CANCEL_PAYMENT_REQUEST`, `OFFSET_DEPOSIT`, `APPROVE_REFUND`, `REJECT_REFUND`.
 
 Ánh xạ sang tên UC-PM-21 §25.3 (để BA đối chiếu): `RECEIVE_REQUEST→CREATE_PAYMENT_REQUEST`,
@@ -659,89 +659,421 @@ export type { Transaction, PaymentRequest } from './model'
 
 ## 10. Round 2 — Thực thi điều phối của Settlement, hoàn tiền, công nợ
 
-### 10.1. Phụ thuộc
+> **Trạng thái Round 2:** `DONE` (21/10/2026, đạt ở vòng review 3 — 1 Blocker vòng 2 đã sửa: seed
+> `stl_024` xác nhận giao dịch hoàn trước khi duyệt, trái PM-BR-12). Duyệt plan `APPROVED` (21/10/2026, `tech-lead` mở rộng chi tiết từ khung ban đầu, theo uỷ
+> quyền "giao tiếp làm luôn" của người dùng, không cần dừng chờ duyệt). Mọi điểm dưới đây đã được đối chiếu
+> với code thật sau Round 1 (`762cd33`). Nếu khác với khung cũ ở §1.3/§2.1/§4 thì **§10 là bản chuẩn**.
 
-Round 1 `DONE`. Phase 4.1 đã có đủ `SettlementPaymentRequest` + `PostSettlementCharge` (đã xác nhận ở
-`finance/model.ts`).
+### 10.1. Phụ thuộc & phát hiện khi đối chiếu code Round 1
 
-### 10.2. Payment Request từ Settlement / PSC (UC-PM-01)
+Round 1 `DONE` (`762cd33`); Phase 4.1 đã có đủ `SettlementPaymentRequest` (nhúng trong `Settlement`) +
+`PostSettlementCharge` (key `postSettlementCharges`). Đối chiếu code thật thấy **5 chỗ phải sửa thêm** (khung
+cũ chưa lường hết). Đây là lỗi tiềm ẩn chứ không phải quyết định nghiệp vụ mới, nên Round 2 sửa luôn:
 
-- `createPaymentRequest` (Settlement, đã có) — trong **cùng callback**, sau khi ghi `SettlementPaymentRequest`,
-  ghi thêm `PaymentRequest` (`source = SETTLEMENT`, map §2.1, `settlementId`, `settlementRequestId`). Audit
-  `CREATE_SETTLEMENT_*_REQUEST` cũ giữ nguyên + thêm `CREATE_PAYMENT_REQUEST`.
-- `createPostSettlementCharge` / `adjustSettlement` (đã có) — cùng cách, `source = POST_SETTLEMENT_CHARGE`,
-  `postSettlementChargeId`.
-- Seed C: tạo `PaymentRequest` cho mọi `SettlementPaymentRequest` `REQUESTED` và mọi PSC `OPEN` đã seed.
+| # | Chỗ | Vấn đề | Sửa ở |
+| --- | --- | --- | --- |
+| F1 | `calcRequestProgress` | `collected = Σ IN − Σ OUT`. Với yêu cầu `REFUND` (giao dịch OUT), `collected` âm nên `deriveRequestStatus` không bao giờ `FULFILLED` | §10.3 |
+| F2 | `isRequestActionable` | Chặn cứng Rental `COMPLETED`, nhưng **mọi** PSC và phần thu/hoàn sau khi đóng lượt (`stl_024/025/026` đều `COMPLETED`) nằm trên Rental `COMPLETED` | §10.3 |
+| F3 | `deriveRentalPaymentSummary` | (a) Cộng cả giao dịch PSC vào Paid To Date, làm Settlement gốc đổi trạng thái (trái AC-PM-012, RS-BR-13); (b) `REFUNDED` thoả cả khi mọi yêu cầu hoàn đều `CANCELLED` (sau đảo quyết toán) | §10.3 |
+| F4 | `createAdjustment` | `CASH` + `OUT` → `CONFIRMED` ngay, **không** kiểm số dư quỹ (PM-BR-11) | §10.6 |
+| F5 | `hooks.ts` | Settlement dùng key `['settlements']`, PSC dùng `['postSettlementCharges']`, Payment dùng `['finance','payment']`. Round 2 có ghi chéo ba phía nên mutation nào cũng phải invalidate đủ ba key | §10.10 |
 
-### 10.3. Helper ghi ngược duy nhất — `syncFinanceAfterPaymentChange(rentalId, actorName, now)` (gọi cuối mọi hàm ghi giao dịch/yêu cầu, trong cùng callback)
+### 10.2. Quyết định thiết kế Round 2 (kỹ thuật/diễn giải — không phải quyết định nghiệp vụ mới)
 
-1. Tính lại `status` mọi `PaymentRequest` của Rental (`deriveRequestStatus`).
-2. Nếu Rental có Settlement → ghi `settlement.paymentStatus = deriveRentalPaymentSummary(...).paymentStatus`
-   (RS-BR-11, PM-BR-14) — **không** đụng `completedTotals`/`depositReconciliation`/`lines` (RS-BR-12).
-3. Với yêu cầu `POST_SETTLEMENT_CHARGE` vừa `FULFILLED` → PSC liên quan `OPEN → CLOSED` (`closedByName` =
-   người xác nhận giao dịch, `closeNote` = "Tất toán qua giao dịch GD-…") — AC-PM-012; Settlement gốc không đổi
-   (RS-BR-13). Ghi audit `CLOSE_POST_SETTLEMENT_CHARGE` (action đã có).
-4. Ngược lại (đảo giao dịch làm yêu cầu PSC rớt khỏi `FULFILLED`) → PSC `CLOSED → OPEN`? **Không tự mở lại** —
-   chỉ hiển thị cảnh báo trên PSC "Giao dịch tất toán đã bị đảo" + `TODO(OQ: RS×PM — mở lại PSC khi giao dịch
-   tất toán bị đảo, tài liệu chưa nói)`.
+1. **Phạm vi "kỳ gốc" vs "sau quyết toán".** Payment Status của Settlement (RS-BR-11) và tóm tắt tab Thanh
+   toán chỉ tính **kỳ gốc**: loại mọi `PaymentRequest` `source = POST_SETTLEMENT_CHARGE` và mọi giao dịch gắn
+   các yêu cầu đó. PSC có khối tổng riêng (§10.3 `summarizePscPayments`). Nguồn: AC-PM-012 "Settlement gốc không
+   đổi", RS-BR-13, UC-PM-10 bước 6.
+2. **`Settlement.paymentStatus` chỉ được ghi khi Settlement ∈ `CONFIRMED`/`COMPLETED`.** Ở trạng thái khác,
+   field để `undefined`, vì trước khi chốt chưa có Final Amount nên trạng thái thanh toán của quyết toán không
+   có nghĩa. Khớp cách Phase 4.1 chỉ set field này khi tạo yêu cầu ở `CONFIRMED`.
+3. **Settlement `DRAFT` được làm mới `paidToDate`/`depositHeld` từ sổ giao dịch** mỗi lần sổ đổi (trong helper
+   §10.4). Nếu giá trị đổi và đã có `depositReconciliation` thì **xoá** `depositReconciliation`, giống hệt hành vi
+   `resyncSettlementSources` hiện có ("mọi lần resync xoá đối trừ cọc"). Từ `PENDING_CUSTOMER` trở đi **không**
+   làm mới (snapshot đã gửi khách).
+4. **Mốc `BOOKING`/`HANDOVER` ngừng nhận giao dịch khi Settlement đã rời `DRAFT`.** Số đã thu đã chốt vào
+   snapshot, phần còn thiếu phải đi qua yêu cầu `SETTLEMENT`. Nếu không chặn, một khoản thu muộn ở mốc cũ sẽ làm
+   lệch Balance Due của yêu cầu thu. Đây là diễn giải của BA, ghi ở §10.13 điểm 3.
+5. **Giao dịch hoàn tiền luôn tạo ở `PENDING`** (kể cả `CASH`), rồi xác nhận "đã chi" bằng `confirmTransaction`.
+   Làm theo luồng BRD §16 / UC-PM-07 bước 4-6 thay vì quy tắc chung "CASH → CONFIRMED ngay" ở BRD §9, vì hoàn
+   tiền có bước duyệt (PM-BR-12) chen giữa. CASH OUT gắn quỹ của **người xác nhận đã chi** và kiểm số dư quỹ lúc
+   xác nhận (PM-BR-11). Ghi cho BA ở §10.13 điểm 1.
+6. **Không sửa số tiền giao dịch OUT lúc xác nhận.** UC-PM-06 A1 (sửa theo thực nhận) chỉ áp cho thu. Sửa số
+   khoản hoàn sau khi đã duyệt sẽ lách được ngưỡng → API từ chối; muốn đổi thì Huỷ (VOID) rồi tạo lại.
+7. **Không thu/hoàn vượt `remaining − pending` với hoàn tiền** (chặn tạo hai lệnh hoàn song song cho cùng một
+   yêu cầu). Riêng thu (Round 1) giữ nguyên kiểm `≤ remaining`.
+8. **Xe máy cầm cố (`MOTORBIKE`)**: khoản thu yêu cầu `SETTLEMENT`/`POST_SETTLEMENT_CHARGE` chỉ nhận
+   `BANK_TRANSFER` (BRD §9 Business Rule — "khách trả bằng `ONLINE_GATEWAY` hoặc `BANK_TRANSFER`… không dùng
+   `OFFSET`", CR-2026-003; `ONLINE_GATEWAY` không ghi tay được, §0.3 điểm 8). Kiểm cả dialog lẫn API.
+9. **Thực thi chỉ ở một nơi: tab "Thanh toán" của Rental.** Worksheet và khối PSC chỉ **hiển thị** trạng thái
+   thực thi + link `?tab=payment`, không nhân bản nút ghi thu/hoàn (tránh 3 nơi cùng gọi một mutation, quyền
+   khác nhau). Thay cho đề xuất "nút Ghi nhận thu/hoàn trong khối PSC" ở khung cũ.
+10. **Bỏ hẳn đóng PSC thủ công.** PSC chỉ `CLOSED` qua helper §10.4 khi yêu cầu liên kết `FULFILLED`
+    (AC-PM-012). Xoá `closePostSettlementCharge` + hook + `PostSettlementChargeCloseDialog` +
+    `postSettlementChargeCloseFormSchema` + khoá i18n hết dùng. Seed được reset (`SEED_VERSION` 16) nên không
+    còn PSC cũ thiếu `PaymentRequest`. Audit action `CLOSE_POST_SETTLEMENT_CHARGE` **giữ** (helper dùng).
+11. **Quy tắc audit với side-effect** (làm rõ §6): sự kiện **tạo/đổi trạng thái thực thể nghiệp vụ** (Transaction
+    mới, `OFFSET`, đảo giao dịch, huỷ yêu cầu, VOID tự động, đóng PSC, tạo `PaymentRequest`) → **bản ghi audit
+    riêng** với action tương ứng. Còn **giá trị suy ra** được tính lại (`PaymentRequest.status`,
+    `Settlement.paymentStatus`/`paidToDate`/`depositHeld`) → **không** sinh audit riêng, đưa vào `after` của
+    audit thao tác gây ra nếu có ích.
 
-### 10.4. Sửa có kiểm soát code Settlement/PSC (chỉ đúng các điểm này)
+### 10.3. Hàm thuần mới / sửa (`features/finance/model.ts`)
+
+**Sửa (Round 1 → Round 2):**
+
+| Hàm | Thay đổi | Nguồn |
+| --- | --- | --- |
+| `calcRequestProgress(request, txns)` | **F1**: tính có dấu theo `purpose`. `COLLECT`: hiệu lực IN cộng, OUT trừ (như cũ). `REFUND`: hiệu lực OUT cộng, IN trừ. `collected` đổi nghĩa thành "đã thực hiện" (đã thu / đã hoàn). `pending` = Σ `PENDING` cùng chiều với `purpose`. Đổi tên trường thì phải sửa UI — **giữ tên `collected`**, thêm JSDoc giải thích | PM-BR-15, UseCase §4.2 |
+| `isRequestActionable(request, rental, ctx?)` | **F2**: `ctx?: { settlementStatus?: SettlementStatus; psc?: PostSettlementCharge; pscOnHold?: boolean }`. Điều kiện chung: `status ∈ OPEN/PARTIALLY_FULFILLED`. Theo `source`: `BOOKING`/`HANDOVER` → như Round 1 **và** `settlementStatus` ∈ `undefined`/`DRAFT` (§10.2 điểm 4); `SETTLEMENT` → `rental.status ∈ SETTLEMENT/COMPLETED`; `POST_SETTLEMENT_CHARGE` → `psc?.status === 'OPEN' && !pscOnHold` | PM-BR-21; UC-RS-14 A1 |
+| `deriveRentalPaymentSummary(rental, requests, txns, settlement?)` | **F3a**: lọc trước phạm vi kỳ gốc (`scopeToOriginalPeriod`, bên dưới). **F3b**: `REFUNDED` khi có **ít nhất một** yêu cầu `REFUND` `FULFILLED`, không còn yêu cầu `REFUND` mở và `Balance Due ≤ 0`. Thêm field trả về `pendingRefund` (Σ `remaining` của yêu cầu REFUND mở) để UI hiển thị | BRD §13, PM-BR-14 |
+| `buildPaymentSchedule(rental, requests, txns)` | Mốc `RETURN`: `requests` = yêu cầu `source = SETTLEMENT` (kể cả `CANCELLED` để hiện lịch sử). Không có yêu cầu nào thì `BY_SETTLEMENT` như cũ; ngược lại tính `state` như hai mốc kia. `expectedTotal`/`collectedTotal` của `RETURN` **không hiển thị** (trộn thu/hoàn), UI hiện từng yêu cầu (§10.9) | BRD §4.1 |
+| `calcPaidToDate(rental, requests, txns)` | **Đổi chữ ký** (bỏ `HandoverRecord`). `prepayment` = Σ `calcRequestProgress(...).collected` của yêu cầu `BOOKING`; `handoverPayment` = như trên với yêu cầu `HANDOVER` có `transactionType = RENTAL_PAYMENT`. **Không** tính `OFFSET`, **không** tính thu theo yêu cầu `SETTLEMENT` (RS-BR-21: Paid To Date của quyết toán = 30% + 70%). Xoá `TODO(Phase 4.2)`, trích `RS-BR-21 + PAYMENT-PLAN.md §10.3` | RS-BR-11/21 |
+| `calcDepositHeld(rental, requests, txns)` | Đổi chữ ký tương tự; trả `calcLedgerDepositHeld(rental.id, txns)`. Bỏ hằng `CASH_DEPOSIT_AMOUNT_RS` nếu hết dùng. Xoá `TODO(Phase 4.2)` | BRD §11, RS-BR-22 |
+
+**Mới:**
+
+| Hàm | Mô tả | Nguồn |
+| --- | --- | --- |
+| `calcLedgerDepositHeld(rentalId, txns)` | `Σ DEPOSIT (IN hiệu lực) − Σ method OFFSET hiệu lực − Σ DEPOSIT_REFUND hiệu lực`, chỉ giao dịch của `rentalId`. `deriveRentalPaymentSummary` dùng lại hàm này (bỏ bản tính inline) | BRD §11 |
+| `scopeToOriginalPeriod(requests, txns)` | Trả `{ requests, txns }` đã loại yêu cầu `POST_SETTLEMENT_CHARGE` và giao dịch có `paymentRequestId` thuộc các yêu cầu đó | §10.2 điểm 1 |
+| `REFUND_APPROVAL_THRESHOLD = 1_000_000` + `refundNeedsApproval(amount)` (`amount > ngưỡng`) | Comment: `// TODO(OQ: Payment-BRD.md §27 Q13 — ngưỡng duyệt hoàn chưa chốt; giá trị lấy từ ví dụ AC-PM-007; UC-PM-09 có 2 cấp Manager/Admin, demo 1 cấp PAYMENT.APPROVE)`. Hệ quả cần biết: hoàn cọc `CASH_20M` gần như luôn cần duyệt | PM-BR-12, AC-PM-007 |
+| `SETTLEMENT_REQUEST_MAPPING: Record<SettlementRequestType, { purpose; transactionType }>` | `COLLECT → COLLECT/ADDITIONAL_CHARGE` · `DEPOSIT_REFUND → REFUND/DEPOSIT_REFUND` · `OVERPAYMENT_REFUND → REFUND/OVERPAYMENT_REFUND` (bảng §2.1) | BRD §8, UC-PM-04 §8.4 |
+| `buildSettlementPaymentRequest(settlement, spr, actorName, now)` | `PaymentRequest` `source = SETTLEMENT`, `expectedAmount = spr.amount`, `settlementId`, `settlementRequestId = spr.id`, `rentalId`/`customerId` từ Settlement | UC-PM-01 |
+| `buildPscPaymentRequest(psc, actorName, now)` | `source = POST_SETTLEMENT_CHARGE`; `RECEIVABLE → COLLECT/POST_SETTLEMENT_COLLECT`, `REFUND → REFUND/GOODWILL_REFUND`; `postSettlementChargeId`, `settlementId` | BRD §8, UC-PM-10 |
+| `buildOffsetTransaction(settlement, actor, code, now)` | `type = ADDITIONAL_CHARGE`, `method = OFFSET`, `direction = IN`, `status = CONFIRMED`, `amount = depositReconciliation.depositApplied`, `settlementId`, `rentalId`, `customerId`, **không** `paymentRequestId`/`cashDrawerId`, `reason = "Cấn trừ cọc theo quyết toán <id>"` (chuỗi dữ liệu, không phải UI), `performedBy*`/`confirmedBy*` = người thao tác chốt | UC-PM-05 bước 3, AC-PM-003 |
+| `findEffectiveOffset(settlementId, txns)` | GD `method = OFFSET`, `settlementId` khớp, `isEffectiveTransaction` | §10.5 |
+| `buildReversalPair(original, reason, actor, code, now)` | **Tách lõi** của `reverseTransaction` (Round 1) thành hàm thuần trả `{ updatedOriginal, reversal }` (đối ứng: hướng ngược, `CONFIRMED`, giữ `cashDrawerId`/`paymentRequestId`/`settlementId`, biên lai gốc `voided`). `reverseTransaction` (API) gọi lại hàm này, còn đường hệ thống ở §10.5 cũng dùng hàm này. Nhờ vậy guard chặn `OFFSET` của API thủ công giữ nguyên | PM-BR-03/04/19 |
+| `summarizePscPayments(pscs, requests, txns)` | Theo từng PSC: `{ psc, request?, done, pending, remaining }` + tổng `openReceivable`/`openRefund` còn lại | UC-PM-10 |
+| `deriveCustomerBalances(input)` | §10.8 | BRD §12, UC-PM-18 |
+
+**Form schema mới** (đặt trong `model.ts`, **dùng thật** trong dialog, §0.2):
+
+- `refundCreateFormSchema` — `{ amount (chuỗi số nguyên > 0), method ∈ CASH|BANK_TRANSFER|E_WALLET, refundRecipient: min 3 ("Thông tin nhận tiền là bắt buộc — PM-BR-13"), reference?, evidenceNote? }`; `superRefine`: `reference` bắt buộc khi CK/ví.
+- `refundDecisionFormSchema` — `{ decision: 'APPROVED'|'REJECTED', note? }`; `superRefine`: `note` bắt buộc (min 3) khi `REJECTED` (UC-PM-09 bước 4).
+
+### 10.4. Helper ghi ngược duy nhất — `syncFinanceAfterPaymentChange(rentalId, actor, now)` (`api.ts`, **không export**)
+
+Gọi **ở cuối mọi callback ghi** có thể làm đổi số liệu của Rental, **sau khi** đã ghi `transactions`/
+`paymentRequests`: `recordTransaction`, `confirmTransaction`, `failTransaction`, `voidTransaction`,
+`reverseTransaction`, `createAdjustment` (nếu có `rentalId`), `createRefundTransaction`, `decideRefundApproval`,
+`createPaymentRequest` (Settlement), `createPostSettlementCharge`, `adjustSettlement`, `recordCustomerAck`
+(nhánh `CONFIRMED`), `approveSettlement`, `reverseSettlement`. Helper **thay** `syncRequestStatus` của Round 1
+(xoá hàm cũ). Helper đọc storage **mới nhất** (không nhận mảng từ caller để tránh đọc lệch):
+
+1. Tính lại `status` mọi `PaymentRequest` của `rentalId` bằng `deriveRequestStatus` (`CANCELLED` giữ nguyên).
+   Chỉ ghi lại `updatedAt` của yêu cầu **có** đổi status.
+2. Settlement của Rental (nếu có):
+   - `DRAFT` → làm mới `paidToDate`/`depositHeld` (`calcPaidToDate`/`calcDepositHeld`). Nếu khác giá trị cũ thì
+     xoá `depositReconciliation` (§10.2 điểm 3). `paymentStatus = undefined`.
+   - `CONFIRMED`/`COMPLETED` → `paymentStatus = deriveRentalPaymentSummary(...).paymentStatus` (RS-BR-11,
+     PM-BR-14). **Không** đụng `lines`/`waivers`/`depositReconciliation`/`completedTotals`/`paidToDate`/
+     `depositHeld` (RS-BR-12).
+   - `PENDING_CUSTOMER`/`WAITING_APPROVAL` → không đổi gì.
+   - Chỉ ghi Settlement (và `updatedAt`) khi có field thực sự đổi.
+3. Mọi yêu cầu `POST_SETTLEMENT_CHARGE` vừa thành `FULFILLED` mà PSC còn `OPEN` → PSC `CLOSED`
+   (`closedByName = actor.fullName`, `closedAt = now`, `closeNote = "Tất toán qua giao dịch <GD-… cuối cùng của
+   yêu cầu>"`) + audit `CLOSE_POST_SETTLEMENT_CHARGE` (entity `'Settlement'`, `entityId = psc.settlementId`, như
+   hàm cũ). AC-PM-012, RS-BR-13.
+4. Yêu cầu PSC rớt khỏi `FULFILLED` (do đảo giao dịch) mà PSC đã `CLOSED` → **không tự mở lại**. UI hiện cảnh báo
+   (§10.9). Comment `// TODO(OQ: RS×PM — mở lại PSC khi giao dịch tất toán bị đảo, tài liệu chưa nói)`.
+5. Trả `{ settlementPaymentStatus?, closedPscIds: string[] }` để caller đưa vào `after` của audit chính.
+
+### 10.5. `OFFSET` tự động & đảo quyết toán — đường hệ thống riêng
+
+**Không** đi qua `recordTransaction`/`createAdjustment`/`reverseTransaction`, vì guard chặn `OFFSET` ở ba hàm đó
+giữ nguyên (lưu ý của Round 1).
+
+**`applyDepositOffsetInCallback(settlement, actor, now)`** (`api.ts`, không export) — gọi trong **cùng
+callback** của `recordCustomerAck` (chỉ nhánh → `CONFIRMED`, **không** gọi ở nhánh → `WAITING_APPROVAL`) và
+`approveSettlement`, **trước** khi ghi Settlement:
+
+1. `applied = settlement.depositReconciliation?.depositApplied ?? 0`. `applied ≤ 0` (gồm mọi `MOTORBIKE`, BRD §9)
+   thì bỏ qua.
+2. Đã có `findEffectiveOffset(settlement.id, txns)` thì bỏ qua (chống trùng, idempotent).
+3. Kiểm `applied ≤ calcLedgerDepositHeld(rentalId, txns)` (PM-BR-07/08). Không đủ thì **throw**, cả thao tác
+   chốt thất bại (không ghi gì): `"Cọc đang giữ trên sổ giao dịch (x) nhỏ hơn số cấn trừ (y) — rà soát giao dịch
+   cọc trước khi chốt quyết toán (PM-BR-08)"`.
+4. Ghi GD `buildOffsetTransaction(...)` (mã `GD-…` tiếp theo) + audit `OFFSET_DEPOSIT` (entity `'Transaction'`,
+   summary nêu rõ "cấn trừ cọc, không phải thu tiền" — UC-PM-05 bước 6).
+5. Comment: `// TODO(OQ: Payment-BRD.md §27 Q4 / RentalSettlement-BRD.md §28 Q1 — cấn trừ tự động hay cần khách
+   đồng ý; demo: tạo khi Settlement vào CONFIRMED, tức sau khi khách đã xác nhận cả gói ở PENDING_CUSTOMER — khớp
+   UC-PM-05 A2).`
+6. Sau khi ghi Settlement `CONFIRMED`, gọi `syncFinanceAfterPaymentChange` (để có `paymentStatus` ngay, thường là
+   `PAID`/`PARTIALLY_PAID`).
+
+**`reverseSettlement` — thêm trong cùng callback** (sau `buildReversalReset`, trước khi trả về):
+
+1. `PaymentRequest` có `settlementRequestId ∈ reversal.cancelledPaymentRequestIds` và đang `OPEN`/
+   `PARTIALLY_FULFILLED` → `CANCELLED` (`cancelledByName/At`, `cancelReason` = lý do đảo quyết toán), mỗi yêu cầu
+   một audit `CANCEL_PAYMENT_REQUEST` (UC-PM-01 A1). Yêu cầu đã `FULFILLED` → giữ nguyên.
+2. Giao dịch `PENDING` gắn các yêu cầu vừa huỷ → `VOIDED` (`voidReason = "Yêu cầu thanh toán bị huỷ do đảo quyết
+   toán: <lý do>"`) + audit `VOID_TRANSACTION`. PM-BR-02. Tránh trường hợp lệnh hoàn đang chờ bị xác nhận chi sau
+   khi quyết toán đã đảo.
+3. `findEffectiveOffset` có → đảo bằng `buildReversalPair` (lý do = lý do đảo quyết toán) + audit
+   `REVERSE_TRANSACTION` (UC-PM-12 A2: Deposit Held trở về mức trước).
+4. Giao dịch thu/hoàn **tiền thật** đã `CONFIRMED` theo yêu cầu cũ → **giữ nguyên** (UC-PM-01 A1 "giữ / đảo tuỳ
+   tình huống"). Comment `// TODO(OQ: UC-PM-01 A1 — tiền thật đã thu/hoàn theo quyết toán cũ xử lý thế nào khi làm
+   lại quyết toán; demo: giữ nguyên, Paid To Date của quyết toán mới KHÔNG tính khoản này (RS-BR-21), người dùng
+   rà soát + đảo tay ở Sổ giao dịch nếu cần).`
+5. `syncFinanceAfterPaymentChange` (Settlement giờ `DRAFT` nên `paidToDate`/`depositHeld` được làm mới; ví dụ cọc đã
+   hoàn thì Deposit Held giảm tương ứng).
+6. `after` của audit `REVERSE_SETTLEMENT` bổ sung `cancelledPaymentRequestIds` (của Payment), `reversedOffsetId?`,
+   `voidedTransactionIds`. Xoá comment `TODO(Phase 4.2): bút toán đảo…`.
+
+Worksheet (`DRAFT` sau đảo) hiện banner khi Rental có giao dịch hiệu lực gắn một `PaymentRequest`
+`source = SETTLEMENT` đã `CANCELLED`: "Có giao dịch đã thực thi theo quyết toán cũ — rà soát ở Sổ giao dịch" +
+link `/finance/transactions`.
+
+### 10.6. Sửa có kiểm soát code Settlement/PSC/Payment hiện có (chỉ đúng các điểm này)
 
 | Chỗ | Thay đổi |
 | --- | --- |
-| `calcPaidToDate` / `calcDepositHeld` (`model.ts`) | Đổi chữ ký nhận `(rental, requests, transactions)` thay cho `HandoverRecord`; Paid = Σ hiệu lực của yêu cầu `BOOKING` + `HANDOVER`/`RENTAL_PAYMENT`; Deposit Held = công thức §2.5. Xoá 2 comment `TODO(Phase 4.2)`. Giữ shape `{ prepayment, handoverPayment }` để không phải sửa UI Worksheet. `openSettlement`/`resyncSettlementSources`/seed B gọi theo chữ ký mới (không còn đọc cờ `HandoverRecord` cho mục đích này) |
-| Khi Settlement vào `CONFIRMED` (`recordCustomerAck` nhánh `CONFIRMED`, `approveSettlement`) | Gọi `executeDepositOffset` trong cùng callback: nếu `depositReconciliation.depositApplied > 0` và chưa có GD `OFFSET` hiệu lực cho `settlementId` → tạo GD `ADDITIONAL_CHARGE` / `OFFSET` / `IN` / `CONFIRMED` (UC-PM-05, AC-PM-003), kiểm `≤ Deposit Held` (PM-BR-07/08). Audit `OFFSET_DEPOSIT`. TODO(OQ: Payment-BRD.md §27 Q4 / RS §28 Q1 — demo cấn trừ sau khi khách đã xác nhận cả gói ở `PENDING_CUSTOMER`, khớp UC-PM-05 A2) |
-| `reverseSettlement` | Trong cùng callback: mọi `PaymentRequest` có `settlementRequestId ∈ cancelledPaymentRequestIds` → `CANCELLED` (UC-PM-01 A1, audit `CANCEL_PAYMENT_REQUEST`); GD `OFFSET` hiệu lực của Settlement → đảo bằng hệ thống (cùng cơ chế `reverseTransaction`, lý do = lý do đảo quyết toán; UC-PM-12 A2). GD thu/hoàn tiền thật đã `CONFIRMED` **giữ nguyên** + banner trên Worksheet "Có giao dịch đã thực thi theo quyết toán cũ — rà soát ở Sổ giao dịch" |
-| `closePostSettlementCharge` + nút "Đánh dấu đã tất toán" | Bỏ đường đóng thủ công cho PSC **có** `PaymentRequest` (mọi PSC sau Round 2) — PSC chỉ đóng qua §10.3; nút thay bằng "Ghi nhận thu/hoàn" (mở `TransactionRecordDialog`/`RefundCreateDialog`). PSC "Tạm giữ" (`isPscOnHold`) → chặn ghi nhận giao dịch ở API |
-| `SettlementWorksheet` khối yêu cầu thu/hoàn | Thêm trạng thái thực thi (`PaymentRequestStatusBadge` + đã thu/hoàn) cạnh mỗi `SettlementPaymentRequest`, link sang tab Thanh toán |
-| `getCompletionBlockers` | **Không đổi** (vẫn chỉ cần có yêu cầu — RS-BR-20; TODO OQ RS §28 Q11 giữ nguyên) |
+| `openSettlement`, `resyncSettlementSources` | Gọi `calcPaidToDate`/`calcDepositHeld` chữ ký mới, đọc `paymentRequests`/`transactions` **trong** callback. Bỏ `handover` khỏi `loadSources` nếu hết dùng (không để biến thừa) |
+| `createPaymentRequest` (Settlement) | Trong cùng callback, sau khi tạo `SettlementPaymentRequest` thì ghi `buildSettlementPaymentRequest(...)` + audit `CREATE_PAYMENT_REQUEST` (entity `'PaymentRequest'`). **Bỏ** dòng gán tay `paymentStatus` (§0.3 cũ), thay bằng `syncFinanceAfterPaymentChange`. Audit `CREATE_SETTLEMENT_*_REQUEST` cũ giữ nguyên |
+| `createPostSettlementCharge`, `adjustSettlement` | Cùng callback: ghi `buildPscPaymentRequest(psc, …)` + audit `CREATE_PAYMENT_REQUEST`. PSC "Tạm giữ" vẫn sinh yêu cầu (`OPEN`) nhưng không thực thi được (`isRequestActionable`) |
+| `recordCustomerAck` (nhánh `CONFIRMED`), `approveSettlement` | §10.5 |
+| `reverseSettlement` | §10.5 |
+| `closePostSettlementCharge` + hook + `PostSettlementChargeCloseDialog.tsx` + `postSettlementChargeCloseFormSchema` | **Xoá** (§10.2 điểm 10). Xoá luôn khoá i18n chỉ phục vụ dialog đó |
+| `recordTransaction` | (a) Từ chối yêu cầu `purpose = REFUND` ("Dùng 'Tạo giao dịch hoàn' cho yêu cầu hoàn tiền"). (b) Truyền `ctx` cho `isRequestActionable`: đọc Settlement của Rental + PSC liên kết + `pscOnHold` (đọc `listIncidents()` **trước** `fakeRequest`, như `closePostSettlementCharge` cũ làm). (c) §10.2 điểm 8 — Rental `MOTORBIKE` + `source ∈ SETTLEMENT/POST_SETTLEMENT_CHARGE` thì chỉ nhận `BANK_TRANSFER`. (d) Cuối callback gọi helper §10.4 |
+| `confirmTransaction` | (a) Yêu cầu liên kết `CANCELLED` → từ chối. (b) GD `OUT`: `approval?.status` phải là `APPROVED` nếu có `approval` (PM-BR-12); `input.amount` (nếu truyền) phải bằng `before.amount` (§10.2 điểm 6); `CASH` thì gắn `cashDrawerId = cashDrawerIdOf(actor.userId)` + `cashDrawerOwnerName` và kiểm `calcCashDrawerBalance(...).balance ≥ amount`, không đủ thì throw "Số dư quỹ tiền mặt không đủ để chi (PM-BR-11)" (UC-PM-14 A2). (c) Kiểm `amount ≤ remaining` dùng `calcRequestProgress` đã sửa F1 (đúng cho cả hoàn). (d) Helper §10.4 |
+| `failTransaction`, `voidTransaction`, `reverseTransaction` | Cuối callback gọi helper §10.4 (Round 1 `failTransaction` chưa đồng bộ gì). `reverseTransaction` dùng `buildReversalPair`, guard `OFFSET` **giữ nguyên** |
+| `createAdjustment` | **F4**: `CASH` + `OUT` → kiểm số dư quỹ của người tạo như trên (PM-BR-11). Có `rentalId` thì gọi helper §10.4 |
+| `getCompletionBlockers`, `calcDepositReconciliation`, `getSubmitBlockers` | **Không đổi** (RS-BR-20; TODO OQ RS §28 Q11 giữ nguyên) |
 
-### 10.5. Hoàn tiền + duyệt (UC-PM-07/08/09, BRD §16)
+### 10.7. API mới (`features/finance/api.ts`, khối `// ==== Payment (PM) — Round 2, PAYMENT-PLAN.md §10 ====`)
 
-- `createRefundTransaction(requestId, { amount, method, refundRecipient, reference? }, actor)` — `PAYMENT.CREATE`;
-  yêu cầu `purpose = REFUND` actionable; `amount ≤ remaining`; `DEPOSIT_REFUND` thêm `≤ Deposit Held`
-  (PM-BR-08); `refundRecipient` bắt buộc (PM-BR-13). Tạo GD `OUT` `PENDING`; nếu `amount > REFUND_APPROVAL_THRESHOLD`
-  → `approval.status = PENDING_APPROVAL` (PM-BR-12).
-- `REFUND_APPROVAL_THRESHOLD = 1_000_000` — hằng số tạm lấy từ **ví dụ AC-PM-007**,
-  `TODO(OQ: Payment-BRD.md §27 Q13 — ngưỡng duyệt hoàn chưa chốt; UC-PM-09 có 2 cấp Manager/Admin, demo 1 cấp)`.
-  Hệ quả demo cần biết: hoàn cọc `CASH_20M` (thường > 1tr) **luôn** cần duyệt.
-- `decideRefundApproval(txnId, 'APPROVED' | 'REJECTED', note, actor)` — `PAYMENT.APPROVE`; `REJECTED` → GD
-  `VOIDED` (`voidReason` = ghi chú từ chối, bắt buộc). Audit `APPROVE_REFUND`/`REJECT_REFUND`.
-- `confirmTransaction` cho GD `OUT`: chặn khi `approval.status !== 'APPROVED'` (nếu có approval); CASH OUT →
-  gắn quỹ người xác nhận + chặn vượt số dư quỹ (PM-BR-11, UC-PM-14 A2 — không cho âm). GD hoàn `FAILED` →
-  yêu cầu vẫn mở, Payment Status giữ `REFUND_PENDING` (AC-PM-006).
-- UI: `RefundCreateDialog`, `RefundApprovalDialog`; Sổ giao dịch thêm bộ lọc "Chờ duyệt hoàn"; tab Thanh toán
-  của Rental hiện yêu cầu `REFUND`.
+| Hàm | Guard (đọc + kiểm **trong** callback, N1) | Ghi | Audit |
+| --- | --- | --- | --- |
+| `createRefundTransaction(requestId, input: { amount, method, refundRecipient, reference?, evidenceNote? }, actor)` | `method ∈ CASH/BANK_TRANSFER/E_WALLET`; yêu cầu `purpose = REFUND` + `isRequestActionable` (có `ctx`); `refundRecipient.trim()` ≥ 3 (PM-BR-13); số nguyên > 0 (PM-BR-20); `amount ≤ remaining − pending` (§10.2 điểm 7); `transactionType = DEPOSIT_REFUND` thì thêm `amount ≤ calcLedgerDepositHeld − Σ DEPOSIT_REFUND PENDING` (PM-BR-08); `reference` bắt buộc khi CK/ví | GD `OUT` `PENDING` (`type = request.transactionType`), `refundRecipient`; `refundNeedsApproval(amount)` → `approval = { status: 'PENDING_APPROVAL' }`. **Chưa** gắn quỹ (gắn lúc xác nhận). Helper §10.4 | `CREATE_TRANSACTION` (summary ghi rõ "hoàn tiền" + "chờ duyệt" nếu có) |
+| `decideRefundApproval(txnId, input: { decision, note? }, actor)` | GD `PENDING`, `approval.status = PENDING_APPROVAL`; `REJECTED` cần `note` ≥ 3 | `APPROVED` → `approval = { status, decidedByName, decidedAt, note }`. `REJECTED` → như trên + GD `VOIDED` (`voidReason = note`, `voidedByName/At`) — UC-PM-09 bước 4. Helper §10.4 | `APPROVE_REFUND` / `REJECT_REFUND` (entity `'Transaction'`) |
+| `listPaymentRequests` | Thêm filter `postSettlementChargeId?`, `settlementId?` | — | — |
+| `listTransactions` | Thêm filter `approvalPending?: boolean` (GD `approval.status = PENDING_APPROVAL`) cho bộ lọc "Chờ duyệt hoàn" | — | — |
 
-### 10.6. Công nợ khách hàng — `CustomerReceivablesScreen` (`/finance/receivables`, thay `ComingSoon`)
+Quyền (kiểm ở UI, ẩn nút khi thiếu; API kiểm điều kiện trạng thái — bài học N4): tạo hoàn `PAYMENT.CREATE` ·
+duyệt/từ chối `PAYMENT.APPROVE` · xác nhận đã chi / thất bại `PAYMENT.CONFIRM` · huỷ `PAYMENT.VOID`.
+**Không thêm entry permission mới** (7 entry Round 1 đã đủ, gồm `PAYMENT.APPROVE`).
 
-Hàm thuần `deriveCustomerBalances(customers, rentals, settlements, pscs, requests, txns)` theo diễn giải §0.4
-điểm 5: mỗi khách → `Total Charged` (Σ Final Amount Settlement `CONFIRMED`/`COMPLETED` + Σ PSC `RECEIVABLE` −
-Σ PSC `REFUND`), `Total Collected` (Σ IN hiệu lực **trừ `DEPOSIT`** của các Rental đó + PSC), `Outstanding`,
-`Credit` (phần âm), `Deposit Held`, "Đã thu trước (chưa quyết toán)". Bảng/card: lọc "Đang nợ" / "Có số dư" /
-tất cả, tìm theo tên/SĐT; mở rộng một khách → danh sách lượt (Total Payable / Đã thu / Còn lại / Payment
-Status) + PSC chưa tất toán + link Customer Detail & Rental Detail (AC-PM-011, UC-PM-18). `Credit` chỉ hiển thị
-— `TODO(OQ: Payment-BRD.md §27 Q8)`; không cảnh báo khi tạo Rental — `TODO(OQ: Payment-BRD.md §27 Q7)`.
+### 10.8. Công nợ khách hàng — `deriveCustomerBalances` + `CustomerReceivablesScreen` (`/finance/receivables`)
 
-### 10.7. Audit Round 2
+**Hàm thuần** `deriveCustomerBalances({ customers, rentals, settlements, pscs, requests, txns, onHoldPscIds })`
+→ `CustomerBalance[]` (chỉ khách có ít nhất một Rental có giao dịch/yêu cầu, hoặc có PSC).
 
-Xem §6 (5 action). Nối cuối mảng, sau khối Round 1.
+Theo diễn giải §0.4 điểm 5, tính theo **từng khoản riêng, không bù trừ chéo giữa các khoản** (bù trừ Credit
+sang lượt khác là OQ PM §27 Q8, chưa chốt):
 
-### 10.8. Seed C (Round 2) — khớp settlement/PSC đã seed ở `finance/seed.ts`
+```text
+Khoản kỳ gốc (mỗi Rental có Settlement CONFIRMED/COMPLETED):
+  charged   = deriveRentalPaymentSummary(...).totalPayable
+  collected = paidToDate (kỳ gốc, gồm OFFSET) − Σ OVERPAYMENT_REFUND/GOODWILL_REFUND hiệu lực của yêu cầu SETTLEMENT
+  balance   = charged − collected
+Khoản PSC (mỗi PSC, trừ PSC trong onHoldPscIds):
+  RECEIVABLE: balance = amount − done        REFUND: balance = −(amount − done)       (done từ summarizePscPayments)
+Theo khách:
+  Outstanding  = Σ max(0, balance)           Credit = Σ max(0, −balance)
+  Total Charged / Total Collected = Σ charged / Σ collected của các khoản (chỉ để hiển thị, BRD §12)
+  Deposit Held = Σ calcLedgerDepositHeld của mọi Rental của khách
+  Đã thu trước (chưa quyết toán) = Σ paidToDate của Rental chưa có Settlement CONFIRMED/COMPLETED
+  Tạm giữ (tranh chấp) = Σ amount PSC RECEIVABLE trong onHoldPscIds, hiện riêng, KHÔNG cộng vào Outstanding
+```
 
-- `stl_024` (`DEPOSIT_REFUND` `REQUESTED`) → yêu cầu `FULFILLED`: GD `DEPOSIT_REFUND` `BANK_TRANSFER` đã duyệt
-  (Manager) + `CONFIRMED`, Payment Status `REFUNDED` (AC-PM-005).
-- `stl_025` (`DEPOSIT_REFUND`) → GD hoàn `PENDING` + `approval PENDING_APPROVAL` (demo duyệt).
-- `stl_026` (`COLLECT`, `completedWithDebt`) → yêu cầu `PARTIALLY_FULFILLED` (một GD CASH một phần) → khách của
-  `rt_026` hiện **Outstanding > 0** ở Công nợ.
-- GD `OFFSET` cho mọi Settlement seed `CONFIRMED`/`COMPLETED` có `depositApplied > 0`.
-- `psc_002` (`REFUND`) → yêu cầu `FULFILLED` + PSC `CLOSED`; `psc_001` (`RECEIVABLE` 700k — AC-PM-012) → yêu cầu
-  `OPEN` (demo thu → PSC tự `CLOSED`); PSC còn lại giữ nguyên trạng thái đã seed, yêu cầu tương ứng nhất quán.
-- Không còn PSC nào `CLOSED` mà không có GD tất toán (trừ khi seed hiện có cố ý — `dev` kiểm và báo lại nếu gặp).
+`ADJUSTMENT` không gắn `rentalId` **không** tính vào Outstanding/Credit, chỉ liệt kê ở "Giao dịch gần đây" (ghi
+cho BA §10.13 điểm 4). Comment `TODO(OQ: Payment-BRD.md §27 Q8)` tại Credit, `TODO(OQ: Payment-BRD.md §27 Q7)` tại
+chỗ "không cảnh báo khi tạo Rental", `TODO(OQ: Payment-BRD.md §27 Q9)` "không tính OVERDUE".
 
-### 10.9. Barrel Round 2
+**Màn hình** (`screens/CustomerReceivablesScreen.tsx`, đọc: `useCustomers` — deep import đã chấp nhận ·
+`useRentals` + `useIncidents` qua barrel · hook nội bộ `useSettlements`/`usePostSettlementCharges`/
+`usePaymentRequests`/`useTransactions`):
 
-`export { CustomerReceivablesScreen } from './screens/CustomerReceivablesScreen'`.
+- `PageHeader` "Công nợ khách hàng" + mô tả ngắn (chỉ xem, UC-PM-18 §22.5 "không thay đổi dữ liệu").
+- 3 thẻ tổng: Tổng khách đang nợ (số khách + Σ Outstanding) · Tổng số dư khách (Credit) · Tổng cọc đang giữ.
+- Bộ lọc: `Đang nợ` (mặc định) / `Có số dư` / `Đang giữ cọc` / `Tất cả`, ô tìm theo tên/SĐT.
+- Bảng (desktop) / card (≤ md): Khách (link `paths.customerDetail`) · Total Charged · Total Collected ·
+  Outstanding (`text-status-error` khi > 0) · Credit · Cọc đang giữ · Đã thu trước (chưa QT) · Tạm giữ.
+- Click hàng → `CustomerBalanceSheet` (component mới): danh sách lượt (mã lượt → link
+  `paths.rentalDetail(id)?tab=payment`, Total Payable, Đã thu, Còn lại, `SETTLEMENT_PAYMENT_STATUS_LABELS`) · PSC
+  chưa tất toán (nguồn, số tiền, còn lại, badge "Tạm giữ") · 10 giao dịch gần đây của khách. AC-PM-011.
+- Rỗng: "Không có khách nào khớp bộ lọc."
+- Thay `ComingSoon` ở `app/routes.tsx` (nav + path đã có, gate `PAYMENT.VIEW`).
+
+### 10.9. UI — sửa/thêm
+
+| Component | Thay đổi |
+| --- | --- |
+| `RentalPaymentTab` | (1) Tóm tắt dùng `deriveRentalPaymentSummary` đã sửa + dòng "Chờ hoàn" (`pendingRefund`). (2) Mốc `RETURN`: liệt kê từng yêu cầu `SETTLEMENT` (nhãn theo `transactionType`: thu số còn lại / hoàn cọc / hoàn tiền thừa · số yêu cầu · đã thu/đã hoàn · badge). Nút **Ghi nhận thu** (`COLLECT`, quyền như Round 1) hoặc **Tạo giao dịch hoàn** (`REFUND`, `PAYMENT.CREATE`) khi `isRequestActionable(…, ctx)`. (3) Khối mới **"Phát sinh sau quyết toán"** (chỉ khi có PSC): mỗi PSC một dòng (nguồn PSC, loại thu/hoàn, số, đã thực hiện, badge yêu cầu, badge "Tạm giữ" nếu on-hold, cảnh báo "Giao dịch tất toán đã bị đảo" nếu PSC `CLOSED` mà yêu cầu không `FULFILLED`) + nút như (2). (4) Truyền `ctx` (settlement status, PSC, on-hold qua `useIncidents({ rentalId })` barrel) cho `isRequestActionable`. (5) **Góp ý R1-#2**: lấy tên khách qua `useCustomers()` (deep import đã chấp nhận) và truyền `customerName` cho `TransactionDetailSheet` (sheet tự truyền tiếp cho `ReceiptDialog`) |
+| `TransactionRecordDialog` | Khi tự chọn Rental + yêu cầu: chỉ liệt kê yêu cầu `purpose = COLLECT` actionable. Rental `MOTORBIKE` + yêu cầu `SETTLEMENT`/`PSC` → chỉ hiện `BANK_TRANSFER` (§10.2 điểm 8) |
+| `RefundCreateDialog` (mới) | Props `rental`, `request`. Hiện loại hoàn, số yêu cầu, đã hoàn, đang chờ, còn có thể hoàn; prefill `amount` = phần còn lại; ghi chú "Cần Quản lý duyệt — vượt ngưỡng 1.000.000đ" khi `refundNeedsApproval`. Dùng `refundCreateFormSchema` |
+| `RefundApprovalDialog` (mới) | Props `transaction`, `decision`. Hiện số tiền, loại, người nhận (`refundRecipient`), yêu cầu nguồn; ghi chú (bắt buộc khi từ chối). Dùng `refundDecisionFormSchema` |
+| `TransactionDetailSheet` | Hiện `refundRecipient`, khối duyệt (`REFUND_APPROVAL_STATUS_LABELS`, người/ thời điểm/ghi chú). Nút: **Duyệt / Từ chối** (`PAYMENT.APPROVE`, GD `PENDING` + `PENDING_APPROVAL`). **Xác nhận / Thất bại** mở rộng điều kiện: `PENDING` và (CK/ví **hoặc** `direction = OUT`) và không vướng duyệt (`approval` không có hoặc `APPROVED`). Nhãn nút với OUT là "Xác nhận đã chi". `OFFSET` hiện chú thích "Cấn trừ cọc tự động — không có dòng tiền thật" + link quyết toán |
+| `TransactionConfirmDialog` | Với GD `OUT`: ô số tiền **chỉ đọc** (§10.2 điểm 6); CASH OUT hiện số dư quỹ của người đang xác nhận (cảnh báo nếu không đủ) |
+| `TransactionLedgerScreen` | Bộ lọc thêm "Chờ duyệt hoàn". **Góp ý R1-#1**: giữ nguyên cách sheet resolve theo id từ danh sách đầy đủ (đó là cách sửa Blocker b của R1: người dùng phải thấy kết quả thao tác). Chỉ thêm một dòng chú thích trong sheet "Giao dịch này không còn khớp bộ lọc hiện tại" khi `!filtered.some(t => t.id === detailTxnId)` (prop tuỳ chọn `outsideFilter`) |
+| `CashDrawerScreen` tab "Đối soát CK/ví" | Danh sách `PENDING` CK/ví giờ có cả lệnh hoàn OUT: ẩn nút Xác nhận inline khi đang `PENDING_APPROVAL` (badge "Chờ duyệt"). Nhãn cột hướng thu/chi |
+| `SettlementWorksheet` (khối "Yêu cầu thanh toán") | Cạnh mỗi `SettlementPaymentRequest`: `PaymentRequestStatusBadge` của `PaymentRequest` liên kết + đã thu/đã hoàn + link `?tab=payment`. Thay ghi chú "Payment ghi nhận ở Phase 4.2" (`vi.finance.paymentRequestsNote`) bằng "Thu/hoàn thực hiện ở tab Thanh toán". Banner đảo quyết toán §10.5 |
+| `PostSettlementChargeSection` | Bỏ nút "Đánh dấu đã tất toán" + dialog. Mỗi PSC hiện trạng thái yêu cầu liên kết + đã thu/hoàn + link `?tab=payment`. Cảnh báo "Giao dịch tất toán đã bị đảo" như `RentalPaymentTab` |
+
+Mọi chuỗi mới ở `vi.finance.payment.*` / `vi.finance.receivables.*`. Responsive như §7.7. Không tạo route mới
+ngoài `/finance/receivables`.
+
+### 10.10. Hooks (`features/finance/hooks.ts`)
+
+- Helper nội bộ `invalidateFinanceAll(queryClient, rentalId?)`: invalidate `['finance','payment']`,
+  `['settlements']` (+ `['settlements','byRental',rentalId]`), `['postSettlementCharges']`. Mọi mutation **Payment**
+  và các mutation Settlement có ghi chéo (`useRecordSettlementCustomerAck`, `useApproveSettlement`,
+  `useCreateSettlementPaymentRequest`, `useCreatePostSettlementCharge`, `useAdjustSettlement`,
+  `useReverseSettlement`, `useOpenSettlement`, `useResyncSettlementSources`) gọi helper này (F5). Giữ phần
+  invalidate `['rentals']` hiện có.
+- Mới: `useCreateRefundTransaction`, `useDecideRefundApproval`. Xoá `useClosePostSettlementCharge`.
+
+### 10.11. Audit Round 2 — nối **cuối** `AUDIT_ACTIONS`, sau khối Round 1
+
+```ts
+  // Payment (PM) — Round 2, PAYMENT-PLAN.md §10.11.
+  'CREATE_PAYMENT_REQUEST',
+  'CANCEL_PAYMENT_REQUEST',
+  'OFFSET_DEPOSIT',
+  'APPROVE_REFUND',
+  'REJECT_REFUND',
+```
+
+Nơi dùng: `CREATE_PAYMENT_REQUEST` (§10.6, entity `'PaymentRequest'`) · `CANCEL_PAYMENT_REQUEST` (§10.5 bước 1) ·
+`OFFSET_DEPOSIT` (§10.5) · `APPROVE_REFUND`/`REJECT_REFUND` (§10.7). Không cần enum mới
+(`REFUND_APPROVAL_STATUSES` + label đã thêm từ Round 1).
+
+### 10.12. Seed C (`features/finance/seed.ts`) — `SEED_VERSION` 15 → **16**
+
+Thêm hàm `seedPaymentRound2()`, `registerSeedStep` **sau** `seedFinance` (thứ tự A → B → C ở §8.1;
+`registerSeeds.ts` không đổi). Sửa B: mọi `calcPaidToDate(rental, handover)`/`calcDepositHeld(rental, handover)`
+đổi sang chữ ký mới, đọc `PAYMENT_REQUESTS_STORAGE_KEY`/`TRANSACTIONS_STORAGE_KEY` do A đã ghi. Số không đổi vì
+`rt_022–rt_026` đều `FULFILLED` đủ 30%/70%/cọc khớp cờ cũ. `dev` phải **kiểm và báo lại** nếu số lệch.
+`completedTotals`/`depositReconciliation` của B **không** gõ tay lại.
+
+C dựng bằng **chính hàm thuần app dùng** (`buildSettlementPaymentRequest`, `buildPscPaymentRequest`,
+`buildOffsetTransaction`, `deriveRequestStatus`, `deriveRentalPaymentSummary`, `refundNeedsApproval`,
+`nextSequenceCode` tiếp nối mã `GD-`/`BL-` đã có). **Không tạo GD `CASH` mới**, để giữ nguyên số liệu quỹ AC-PM-009
+của Round 1:
+
+| Đối tượng | Seed |
+| --- | --- |
+| OFFSET | Mọi Settlement `CONFIRMED`/`COMPLETED` có `depositApplied > 0` (dự kiến `stl_024`, `stl_025` — `CASH_20M`; `stl_026` `MOTORBIKE` = 0) → 1 GD `OFFSET` `CONFIRMED`, `performedAt` = `customerAck.recordedAt` |
+| `PaymentRequest` `SETTLEMENT` | 1-1 cho mọi `SettlementPaymentRequest` `REQUESTED` (`stl_024`, `stl_025`, `stl_026`) |
+| `PaymentRequest` `POST_SETTLEMENT_CHARGE` | 1-1 cho `psc_001`, `psc_002`, `psc_003` |
+| `stl_024` `DEPOSIT_REFUND` | 2 GD `BANK_TRANSFER` cùng yêu cầu: GD 1 `FAILED` (`failReason` "Sai số tài khoản — ngân hàng trả lại", AC-PM-006), GD 2 `CONFIRMED` đủ số. Mỗi GD có `refundRecipient` (text ngân hàng/số TK giả + tên khách thật), `reference`, và `approval APPROVED` (Manager) **nếu** `refundNeedsApproval`. Biên lai cho GD 2. Kỳ vọng: yêu cầu `FULFILLED`, Settlement `REFUNDED` (AC-PM-005) |
+| `stl_025` `DEPOSIT_REFUND` | 1 GD `BANK_TRANSFER` `PENDING` đủ số + `refundRecipient` + `approval PENDING_APPROVAL` nếu `refundNeedsApproval` (dự kiến có). Kỳ vọng: `REFUND_PENDING`, demo Duyệt → Xác nhận đã chi |
+| `stl_026` `COLLECT` | 1 GD `BANK_TRANSFER` `CONFIRMED` ≈ 50% số yêu cầu (làm tròn nghìn, phải `< amount`). Kỳ vọng: yêu cầu `PARTIALLY_FULFILLED`, Settlement `PARTIALLY_PAID`, khách của `rt_026` có Outstanding > 0 |
+| `psc_002` (`REFUND` 200k, đang `CLOSED`) | 1 GD `GOODWILL_REFUND` `BANK_TRANSFER` `CONFIRMED` 200.000 (≤ ngưỡng, không duyệt) + `refundRecipient`. Yêu cầu `FULFILLED`. Cập nhật `psc_002.closeNote` = "Tất toán qua giao dịch GD-…", `closedAt` = `confirmedAt` của GD |
+| `psc_001` (`RECEIVABLE` 700k `OPEN`) | Không GD. Yêu cầu `OPEN` (demo AC-PM-012: thu thì PSC tự `CLOSED`) |
+| `psc_003` (`INCIDENT`, `inc_010` `DISPUTED`) | Không GD. Yêu cầu `OPEN`, UI hiện "Tạm giữ", không thực thi được |
+| Cuối C | `status` mọi `PaymentRequest` qua `deriveRequestStatus`; `paymentStatus` của Settlement `CONFIRMED`/`COMPLETED` qua `deriveRentalPaymentSummary` (ghi đè giá trị gõ tay của B); Settlement khác thì `paymentStatus` để trống. **Không** còn PSC `CLOSED` nào thiếu giao dịch tất toán |
+
+`dev` báo lại trong báo cáo các số thực: `depositApplied`/`depositRefundable` của `stl_024`/`stl_025`, số yêu cầu
+`COLLECT` của `stl_026`, có/không `approval` ở từng GD hoàn. Báo thêm `stl_022` (DRAFT, `CASH_20M`) khi chốt từ UI
+có `depositApplied > 0` không (dùng để demo OFFSET); nếu = 0 thì ghi rõ lượt nào demo được OFFSET (ví dụ mở quyết
+toán `rt_020`).
+
+### 10.13. Điểm diễn giải Round 2 — ghi cho BA (không tự sửa tài liệu)
+
+1. **Hoàn tiền CASH:** BRD §9 ("CASH → CONFIRMED ngay khi ghi nhận") vs §16/UC-PM-07 ("tạo OUT `PENDING` → chi →
+   xác nhận"). Chọn §16 cho mọi giao dịch hoàn (§10.2 điểm 5).
+2. **`OFFSET` dùng `Type = ADDITIONAL_CHARGE`** (UC-PM-05 bước 3 cho chọn `RENTAL_PAYMENT` hoặc `ADDITIONAL_CHARGE`).
+   Lý do: khoản thiếu sau khi đã thu đủ 30% + 70% là phần phát sinh.
+3. **Ngừng nhận thu ở mốc `BOOKING`/`HANDOVER` khi Settlement đã rời `DRAFT`** (§10.2 điểm 4). Tài liệu chưa nói.
+4. **Công nợ không bù trừ chéo giữa các lượt/PSC** và **`ADJUSTMENT` cấp khách không tính vào công nợ** (§10.8).
+   Cần BA xác nhận cùng OQ PM §27 Q8.
+5. **Tiền thật đã thu/hoàn theo quyết toán cũ khi đảo quyết toán** (§10.5 bước 4): giữ nguyên, không tự đưa vào
+   Paid To Date của quyết toán mới (UC-PM-01 A1 để ngỏ).
+6. **Mở lại PSC khi giao dịch tất toán bị đảo** (§10.4 bước 4): không tự mở lại, chỉ cảnh báo.
+7. **`GOODWILL_REFUND` cho mọi PSC `REFUND`**, kể cả PSC `ADJUSTMENT` giảm (UC-PM-10 A2 cho phép
+   `GOODWILL_REFUND` hoặc `OVERPAYMENT_REFUND`).
+
+### 10.14. Trong / ngoài phạm vi Round 2
+
+**Trong phạm vi:** toàn bộ §10.1-§10.12 + 2 góp ý R1 (§10.9).
+
+**Ngoài phạm vi (không làm dù tiện tay):** mọi mục §1.4 · tab "Thanh toán" ở Customer Detail (màn Công nợ chỉ link
+sang Customer Detail) · cấn trừ Credit sang lượt sau / `OVERDUE` / hạn thanh toán · `Deposit Retained` · duyệt 2 cấp
+· ngưỡng duyệt cho `ADJUSTMENT` (UC-PM-13 bước 4) · gợi ý "đóng lượt" tự động (UC-PM-17 bước 5) · đổi
+`getCompletionBlockers` · hoàn tiền khi huỷ lượt · sửa `features/rentals/*`, `handover-return/*`, `incidents/*`,
+`vehicles/*`, `customers/*` (kể cả `RentalDetailScreen.tsx` — Round 2 không cần đụng) · sửa `permissions.ts` · tách
+`features/finance` thành thư mục con.
+
+### 10.15. File tạo / sửa / xoá — Round 2
+
+- **Tạo:** `src/features/finance/screens/CustomerReceivablesScreen.tsx`;
+  `src/features/finance/components/{RefundCreateDialog, RefundApprovalDialog, CustomerBalanceSheet}.tsx`.
+- **Sửa:** `src/features/finance/{model, api, hooks, seed, index}.ts`;
+  `src/features/finance/components/{RentalPaymentTab, TransactionRecordDialog, TransactionDetailSheet,
+  TransactionConfirmDialog, SettlementWorksheet, PostSettlementChargeSection}.tsx`;
+  `src/features/finance/screens/{TransactionLedgerScreen, CashDrawerScreen}.tsx`;
+  `src/shared/domain/enums.ts` (5 audit action); `src/shared/i18n/vi.ts`; `src/shared/fixtures/seedAll.ts` (16);
+  `src/app/routes.tsx` (`/finance/receivables`).
+- **Xoá:** `src/features/finance/components/PostSettlementChargeCloseDialog.tsx`.
+- **Barrel** `index.ts`: thêm `export { CustomerReceivablesScreen } from './screens/CustomerReceivablesScreen'`.
+- **Không đụng:** `permissions.ts`, `nav.tsx`, `paths.ts`, `registerSeeds.ts`, mọi feature ngoài `finance`.
+
+### 10.16. Definition of Done — Round 2
+
+1. `npx tsc -b`, `npx oxlint`, `npm run build` sạch; `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. `git diff` **trống** ngoài danh sách §10.15 (đặc biệt `features/rentals|handover-return|incidents|vehicles|
+   customers/*`, `permissions.ts`). Audit action chỉ nối cuối mảng.
+3. Không còn `TODO(Phase 4.2)` trong `src/` (`grep -rn "TODO(Phase 4.2" src/` rỗng); `calcPaidToDate`/
+   `calcDepositHeld` không còn nhận `HandoverRecord`; không còn `closePostSettlementCharge`/`syncRequestStatus`.
+4. `OFFSET` chỉ sinh qua `applyDepositOffsetInCallback`, chỉ đảo qua `reverseSettlement`. Guard chặn `OFFSET`/
+   `ONLINE_GATEWAY` ở `recordTransaction`/`createAdjustment`/`reverseTransaction` **còn nguyên**.
+5. Công thức: yêu cầu `REFUND` đạt `FULFILLED` khi hoàn đủ (F1); Settlement `paymentStatus` = giá trị suy ra kỳ gốc
+   sau mọi thao tác, giao dịch PSC không làm đổi nó (F3a); `completedTotals` không bao giờ đổi; OFFSET đúng một
+   bản hiệu lực cho mỗi Settlement và ≤ Deposit Held; hoàn > ngưỡng không xác nhận được trước khi duyệt; CASH OUT
+   (hoàn + điều chỉnh) không vượt quỹ; không sửa số tiền GD OUT lúc xác nhận.
+6. Mọi `SettlementPaymentRequest` `REQUESTED` và mọi PSC có **đúng 1** `PaymentRequest` liên kết (cả seed lẫn khi
+   tạo mới từ UI); PSC chỉ `CLOSED` qua giao dịch; PSC "Tạm giữ" không ghi nhận được giao dịch (API chặn).
+7. Mọi chỗ phụ thuộc OQ có `TODO(OQ: …)` đúng mã: PM §27 Q4/Q7/Q8/Q9/Q13, RS §28 Q1, UC-PM-01 A1, RS×PM mở lại PSC.
+8. Form schema mới được dùng thật trong dialog; chuỗi UI mới ở `vi.ts`; không `console.log`/code chết (đã xoá dialog
+   đóng PSC thủ công + khoá i18n hết dùng).
+9. *(Chủ dự án tự test — `dev` không cần chạy trình duyệt)*: `stl_025` → `ACCOUNTANT` không thấy nút Duyệt → đổi
+   `MANAGER` Duyệt → đổi `ACCOUNTANT` "Xác nhận đã chi" → Worksheet hiện `REFUNDED`; `psc_001` → tab Thanh toán
+   `rt_024` → Ghi nhận thu 700k CK → Xác nhận → PSC tự `CLOSED`, Settlement gốc vẫn `REFUNDED`; `rt_026` → thu nốt
+   phần còn lại (chỉ cho chọn CK — xe máy) → Công nợ khách về 0 (trừ `psc_003` ở cột Tạm giữ); `psc_003` không có
+   nút thu; mở/chốt một Settlement `CASH_20M` có thiếu (ví dụ `stl_022`) → khách xác nhận → Sổ giao dịch có GD
+   `OFFSET`, không có nút Đảo; `SYSTEM_ADMIN` đảo quyết toán `stl_026` → yêu cầu `CANCELLED`, banner "giao dịch theo
+   quyết toán cũ"; tạo hoàn CASH lớn hơn quỹ → Xác nhận bị chặn; `/finance/receivables` lọc Đang nợ / Có số dư.
+10. `docs/IMPLEMENTATION-PLAN.md` cập nhật; `ComingSoon` `/finance/receivables` đã thay.
+
+### 10.17. Danh sách file `dev` đọc trước khi code Round 2 (đọc đúng danh sách, không scan rộng)
+
+**Tài liệu nghiệp vụ** (đúng mục):
+- `../thien-bao-car-docs/modules/Payment-BRD.md` §8-§9 (Business Rule), §11-§13, §14 (Business Rule), §16, §20
+  (PM-BR-07/08/11/12/13/14), §22 (AC-PM-003/005/006/007/010/011/012), §23 (EX-01, EX-04, EX-07).
+- `../thien-bao-car-docs/modules/Payment-UseCase.md` §5.5 (UC-PM-01 A1/A2), §9 (UC-PM-05), §11-§14 (UC-PM-07→10),
+  §16.5 (UC-PM-12 A2), §18.4 (UC-PM-14 A2), §21-§22 (UC-PM-17/18).
+- `../thien-bao-car-docs/modules/RentalSettlement-BRD.md` §10, §15, §17 + bảng Business Rule (RS-BR-10/11/12/13/20/21/22).
+- File này: §0.2-§0.4, §2.1, §2.5, §6, **§10 (toàn bộ)**, §11.
+
+**Code** (đọc đúng phần):
+- `src/features/finance/model.ts`: `Settlement`/`SettlementPaymentRequest`/`PostSettlementCharge` (dòng ~87-202),
+  `calcPaidToDate`/`calcDepositHeld` (~310-329), `getSubmitBlockers`/`getCompletionBlockers` (~419-474),
+  `isPscOnHold`/`summarizePscs` (~585-609), `buildReversalReset` (~618-662), **toàn bộ khối Payment** (~797-1218).
+- `src/features/finance/api.ts`: dòng 1-175 (import/storage/guard/`loadSources`), `openSettlement`,
+  `resyncSettlementSources`, `recordCustomerAck`, `approveSettlement`, `createPaymentRequest`,
+  `createPostSettlementCharge`, `adjustSettlement`, `closePostSettlementCharge`, `reverseSettlement` (~176-1093),
+  **toàn bộ khối Payment** (~1095-1647).
+- `src/features/finance/hooks.ts` (toàn bộ), `index.ts`, `seed.ts` (toàn bộ — đặc biệt `seedPaymentRound1` helper
+  `addTxn`/`issueReceiptFor` và khối `stl_022`-`stl_026` + PSC).
+- Component: `RentalPaymentTab.tsx`, `TransactionRecordDialog.tsx`, `TransactionDetailSheet.tsx`,
+  `TransactionConfirmDialog.tsx`, `TransactionReasonDialog.tsx` (mẫu dialog lý do), `SettlementWorksheet.tsx`
+  (khối yêu cầu thanh toán ~dòng 360-380 + banner đảo ~189-198), `PostSettlementChargeSection.tsx`,
+  `PostSettlementChargeCloseDialog.tsx` (để xoá), `screens/TransactionLedgerScreen.tsx`, `screens/CashDrawerScreen.tsx`.
+- `src/shared/domain/enums.ts` — khối Payment (~203-230) + cuối `AUDIT_ACTIONS` (~530-545).
+- `src/shared/domain/permissions.ts` — chỉ khối `resource: 'PAYMENT'` (~361-430), để biết action nào có sẵn.
+- `src/shared/i18n/vi.ts` — khối `finance:` → `payment:` + `REFUND_APPROVAL_STATUS_LABELS` (~1692).
+- `src/features/customers/hooks.ts` (`useCustomers`) + `customers/model.ts` (interface `Customer` — tên field SĐT);
+  `src/features/rentals/index.ts`, `src/features/incidents/index.ts` (export barrel có sẵn); `src/app/routes.tsx`;
+  `src/app/paths.ts`; `src/shared/fixtures/seedAll.ts`.
+
+### 10.18. Thứ tự làm đề xuất cho `dev`
+
+enum (5 audit) → model (sửa F1/F2/F3 + hàm mới + schema) → api (helper §10.4 → sửa Payment R1 → OFFSET/đảo §10.5
+→ sửa Settlement/PSC §10.6 → API mới §10.7) → hooks (§10.10) → seed B/C + `SEED_VERSION` → UI tab Thanh toán +
+dialog hoàn/duyệt → Sheet/Confirm/Ledger/CashDrawer → Worksheet/PSC section (xoá dialog đóng tay) → Công nợ khách
+hàng + route → 3 cổng.
 
 ---
 
@@ -756,9 +1088,9 @@ Xem §6 (5 action). Nối cuối mảng, sau khối Round 1.
 | 14 | Mô hình phí SePay — PM §4.2 | Không chặn code demo | Không ghi phí; `ONLINE_GATEWAY` chỉ trong seed; TODO tại label/seed giao dịch SePay (phí = chi phí công ty → Phase 4.3 `RV`) |
 
 **Open Question phụ cũng chạm code** (không nằm trong 5 câu chặn lõi, xử lý cùng cách):
-PM §27 Q4 / RS §28 Q1 (cấn trừ tự động — §10.4) · Q5 / RS §28 Q3 (giữ cọc chờ phạt — hoàn toàn bộ) · Q9 (hạn
+PM §27 Q4 / RS §28 Q1 (cấn trừ tự động — §10.5) · Q5 / RS §28 Q3 (giữ cọc chờ phạt — hoàn toàn bộ) · Q9 (hạn
 thanh toán → không tính `OVERDUE`) · Q15 (hoàn khi huỷ lượt — không build) · Q16 (mẫu/đánh số biên lai — số
-tuần tự `BL-000001`) · Q23 (`OWNER_PAYOUT` cùng sổ hay tách — Phase 5) · RS×PM: mở lại PSC khi GD tất toán bị đảo (§10.3).
+tuần tự `BL-000001`) · Q23 (`OWNER_PAYOUT` cùng sổ hay tách — Phase 5) · RS×PM: mở lại PSC khi GD tất toán bị đảo (§10.4) · UC-PM-01 A1 tiền thật theo quyết toán cũ (§10.5).
 
 Không chặn nhưng cần BA xem: 7 điểm §0.4.
 
@@ -785,13 +1117,9 @@ Không chặn nhưng cần BA xem: 7 điểm §0.4.
 - `src/features/auth/model.ts` (`userId` tài khoản demo) + cách lấy session/actor trong `finance/hooks.ts`.
 - `src/shared/fixtures/seedAll.ts`, `src/app/routes.tsx`, `src/shared/layout/nav.tsx` (dòng ~94-120), `src/shared/lib/audit.ts`, `src/shared/lib/money.ts`, `src/shared/lib/datetime.ts`.
 
-### 12.2. Round 2 (thêm)
+### 12.2. Round 2
 
-- `Payment-BRD.md` §11, §12, §16, EX-01/04/07; `Payment-UseCase.md` §9 (UC-PM-05), §11-§14 (UC-PM-07→10), §21-§22 (UC-PM-17/18).
-- `../thien-bao-car-docs/modules/RentalSettlement-BRD.md` §10, §15, §17 (RS-BR-09/10/11/13/20/21/22).
-- `docs/RENTAL-SETTLEMENT-PLAN.md` §0.3, §10.3, §10.6, §10.13.
-- `src/features/finance/api.ts` — `recordCustomerAck`, `approveSettlement`, `createPaymentRequest`, `createPostSettlementCharge`, `adjustSettlement`, `closePostSettlementCharge`, `reverseSettlement`, `resyncSettlementSources`; `components/SettlementWorksheet.tsx`, `PostSettlementChargeSection.tsx`, `PostSettlementChargeCloseDialog.tsx`; `seed.ts` (stl_022→026, psc_001→003).
-- `src/features/customers/model.ts` (interface `Customer`) + `customers/hooks.ts` (`useCustomers`).
+Thay bằng danh sách chi tiết đã đối chiếu code ở **§10.17** (bản chuẩn).
 
 ---
 
@@ -805,11 +1133,7 @@ ReceiptDialog, TransactionDetailSheet, TransactionStatusBadge, PaymentRequestSta
 `src/shared/domain/permissions.ts` · `src/shared/i18n/vi.ts` · `src/shared/fixtures/seedAll.ts` (15) ·
 `src/app/routes.tsx` (2 route) · `src/features/rentals/screens/RentalDetailScreen.tsx` (tab Thanh toán).
 
-**Round 2 — tạo mới:** `screens/CustomerReceivablesScreen.tsx`, `components/{RefundCreateDialog,
-RefundApprovalDialog}.tsx`. **Round 2 — sửa:** `finance/{model, api, hooks, seed, index}.ts` +
-`components/{SettlementWorksheet, PostSettlementChargeSection, RentalPaymentTab, TransactionLedgerScreen…}`
-(+ xoá `PostSettlementChargeCloseDialog.tsx` nếu hết dùng) · `enums.ts` (audit + `REFUND_APPROVAL_STATUSES`
-nếu chưa thêm) · `vi.ts` · `seedAll.ts` (16) · `app/routes.tsx` (`/finance/receivables`).
+**Round 2:** xem **§10.15** (bản chuẩn, gồm cả file xoá và file không được đụng).
 
 ---
 
@@ -839,20 +1163,7 @@ nếu chưa thêm) · `vi.ts` · `seedAll.ts` (16) · `app/routes.tsx` (`/financ
 
 ### 14.2. Round 2
 
-1. Như 14.1 điểm 1, 4, 6.
-2. `calcPaidToDate`/`calcDepositHeld` không còn đọc cờ `HandoverRecord`; Settlement seed `paidToDate`/`depositHeld`
-   khớp sổ giao dịch; mọi `SettlementPaymentRequest` `REQUESTED` có đúng 1 `PaymentRequest` liên kết.
-3. `settlement.paymentStatus` luôn bằng giá trị suy ra sau mọi thao tác (ghi thu/xác nhận/đảo/huỷ/duyệt hoàn/đảo
-   quyết toán); `completedTotals` của Settlement `COMPLETED` không bao giờ đổi (RS-BR-12/13).
-4. `OFFSET` sinh đúng một lần khi Settlement vào `CONFIRMED` (kể cả sau đảo quyết toán rồi chốt lại — OFFSET cũ
-   đã bị đảo), không vượt Deposit Held; đảo quyết toán huỷ yêu cầu + đảo OFFSET, giữ GD tiền thật.
-5. PSC chỉ đóng qua giao dịch; PSC "Tạm giữ" không ghi nhận được giao dịch; hoàn > ngưỡng phải duyệt trước khi
-   xác nhận; CASH OUT không vượt quỹ.
-6. *(Chủ dự án tự test)*: `stl_025` → `MANAGER` duyệt hoàn → `ACCOUNTANT` xác nhận đã chi → Payment Status
-   `REFUNDED` ở Worksheet; `psc_001` → ghi nhận thu 700k → PSC tự `CLOSED`, Settlement gốc không đổi; `rt_026` →
-   thu nốt phần còn lại → Công nợ khách về 0; mở một Settlement `DRAFT` → chốt → khách xác nhận → thấy GD `OFFSET`
-   trong Sổ giao dịch; `SYSTEM_ADMIN` đảo quyết toán → yêu cầu `CANCELLED`, OFFSET bị đảo.
-7. `IMPLEMENTATION-PLAN.md` cập nhật; `ComingSoon` `/finance/receivables` đã thay.
+Xem **§10.16** (bản chuẩn — thay cho 7 điểm phác thảo ban đầu).
 
 ---
 

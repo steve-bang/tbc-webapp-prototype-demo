@@ -25,8 +25,25 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
-import { usePostSettlementCharges, useRemoveSettlementManualLine, useResyncSettlementSources, useSettlementByRental, useSubmitSettlementForCustomer } from '../hooks'
-import { calcSettlementTotals, canReverseSettlement, countPendingReturnIncidentItems, isWorksheetEditable, type SettlementLine } from '../model'
+import { PaymentRequestStatusBadge } from './PaymentRequestStatusBadge'
+import {
+  usePaymentRequests,
+  usePostSettlementCharges,
+  useRemoveSettlementManualLine,
+  useResyncSettlementSources,
+  useSettlementByRental,
+  useSubmitSettlementForCustomer,
+  useTransactions,
+} from '../hooks'
+import {
+  calcRequestProgress,
+  calcSettlementTotals,
+  canReverseSettlement,
+  countPendingReturnIncidentItems,
+  isEffectiveTransaction,
+  isWorksheetEditable,
+  type SettlementLine,
+} from '../model'
 import { SettlementApprovalDialog } from './SettlementApprovalDialog'
 import { SettlementCompleteDialog } from './SettlementCompleteDialog'
 import { SettlementCustomerAckDialog } from './SettlementCustomerAckDialog'
@@ -62,6 +79,9 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
   const { data: handovers = [] } = useHandoverRecords({ rentalId })
   const { data: incidents = [] } = useIncidents({ rentalId })
   const { data: pscs = [] } = usePostSettlementCharges({ settlementId: settlement?.id })
+  // Round 2 (§10.9) — hiện trạng thái thực thi của yêu cầu thanh toán + banner đảo quyết toán.
+  const { data: paymentRequests = [] } = usePaymentRequests({ rentalId })
+  const { data: rentalTxns = [] } = useTransactions({ rentalId })
 
   const resync = useResyncSettlementSources()
   const submitForCustomer = useSubmitSettlementForCustomer()
@@ -112,15 +132,24 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
   const pendingIncidentItems = countPendingReturnIncidentItems(returnRecord, incidents)
   const returnCancelled = settlement.status !== 'COMPLETED' && rental.status !== 'SETTLEMENT'
 
+  // Round 2 (§10.5) — banner khi đảo quyết toán: còn giao dịch hiệu lực gắn một PaymentRequest
+  // `source = SETTLEMENT` đã `CANCELLED` (tiền thật theo quyết toán cũ, giữ nguyên — UC-PM-01 A1).
+  const cancelledSettlementRequestIds = new Set(
+    paymentRequests.filter((r) => r.source === 'SETTLEMENT' && r.status === 'CANCELLED').map((r) => r.id),
+  )
+  const hasReversedSettlementTxn =
+    cancelledSettlementRequestIds.size > 0 &&
+    rentalTxns.some((t) => isEffectiveTransaction(t) && t.paymentRequestId && cancelledSettlementRequestIds.has(t.paymentRequestId))
+
   const totals = settlement.completedTotals ?? calcSettlementTotals(settlement.lines, settlement.waivers)
   const reconciliation = settlement.completedTotals ?? settlement.depositReconciliation
   const paidToDate = settlement.paidToDate.prepayment + settlement.paidToDate.handoverPayment
 
   // Nên sửa 8 (tech-lead review Phase 4.1 R1) — ẩn nút tạo yêu cầu khi đã có
   // yêu cầu cùng loại đang `REQUESTED` (khớp guard chặn trùng ở `api.ts`).
-  const paymentRequests = settlement.paymentRequests
+  const settlementPaymentRequests = settlement.paymentRequests
   function hasRequest(type: SettlementRequestType): boolean {
-    return paymentRequests.some((r) => r.type === type && r.status === 'REQUESTED')
+    return settlementPaymentRequests.some((r) => r.type === type && r.status === 'REQUESTED')
   }
 
   const auditRecords = listAuditRecords()
@@ -192,6 +221,14 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
               .replace('{at}', formatDateTime(settlement.reversals[settlement.reversals.length - 1].reversedAt))
               .replace('{reason}', settlement.reversals[settlement.reversals.length - 1].reason)}
           />
+        )}
+        {hasReversedSettlementTxn && (
+          <div className="border-status-pending bg-status-pending/10 rounded-md border p-3 text-sm">
+            {vi.finance.payment.reversedSettlementBanner}{' '}
+            <Link to={paths.financeTransactions} className="text-primary underline underline-offset-2">
+              {vi.finance.payment.ledgerTitle}
+            </Link>
+          </div>
         )}
       </div>
 
@@ -364,16 +401,34 @@ export function SettlementWorksheet({ rentalId }: { rentalId: string }) {
             <p className="text-muted-foreground text-sm">{vi.finance.paymentRequestsEmpty}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {settlement.paymentRequests.map((r) => (
-                <div
-                  key={r.id}
-                  className={`border-border flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${r.status === 'CANCELLED' ? 'opacity-50' : ''}`}
-                >
-                  <span className={r.status === 'CANCELLED' ? 'line-through' : ''}>{SETTLEMENT_REQUEST_TYPE_LABELS[r.type]}</span>
-                  <span className={`font-medium ${r.status === 'CANCELLED' ? 'line-through' : ''}`}>{formatVnd(r.amount)}</span>
-                  {r.status === 'CANCELLED' && <Badge variant="destructive">{vi.finance.cancelledRequestLabel}</Badge>}
-                </div>
-              ))}
+              {settlement.paymentRequests.map((r) => {
+                // Round 2 (§10.9) — liên kết 1-1 với PaymentRequest (Payment) qua `settlementRequestId`.
+                const linked = paymentRequests.find((pr) => pr.settlementRequestId === r.id)
+                const progress = linked ? calcRequestProgress(linked, rentalTxns) : undefined
+                return (
+                  <div
+                    key={r.id}
+                    className={`border-border flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${r.status === 'CANCELLED' ? 'opacity-50' : ''}`}
+                  >
+                    <span className={r.status === 'CANCELLED' ? 'line-through' : ''}>{SETTLEMENT_REQUEST_TYPE_LABELS[r.type]}</span>
+                    <span className={`font-medium ${r.status === 'CANCELLED' ? 'line-through' : ''}`}>{formatVnd(r.amount)}</span>
+                    {r.status === 'CANCELLED' && <Badge variant="destructive">{vi.finance.cancelledRequestLabel}</Badge>}
+                    {linked && (
+                      <div className="flex items-center gap-2">
+                        <PaymentRequestStatusBadge status={linked.status} />
+                        {progress && (
+                          <span className="text-muted-foreground text-xs">
+                            {vi.finance.payment.milestoneCollected}: {formatVnd(progress.collected)}
+                          </span>
+                        )}
+                        <Link to={`${paths.rentalDetail(rentalId)}?tab=payment`} className="text-primary text-xs underline underline-offset-2">
+                          {vi.finance.payment.pscPaymentLink}
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
           <p className="text-muted-foreground text-xs">{vi.finance.paymentRequestsNote}</p>

@@ -1,11 +1,6 @@
 // `handover-return`/`incidents`/`rentals` — CHỈ qua barrel (RENTAL-SETTLEMENT-PLAN.md §0.2),
 // không deep-import `/api`/`/hooks`/`/model` của 3 feature nguồn.
-import {
-  listHandovers,
-  listReturns,
-  type HandoverRecord,
-  type ReturnRecord,
-} from '@/features/handover-return'
+import { listReturns, type ReturnRecord } from '@/features/handover-return'
 import { listIncidents, type Incident } from '@/features/incidents'
 import {
   RENTALS_STORAGE_KEY,
@@ -36,12 +31,17 @@ import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
+  buildOffsetTransaction,
+  buildPscPaymentRequest,
+  buildReversalPair,
   buildReversalReset,
   buildScheduleRequests,
+  buildSettlementPaymentRequest,
   buildSourceLines,
   calcCashDrawerBalance,
   calcDepositHeld,
   calcDepositReconciliation,
+  calcLedgerDepositHeld,
   calcPaidToDate,
   calcRequestProgress,
   calcSettlementTotals,
@@ -50,18 +50,22 @@ import {
   canReverseSettlement,
   canScheduleRental,
   cashDrawerIdOf,
+  deriveRentalPaymentSummary,
   deriveRequestStatus,
   directionOf,
+  findEffectiveOffset,
   fixedPscType,
   getCompletionBlockers,
   getIncidentPscBlocker,
   getLineDiscountedAmount,
   getSubmitBlockers,
+  isEffectiveTransaction,
   isPscOnHold,
   isRequestActionable,
   mergeResyncedLines,
   nextSequenceCode,
   pscAmountForIncident,
+  refundNeedsApproval,
   waiverNeedsApproval,
   type CashDrawerSubmission,
   type DepositReconciliation,
@@ -124,11 +128,6 @@ function readAllPsc(): PostSettlementCharge[] {
 function writeAllPsc(items: PostSettlementCharge[]): void {
   writeJson(POST_SETTLEMENT_CHARGES_STORAGE_KEY, items)
 }
-function findPscOrThrow(items: PostSettlementCharge[], id: string): PostSettlementCharge {
-  const found = items.find((p) => p.id === id)
-  if (!found) throw new Error('Không tìm thấy khoản phát sinh sau quyết toán')
-  return found
-}
 
 /** Vietnamese cho từng `PscBlockerCode` (§10.4 kế hoạch) — dùng chung lỗi API + nhãn UI (`PostSettlementChargeDialog`). */
 export const PSC_BLOCKER_MESSAGES: Record<PscBlockerCode, string> = {
@@ -159,15 +158,10 @@ export async function getSettlementByRentalId(rentalId: string): Promise<Settlem
   return fakeRequest(() => readAll().find((s) => s.rentalId === rentalId))
 }
 
-async function loadSources(rentalId: string): Promise<{ returnRecord?: ReturnRecord; handover?: HandoverRecord; incidents: Incident[] }> {
-  const [returns, handovers, incidents] = await Promise.all([
-    listReturns({ rentalId }),
-    listHandovers({ rentalId }),
-    listIncidents({ rentalId }),
-  ])
+async function loadSources(rentalId: string): Promise<{ returnRecord?: ReturnRecord; incidents: Incident[] }> {
+  const [returns, incidents] = await Promise.all([listReturns({ rentalId }), listIncidents({ rentalId })])
   return {
     returnRecord: returns.find((r) => r.status === 'COMPLETED'),
-    handover: handovers.find((h) => h.status === 'COMPLETED'),
     incidents,
   }
 }
@@ -178,7 +172,7 @@ export async function openSettlement(rentalId: string, actor: ActorInfo): Promis
   if (!canOpenSettlement(rental)) {
     throw new Error(`Không thể mở quyết toán khi lượt thuê đang ở trạng thái ${rental.status} (RS-BR-02)`)
   }
-  const { returnRecord, handover, incidents } = await loadSources(rentalId)
+  const { returnRecord, incidents } = await loadSources(rentalId)
 
   const settlement = await fakeRequest(() => {
     // N1 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.7) — đọc lại + kiểm lại guard
@@ -187,6 +181,9 @@ export async function openSettlement(rentalId: string, actor: ActorInfo): Promis
     if (existing.some((s) => s.rentalId === rentalId)) {
       throw new Error('Lượt thuê này đã có quyết toán (RS-BR-01)')
     }
+    // PAYMENT-PLAN.md §10.6 — Paid To Date/Deposit Held đọc từ sổ giao dịch Payment thật, không còn suy từ `HandoverRecord`.
+    const paymentRequests = readAllPaymentRequests()
+    const transactions = readAllTransactions()
     const now = new Date().toISOString()
     const result: Settlement = {
       id: generateId('stl'),
@@ -197,8 +194,8 @@ export async function openSettlement(rentalId: string, actor: ActorInfo): Promis
       lines: buildSourceLines({ rental, returnRecord, incidents }),
       waivers: [],
       securityDepositType: rental.securityDepositType,
-      paidToDate: calcPaidToDate(rental, handover),
-      depositHeld: calcDepositHeld(rental, handover),
+      paidToDate: calcPaidToDate(rental, paymentRequests, transactions),
+      depositHeld: calcDepositHeld(rental, paymentRequests, transactions),
       paymentRequests: [],
       openedByName: actor.fullName,
       openedAt: now,
@@ -235,7 +232,7 @@ export async function resyncSettlementSources(id: string, actor: ActorInfo): Pro
   // RS-BR-13 — sự cố đã đi qua PSC không đưa lại vào Settlement khi làm lại
   // sau đảo quyết toán (RENTAL-SETTLEMENT-PLAN.md §10.2 điểm 3).
   const pscIncidentIds = new Set(readAllPsc().filter((p) => p.rentalId === before.rentalId && p.incidentId).map((p) => p.incidentId))
-  const { returnRecord, handover, incidents: sourceIncidents } = await loadSources(before.rentalId)
+  const { returnRecord, incidents: sourceIncidents } = await loadSources(before.rentalId)
   const incidents = sourceIncidents.filter((i) => !pscIncidentIds.has(i.id))
 
   return fakeRequest(() => {
@@ -247,11 +244,14 @@ export async function resyncSettlementSources(id: string, actor: ActorInfo): Pro
       throw new Error('Chỉ đồng bộ lại khi quyết toán đang Đang soạn')
     }
     const freshLines = buildSourceLines({ rental, returnRecord, incidents })
+    // PAYMENT-PLAN.md §10.6 — Paid To Date/Deposit Held đọc từ sổ giao dịch Payment thật.
+    const paymentRequests = readAllPaymentRequests()
+    const transactions = readAllTransactions()
     const after: Settlement = {
       ...current,
       lines: mergeResyncedLines(current.lines, freshLines),
-      paidToDate: calcPaidToDate(rental, handover),
-      depositHeld: calcDepositHeld(rental, handover),
+      paidToDate: calcPaidToDate(rental, paymentRequests, transactions),
+      depositHeld: calcDepositHeld(rental, paymentRequests, transactions),
       depositReconciliation: undefined, // mọi lần resync xoá đối trừ cọc (§3.7 kế hoạch)
       updatedAt: new Date().toISOString(),
     }
@@ -669,6 +669,11 @@ export async function recordCustomerAck(id: string, input: CustomerAckInput, act
     const hasPendingWaiver = before.waivers.some((w) => w.status === 'PENDING_APPROVAL')
     const status: Settlement['status'] = hasPendingWaiver ? 'WAITING_APPROVAL' : 'CONFIRMED'
     const after: Settlement = { ...before, status, customerAck: { recordedByName: actor.fullName, recordedAt: now, note: input.note }, updatedAt: now }
+    // PAYMENT-PLAN.md §10.5 — cấn trừ cọc tự động chỉ ở nhánh → CONFIRMED (không ở → WAITING_APPROVAL),
+    // TRƯỚC khi ghi Settlement; cọc không đủ thì throw, không ghi gì (PM-BR-07/08).
+    if (status === 'CONFIRMED') {
+      applyDepositOffsetInCallback(after, actor, now)
+    }
     writeAll(existing.map((s) => (s.id === id ? after : s)))
     appendAudit({
       action: 'RECORD_SETTLEMENT_CUSTOMER_ACK',
@@ -681,6 +686,10 @@ export async function recordCustomerAck(id: string, input: CustomerAckInput, act
       before: { status: before.status },
       after: { status },
     })
+    if (status === 'CONFIRMED') {
+      syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+      return findOrThrow(readAll(), id)
+    }
     return after
   })
 }
@@ -703,6 +712,8 @@ export async function approveSettlement(id: string, note: string | undefined, ac
       approval: { decision: 'APPROVED', decidedByName: actor.fullName, decidedAt: now, note },
       updatedAt: now,
     }
+    // PAYMENT-PLAN.md §10.5 — cấn trừ cọc tự động TRƯỚC khi ghi Settlement.
+    applyDepositOffsetInCallback(after, actor, now)
     writeAll(existing.map((s) => (s.id === id ? after : s)))
     appendAudit({
       action: 'APPROVE_SETTLEMENT',
@@ -715,7 +726,8 @@ export async function approveSettlement(id: string, note: string | undefined, ac
       before: { status: before.status },
       after: { status: after.status },
     })
-    return after
+    syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    return findOrThrow(readAll(), id)
   })
 }
 
@@ -781,8 +793,9 @@ export async function createPaymentRequest(id: string, type: SettlementRequestTy
     if (amount <= 0) throw new Error('Không có khoản phù hợp để tạo yêu cầu này')
     const now = new Date().toISOString()
     const request: SettlementPaymentRequest = { id: generateId('pyr'), type, amount, status: 'REQUESTED', createdByName: actor.fullName, createdAt: now }
-    const paymentStatus = type === 'COLLECT' ? (before.paymentStatus ?? 'UNPAID') : 'REFUND_PENDING' // §0.3 kế hoạch
-    const after: Settlement = { ...before, paymentRequests: [...before.paymentRequests, request], paymentStatus, updatedAt: now }
+    // §0.3 điểm 7 kế hoạch — Round 2: `paymentStatus` không còn gán tay ở đây, do
+    // `syncFinanceAfterPaymentChange` tính lại từ sổ giao dịch (§10.4/§10.6).
+    const after: Settlement = { ...before, paymentRequests: [...before.paymentRequests, request], updatedAt: now }
     writeAll(existing.map((s) => (s.id === id ? after : s)))
     appendAudit({
       action: type === 'COLLECT' ? 'CREATE_SETTLEMENT_COLLECT_REQUEST' : 'CREATE_SETTLEMENT_REFUND_REQUEST',
@@ -794,7 +807,21 @@ export async function createPaymentRequest(id: string, type: SettlementRequestTy
       actorRole: actor.role,
       after: request,
     })
-    return after
+    // PAYMENT-PLAN.md §10.6 — sinh kèm `PaymentRequest` 1-1 (§0.3 điểm 7) TRONG cùng callback.
+    const paymentRequest = buildSettlementPaymentRequest(after, request, actor.fullName, now)
+    writeAllPaymentRequests([...readAllPaymentRequests(), paymentRequest])
+    appendAudit({
+      action: 'CREATE_PAYMENT_REQUEST',
+      entity: 'PaymentRequest',
+      entityId: paymentRequest.id,
+      summary: `Sinh yêu cầu thanh toán cho ${type} của quyết toán ${id}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: paymentRequest,
+    })
+    syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    return findOrThrow(readAll(), id)
   })
 }
 
@@ -957,6 +984,19 @@ export async function createPostSettlementCharge(settlementId: string, input: Cr
       actorRole: actor.role,
       after: psc,
     })
+    // PAYMENT-PLAN.md §10.6 — mỗi PSC sinh kèm 1 `PaymentRequest` qua `buildPscPaymentRequest`.
+    const paymentRequest = buildPscPaymentRequest(psc, actor.fullName, now)
+    writeAllPaymentRequests([...readAllPaymentRequests(), paymentRequest])
+    appendAudit({
+      action: 'CREATE_PAYMENT_REQUEST',
+      entity: 'PaymentRequest',
+      entityId: paymentRequest.id,
+      summary: `Sinh yêu cầu thanh toán cho khoản phát sinh sau quyết toán ${psc.id}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: paymentRequest,
+    })
     return psc
   })
 }
@@ -1013,38 +1053,26 @@ export async function adjustSettlement(settlementId: string, input: AdjustSettle
       actorRole: actor.role,
       after: psc,
     })
+    // PAYMENT-PLAN.md §10.6 — mỗi PSC sinh kèm 1 `PaymentRequest` qua `buildPscPaymentRequest`.
+    const paymentRequest = buildPscPaymentRequest(psc, actor.fullName, now)
+    writeAllPaymentRequests([...readAllPaymentRequests(), paymentRequest])
+    appendAudit({
+      action: 'CREATE_PAYMENT_REQUEST',
+      entity: 'PaymentRequest',
+      entityId: paymentRequest.id,
+      summary: `Sinh yêu cầu thanh toán cho điều chỉnh sau quyết toán ${psc.id}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: paymentRequest,
+    })
     return psc
   })
 }
 
-/** BRD §17 bước cuối, UC-RS-14 bước 6 — đánh dấu PSC `OPEN → CLOSED` thủ công (thay cho Payment chưa có, §0.3 kế hoạch). */
-export async function closePostSettlementCharge(pscId: string, closeNote: string | undefined, actor: ActorInfo): Promise<PostSettlementCharge> {
-  const incidents = await listIncidents()
-  return fakeRequest(() => {
-    const existing = readAllPsc()
-    const before = findPscOrThrow(existing, pscId)
-    if (before.status !== 'OPEN') throw new Error('Khoản phát sinh đã được tất toán')
-    if (isPscOnHold(before, incidents)) {
-      throw new Error('Khoản phát sinh đang Tạm giữ — sự cố liên quan còn đang tranh chấp (UC-RS-14 A1)')
-    }
-    const now = new Date().toISOString()
-    const after: PostSettlementCharge = { ...before, status: 'CLOSED', closedByName: actor.fullName, closedAt: now, closeNote: closeNote?.trim() || undefined }
-    writeAllPsc(existing.map((p) => (p.id === pscId ? after : p)))
-    appendAudit({
-      action: 'CLOSE_POST_SETTLEMENT_CHARGE',
-      entity: 'Settlement',
-      entityId: before.settlementId,
-      summary: `Đánh dấu đã tất toán khoản phát sinh ${pscId}`,
-      actorUserId: actor.userId,
-      actorName: actor.fullName,
-      actorRole: actor.role,
-      before: { status: before.status },
-      after: { status: after.status, pscId },
-    })
-    // TODO(Phase 4.2): đóng tự động khi Payment `POST_SETTLEMENT_COLLECT`/`REFUND` `CONFIRMED` (AC-PM-012).
-    return after
-  })
-}
+// §10.2 điểm 10 kế hoạch — Round 2 bỏ hẳn đóng PSC thủ công (`closePostSettlementCharge` đã xoá).
+// PSC chỉ `CLOSED` qua `syncFinanceAfterPaymentChange` khi `PaymentRequest` liên kết `FULFILLED`
+// (AC-PM-012), vẫn dùng audit action `CLOSE_POST_SETTLEMENT_CHARGE`.
 
 export interface ReverseSettlementInput {
   reason: string
@@ -1073,6 +1101,82 @@ export async function reverseSettlement(settlementId: string, input: ReverseSett
     const now = new Date().toISOString()
     const { after: result, reversal } = buildReversalReset(before, actor, reason, now)
     writeAll(existing.map((s) => (s.id === settlementId ? result : s)))
+
+    // PAYMENT-PLAN.md §10.5 — (1) huỷ PaymentRequest của Payment còn mở, liên kết qua `settlementRequestId`.
+    const cancelledSettlementRequestIds = new Set(reversal.cancelledPaymentRequestIds)
+    const cancelledPaymentRequestIds: string[] = []
+    const prList = readAllPaymentRequests().map((r) => {
+      if (!r.settlementRequestId || !cancelledSettlementRequestIds.has(r.settlementRequestId)) return r
+      if (r.status !== 'OPEN' && r.status !== 'PARTIALLY_FULFILLED') return r
+      cancelledPaymentRequestIds.push(r.id)
+      return { ...r, status: 'CANCELLED' as const, cancelledByName: actor.fullName, cancelledAt: now, cancelReason: reason }
+    })
+    writeAllPaymentRequests(prList)
+    for (const requestId of cancelledPaymentRequestIds) {
+      appendAudit({
+        action: 'CANCEL_PAYMENT_REQUEST',
+        entity: 'PaymentRequest',
+        entityId: requestId,
+        summary: `Huỷ yêu cầu thanh toán do đảo quyết toán ${settlementId}: ${reason}`,
+        actorUserId: actor.userId,
+        actorName: actor.fullName,
+        actorRole: actor.role,
+        after: { status: 'CANCELLED' },
+      })
+    }
+
+    // (2) VOID giao dịch `PENDING` gắn các yêu cầu vừa huỷ (PM-BR-02) — tránh lệnh hoàn đang
+    // chờ bị xác nhận chi sau khi quyết toán đã đảo.
+    const cancelledRequestIdSet = new Set(cancelledPaymentRequestIds)
+    const voidedTransactionIds: string[] = []
+    let txnList = readAllTransactions().map((t) => {
+      if (t.status !== 'PENDING' || !t.paymentRequestId || !cancelledRequestIdSet.has(t.paymentRequestId)) return t
+      voidedTransactionIds.push(t.id)
+      return {
+        ...t,
+        status: 'VOIDED' as const,
+        voidReason: `Yêu cầu thanh toán bị huỷ do đảo quyết toán: ${reason}`,
+        voidedByName: actor.fullName,
+        voidedAt: now,
+        updatedAt: now,
+      }
+    })
+    writeAllTransactions(txnList)
+    for (const txnId of voidedTransactionIds) {
+      appendAudit({
+        action: 'VOID_TRANSACTION',
+        entity: 'Transaction',
+        entityId: txnId,
+        summary: `Huỷ giao dịch do đảo quyết toán ${settlementId}: ${reason}`,
+        actorUserId: actor.userId,
+        actorName: actor.fullName,
+        actorRole: actor.role,
+        after: { status: 'VOIDED' },
+      })
+    }
+
+    // (3) Đảo giao dịch `OFFSET` tương ứng (nếu có) — UC-PM-12 A2, Deposit Held trở về mức trước.
+    let reversedOffsetId: string | undefined
+    const offset = findEffectiveOffset(settlementId, txnList)
+    if (offset) {
+      const code = nextSequenceCode('GD', txnList.map((t) => t.code))
+      const { updatedOriginal, reversal: offsetReversal } = buildReversalPair(offset, reason, actor, code, now)
+      txnList = [...txnList.map((t) => (t.id === offset.id ? updatedOriginal : t)), offsetReversal]
+      writeAllTransactions(txnList)
+      reversedOffsetId = offsetReversal.id
+      appendAudit({
+        action: 'REVERSE_TRANSACTION',
+        entity: 'Transaction',
+        entityId: offset.id,
+        summary: `Đảo giao dịch cấn trừ cọc ${offset.code} do đảo quyết toán ${settlementId}: ${reason}`,
+        actorUserId: actor.userId,
+        actorName: actor.fullName,
+        actorRole: actor.role,
+        before: { id: offset.id, code: offset.code, status: offset.status },
+        after: { originalId: offset.id, reversalId: offsetReversal.id, reason },
+      })
+    }
+
     appendAudit({
       action: 'REVERSE_SETTLEMENT',
       entity: 'Settlement',
@@ -1082,11 +1186,21 @@ export async function reverseSettlement(settlementId: string, input: ReverseSett
       actorName: actor.fullName,
       actorRole: actor.role,
       before: { status: before.status, completedTotals: before.completedTotals },
-      after: { status: result.status, cancelledPaymentRequestIds: reversal.cancelledPaymentRequestIds },
+      after: {
+        status: result.status,
+        cancelledPaymentRequestIds,
+        voidedTransactionIds,
+        reversedOffsetId,
+      },
     })
-    // TODO(Phase 4.2): bút toán đảo giao dịch đã `CONFIRMED` liên quan tới quyết toán này.
+    // (4) Giao dịch thu/hoàn tiền thật đã `CONFIRMED` theo yêu cầu cũ → GIỮ NGUYÊN, không đảo tiền
+    // thật (UC-PM-01 A1 để ngỏ cách xử lý khi làm lại quyết toán).
+    // TODO(OQ: UC-PM-01 A1 — tiền thật đã thu/hoàn theo quyết toán cũ xử lý thế nào khi làm lại
+    // quyết toán; demo: giữ nguyên, Paid To Date của quyết toán mới KHÔNG tính khoản này (RS-BR-21),
+    // người dùng rà soát + đảo tay ở Sổ giao dịch nếu cần.)
     // TODO(Phase 4.3): gỡ chốt doanh thu kỳ gốc (UC-RS-16 bước 2).
-    return result
+    syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    return findOrThrow(readAll(), settlementId)
   })
   await revertSettlementReversed(after.rentalId, actor)
   return after
@@ -1117,13 +1231,150 @@ function writeAllCashDrawerSubmissions(items: CashDrawerSubmission[]): void {
   writeJson(CASH_DRAWER_SUBMISSIONS_STORAGE_KEY, items)
 }
 
-/** Đồng bộ lại `PaymentRequest.status` sau khi mảng giao dịch thay đổi — gọi trong cùng callback ghi. */
-function syncRequestStatus(prList: PaymentRequest[], requestId: string | undefined, allTxns: Transaction[], now: string): void {
-  if (!requestId) return
-  const request = prList.find((r) => r.id === requestId)
-  if (!request) return
-  const updated: PaymentRequest = { ...request, status: deriveRequestStatus(request, allTxns), updatedAt: now }
-  writeAllPaymentRequests(prList.map((r) => (r.id === requestId ? updated : r)))
+/**
+ * PAYMENT-PLAN.md §10.4 — helper ghi ngược DUY NHẤT, thay `syncRequestStatus`
+ * (Round 1). Gọi ở CUỐI mọi callback ghi có thể làm đổi số liệu của Rental,
+ * SAU khi đã ghi `transactions`/`paymentRequests`. Đọc storage MỚI NHẤT (không
+ * nhận mảng từ caller) để tránh đọc lệch.
+ */
+function syncFinanceAfterPaymentChange(rentalId: string, actor: ActorInfo, now: string): { settlementPaymentStatus?: Settlement['paymentStatus']; closedPscIds: string[] } {
+  const allTxns = readAllTransactions()
+  const prList = readAllPaymentRequests()
+  const rentalRequests = prList.filter((r) => r.rentalId === rentalId)
+
+  // 1) Tính lại `status` mọi PaymentRequest của rentalId — chỉ ghi lại khi có đổi.
+  let changed = false
+  const updatedPrList = prList.map((r) => {
+    if (r.rentalId !== rentalId) return r
+    if (r.status === 'CANCELLED') return r
+    const newStatus = deriveRequestStatus(r, allTxns)
+    if (newStatus === r.status) return r
+    changed = true
+    return { ...r, status: newStatus, updatedAt: now }
+  })
+  if (changed) writeAllPaymentRequests(updatedPrList)
+  const freshRequests = changed ? updatedPrList : prList
+
+  // 2) Ghi ngược Settlement.
+  let settlementPaymentStatus: Settlement['paymentStatus']
+  const settlements = readAll()
+  const settlement = settlements.find((s) => s.rentalId === rentalId)
+  if (settlement) {
+    const rental = (readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? []).find((r) => r.id === rentalId)
+    if (rental) {
+      let updatedSettlement: Settlement | undefined
+      if (settlement.status === 'DRAFT') {
+        const freshPaidToDate = calcPaidToDate(rental, freshRequests, allTxns)
+        const freshDepositHeld = calcDepositHeld(rental, freshRequests, allTxns)
+        const paidToDateChanged =
+          freshPaidToDate.prepayment !== settlement.paidToDate.prepayment || freshPaidToDate.handoverPayment !== settlement.paidToDate.handoverPayment
+        const depositHeldChanged = freshDepositHeld !== settlement.depositHeld
+        if (paidToDateChanged || depositHeldChanged || settlement.paymentStatus !== undefined) {
+          updatedSettlement = {
+            ...settlement,
+            paidToDate: freshPaidToDate,
+            depositHeld: freshDepositHeld,
+            // §10.2 điểm 3 — nếu số liệu đổi, xoá đối trừ cọc cũ (giống `resyncSettlementSources`).
+            depositReconciliation: paidToDateChanged || depositHeldChanged ? undefined : settlement.depositReconciliation,
+            paymentStatus: undefined,
+            updatedAt: now,
+          }
+        }
+      } else if (settlement.status === 'CONFIRMED' || settlement.status === 'COMPLETED') {
+        const summary = deriveRentalPaymentSummary(rental, freshRequests, allTxns, settlement)
+        settlementPaymentStatus = summary.paymentStatus
+        if (settlement.paymentStatus !== summary.paymentStatus) {
+          updatedSettlement = { ...settlement, paymentStatus: summary.paymentStatus, updatedAt: now }
+        }
+      }
+      if (updatedSettlement) {
+        writeAll(settlements.map((s) => (s.id === settlement.id ? updatedSettlement! : s)))
+      }
+    }
+  }
+
+  // 3) Tự đóng PSC khi PaymentRequest `source = POST_SETTLEMENT_CHARGE` liên kết vừa `FULFILLED`.
+  const closedPscIds: string[] = []
+  const fulfilledPscRequests = rentalRequests.filter((r) => r.source === 'POST_SETTLEMENT_CHARGE' && r.postSettlementChargeId)
+  if (fulfilledPscRequests.length > 0) {
+    const pscs = readAllPsc()
+    let pscChanged = false
+    const updatedPscs = pscs.map((psc) => {
+      if (psc.status !== 'OPEN') return psc
+      const request = freshRequests.find((r) => r.postSettlementChargeId === psc.id)
+      if (!request || request.status !== 'FULFILLED') return psc
+      pscChanged = true
+      closedPscIds.push(psc.id)
+      const lastTxn = allTxns
+        .filter((t) => t.paymentRequestId === request.id && isEffectiveTransaction(t))
+        .sort((a, b) => a.performedAt.localeCompare(b.performedAt))
+        .at(-1)
+      return {
+        ...psc,
+        status: 'CLOSED' as const,
+        closedByName: actor.fullName,
+        closedAt: now,
+        closeNote: lastTxn ? `Tất toán qua giao dịch ${lastTxn.code} của yêu cầu ${request.id}` : undefined,
+      }
+    })
+    if (pscChanged) {
+      writeAllPsc(updatedPscs)
+      for (const pscId of closedPscIds) {
+        const psc = updatedPscs.find((p) => p.id === pscId)
+        appendAudit({
+          action: 'CLOSE_POST_SETTLEMENT_CHARGE',
+          entity: 'Settlement',
+          entityId: psc?.settlementId ?? pscId,
+          summary: `Tự động đánh dấu tất toán khoản phát sinh ${pscId} (yêu cầu thanh toán đã FULFILLED)`,
+          actorUserId: actor.userId,
+          actorName: actor.fullName,
+          actorRole: actor.role,
+          after: { status: 'CLOSED', pscId },
+        })
+      }
+    }
+  }
+  // §10.4 bước 4 — PSC rớt khỏi FULFILLED (do đảo GD) mà đã CLOSED thì KHÔNG tự mở lại.
+  // TODO(OQ: RS×PM — mở lại PSC khi giao dịch tất toán bị đảo, tài liệu chưa nói.)
+
+  return { settlementPaymentStatus, closedPscIds }
+}
+
+/**
+ * PAYMENT-PLAN.md §10.5 — `OFFSET` tự động, đường hệ thống riêng (không qua
+ * `recordTransaction`/`createAdjustment`/`reverseTransaction`, guard chặn
+ * `OFFSET` ở 3 hàm đó giữ nguyên). Gọi trong cùng callback của
+ * `recordCustomerAck` (chỉ nhánh → `CONFIRMED`) và `approveSettlement`, TRƯỚC
+ * khi ghi Settlement.
+ */
+function applyDepositOffsetInCallback(settlement: Settlement, actor: ActorInfo, now: string): void {
+  const applied = settlement.depositReconciliation?.depositApplied ?? 0
+  // BRD §9 — mọi `MOTORBIKE` có `applied = 0` (không có cọc tiền để cấn trừ).
+  if (applied <= 0) return
+  const txns = readAllTransactions()
+  if (findEffectiveOffset(settlement.id, txns)) return // đã có — chống trùng, idempotent.
+  const held = calcLedgerDepositHeld(settlement.rentalId, txns)
+  if (applied > held) {
+    throw new Error(
+      `Cọc đang giữ trên sổ giao dịch (${held.toLocaleString('vi-VN')}đ) nhỏ hơn số cấn trừ (${applied.toLocaleString('vi-VN')}đ) — rà soát giao dịch cọc trước khi chốt quyết toán (PM-BR-08)`,
+    )
+  }
+  const code = nextSequenceCode('GD', txns.map((t) => t.code))
+  const offsetTxn = buildOffsetTransaction(settlement, actor, code, now)
+  writeAllTransactions([...txns, offsetTxn])
+  // TODO(OQ: Payment-BRD.md §27 Q4 / RentalSettlement-BRD.md §28 Q1 — cấn trừ tự động hay cần khách
+  // đồng ý; demo: tạo khi Settlement vào CONFIRMED, tức sau khi khách đã xác nhận cả gói ở
+  // PENDING_CUSTOMER — khớp UC-PM-05 A2.
+  appendAudit({
+    action: 'OFFSET_DEPOSIT',
+    entity: 'Transaction',
+    entityId: offsetTxn.id,
+    summary: `Cấn trừ cọc ${applied.toLocaleString('vi-VN')}đ theo quyết toán ${settlement.id} — không phải thu tiền (UC-PM-05 bước 6)`,
+    actorUserId: actor.userId,
+    actorName: actor.fullName,
+    actorRole: actor.role,
+    after: offsetTxn,
+  })
 }
 
 export interface PaymentRequestFilter {
@@ -1131,6 +1382,9 @@ export interface PaymentRequestFilter {
   customerId?: string
   source?: PaymentRequestSource
   status?: PaymentRequestStatus
+  /** Round 2 — PAYMENT-PLAN.md §10.7. */
+  postSettlementChargeId?: string
+  settlementId?: string
 }
 
 export async function listPaymentRequests(filter?: PaymentRequestFilter): Promise<PaymentRequest[]> {
@@ -1140,6 +1394,8 @@ export async function listPaymentRequests(filter?: PaymentRequestFilter): Promis
       if (filter?.customerId && r.customerId !== filter.customerId) return false
       if (filter?.source && r.source !== filter.source) return false
       if (filter?.status && r.status !== filter.status) return false
+      if (filter?.postSettlementChargeId && r.postSettlementChargeId !== filter.postSettlementChargeId) return false
+      if (filter?.settlementId && r.settlementId !== filter.settlementId) return false
       return true
     }),
   )
@@ -1154,6 +1410,8 @@ export interface TransactionFilter {
   customerId?: string
   /** Tìm theo mã GD / tham chiếu / mã lượt thuê (§7.1 kế hoạch). */
   search?: string
+  /** Round 2 — PAYMENT-PLAN.md §10.7 — giao dịch OUT đang chờ duyệt hoàn. */
+  approvalPending?: boolean
 }
 
 export async function listTransactions(filter?: TransactionFilter): Promise<Transaction[]> {
@@ -1166,6 +1424,7 @@ export async function listTransactions(filter?: TransactionFilter): Promise<Tran
         if (filter?.direction && t.direction !== filter.direction) return false
         if (filter?.rentalId && t.rentalId !== filter.rentalId) return false
         if (filter?.customerId && t.customerId !== filter.customerId) return false
+        if (filter?.approvalPending && t.approval?.status !== 'PENDING_APPROVAL') return false
         if (filter?.search) {
           const q = filter.search.trim().toLowerCase()
           if (q.length === 0) return true
@@ -1234,23 +1493,48 @@ export interface RecordTransactionInput {
 /**
  * UC-PM-01/02/03, PM-BR-09/10/15, AC-PM-001/002/004 — `CASH` → `CONFIRMED` ngay
  * + gắn quỹ; `BANK_TRANSFER`/`E_WALLET` → `PENDING`. Nhiều lần cho một yêu cầu.
+ * Round 2 (§10.6): (a) từ chối yêu cầu `purpose = REFUND` (đi qua
+ * `createRefundTransaction`); (b) `ctx` cho `isRequestActionable`; (c) xe máy
+ * cầm cố (`MOTORBIKE`) + yêu cầu `SETTLEMENT`/`POST_SETTLEMENT_CHARGE` chỉ
+ * nhận `BANK_TRANSFER` (BRD §9); (d) cuối cùng gọi `syncFinanceAfterPaymentChange`.
  */
 export async function recordTransaction(input: RecordTransactionInput, actor: ActorInfo): Promise<Transaction> {
+  // PM-BR-18/§0.3 điểm 8 kế hoạch — `OFFSET` (cấn trừ cọc, Round 2) và
+  // `ONLINE_GATEWAY` (webhook SePay) chỉ do hệ thống tự sinh, không phải
+  // phương thức người dùng tự chọn khi ghi nhận thủ công — đã chặn ở form
+  // schema/UI, chặn lại ở API cho chắc (defense in depth, tech-lead review
+  // Phase 4.2 R1 "nên sửa" #2).
+  if (input.method === 'OFFSET' || input.method === 'ONLINE_GATEWAY') {
+    throw new Error('Phương thức này chỉ do hệ thống tự sinh (cấn trừ cọc / webhook SePay) — không ghi nhận thủ công')
+  }
+  if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
+  const requestPre = readAllPaymentRequests().find((r) => r.id === input.paymentRequestId)
+  if (!requestPre) throw new Error('Không tìm thấy yêu cầu thanh toán')
+  if (requestPre.purpose === 'REFUND') {
+    throw new Error("Yêu cầu hoàn tiền — dùng 'Tạo giao dịch hoàn' (createRefundTransaction), không ghi nhận thu")
+  }
+  const settlement = (await listSettlements({ rentalId: requestPre.rentalId }))[0]
+  let psc: PostSettlementCharge | undefined
+  let pscOnHold = false
+  if (requestPre.source === 'POST_SETTLEMENT_CHARGE' && requestPre.postSettlementChargeId) {
+    psc = (await listPostSettlementCharges({ rentalId: requestPre.rentalId })).find((p) => p.id === requestPre.postSettlementChargeId)
+    if (psc) pscOnHold = isPscOnHold(psc, await listIncidents({ rentalId: requestPre.rentalId }))
+  }
+
   return fakeRequest(() => {
-    // PM-BR-18/§0.3 điểm 8 kế hoạch — `OFFSET` (cấn trừ cọc, Round 2) và
-    // `ONLINE_GATEWAY` (webhook SePay) chỉ do hệ thống tự sinh, không phải
-    // phương thức người dùng tự chọn khi ghi nhận thủ công — đã chặn ở form
-    // schema/UI, chặn lại ở API cho chắc (defense in depth, tech-lead review
-    // Phase 4.2 R1 "nên sửa" #2).
-    if (input.method === 'OFFSET' || input.method === 'ONLINE_GATEWAY') {
-      throw new Error('Phương thức này chỉ do hệ thống tự sinh (cấn trừ cọc / webhook SePay) — không ghi nhận thủ công')
+    // N1 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.7, tech-lead review Phase 4.2
+    // R2 — sửa điểm nên sửa #2) — đọc lại Rental TRONG callback, không dùng
+    // bản đọc trước độ trễ giả lập, để guard `isRequestActionable` luôn dựa
+    // trên trạng thái mới nhất.
+    const rental = readRentalOrThrow(requestPre.rentalId)
+    // §10.2 điểm 8 — xe máy cầm cố: khoản thu yêu cầu `SETTLEMENT`/`POST_SETTLEMENT_CHARGE` chỉ nhận `BANK_TRANSFER`.
+    if (rental.securityDepositType === 'MOTORBIKE' && (requestPre.source === 'SETTLEMENT' || requestPre.source === 'POST_SETTLEMENT_CHARGE') && input.method !== 'BANK_TRANSFER') {
+      throw new Error('Xe máy cầm cố — khoản thu thuộc quyết toán/phát sinh sau quyết toán chỉ nhận chuyển khoản (BRD §9)')
     }
-    if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
     const prList = readAllPaymentRequests()
     const request = prList.find((r) => r.id === input.paymentRequestId)
     if (!request) throw new Error('Không tìm thấy yêu cầu thanh toán')
-    const rental = readRentalOrThrow(request.rentalId)
-    if (!isRequestActionable(request, rental)) {
+    if (!isRequestActionable(request, rental, { settlementStatus: settlement?.status, psc, pscOnHold })) {
       throw new Error('Yêu cầu thanh toán này không còn ở trạng thái cho phép ghi nhận thu')
     }
     const txns = readAllTransactions()
@@ -1287,9 +1571,7 @@ export async function recordTransaction(input: RecordTransactionInput, actor: Ac
       createdAt: now,
       updatedAt: now,
     }
-    const allTxns = [...txns, txn]
-    writeAllTransactions(allTxns)
-    syncRequestStatus(prList, request.id, allTxns, now)
+    writeAllTransactions([...txns, txn])
     appendAudit({
       action: 'CREATE_TRANSACTION',
       entity: 'Transaction',
@@ -1300,6 +1582,7 @@ export async function recordTransaction(input: RecordTransactionInput, actor: Ac
       actorRole: actor.role,
       after: txn,
     })
+    syncFinanceAfterPaymentChange(request.rentalId, actor, now)
     return txn
   })
 }
@@ -1309,22 +1592,63 @@ export interface ConfirmTransactionInput {
   note?: string
 }
 
-/** UC-PM-06 (A1), BRD §15.2, EX-03 — chỉ `PENDING` CK/ví; cho sửa số theo thực nhận. */
+/**
+ * UC-PM-06 (A1), BRD §15.2, EX-03 — chỉ `PENDING` CK/ví; cho sửa số theo thực
+ * nhận (chỉ áp dụng GD `IN`). Round 2 (§10.6): (a) yêu cầu liên kết `CANCELLED`
+ * → từ chối; (b) GD `OUT` (hoàn): không cho sửa số (§10.2 điểm 6), bắt buộc
+ * `approval.status = 'APPROVED'` nếu có `approval` (PM-BR-12), `CASH` gắn quỹ
+ * của người xác nhận + kiểm số dư đủ trước khi cho xác nhận (PM-BR-11, UC-PM-14 A2).
+ */
 export async function confirmTransaction(id: string, input: ConfirmTransactionInput, actor: ActorInfo): Promise<Transaction> {
   return fakeRequest(() => {
     const txns = readAllTransactions()
     const before = txns.find((t) => t.id === id)
     if (!before) throw new Error('Không tìm thấy giao dịch')
     if (before.status !== 'PENDING') throw new Error('Chỉ xác nhận giao dịch đang chờ xử lý')
-    const amount = input.amount ?? before.amount
-    if (!Number.isInteger(amount) || amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
     const prList = readAllPaymentRequests()
     const request = before.paymentRequestId ? prList.find((r) => r.id === before.paymentRequestId) : undefined
-    if (request) {
-      // TODO(OQ: Payment-BRD.md §27 Q8 — trả thừa → Credit/Overpayment chưa chốt; demo chặn ghi vượt số còn lại).
-      const { remaining } = calcRequestProgress(request, txns)
-      if (amount > remaining) {
-        throw new Error(`Số tiền vượt số còn lại (${remaining.toLocaleString('vi-VN')}đ)`)
+    if (request && request.status === 'CANCELLED') {
+      throw new Error('Yêu cầu thanh toán liên quan đã bị huỷ (đảo quyết toán) — không thể xác nhận giao dịch này')
+    }
+    let amount = before.amount
+    let cashDrawerId = before.cashDrawerId
+    let cashDrawerOwnerName = before.cashDrawerOwnerName
+    if (before.direction === 'OUT') {
+      if (input.amount !== undefined && input.amount !== before.amount) {
+        // Tham chiếu kế hoạch nội bộ: §10.2 điểm 6 (không hiện trong thông báo UI —
+        // tech-lead review Phase 4.2 R2 — sửa điểm nên sửa #2).
+        throw new Error('Không thể sửa số tiền hoàn khi xác nhận — Huỷ (VOID) rồi tạo lại nếu cần đổi số')
+      }
+      if (before.approval && before.approval.status !== 'APPROVED') {
+        throw new Error('Khoản hoàn này đang chờ duyệt — chỉ xác nhận đã chi sau khi được duyệt (PM-BR-12)')
+      }
+      // §10.6(c) kế hoạch — lớp phòng thủ bổ sung: dù đã kiểm `remaining − pending`
+      // lúc tạo giao dịch hoàn, kiểm lại ngay trước khi xác nhận (tech-lead
+      // review Phase 4.2 R2 — sửa điểm nên sửa #3).
+      if (request) {
+        const { remaining } = calcRequestProgress(request, txns)
+        if (amount > remaining) {
+          throw new Error(`Số tiền hoàn vượt số còn lại của yêu cầu (${remaining.toLocaleString('vi-VN')}đ)`)
+        }
+      }
+      if (before.method === 'CASH') {
+        cashDrawerId = cashDrawerIdOf(actor.userId)
+        cashDrawerOwnerName = actor.fullName
+        const submissions = readAllCashDrawerSubmissions()
+        const { balance } = calcCashDrawerBalance(cashDrawerId, txns, submissions)
+        if (balance < amount) {
+          throw new Error('Số dư quỹ tiền mặt không đủ để chi (PM-BR-11)')
+        }
+      }
+    } else {
+      amount = input.amount ?? before.amount
+      if (!Number.isInteger(amount) || amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
+      if (request) {
+        // TODO(OQ: Payment-BRD.md §27 Q8 — trả thừa → Credit/Overpayment chưa chốt; demo chặn ghi vượt số còn lại).
+        const { remaining } = calcRequestProgress(request, txns)
+        if (amount > remaining) {
+          throw new Error(`Số tiền vượt số còn lại (${remaining.toLocaleString('vi-VN')}đ)`)
+        }
       }
     }
     const now = new Date().toISOString()
@@ -1333,13 +1657,13 @@ export async function confirmTransaction(id: string, input: ConfirmTransactionIn
       status: 'CONFIRMED',
       amount,
       originalAmount: amount !== before.amount ? before.amount : before.originalAmount,
+      cashDrawerId,
+      cashDrawerOwnerName,
       confirmedByName: actor.fullName,
       confirmedAt: now,
       updatedAt: now,
     }
-    const allTxns = txns.map((t) => (t.id === id ? after : t))
-    writeAllTransactions(allTxns)
-    syncRequestStatus(prList, before.paymentRequestId, allTxns, now)
+    writeAllTransactions(txns.map((t) => (t.id === id ? after : t)))
     appendAudit({
       action: 'CONFIRM_TRANSACTION',
       entity: 'Transaction',
@@ -1351,6 +1675,7 @@ export async function confirmTransaction(id: string, input: ConfirmTransactionIn
       before: { amount: before.amount, status: before.status },
       after: { amount: after.amount, status: after.status },
     })
+    if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
     return after
   })
 }
@@ -1378,6 +1703,7 @@ export async function failTransaction(id: string, reason: string, actor: ActorIn
       before: { status: before.status },
       after: { status: after.status, reason: trimmedReason },
     })
+    if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
     return after
   })
 }
@@ -1393,10 +1719,7 @@ export async function voidTransaction(id: string, reason: string, actor: ActorIn
     if (before.status !== 'PENDING') throw new Error('Chỉ huỷ giao dịch đang chờ xử lý')
     const now = new Date().toISOString()
     const after: Transaction = { ...before, status: 'VOIDED', voidReason: trimmedReason, voidedByName: actor.fullName, voidedAt: now, updatedAt: now }
-    const allTxns = txns.map((t) => (t.id === id ? after : t))
-    writeAllTransactions(allTxns)
-    const prList = readAllPaymentRequests()
-    syncRequestStatus(prList, before.paymentRequestId, allTxns, now)
+    writeAllTransactions(txns.map((t) => (t.id === id ? after : t)))
     appendAudit({
       action: 'VOID_TRANSACTION',
       entity: 'Transaction',
@@ -1408,6 +1731,7 @@ export async function voidTransaction(id: string, reason: string, actor: ActorIn
       before: { status: before.status },
       after: { status: after.status, reason: trimmedReason },
     })
+    if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
     return after
   })
 }
@@ -1430,43 +1754,9 @@ export async function reverseTransaction(id: string, reason: string, actor: Acto
     if (before.reversedById) throw new Error('Giao dịch này đã được đảo')
     if (before.method === 'OFFSET') throw new Error('Giao dịch cấn trừ cọc chỉ được đảo tự động khi đảo quyết toán (Round 2)')
     const now = new Date().toISOString()
-    const reversal: Transaction = {
-      id: generateId('txn'),
-      code: nextSequenceCode('GD', txns.map((t) => t.code)),
-      type: before.type,
-      direction: before.direction === 'IN' ? 'OUT' : 'IN',
-      amount: before.amount,
-      method: before.method,
-      status: 'CONFIRMED',
-      customerId: before.customerId,
-      rentalId: before.rentalId,
-      paymentRequestId: before.paymentRequestId,
-      settlementId: before.settlementId,
-      reversalOfId: before.id,
-      reverseReason: trimmedReason,
-      cashDrawerId: before.cashDrawerId,
-      cashDrawerOwnerName: before.cashDrawerOwnerName,
-      performedByUserId: actor.userId,
-      performedByName: actor.fullName,
-      performedAt: now,
-      confirmedByName: actor.fullName,
-      confirmedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    }
-    const updatedBefore: Transaction = {
-      ...before,
-      status: 'REVERSED',
-      reversedById: reversal.id,
-      reverseReason: trimmedReason,
-      updatedAt: now,
-      // PM-BR-19 — vô hiệu biên lai gốc.
-      receipt: before.receipt ? { ...before.receipt, voided: true } : before.receipt,
-    }
-    const allTxns = [...txns.map((t) => (t.id === id ? updatedBefore : t)), reversal]
-    writeAllTransactions(allTxns)
-    const prList = readAllPaymentRequests()
-    syncRequestStatus(prList, before.paymentRequestId, allTxns, now)
+    const code = nextSequenceCode('GD', txns.map((t) => t.code))
+    const { updatedOriginal, reversal } = buildReversalPair(before, trimmedReason, actor, code, now)
+    writeAllTransactions([...txns.map((t) => (t.id === id ? updatedOriginal : t)), reversal])
     // AC-PM-015 — audit ghi đủ id gốc, id đối ứng và lý do.
     appendAudit({
       action: 'REVERSE_TRANSACTION',
@@ -1479,7 +1769,8 @@ export async function reverseTransaction(id: string, reason: string, actor: Acto
       before: { id: before.id, code: before.code, status: before.status },
       after: { originalId: before.id, reversalId: reversal.id, reason: trimmedReason },
     })
-    return updatedBefore
+    if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    return updatedOriginal
   })
 }
 
@@ -1506,6 +1797,15 @@ export async function createAdjustment(input: CreateAdjustmentInput, actor: Acto
     const txns = readAllTransactions()
     const now = new Date().toISOString()
     const isCash = input.method === 'CASH'
+    // F4 (PAYMENT-PLAN.md §10.1/§10.6) — CASH + OUT phải kiểm số dư quỹ trước khi cho ghi (PM-BR-11).
+    if (isCash && input.direction === 'OUT') {
+      const drawerId = cashDrawerIdOf(actor.userId)
+      const submissions = readAllCashDrawerSubmissions()
+      const { balance } = calcCashDrawerBalance(drawerId, txns, submissions)
+      if (balance < input.amount) {
+        throw new Error('Số dư quỹ tiền mặt không đủ để chi (PM-BR-11)')
+      }
+    }
     const txn: Transaction = {
       id: generateId('txn'),
       code: nextSequenceCode('GD', txns.map((t) => t.code)),
@@ -1538,6 +1838,7 @@ export async function createAdjustment(input: CreateAdjustmentInput, actor: Acto
       actorRole: actor.role,
       after: txn,
     })
+    if (input.rentalId) syncFinanceAfterPaymentChange(input.rentalId, actor, now)
     return txn
   })
 }
@@ -1642,6 +1943,162 @@ export async function receiveCashDrawerSubmission(id: string, actor: ActorInfo):
       before: { status: before.status },
       after: { status: after.status },
     })
+    return after
+  })
+}
+
+// ==== Payment (PM) — Round 2, PAYMENT-PLAN.md §10.7 ====
+
+export interface CreateRefundTransactionInput {
+  amount: number
+  method: PaymentMethod
+  refundRecipient: string
+  reference?: string
+  evidenceNote?: string
+}
+
+/**
+ * UC-PM-07, PM-BR-08/12/13 — tạo giao dịch hoàn `OUT` luôn ở `PENDING` (kể cả
+ * `CASH` — §10.2 điểm 5), bắt buộc thông tin người nhận. Vượt ngưỡng
+ * (`refundNeedsApproval`) → gắn `approval.status = 'PENDING_APPROVAL'`
+ * (PM-BR-12); chưa gắn quỹ (gắn lúc `confirmTransaction` xác nhận đã chi).
+ */
+export async function createRefundTransaction(requestId: string, input: CreateRefundTransactionInput, actor: ActorInfo): Promise<Transaction> {
+  if (input.method !== 'CASH' && input.method !== 'BANK_TRANSFER' && input.method !== 'E_WALLET') {
+    throw new Error('Phương thức hoàn không hợp lệ')
+  }
+  if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
+  const refundRecipient = input.refundRecipient.trim()
+  if (refundRecipient.length < 3) throw new Error('Thông tin nhận tiền là bắt buộc (PM-BR-13)')
+  if ((input.method === 'BANK_TRANSFER' || input.method === 'E_WALLET') && !input.reference?.trim()) {
+    throw new Error('Mã tham chiếu là bắt buộc với chuyển khoản/ví')
+  }
+  const requestPre = readAllPaymentRequests().find((r) => r.id === requestId)
+  if (!requestPre) throw new Error('Không tìm thấy yêu cầu thanh toán')
+  if (requestPre.purpose !== 'REFUND') throw new Error('Chỉ tạo giao dịch hoàn cho yêu cầu hoàn tiền')
+  const settlement = (await listSettlements({ rentalId: requestPre.rentalId }))[0]
+  let psc: PostSettlementCharge | undefined
+  let pscOnHold = false
+  if (requestPre.source === 'POST_SETTLEMENT_CHARGE' && requestPre.postSettlementChargeId) {
+    psc = (await listPostSettlementCharges({ rentalId: requestPre.rentalId })).find((p) => p.id === requestPre.postSettlementChargeId)
+    if (psc) pscOnHold = isPscOnHold(psc, await listIncidents({ rentalId: requestPre.rentalId }))
+  }
+
+  return fakeRequest(() => {
+    // N1 (`docs/RENTAL-SETTLEMENT-PLAN.md` §10.7, tech-lead review Phase 4.2
+    // R2 — sửa điểm nên sửa #2) — đọc lại Rental TRONG callback, không dùng
+    // bản đọc trước độ trễ giả lập, để guard `isRequestActionable` luôn dựa
+    // trên trạng thái mới nhất.
+    const rental = readRentalOrThrow(requestPre.rentalId)
+    const prList = readAllPaymentRequests()
+    const request = prList.find((r) => r.id === requestId)
+    if (!request) throw new Error('Không tìm thấy yêu cầu thanh toán')
+    if (!isRequestActionable(request, rental, { settlementStatus: settlement?.status, psc, pscOnHold })) {
+      throw new Error('Yêu cầu thanh toán này không còn ở trạng thái cho phép tạo giao dịch hoàn')
+    }
+    const txns = readAllTransactions()
+    const { remaining, pending } = calcRequestProgress(request, txns)
+    // §10.2 điểm 7 — không cho tạo hai lệnh hoàn song song cho cùng một yêu cầu.
+    const available = remaining - pending
+    if (input.amount > available) {
+      throw new Error(`Số tiền hoàn (${input.amount.toLocaleString('vi-VN')}đ) vượt số còn có thể hoàn (${available.toLocaleString('vi-VN')}đ)`)
+    }
+    if (request.transactionType === 'DEPOSIT_REFUND') {
+      const held = calcLedgerDepositHeld(request.rentalId, txns)
+      const pendingDepositRefund = txns
+        .filter((t) => t.status === 'PENDING' && t.type === 'DEPOSIT_REFUND' && t.rentalId === request.rentalId)
+        .reduce((sum, t) => sum + t.amount, 0)
+      if (input.amount > held - pendingDepositRefund) {
+        throw new Error('Số tiền hoàn cọc vượt cọc đang giữ trên sổ giao dịch (PM-BR-08)')
+      }
+    }
+    const now = new Date().toISOString()
+    const needsApproval = refundNeedsApproval(input.amount)
+    const txn: Transaction = {
+      id: generateId('txn'),
+      code: nextSequenceCode('GD', txns.map((t) => t.code)),
+      type: request.transactionType,
+      direction: 'OUT',
+      amount: input.amount,
+      method: input.method,
+      status: 'PENDING',
+      customerId: request.customerId,
+      rentalId: request.rentalId,
+      paymentRequestId: request.id,
+      settlementId: request.settlementId,
+      reference: input.reference?.trim() || undefined,
+      evidenceNote: input.evidenceNote?.trim() || undefined,
+      refundRecipient,
+      approval: needsApproval ? { status: 'PENDING_APPROVAL' } : undefined,
+      performedByUserId: actor.userId,
+      performedByName: actor.fullName,
+      performedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    }
+    writeAllTransactions([...txns, txn])
+    appendAudit({
+      action: 'CREATE_TRANSACTION',
+      entity: 'Transaction',
+      entityId: txn.id,
+      summary: `Tạo giao dịch hoàn ${txn.amount.toLocaleString('vi-VN')}đ cho yêu cầu ${request.id}${needsApproval ? ' — chờ duyệt' : ''}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: txn,
+    })
+    syncFinanceAfterPaymentChange(request.rentalId, actor, now)
+    return txn
+  })
+}
+
+export interface DecideRefundApprovalInput {
+  decision: 'APPROVED' | 'REJECTED'
+  note?: string
+}
+
+/** UC-PM-09 bước 4, PM-BR-12 — duyệt/từ chối hoàn tiền vượt ngưỡng. */
+export async function decideRefundApproval(transactionId: string, input: DecideRefundApprovalInput, actor: ActorInfo): Promise<Transaction> {
+  if (input.decision === 'REJECTED' && (!input.note || input.note.trim().length < 3)) {
+    throw new Error('Lý do từ chối là bắt buộc (tối thiểu 3 ký tự)')
+  }
+  return fakeRequest(() => {
+    const txns = readAllTransactions()
+    const before = txns.find((t) => t.id === transactionId)
+    if (!before) throw new Error('Không tìm thấy giao dịch')
+    if (before.status !== 'PENDING' || before.approval?.status !== 'PENDING_APPROVAL') {
+      throw new Error('Giao dịch này không ở trạng thái chờ duyệt')
+    }
+    const now = new Date().toISOString()
+    const after: Transaction =
+      input.decision === 'REJECTED'
+        ? {
+            ...before,
+            status: 'VOIDED',
+            voidReason: input.note,
+            voidedByName: actor.fullName,
+            voidedAt: now,
+            approval: { status: 'REJECTED', decidedByName: actor.fullName, decidedAt: now, note: input.note },
+            updatedAt: now,
+          }
+        : {
+            ...before,
+            approval: { status: 'APPROVED', decidedByName: actor.fullName, decidedAt: now, note: input.note },
+            updatedAt: now,
+          }
+    writeAllTransactions(txns.map((t) => (t.id === transactionId ? after : t)))
+    appendAudit({
+      action: input.decision === 'REJECTED' ? 'REJECT_REFUND' : 'APPROVE_REFUND',
+      entity: 'Transaction',
+      entityId: transactionId,
+      summary: input.decision === 'REJECTED' ? `Từ chối hoàn giao dịch ${before.code}: ${input.note}` : `Duyệt hoàn giao dịch ${before.code}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status, approval: before.approval },
+      after: { status: after.status, approval: after.approval },
+    })
+    if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
     return after
   })
 }

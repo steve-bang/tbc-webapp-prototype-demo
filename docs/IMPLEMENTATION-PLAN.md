@@ -362,10 +362,11 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
 - [x] Cập nhật `registerSeeds.ts` phần `Settlement` (`finance/seed` chạy cuối), xoá `ComingSoon` màn
       Quyết toán (Round 1, 21/10/2026).
 
-### Phase 4.2 — Thanh toán (Payment) — `[~]`
+### Phase 4.2 — Thanh toán (Payment) — `[x]`
 
-- [~] `features/finance` (PM): kế hoạch chi tiết đầy đủ ở [`docs/PAYMENT-PLAN.md`](PAYMENT-PLAN.md)
-      (`APPROVED` 21/10/2026; **Round 1 `DONE` 21/10/2026**; Round 2 chưa giao). Người
+- [x] `features/finance` (PM): kế hoạch chi tiết đầy đủ ở [`docs/PAYMENT-PLAN.md`](PAYMENT-PLAN.md)
+      (`APPROVED` 21/10/2026; **Round 1 `DONE` 21/10/2026**; **Round 2 `DONE` 21/10/2026** — cả Phase
+      4.2 xong). Người
       dùng duyệt nguyên trạng cách chia round, không chờ BA xác nhận các điểm diễn giải §0.4 trước khi
       code (vẫn ghi lại cho BA). Chia **2 round**: Round 1 = sổ
       giao dịch lõi (`PaymentRequest`/`Transaction` lưu trữ, `PaymentSchedule` là view suy ra) + lập
@@ -396,10 +397,22 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
         (i18n nhãn mốc, guard API chặn `OFFSET`/`ONLINE_GATEWAY` ở ghi thủ công). Lưu ý cho Round 2:
         `OFFSET` phải sinh qua hàm hệ thống riêng, **không** qua `recordTransaction`/`createAdjustment`
         (đã chặn có chủ đích).
-  - [ ] **Round 2 — thực thi điều phối Settlement/PSC, `OFFSET`, hoàn tiền + duyệt, Công nợ khách
-        hàng** — Round 1 đã `DONE`, chờ giao `dev` (`PAYMENT-PLAN.md` §10, §12.2, §14.2).
-- [ ] Cập nhật `registerSeeds.ts` phần `Transaction`/`PaymentRequest`, xoá `ComingSoon` tương ứng
-      màn Sổ giao dịch/Quỹ tiền mặt/Công nợ khách hàng.
+  - [x] **Round 2 — thực thi điều phối Settlement/PSC, `OFFSET`, hoàn tiền + duyệt, Công nợ khách
+        hàng** `DONE` (21/10/2026), theo `PAYMENT-PLAN.md` §10.1-§10.18. Phạm vi: `PaymentRequest` `SETTLEMENT`/
+        `POST_SETTLEMENT_CHARGE` 1-1 với `SettlementPaymentRequest`/PSC; `OFFSET` tự động khi Settlement vào
+        `CONFIRMED` qua hàm hệ thống riêng; hoàn tiền + duyệt vượt `REFUND_APPROVAL_THRESHOLD` (1tr, tạm —
+        OQ PM §27 Q13); chặn CASH OUT vượt quỹ; helper `syncFinanceAfterPaymentChange` ghi ngược
+        `paymentStatus` (kỳ gốc) + tự đóng PSC; đảo quyết toán huỷ yêu cầu + VOID GD chờ + đảo `OFFSET`;
+        `calcPaidToDate`/`calcDepositHeld` đọc sổ giao dịch; bỏ đóng PSC thủ công; màn `/finance/receivables`;
+        5 audit action; `SEED_VERSION` 15 → 17. Đối chiếu code R1 phát hiện 5 lỗi tiềm ẩn sửa kèm (§10.1
+        F1-F5: tiến độ yêu cầu hoàn bị âm, chặn cứng Rental `COMPLETED`, giao dịch PSC làm đổi Settlement gốc,
+        điều chỉnh CASH OUT không kiểm quỹ, invalidate thiếu key). 7 điểm diễn giải ghi cho BA (§10.13).
+        Qua 3 vòng review `tech-lead`: Blocker vòng 2 đã sửa (seed `stl_024` xác nhận giao dịch hoàn
+        trước khi được duyệt — trái PM-BR-12; tách mốc tạo → duyệt → xác nhận/biên lai) + 3 "Nên sửa"
+        (`updatedAt` GD FAILED sau mốc duyệt; bỏ tham chiếu plan/mã UC khỏi chuỗi UI).
+- [x] Cập nhật `registerSeeds.ts` phần `Transaction`/`PaymentRequest` (seed Payment chạy trong
+      `finance/seed`, đã đăng ký), xoá `ComingSoon` màn Sổ giao dịch/Quỹ tiền mặt (R1)/Công nợ khách
+      hàng (R2).
 
 ### Phase 4.3 — Phân tích tài chính (RevenueCost) — `[ ]`
 

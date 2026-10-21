@@ -62,11 +62,21 @@ export function TransactionRecordDialog({
   const effectiveRentalId = rental?.id ?? selectedRentalId
   const { data: candidateRequests = [] } = usePaymentRequests(effectiveRentalId ? { rentalId: effectiveRentalId } : undefined)
   const { data: rentalTxns = [] } = useTransactions(effectiveRentalId ? { rentalId: effectiveRentalId } : undefined)
+  // §10.9 — chỉ liệt kê yêu cầu `purpose = COLLECT` actionable (yêu cầu REFUND đi qua `RefundCreateDialog`).
   const actionableRequests = useMemo(
-    () => (rental ? candidateRequests.filter((r) => isRequestActionable(r, rental)) : candidateRequests.filter((r) => r.status === 'OPEN' || r.status === 'PARTIALLY_FULFILLED')),
+    () =>
+      candidateRequests.filter((r) => {
+        if (r.purpose !== 'COLLECT') return false
+        return rental ? isRequestActionable(r, rental) : r.status === 'OPEN' || r.status === 'PARTIALLY_FULFILLED'
+      }),
     [candidateRequests, rental],
   )
   const effectiveRequest = request ?? actionableRequests.find((r) => r.id === selectedRequestId)
+  // §10.2 điểm 8 — xe máy cầm cố: khoản thu yêu cầu `SETTLEMENT`/`POST_SETTLEMENT_CHARGE` chỉ nhận chuyển khoản.
+  const isMotorbikeRestricted =
+    rental?.securityDepositType === 'MOTORBIKE' && (effectiveRequest?.source === 'SETTLEMENT' || effectiveRequest?.source === 'POST_SETTLEMENT_CHARGE')
+  const effectiveMethods = isMotorbikeRestricted ? allowedMethods.filter((m) => m === 'BANK_TRANSFER') : allowedMethods
+  const submitMethod = effectiveMethods.includes(method) ? method : effectiveMethods[0]
 
   async function handleConfirm() {
     if (!effectiveRequest) {
@@ -76,7 +86,7 @@ export function TransactionRecordDialog({
     const result = transactionRecordFormSchema.safeParse({
       paymentRequestId: effectiveRequest.id,
       amount,
-      method,
+      method: submitMethod,
       reference,
       evidenceNote,
     })
@@ -169,12 +179,12 @@ export function TransactionRecordDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>{vi.finance.payment.recordMethodLabel}</Label>
-            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+            <Select value={submitMethod} onValueChange={(v) => setMethod(v as PaymentMethod)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {allowedMethods.map((m) => (
+                {effectiveMethods.map((m) => (
                   <SelectItem key={m} value={m}>
                     {PAYMENT_METHOD_LABELS[m]}
                   </SelectItem>
@@ -182,7 +192,7 @@ export function TransactionRecordDialog({
               </SelectContent>
             </Select>
           </div>
-          {(method === 'BANK_TRANSFER' || method === 'E_WALLET') && (
+          {(submitMethod === 'BANK_TRANSFER' || submitMethod === 'E_WALLET') && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="txn-reference">{vi.finance.payment.recordReferenceLabel} *</Label>
               <Input

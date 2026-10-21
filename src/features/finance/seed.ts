@@ -1,7 +1,7 @@
 // `handover-return`/`incidents`/`rentals` — CHỈ qua barrel (RENTAL-SETTLEMENT-PLAN.md §0.2),
 // đọc trực tiếp storage key đã export để lấy dữ liệu seed thật (tiền lệ `incidents/seed.ts`
 // đọc `RETURN_RECORDS_STORAGE_KEY`).
-import { HANDOVER_RECORDS_STORAGE_KEY, RETURN_RECORDS_STORAGE_KEY, type HandoverRecord, type ReturnRecord } from '@/features/handover-return'
+import { RETURN_RECORDS_STORAGE_KEY, type ReturnRecord } from '@/features/handover-return'
 import { INCIDENTS_STORAGE_KEY, type Incident } from '@/features/incidents'
 import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
@@ -15,15 +15,20 @@ import {
   TRANSACTIONS_STORAGE_KEY,
 } from './api'
 import {
+  buildOffsetTransaction,
+  buildPscPaymentRequest,
   buildScheduleRequests,
+  buildSettlementPaymentRequest,
   buildSourceLines,
   calcDepositHeld,
   calcDepositReconciliation,
   calcPaidToDate,
   calcSettlementTotals,
+  deriveRentalPaymentSummary,
   deriveRequestStatus,
   nextSequenceCode,
   pscAmountForIncident,
+  refundNeedsApproval,
   type CashDrawerSubmission,
   type DepositReconciliation,
   type PaymentRequest,
@@ -683,8 +688,10 @@ function confirmAllLines(lines: SettlementLine[], confirmedAt: string): Settleme
 function seedFinance(): void {
   const rentals = readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? []
   const returns = readJson<ReturnRecord[]>(RETURN_RECORDS_STORAGE_KEY) ?? []
-  const handovers = readJson<HandoverRecord[]>(HANDOVER_RECORDS_STORAGE_KEY) ?? []
   const incidents = readJson<Incident[]>(INCIDENTS_STORAGE_KEY) ?? []
+  // §8.1 kế hoạch — A (seedPaymentRound1) chạy TRƯỚC B (seedFinance) nên đọc được PaymentRequest/Transaction thật.
+  const paymentRequests = readJson<PaymentRequest[]>(PAYMENT_REQUESTS_STORAGE_KEY) ?? []
+  const transactions = readJson<Transaction[]>(TRANSACTIONS_STORAGE_KEY) ?? []
 
   function rentalOrThrow(id: string): Rental {
     const r = rentals.find((x) => x.id === id)
@@ -693,9 +700,6 @@ function seedFinance(): void {
   }
   function completedReturnOf(rentalId: string): ReturnRecord | undefined {
     return returns.find((r) => r.rentalId === rentalId && r.status === 'COMPLETED')
-  }
-  function completedHandoverOf(rentalId: string): HandoverRecord | undefined {
-    return handovers.find((h) => h.rentalId === rentalId && h.status === 'COMPLETED')
   }
   function incidentsOf(rentalId: string): Incident[] {
     return incidents.filter((i) => i.rentalId === rentalId)
@@ -713,7 +717,6 @@ function seedFinance(): void {
     const rentalId = 'rt_022'
     const rental = rentalOrThrow(rentalId)
     const returnRecord = completedReturnOf(rentalId)
-    const handover = completedHandoverOf(rentalId)
     const openedAt = dt(-2, 10)
     const settlement: Settlement = {
       id: 'stl_022',
@@ -724,8 +727,8 @@ function seedFinance(): void {
       lines: buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }),
       waivers: [],
       securityDepositType: rental.securityDepositType,
-      paidToDate: calcPaidToDate(rental, handover),
-      depositHeld: calcDepositHeld(rental, handover),
+      paidToDate: calcPaidToDate(rental, paymentRequests, transactions),
+      depositHeld: calcDepositHeld(rental, paymentRequests, transactions),
       paymentRequests: [],
       openedByName: ACCOUNTANT,
       openedAt,
@@ -741,7 +744,6 @@ function seedFinance(): void {
     const rentalId = 'rt_023'
     const rental = rentalOrThrow(rentalId)
     const returnRecord = completedReturnOf(rentalId)
-    const handover = completedHandoverOf(rentalId)
     const openedAt = dt(-8, 10)
     const confirmedAt = dt(-7, 11)
     const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }), confirmedAt)
@@ -755,8 +757,8 @@ function seedFinance(): void {
       requestedByRole: 'ACCOUNTANT',
       requestedAt: dt(-7, 14),
     }
-    const paidToDate = calcPaidToDate(rental, handover)
-    const depositHeld = calcDepositHeld(rental, handover)
+    const paidToDate = calcPaidToDate(rental, paymentRequests, transactions)
+    const depositHeld = calcDepositHeld(rental, paymentRequests, transactions)
     const totals = calcSettlementTotals(lines, [waiver])
     const reconciliation: DepositReconciliation = {
       ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
@@ -790,12 +792,11 @@ function seedFinance(): void {
     const rentalId = 'rt_024'
     const rental = rentalOrThrow(rentalId)
     const returnRecord = completedReturnOf(rentalId)
-    const handover = completedHandoverOf(rentalId)
     const openedAt = dt(-18, 10)
     const confirmedAt = dt(-17, 11)
     const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }), confirmedAt)
-    const paidToDate = calcPaidToDate(rental, handover)
-    const depositHeld = calcDepositHeld(rental, handover)
+    const paidToDate = calcPaidToDate(rental, paymentRequests, transactions)
+    const depositHeld = calcDepositHeld(rental, paymentRequests, transactions)
     const totals = calcSettlementTotals(lines, [])
     const reconciliation: DepositReconciliation = {
       ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
@@ -844,7 +845,6 @@ function seedFinance(): void {
     const rentalId = 'rt_025'
     const rental = rentalOrThrow(rentalId)
     const returnRecord = completedReturnOf(rentalId)
-    const handover = completedHandoverOf(rentalId)
     const openedAt = dt(-28, 10)
     const confirmedAt = dt(-27, 11)
     const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: incidentsOf(rentalId) }), confirmedAt)
@@ -862,8 +862,8 @@ function seedFinance(): void {
       decidedByName: ACCOUNTANT,
       decidedAt: dt(-27, 12),
     }
-    const paidToDate = calcPaidToDate(rental, handover)
-    const depositHeld = calcDepositHeld(rental, handover)
+    const paidToDate = calcPaidToDate(rental, paymentRequests, transactions)
+    const depositHeld = calcDepositHeld(rental, paymentRequests, transactions)
     const totals = calcSettlementTotals(lines, [waiver])
     const reconciliation: DepositReconciliation = {
       ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
@@ -912,14 +912,13 @@ function seedFinance(): void {
     const rentalId = 'rt_026'
     const rental = rentalOrThrow(rentalId)
     const returnRecord = completedReturnOf(rentalId)
-    const handover = completedHandoverOf(rentalId)
     const openedAt = dt(-13, 10)
     const confirmedAt = dt(-12, 11)
     // inc_010 (DISPUTED) CỐ Ý không truyền vào `incidents` — Settlement này đã đóng trước khi
     // sự cố bị tranh chấp lại (Round 2 sẽ thêm Post-Settlement Charge cho inc_010).
     const lines = confirmAllLines(buildSourceLines({ rental, returnRecord, incidents: [] }), confirmedAt)
-    const paidToDate = calcPaidToDate(rental, handover)
-    const depositHeld = calcDepositHeld(rental, handover)
+    const paidToDate = calcPaidToDate(rental, paymentRequests, transactions)
+    const depositHeld = calcDepositHeld(rental, paymentRequests, transactions)
     const totals = calcSettlementTotals(lines, [])
     const reconciliation: DepositReconciliation = {
       ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
@@ -1025,6 +1024,248 @@ function seedFinance(): void {
   writeJson(POST_SETTLEMENT_CHARGES_STORAGE_KEY, pscsToSeed)
 }
 
+/**
+ * Seed C (`docs/PAYMENT-PLAN.md` §8.1/§10.12) — `PaymentRequest` `SETTLEMENT`/
+ * `POST_SETTLEMENT_CHARGE` + `OFFSET` + giao dịch thu/hoàn + duyệt hoàn. Chạy
+ * SAU `seedFinance` (B, đã viết Settlement/PSC) trong cùng thứ tự A → B → C
+ * (xem cuối file). Dựng bằng CHÍNH hàm thuần app dùng (`buildSettlementPaymentRequest`,
+ * `buildPscPaymentRequest`, `buildOffsetTransaction`, `deriveRequestStatus`,
+ * `deriveRentalPaymentSummary`, `refundNeedsApproval`, `nextSequenceCode`).
+ * KHÔNG tạo giao dịch `CASH` mới — giữ nguyên số liệu quỹ AC-PM-009 của Round 1.
+ */
+function seedPaymentRound2(): void {
+  const rentals = readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? []
+  const settlements = readJson<Settlement[]>(SETTLEMENTS_STORAGE_KEY) ?? []
+  const pscs = readJson<PostSettlementCharge[]>(POST_SETTLEMENT_CHARGES_STORAGE_KEY) ?? []
+  const requests = readJson<PaymentRequest[]>(PAYMENT_REQUESTS_STORAGE_KEY) ?? []
+  const transactions = readJson<Transaction[]>(TRANSACTIONS_STORAGE_KEY) ?? []
+
+  function settlementOrThrow(id: string): Settlement {
+    const s = settlements.find((x) => x.id === id)
+    if (!s) throw new Error(`finance/seed.ts (Payment Round 2): không tìm thấy Settlement ${id}`)
+    return s
+  }
+
+  const newRequests: PaymentRequest[] = []
+  const newTxns: Transaction[] = []
+
+  function allCodes(): string[] {
+    return [...transactions, ...newTxns].map((t) => t.code)
+  }
+  function addTxn(input: Omit<Transaction, 'id' | 'code' | 'createdAt' | 'updatedAt'>, updatedAt?: string): Transaction {
+    const txn: Transaction = { ...input, id: generateId('txn'), code: nextSequenceCode('GD', allCodes()), createdAt: input.performedAt, updatedAt: updatedAt ?? input.performedAt }
+    newTxns.push(txn)
+    return txn
+  }
+  function issueReceiptFor(txn: Transaction, issuedAt: string): void {
+    const existingReceiptNos = [...transactions, ...newTxns].map((t) => t.receipt?.receiptNo).filter((v): v is string => !!v)
+    const receipt: Receipt = { receiptNo: nextSequenceCode('BL', existingReceiptNos), issuedByName: PM_ACCOUNTANT_NAME, issuedAt, voided: false }
+    txn.receipt = receipt
+  }
+
+  // ---- 1) OFFSET cho mọi Settlement CONFIRMED/COMPLETED có depositApplied > 0 (stl_024/stl_025 — CASH_20M). ----
+  for (const settlement of settlements) {
+    if (settlement.status !== 'CONFIRMED' && settlement.status !== 'COMPLETED') continue
+    const applied = settlement.depositReconciliation?.depositApplied ?? 0
+    if (applied <= 0) continue // stl_026 (MOTORBIKE) → 0, không sinh OFFSET.
+    const performedAt = settlement.customerAck?.recordedAt ?? settlement.updatedAt
+    const offsetTxn = buildOffsetTransaction(settlement, { userId: PM_ACCOUNTANT_USER_ID, fullName: PM_ACCOUNTANT_NAME }, nextSequenceCode('GD', allCodes()), performedAt)
+    newTxns.push(offsetTxn)
+  }
+
+  // ---- 2) PaymentRequest `SETTLEMENT` 1-1 cho mọi `SettlementPaymentRequest` `REQUESTED`. ----
+  const settlementRequestMap = new Map<string, PaymentRequest>() // key = `${settlementId}:${type}`
+  for (const settlement of settlements) {
+    for (const spr of settlement.paymentRequests) {
+      if (spr.status !== 'REQUESTED') continue
+      const pr = buildSettlementPaymentRequest(settlement, spr, ACCOUNTANT, spr.createdAt)
+      newRequests.push(pr)
+      settlementRequestMap.set(`${settlement.id}:${spr.type}`, pr)
+    }
+  }
+
+  // ---- 3) PaymentRequest `POST_SETTLEMENT_CHARGE` 1-1 cho `psc_001`/`psc_002`/`psc_003`. ----
+  const pscRequestMap = new Map<string, PaymentRequest>() // key = pscId
+  for (const psc of pscs) {
+    const pr = buildPscPaymentRequest(psc, ACCOUNTANT, psc.createdAt)
+    newRequests.push(pr)
+    pscRequestMap.set(psc.id, pr)
+  }
+
+  // ---- 4) `stl_024` — `DEPOSIT_REFUND`: GD1 FAILED + GD2 CONFIRMED đủ số (AC-PM-005/006). ----
+  {
+    const settlement = settlementOrThrow('stl_024')
+    const request = settlementRequestMap.get('stl_024:DEPOSIT_REFUND')
+    if (request) {
+      const amount = request.expectedAmount
+      const needsApproval = refundNeedsApproval(amount)
+      const recipientNote = `Hoàn cọc — chuyển khoản tới STK Vietcombank 0071xxxxxx (lượt thuê ${settlement.rentalId})`
+      const completedAt = settlement.completedAt ?? settlement.updatedAt
+      const failedAt = hoursAfter(completedAt, 20)
+      const correctAt = hoursAfter(completedAt, 44)
+      // Mỗi giao dịch duyệt riêng — `decidedAt` phải nằm SAU `performedAt` của
+      // chính giao dịch đó (tech-lead review Phase 4.2 R2 — sửa điểm nên sửa #1).
+      const approval1 = needsApproval ? { status: 'APPROVED' as const, decidedByName: MANAGER, decidedAt: hoursAfter(failedAt, 0.5) } : undefined
+      const approval2 = needsApproval ? { status: 'APPROVED' as const, decidedByName: MANAGER, decidedAt: hoursAfter(correctAt, 0.5) } : undefined
+      // GD2 chỉ được xác nhận đã chi (CONFIRMED) SAU KHI duyệt (`approval2.decidedAt`),
+      // đúng guard runtime của `confirmTransaction` nhánh OUT (PM-BR-12). Dùng mốc riêng
+      // `confirmAt` cho `confirmedAt`/biên lai — không tái dùng `correctAt` (tech-lead
+      // review Phase 4.2 R2 — sửa Blocker).
+      const confirmAt = hoursAfter(correctAt, 1)
+      addTxn(
+        {
+          type: request.transactionType,
+          direction: 'OUT',
+          amount,
+          method: 'BANK_TRANSFER',
+          status: 'FAILED',
+          customerId: request.customerId,
+          rentalId: request.rentalId,
+          paymentRequestId: request.id,
+          settlementId: settlement.id,
+          reference: 'CK-R-0001',
+          refundRecipient: recipientNote,
+          approval: approval1,
+          failReason: 'Sai số tài khoản — ngân hàng trả lại (AC-PM-006).',
+          performedByUserId: PM_ACCOUNTANT_USER_ID,
+          performedByName: PM_ACCOUNTANT_NAME,
+          performedAt: failedAt,
+        },
+        // `updatedAt` (đánh dấu thất bại) phải SAU `approval1.decidedAt` (tech-lead
+        // review Phase 4.2 R2 — sửa điểm nên sửa #1).
+        hoursAfter(failedAt, 2),
+      )
+      const txnCorrect = addTxn({
+        type: request.transactionType,
+        direction: 'OUT',
+        amount,
+        method: 'BANK_TRANSFER',
+        status: 'CONFIRMED',
+        customerId: request.customerId,
+        rentalId: request.rentalId,
+        paymentRequestId: request.id,
+        settlementId: settlement.id,
+        reference: 'CK-R-0002',
+        refundRecipient: recipientNote,
+        approval: approval2,
+        performedByUserId: PM_ACCOUNTANT_USER_ID,
+        performedByName: PM_ACCOUNTANT_NAME,
+        performedAt: correctAt,
+        confirmedByName: PM_ACCOUNTANT_NAME,
+        confirmedAt: confirmAt,
+      })
+      issueReceiptFor(txnCorrect, confirmAt)
+    }
+  }
+
+  // ---- 5) `stl_025` — `DEPOSIT_REFUND`: 1 GD `PENDING` đủ số, chờ duyệt (demo Duyệt → Xác nhận đã chi). ----
+  {
+    const settlement = settlementOrThrow('stl_025')
+    const request = settlementRequestMap.get('stl_025:DEPOSIT_REFUND')
+    if (request) {
+      const amount = request.expectedAmount
+      const needsApproval = refundNeedsApproval(amount)
+      const pendingAt = hoursAfter(settlement.completedAt ?? settlement.updatedAt, 20)
+      addTxn({
+        type: request.transactionType,
+        direction: 'OUT',
+        amount,
+        method: 'BANK_TRANSFER',
+        status: 'PENDING',
+        customerId: request.customerId,
+        rentalId: request.rentalId,
+        paymentRequestId: request.id,
+        settlementId: settlement.id,
+        reference: 'CK-R-0003',
+        refundRecipient: `Hoàn cọc — chuyển khoản tới STK ACB 1903xxxxxx (lượt thuê ${settlement.rentalId})`,
+        approval: needsApproval ? { status: 'PENDING_APPROVAL' } : undefined,
+        performedByUserId: PM_ACCOUNTANT_USER_ID,
+        performedByName: PM_ACCOUNTANT_NAME,
+        performedAt: pendingAt,
+      })
+    }
+  }
+
+  // ---- 6) `stl_026` — `COLLECT`: thu một phần (~50%, làm tròn nghìn, < amount) bằng `BANK_TRANSFER` (xe máy). ----
+  {
+    const settlement = settlementOrThrow('stl_026')
+    const request = settlementRequestMap.get('stl_026:COLLECT')
+    if (request) {
+      const half = Math.min(request.expectedAmount - 1_000, Math.round(request.expectedAmount / 2 / 1_000) * 1_000)
+      const performedAt = hoursAfter(settlement.completedAt ?? settlement.updatedAt, 20)
+      addTxn({
+        type: request.transactionType,
+        direction: 'IN',
+        amount: half,
+        method: 'BANK_TRANSFER',
+        status: 'CONFIRMED',
+        customerId: request.customerId,
+        rentalId: request.rentalId,
+        paymentRequestId: request.id,
+        settlementId: settlement.id,
+        reference: 'CK-R-0004',
+        performedByUserId: PM_ACCOUNTANT_USER_ID,
+        performedByName: PM_ACCOUNTANT_NAME,
+        performedAt,
+        confirmedByName: PM_ACCOUNTANT_NAME,
+        confirmedAt: performedAt,
+      })
+    }
+  }
+
+  // ---- 7) `psc_002` (`REFUND` 200k, đang `CLOSED` ở seed B) — 1 GD `GOODWILL_REFUND` tất toán (≤ ngưỡng, không duyệt). ----
+  let updatedPsc002: PostSettlementCharge | undefined
+  {
+    const psc = pscs.find((p) => p.id === 'psc_002')
+    const request = pscRequestMap.get('psc_002')
+    if (psc && request) {
+      const performedAt = hoursAfter(psc.createdAt, 20)
+      const txn = addTxn({
+        type: request.transactionType,
+        direction: 'OUT',
+        amount: request.expectedAmount,
+        method: 'BANK_TRANSFER',
+        status: 'CONFIRMED',
+        customerId: request.customerId,
+        rentalId: request.rentalId,
+        settlementId: request.settlementId,
+        paymentRequestId: request.id,
+        reference: 'CK-R-0005',
+        refundRecipient: `Hoàn thiện chí — chuyển khoản QR (lượt thuê ${request.rentalId})`,
+        performedByUserId: PM_ACCOUNTANT_USER_ID,
+        performedByName: PM_ACCOUNTANT_NAME,
+        performedAt,
+        confirmedByName: PM_ACCOUNTANT_NAME,
+        confirmedAt: performedAt,
+      })
+      updatedPsc002 = { ...psc, closeNote: `Tất toán qua giao dịch ${txn.code}`, closedAt: performedAt }
+    }
+  }
+  // `psc_001` (RECEIVABLE 700k OPEN) và `psc_003` (INCIDENT inc_010 DISPUTED, OPEN) — KHÔNG tạo GD (demo AC-PM-012 + "Tạm giữ").
+
+  // ---- Đồng bộ cuối C — KHÔNG gõ tay (§8.1/§10.12 kế hoạch). ----
+  const allRequests = [...requests, ...newRequests]
+  const allTxns = [...transactions, ...newTxns]
+  const finalRequests = allRequests.map((r) => ({ ...r, status: deriveRequestStatus(r, allTxns) }))
+  writeJson(PAYMENT_REQUESTS_STORAGE_KEY, finalRequests)
+  writeJson(TRANSACTIONS_STORAGE_KEY, allTxns)
+
+  const finalSettlements = settlements.map((s) => {
+    if (s.status !== 'CONFIRMED' && s.status !== 'COMPLETED') return s
+    const rental = rentals.find((r) => r.id === s.rentalId)
+    if (!rental) return s
+    const summary = deriveRentalPaymentSummary(rental, finalRequests, allTxns, s)
+    return { ...s, paymentStatus: summary.paymentStatus }
+  })
+  writeJson(SETTLEMENTS_STORAGE_KEY, finalSettlements)
+
+  if (updatedPsc002) {
+    writeJson(POST_SETTLEMENT_CHARGES_STORAGE_KEY, pscs.map((p) => (p.id === 'psc_002' ? (updatedPsc002 as PostSettlementCharge) : p)))
+  }
+}
+
 // PAYMENT-PLAN.md §8.1 — chạy TRƯỚC khối Settlement (seedFinance đọc Rental/HandoverRecord, không phụ thuộc Payment ở Round 1).
 registerSeedStep(seedPaymentRound1)
 registerSeedStep(seedFinance)
+// PAYMENT-PLAN.md §8.1/§10.12 — chạy SAU seedFinance (B đã có Settlement/PSC).
+registerSeedStep(seedPaymentRound2)
