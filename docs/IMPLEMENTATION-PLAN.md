@@ -304,8 +304,11 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
 14. Mô hình phí SePay cụ thể (theo giao dịch hay theo tháng) — PM §4.2.
 
 **Phase 4.3 — Phân tích tài chính (RevenueCost), ảnh hưởng phạm vi/UI, không chặn lõi:**
-15. Có làm Period Close (chốt kỳ tháng) ở Phase 1 không, ai chốt/mở lại — RV §28 Q10-12.
-16. Danh mục báo cáo cụ thể & KPI dashboard bắt buộc — RV §28 Q13-16.
+(Sửa 22/10/2026 — trước ghi lẫn số câu của BRD §28 và UseCase §26, hai danh sách đánh số khác nhau từ câu 9;
+nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PLAN.md` §0.1 F9.)
+15. Có làm Period Close (chốt kỳ tháng) ở Phase 1 không — RV §28 **Q11**; ai chốt/mở lại — **Q13**. (Q12 là
+    chính sách nợ xấu — câu riêng.)
+16. Danh mục báo cáo cụ thể & tần suất, KPI dashboard bắt buộc, ai được xem — RV §28 **Q14-Q16**.
 17. Cách xác định "số ngày khả dụng" của xe để tính Utilization — RV §28 Q10.
 18. Danh mục chi phí chuẩn cụ thể của Thiên Bảo Car — RV §28 Q4.
 
@@ -414,15 +417,55 @@ tiếp với BRD — không phải suy diễn), chia theo Phase con sẽ chạm 
       `finance/seed`, đã đăng ký), xoá `ComingSoon` màn Sổ giao dịch/Quỹ tiền mặt (R1)/Công nợ khách
       hàng (R2).
 
-### Phase 4.3 — Phân tích tài chính (RevenueCost) — `[ ]`
+### Phase 4.3 — Phân tích tài chính (RevenueCost) — `[~]`
 
-- [ ] `features/finance` (RV): model `CostRecord`/`RevenueLine` · **Báo cáo tài chính** (tổng quan
+- [~] `features/finance` (RV): kế hoạch chi tiết ở [`docs/REVENUE-COST-PLAN.md`](REVENUE-COST-PLAN.md)
+      (`APPROVED` 22/10/2026 — người dùng chấp nhận cả 5 đề xuất ở §13: seed lịch sử **phương án B**, giữ **3
+      round**, tab Tổng quan Vehicle Detail **ngoài phạm vi**, giữ nối tiếp `features/finance` + refactor tách
+      thư mục là task riêng Phase 4.4, ghi ngoại lệ form `finance` vào `CONVENTIONS.md` §7). **Round 1 `DONE`
+      (22/10/2026)**; Round 2/3 chưa giao. Chia **3 round**: Round 1 = lõi
+      dữ liệu (Revenue Line **suy ra** từ Settlement/PSC — đảo quyết toán xử lý bằng `reversals[]` có sẵn, không
+      cần ghi thêm; Cost Record nhập tay lưu riêng + chi phí suy ra từ Sự cố/Bảo dưỡng; góc nhìn thực thu) + màn
+      **Chi phí vận hành** `/finance/costs` + 3 tab Vehicle Detail; Round 2 = Báo cáo tài chính phần chính (Tổng
+      quan theo kỳ + drill-down + Report 01/02/05, `recharts` đã có sẵn); Round 3 = Report 03/04/06 + đối chiếu ghi
+      nhận ↔ thực thu + xuất CSV. Ngoại lệ kiến trúc có kiểm soát: sửa `vehicles/screens/VehicleDetailScreen.tsx`
+      (chỉ thay 3 placeholder) + nối 10 Rental lịch sử `rt_030`…`rt_039` vào cuối `rentals/seed.ts` (chỉ thêm,
+      không sửa bản cũ; các lượt này không có hợp đồng/biên bản giao-nhận). Sửa scaffold sai `COST_CATEGORIES`.
+      Nội dung backlog gốc: model `CostRecord`/`RevenueLine` · **Báo cáo tài chính** (tổng quan
       theo kỳ + drill-down theo xe, biểu đồ `recharts`; doanh thu ghi nhận `ON_SETTLEMENT` +
       góc nhìn "thực thu" — CR-2026-048) · **Nhập & điều chỉnh chi phí thủ công** (Category, Amount,
       Cost Date, Allocation Type `DIRECT`/`INDIRECT`).
-- [ ] Nối 3 tab Revenue/Cost/Profit ở Vehicle Detail vào dữ liệu thật.
+- [x] **Round 1** (22/10/2026): lõi dữ liệu RV (Revenue Line suy ra từ Settlement/PSC kể cả đảo quyết toán ·
+      Cost Record nhập tay `costRecords` + chi phí suy ra từ Sự cố/Bảo dưỡng/Phụ tùng · góc nhìn thực thu) + màn
+      **Chi phí vận hành** `/finance/costs` (thêm/sửa/huỷ mềm, audit `COST_MANUAL_*`) + 3 permission
+      `FINANCE_REPORT.EDIT/DELETE/EXPORT` + seed 10 lượt lịch sử `rt_030`…`rt_039` (`stl_038` từng bị đảo) + 15
+      Cost Record, `SEED_VERSION` 18. Review đạt vòng 1, không Blocker.
+- [x] Nối 3 tab Revenue/Cost/Profit ở Vehicle Detail vào dữ liệu thật (Round 1).
+- [ ] **Round 2** — màn Báo cáo tài chính phần chính (`REVENUE-COST-PLAN.md` §1.3, §11.3). **Bắt buộc gộp vào
+      brief R2**: thêm invalidate `['finance','analytics']` vào `invalidatePayment` trong `finance/hooks.ts` (R2
+      dùng `useCashEntries` — giao dịch chỉ gọi `invalidatePayment` sẽ không làm mới thực thu).
+- [ ] **Round 3** — Report 03/04/06 + đối chiếu ghi nhận ↔ thực thu + xuất CSV (`REVENUE-COST-PLAN.md` §1.4, §11.4).
+- [ ] Nợ ghi nhận từ review Round 1 (không chặn, gom task dọn riêng hoặc 4.4): (a) `completedWithDebt` tính theo
+      `depositReconciliation.balanceDue` lúc đối trừ, nên lượt đã thu đủ yêu cầu `COLLECT` trước khi đóng vẫn hiện
+      "Đóng kèm công nợ" (hành vi app từ 4.1, seed `stl_034/037` phản ánh đúng) — cân nhắc tính theo số còn phải
+      thu tại thời điểm đóng; (b) `rentals/seed.ts` `createdAt = pickup − 3 ngày` → lượt có pickup > +3 ngày bị
+      `createdAt` (và giao dịch BOOKING `GD-000003/4/8/9`) ở tương lai; (c) kiểu `Exclude<keyof typeof vi.finance,
+      …>` ở `PostSettlementChargeDialog`/`SettlementCompleteDialog` phải sửa mỗi khi thêm namespace con — đổi sang
+      mapped type chỉ lấy khoá có giá trị `string`.
 - [ ] Cập nhật `registerSeeds.ts` phần `CostRecord`/`RevenueLine`, xoá `ComingSoon` còn lại của
-      Phase 4 (nếu còn).
+      Phase 4 (nếu còn). (Ghi chú plan: `costRecords` seed trong `finance/seed.ts` — đã đăng ký sẵn qua
+      `registerSeeds.ts`; `RevenueLine` là view suy ra, không seed; `ComingSoon` `/finance/reports` xoá ở Round 2.)
+
+### Phase 4.4 — Refactor tách `features/finance` theo module (RS/PM/RV) — `[ ]`
+
+- [ ] **Chỉ bắt đầu sau khi Phase 4.3 `DONE`** (quyết định người dùng 22/10/2026 — `REVENUE-COST-PLAN.md`
+      §13 câu 4). `features/finance` gom 3 module (`api.ts` ~2.800, `model.ts` ~2.300 dòng sau 4.3) → tách
+      thư mục con theo module (vd `finance/settlement`, `finance/payment`, `finance/revenue-cost`, mỗi nhánh đủ
+      model/api/hooks/seed + barrel `finance/index.ts` giữ nguyên public API để `rentals`/`vehicles` không phải
+      sửa import). **Thay đổi kiến trúc** → cần `tech-lead` lập plan riêng + người dùng duyệt + cập nhật
+      `CONVENTIONS.md` §3 / `docs/ARCHITECTURE.md` trước khi giao `dev`. Thuần refactor — không đổi hành vi,
+      không đổi storage key/`SEED_VERSION`. Có thể gộp dọn nợ treo: `postSettlementChargeFormSchema` chưa nối
+      vào `PostSettlementChargeDialog` (`REVENUE-COST-PLAN.md` §10).
 
 ## Phase 5 — Xe ký gửi — `[ ]`
 

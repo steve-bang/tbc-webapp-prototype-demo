@@ -2,6 +2,7 @@ import { Pencil, RefreshCcw } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { usePermission } from '@/features/auth'
+import { VehicleCostTab, VehicleProfitTab, VehicleRevenueTab } from '@/features/finance'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
@@ -24,7 +25,8 @@ import { useVehicle } from '../hooks'
  * §8.3). Tab "Chủ xe & Ký gửi" chỉ hiện khi `ownershipType === 'CONSIGNED'`
  * (ẩn hẳn, không disable); 3 tab Doanh thu/Chi phí/Lợi nhuận ẩn hẳn khỏi
  * `TabsList` khi `!can('VEHICLE','EXPORT')` — gate theo nhóm View Financial
- * chung (`CR-2026-036`), không phân quyền theo từng tab riêng lẻ.
+ * chung (`CR-2026-036`), không phân quyền theo từng tab riêng lẻ. Nội dung 3 tab
+ * tài chính lấy từ `features/finance` (`docs/REVENUE-COST-PLAN.md` §0.2).
  */
 export function VehicleDetailScreen() {
   const { id } = useParams<{ id: string }>()
@@ -129,17 +131,17 @@ export function VehicleDetailScreen() {
         </TabsContent>
         {canViewFinancial && (
           <TabsContent value="revenue">
-            <VehicleDetailPlaceholder note={vi.vehicles.revenuePlaceholder} />
+            <VehicleRevenueTab vehicle={vehicle} />
           </TabsContent>
         )}
         {canViewFinancial && (
           <TabsContent value="cost">
-            <VehicleDetailPlaceholder note={vi.vehicles.costPlaceholder} />
+            <VehicleCostTab vehicle={vehicle} />
           </TabsContent>
         )}
         {canViewFinancial && (
           <TabsContent value="profit">
-            <VehicleDetailPlaceholder note={vi.vehicles.profitPlaceholder} />
+            <VehicleProfitTab vehicle={vehicle} />
           </TabsContent>
         )}
         <TabsContent value="audit">

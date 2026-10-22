@@ -12,3 +12,9 @@ export { RentalPaymentTab } from './components/RentalPaymentTab'
 export type { Transaction, PaymentRequest } from './model'
 // PAYMENT-PLAN.md §10.8 — Round 2.
 export { CustomerReceivablesScreen } from './screens/CustomerReceivablesScreen'
+// REVENUE-COST-PLAN.md §6.3 — Round 1: màn Chi phí vận hành + 3 tab xe (dùng ở `vehicles/VehicleDetailScreen`).
+export { CostRecordsScreen } from './screens/CostRecordsScreen'
+export { VehicleRevenueTab } from './components/VehicleRevenueTab'
+export { VehicleCostTab } from './components/VehicleCostTab'
+export { VehicleProfitTab } from './components/VehicleProfitTab'
+export type { CostRecord } from './model'

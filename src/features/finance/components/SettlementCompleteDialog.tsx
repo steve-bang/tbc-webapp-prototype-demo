@@ -7,7 +7,7 @@ import { getCompletionBlockers, type Settlement, type SettlementBlockerCode } fr
 
 /** UC-RS-13, BRD §16, RS-BR-06/12/20, AC-RS-009/010 — liệt kê điều kiện chưa thoả (AC-RS-009). */
 // PAYMENT-PLAN.md §7/§10 — loại `'payment'`/`'receivables'` vì là object lồng, không phải chuỗi.
-const BLOCKER_LABELS: Record<SettlementBlockerCode, Exclude<keyof typeof vi.finance, 'payment' | 'receivables'>> = {
+const BLOCKER_LABELS: Record<SettlementBlockerCode, Exclude<keyof typeof vi.finance, 'payment' | 'receivables' | 'revenueCost'>> = {
   DRAFT_LINES: 'blockerDraftLines',
   DISPUTED_LINES: 'blockerDisputedLines',
   DEPOSIT_NOT_RECONCILED: 'blockerDepositNotReconciled',

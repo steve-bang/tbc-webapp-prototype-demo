@@ -1,7 +1,8 @@
 // `handover-return`/`incidents`/`rentals` — CHỈ qua barrel (RENTAL-SETTLEMENT-PLAN.md §0.2),
 // không deep-import `/api`/`/hooks`/`/model` của 3 feature nguồn.
 import { listReturns, type ReturnRecord } from '@/features/handover-return'
-import { listIncidents, type Incident } from '@/features/incidents'
+import { INCIDENTS_STORAGE_KEY, listIncidents, type Incident } from '@/features/incidents'
+import { MAINTENANCE_RECORDS_STORAGE_KEY, SPARE_PART_RECORDS_STORAGE_KEY, type MaintenanceRecord, type SparePartRecord } from '@/features/maintenance'
 import {
   RENTALS_STORAGE_KEY,
   canCompleteRental,
@@ -12,6 +13,8 @@ import {
   type Rental,
 } from '@/features/rentals'
 import type {
+  AllocationType,
+  CostCategory,
   PaymentMethod,
   PaymentRequestSource,
   PaymentRequestStatus,
@@ -50,9 +53,14 @@ import {
   canReverseSettlement,
   canScheduleRental,
   cashDrawerIdOf,
+  deriveCashEntries,
+  deriveIncidentCostEntries,
+  deriveMaintenanceCostEntries,
   deriveRentalPaymentSummary,
   deriveRequestStatus,
+  deriveRevenueLines,
   directionOf,
+  expandCostRecord,
   findEffectiveOffset,
   fixedPscType,
   getCompletionBlockers,
@@ -60,19 +68,25 @@ import {
   getLineDiscountedAmount,
   getSubmitBlockers,
   isEffectiveTransaction,
+  isManualCostCategory,
   isPscOnHold,
   isRequestActionable,
   mergeResyncedLines,
   nextSequenceCode,
   pscAmountForIncident,
   refundNeedsApproval,
+  toLocalDateKey,
   waiverNeedsApproval,
   type CashDrawerSubmission,
+  type CashEntry,
+  type CostEntry,
+  type CostRecord,
   type DepositReconciliation,
   type PaymentRequest,
   type PostSettlementCharge,
   type PscBlockerCode,
   type Receipt,
+  type RevenueLine,
   type Settlement,
   type SettlementLine,
   type SettlementPaymentRequest,
@@ -285,11 +299,11 @@ export async function confirmLine(id: string, lineId: string, input: ConfirmLine
     if (before.status !== 'DRAFT') throw new Error('Chỉ chốt dòng khi quyết toán đang Đang soạn')
     const line = before.lines.find((l) => l.id === lineId)
     if (!line) throw new Error('Không tìm thấy dòng khoản mục')
-    if (line.status === 'DISPUTED') throw new Error('Dòng đang tranh chấp — kết luận tranh chấp trước khi chốt lại (UC-RS-17)')
+    if (line.status === 'DISPUTED') throw new Error('Dòng đang tranh chấp — kết luận tranh chấp trước khi chốt lại')
     if (line.status === 'WAIVED') throw new Error('Dòng đã được miễn — không thể chốt lại')
     if (!line.sourceReady) throw new Error('Nguồn của dòng này chưa sẵn sàng (chờ duyệt hồ sơ sự cố — EX-01)')
     if (line.source === 'INCIDENT' && input.actualAmount !== (line.estimatedAmount ?? 0)) {
-      throw new Error('Không thể sửa số tiền dòng sự cố — lấy nguyên Customer Charge từ Damage & Incident (RS-BR-04/AC-RS-003)')
+      throw new Error('Không thể sửa số tiền dòng sự cố — lấy nguyên Customer Charge từ Damage & Incident (RS-BR-04)')
     }
     const now = new Date().toISOString()
     const changed = line.estimatedAmount !== undefined && input.actualAmount !== line.estimatedAmount
@@ -841,7 +855,7 @@ export async function completeSettlement(id: string, actor: ActorInfo): Promise<
     const before = findOrThrow(existing, id)
     const blockers = getCompletionBlockers(before)
     if (blockers.length > 0) {
-      throw new Error('Chưa đủ điều kiện đóng lượt thuê (RS-BR-06/20, AC-RS-009).')
+      throw new Error('Chưa đủ điều kiện đóng lượt thuê (RS-BR-06/20).')
     }
     const rental = readRentalOrThrow(before.rentalId)
     if (!canCompleteRental(rental)) {
@@ -917,7 +931,7 @@ export async function createPostSettlementCharge(settlementId: string, input: Cr
   const reason = input.reason.trim()
   if (!reason) throw new Error('Lý do là bắt buộc')
   if (input.source === 'ADJUSTMENT') {
-    throw new Error('Điều chỉnh sau khi đóng lượt dùng chức năng "Điều chỉnh" (UC-RS-15), không tạo qua đây')
+    throw new Error('Điều chỉnh sau khi đóng lượt dùng chức năng "Điều chỉnh", không tạo qua đây')
   }
 
   let incident: Incident | undefined
@@ -1096,7 +1110,7 @@ export async function reverseSettlement(settlementId: string, input: ReverseSett
     }
     const rental = readRentalOrThrow(before.rentalId)
     if (!canReverseSettlement(before, rental)) {
-      throw new Error('Chỉ đảo quyết toán khi quyết toán và lượt thuê đã Hoàn tất (AC-RS-013)')
+      throw new Error('Chỉ đảo quyết toán khi quyết toán và lượt thuê đã Hoàn tất')
     }
     const now = new Date().toISOString()
     const { after: result, reversal } = buildReversalReset(before, actor, reason, now)
@@ -1198,7 +1212,9 @@ export async function reverseSettlement(settlementId: string, input: ReverseSett
     // TODO(OQ: UC-PM-01 A1 — tiền thật đã thu/hoàn theo quyết toán cũ xử lý thế nào khi làm lại
     // quyết toán; demo: giữ nguyên, Paid To Date của quyết toán mới KHÔNG tính khoản này (RS-BR-21),
     // người dùng rà soát + đảo tay ở Sổ giao dịch nếu cần.)
-    // TODO(Phase 4.3): gỡ chốt doanh thu kỳ gốc (UC-RS-16 bước 2).
+    // UC-RS-16 bước 2 / RevenueCost-BRD.md EX-02 — doanh thu không lưu riêng: deriveRevenueLines() đọc
+    // reversals[].snapshot (giữ kỳ gốc) và sinh dòng đối ứng âm tại reversedAt; quyết toán lại sinh dòng mới
+    // (REVENUE-COST-PLAN.md §0.3 điểm 2). Không cần ghi gì thêm ở đây.
     syncFinanceAfterPaymentChange(before.rentalId, actor, now)
     return findOrThrow(readAll(), settlementId)
   })
@@ -1529,7 +1545,7 @@ export async function recordTransaction(input: RecordTransactionInput, actor: Ac
     const rental = readRentalOrThrow(requestPre.rentalId)
     // §10.2 điểm 8 — xe máy cầm cố: khoản thu yêu cầu `SETTLEMENT`/`POST_SETTLEMENT_CHARGE` chỉ nhận `BANK_TRANSFER`.
     if (rental.securityDepositType === 'MOTORBIKE' && (requestPre.source === 'SETTLEMENT' || requestPre.source === 'POST_SETTLEMENT_CHARGE') && input.method !== 'BANK_TRANSFER') {
-      throw new Error('Xe máy cầm cố — khoản thu thuộc quyết toán/phát sinh sau quyết toán chỉ nhận chuyển khoản (BRD §9)')
+      throw new Error('Xe máy cầm cố — khoản thu thuộc quyết toán/phát sinh sau quyết toán chỉ nhận chuyển khoản (PM-BR-22)')
     }
     const prList = readAllPaymentRequests()
     const request = prList.find((r) => r.id === input.paymentRequestId)
@@ -1892,7 +1908,7 @@ export async function submitCashDrawer(input: SubmitCashDrawerInput, actor: Acto
     if (transactions.length === 0) throw new Error('Quỹ hiện không có giao dịch nào chưa nộp')
     const variance = input.countedAmount - balance
     if (variance !== 0 && !input.varianceReason?.trim()) {
-      throw new Error('Lý do chênh lệch là bắt buộc khi số đếm khác số hệ thống (AC-PM-009)')
+      throw new Error('Lý do chênh lệch là bắt buộc khi số đếm khác số hệ thống')
     }
     const now = new Date().toISOString()
     const submission: CashDrawerSubmission = {
@@ -2099,6 +2115,237 @@ export async function decideRefundApproval(transactionId: string, input: DecideR
       after: { status: after.status, approval: after.approval },
     })
     if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    return after
+  })
+}
+
+// ==== Revenue & Cost (RV) — REVENUE-COST-PLAN.md §6 ====
+
+export const COST_RECORDS_STORAGE_KEY = 'costRecords'
+
+function readAllCostRecords(): CostRecord[] {
+  return readJson<CostRecord[]>(COST_RECORDS_STORAGE_KEY) ?? []
+}
+function writeAllCostRecords(items: CostRecord[]): void {
+  writeJson(COST_RECORDS_STORAGE_KEY, items)
+}
+
+export interface RevenueLineFilter {
+  vehicleId?: string
+  customerId?: string
+  rentalId?: string
+}
+
+/** Revenue Line không lưu (§0.3 điểm 1) — suy ra từ Settlement + PSC. Không lọc kỳ ở API (hàm thuần lọc, cần cả kỳ trước). */
+export async function listRevenueLines(filter?: RevenueLineFilter): Promise<RevenueLine[]> {
+  return fakeRequest(() =>
+    deriveRevenueLines(readAll(), readAllPsc()).filter((l) => {
+      if (filter?.vehicleId && l.vehicleId !== filter.vehicleId) return false
+      if (filter?.customerId && l.customerId !== filter.customerId) return false
+      if (filter?.rentalId && l.rentalId !== filter.rentalId) return false
+      return true
+    }),
+  )
+}
+
+export interface CostRecordFilter {
+  vehicleId?: string
+  includeReversed?: boolean
+}
+
+/** Cost Record nhập tay đã lưu, mới nhất trước theo `costDate`. */
+export async function listCostRecords(filter?: CostRecordFilter): Promise<CostRecord[]> {
+  return fakeRequest(() =>
+    readAllCostRecords()
+      .filter((r) => (filter?.includeReversed ? true : r.status === 'ACTIVE'))
+      .filter((r) => !filter?.vehicleId || r.vehicleId === filter.vehicleId)
+      .sort((a, b) => b.costDate.localeCompare(a.costDate) || b.enteredAt.localeCompare(a.enteredAt)),
+  )
+}
+
+export interface CostEntryFilter {
+  vehicleId?: string
+}
+
+/** View chi phí thống nhất: nhập tay (đã rải kỳ) + sự cố + bảo dưỡng/phụ tùng — RV-BR-04/11, sửa ở module nguồn. */
+export async function listCostEntries(filter?: CostEntryFilter): Promise<CostEntry[]> {
+  return fakeRequest(() => {
+    const manual = readAllCostRecords().flatMap(expandCostRecord)
+    const incident = deriveIncidentCostEntries(readJson<Incident[]>(INCIDENTS_STORAGE_KEY) ?? [])
+    const maintenance = deriveMaintenanceCostEntries(
+      readJson<MaintenanceRecord[]>(MAINTENANCE_RECORDS_STORAGE_KEY) ?? [],
+      readJson<SparePartRecord[]>(SPARE_PART_RECORDS_STORAGE_KEY) ?? [],
+    )
+    // Phase 5 (features/consignment) — Owner Payout Record → CostEntry CONSIGNMENT_PAYOUT, DIRECT, Recognition Date = tháng chi trả (RV-BR-19, CR-2026-050).
+    return [...manual, ...incident, ...maintenance]
+      .filter((c) => !filter?.vehicleId || c.vehicleId === filter.vehicleId)
+      .sort((a, b) => b.costDate.localeCompare(a.costDate))
+  })
+}
+
+export interface CashEntryFilter {
+  customerId?: string
+}
+
+/** Góc nhìn thực thu (RV-BR-14) suy ra từ sổ giao dịch hiệu lực. */
+export async function listCashEntries(filter?: CashEntryFilter): Promise<CashEntry[]> {
+  return fakeRequest(() => deriveCashEntries(readAllTransactions()).filter((c) => !filter?.customerId || c.customerId === filter.customerId))
+}
+
+export interface CostRecordInput {
+  category: CostCategory
+  amount: number
+  /** `YYYY-MM-DD`. */
+  costDate: string
+  allocationType: AllocationType
+  vehicleId?: string
+  rentalId?: string
+  spreadMonths: number
+  isUnusual: boolean
+  evidenceNote?: string
+  note?: string
+}
+
+const COST_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Guard dùng chung cho tạo/sửa — lặp lại ở API, không chỉ dựa vào schema của form (RV-BR-04, RV-BR-19, BRD §9 BR). */
+function assertCostRecordInput(input: CostRecordInput): void {
+  if (!isManualCostCategory(input.category)) {
+    throw new Error('Chi phí sự cố và chi trả chủ xe ký gửi được ghi nhận tự động, không nhập tay')
+  }
+  if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương')
+  if (!COST_DATE_RE.test(input.costDate)) throw new Error('Ngày chi phí không hợp lệ')
+  if (input.costDate > toLocalDateKey(new Date().toISOString())) throw new Error('Ngày chi phí không được ở tương lai')
+  if (!Number.isInteger(input.spreadMonths) || input.spreadMonths < 1 || input.spreadMonths > 36) {
+    throw new Error('Số tháng rải phải là số nguyên từ 1 đến 36')
+  }
+  if (input.allocationType === 'DIRECT') {
+    if (!input.vehicleId) throw new Error('Chi phí trực tiếp phải gắn với một xe')
+  } else if (input.vehicleId || input.rentalId) {
+    throw new Error('Chi phí gián tiếp không gắn xe hoặc lượt thuê')
+  }
+  if (input.rentalId) {
+    const rental = (readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? []).find((r) => r.id === input.rentalId)
+    if (!rental) throw new Error('Không tìm thấy lượt thuê')
+    if (rental.vehicleId !== input.vehicleId) throw new Error('Lượt thuê không thuộc xe đã chọn')
+  }
+}
+
+const COST_RECORD_DIFF_KEYS = ['category', 'amount', 'costDate', 'allocationType', 'vehicleId', 'rentalId', 'spreadMonths', 'isUnusual', 'evidenceNote', 'note'] as const
+
+/**
+ * UC-RV-03, BRD §18 — nhập chi phí thủ công (`Source = MANUAL`). RV-BR-17: KHÔNG tự tạo giao dịch Payment.
+ * RV-BR-16: audit đầy đủ.
+ */
+export async function createCostRecord(input: CostRecordInput, actor: ActorInfo): Promise<CostRecord> {
+  return fakeRequest(() => {
+    assertCostRecordInput(input)
+    const records = readAllCostRecords()
+    const now = new Date().toISOString()
+    const record: CostRecord = {
+      id: generateId('cst'),
+      code: nextSequenceCode('CP', records.map((r) => r.code)),
+      category: input.category,
+      amount: input.amount,
+      costDate: input.costDate,
+      allocationType: input.allocationType,
+      vehicleId: input.vehicleId || undefined,
+      rentalId: input.rentalId || undefined,
+      spreadMonths: input.spreadMonths,
+      isUnusual: input.isUnusual,
+      evidenceNote: input.evidenceNote || undefined,
+      note: input.note || undefined,
+      status: 'ACTIVE',
+      enteredByName: actor.fullName,
+      enteredByRole: actor.role,
+      enteredAt: now,
+      updatedAt: now,
+    }
+    writeAllCostRecords([...records, record])
+    appendAudit({
+      action: 'COST_MANUAL_CREATE',
+      entity: 'CostRecord',
+      entityId: record.id,
+      summary: `Thêm chi phí ${record.code} (${record.category}) ${record.amount.toLocaleString('vi-VN')}đ`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: record,
+    })
+    return record
+  })
+}
+
+/**
+ * UC-RV-04, AC-RV-013 — sửa chi phí nhập tay, audit ghi giá trị cũ → mới của các field đổi.
+ * TODO(OQ: RevenueCost-BRD.md §28 Q11/Q13 — chưa làm Period Close; mọi bản ghi coi như thuộc kỳ đang mở, RV-BR-10)
+ * TODO(OQ: RevenueCost-UseCase.md UC-RV-04 bước 2 — "lý do nếu thay đổi lớn", chưa có ngưỡng)
+ */
+export async function updateCostRecord(id: string, input: CostRecordInput, actor: ActorInfo): Promise<CostRecord> {
+  return fakeRequest(() => {
+    const records = readAllCostRecords()
+    const before = records.find((r) => r.id === id)
+    if (!before) throw new Error('Không tìm thấy chi phí')
+    if (before.status !== 'ACTIVE') throw new Error('Chỉ sửa được chi phí đang hiệu lực')
+    assertCostRecordInput(input)
+    const next = {
+      category: input.category,
+      amount: input.amount,
+      costDate: input.costDate,
+      allocationType: input.allocationType,
+      vehicleId: input.vehicleId || undefined,
+      rentalId: input.rentalId || undefined,
+      spreadMonths: input.spreadMonths,
+      isUnusual: input.isUnusual,
+      evidenceNote: input.evidenceNote || undefined,
+      note: input.note || undefined,
+    }
+    const changedKeys = COST_RECORD_DIFF_KEYS.filter((k) => before[k] !== next[k])
+    if (changedKeys.length === 0) return before
+    const now = new Date().toISOString()
+    const after: CostRecord = { ...before, ...next, updatedByName: actor.fullName, updatedAt: now }
+    writeAllCostRecords(records.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'COST_MANUAL_UPDATE',
+      entity: 'CostRecord',
+      entityId: id,
+      summary: `Sửa chi phí ${before.code}: ${changedKeys.join(', ')}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: Object.fromEntries(changedKeys.map((k) => [k, before[k]])),
+      after: Object.fromEntries(changedKeys.map((k) => [k, after[k]])),
+    })
+    return after
+  })
+}
+
+/**
+ * RV-BR-10, `RevenueCost-BRD.md` §25.4 — "xoá" chi phí nhập tay = huỷ mềm (không xoá vật lý), lý do bắt buộc.
+ * TODO(OQ: RevenueCost-BRD.md §28 Q11/Q13 — chưa làm Period Close; mọi bản ghi coi như thuộc kỳ đang mở, RV-BR-10)
+ */
+export async function reverseCostRecord(id: string, reason: string, actor: ActorInfo): Promise<CostRecord> {
+  const trimmedReason = reason.trim()
+  if (trimmedReason.length < 5) throw new Error('Lý do huỷ là bắt buộc (tối thiểu 5 ký tự)')
+  return fakeRequest(() => {
+    const records = readAllCostRecords()
+    const before = records.find((r) => r.id === id)
+    if (!before) throw new Error('Không tìm thấy chi phí')
+    if (before.status !== 'ACTIVE') throw new Error('Chi phí này đã được huỷ trước đó')
+    const now = new Date().toISOString()
+    const after: CostRecord = { ...before, status: 'REVERSED', reverseReason: trimmedReason, reversedByName: actor.fullName, reversedAt: now, updatedByName: actor.fullName, updatedAt: now }
+    writeAllCostRecords(records.map((r) => (r.id === id ? after : r)))
+    appendAudit({
+      action: 'COST_MANUAL_REVERSE',
+      entity: 'CostRecord',
+      entityId: id,
+      summary: `Huỷ chi phí ${before.code}: ${trimmedReason}`,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: after.status, reason: trimmedReason },
+    })
     return after
   })
 }

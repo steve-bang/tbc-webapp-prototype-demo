@@ -1,6 +1,7 @@
 import type {
   AccountStatus,
   AdditionalChargeType,
+  AllocationType,
   AssignmentRole,
   AssignmentStatus,
   CashDrawerSubmissionStatus,
@@ -9,6 +10,9 @@ import type {
   ConsignmentContractStatus,
   ContractAddendumType,
   ContractStatus,
+  CostCategory,
+  CostRecordStatus,
+  CostSource,
   CustomerDocumentType,
   CustomerStatus,
   DocumentStatus,
@@ -33,6 +37,9 @@ import type {
   PostSettlementChargeType,
   RefundApprovalStatus,
   RentalStatus,
+  RevenueCategory,
+  RevenueLineNature,
+  RevenueRecognitionPolicy,
   Role,
   SecurityDepositType,
   SettlementLineCategory,
@@ -376,9 +383,6 @@ export const vi = {
     rentalHistoryEmpty: 'Xe này chưa có lượt thuê nào.',
     handoverReturnPlaceholder: 'Chờ triển khai VehicleHandover/VehicleReturn (Phase 2/3).',
     handoverReturnEmpty: 'Xe này chưa có dữ liệu giao/nhận nào.',
-    revenuePlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',
-    costPlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',
-    profitPlaceholder: 'Chờ triển khai RevenueCost (Phase 4).',
     // Tab "Hiện trạng xe" — Vehicle Condition Timeline bản đầy đủ (CR-2026-045, `docs/HANDOVER-RETURN-MANAGEMENT-PLAN.md` §5.4).
     conditionColumnDate: 'Thời gian',
     conditionColumnType: 'Loại mốc',
@@ -1490,6 +1494,126 @@ export const vi = {
       sheetRecentTxnsTitle: 'Giao dịch gần đây',
       onHoldBadge: 'Tạm giữ',
     },
+    // Phase 4.3 (RV) — phân tích doanh thu / chi phí / lợi nhuận. Chuỗi người dùng thấy: không trích tên tài liệu nội bộ.
+    revenueCost: {
+      navCosts: 'Chi phí vận hành',
+      // Bộ chọn kỳ
+      periodLabel: 'Kỳ phân tích',
+      periodFrom: 'Từ ngày',
+      periodTo: 'Đến ngày',
+      periodPresets: {
+        THIS_MONTH: 'Tháng này',
+        LAST_MONTH: 'Tháng trước',
+        LAST_30_DAYS: '30 ngày gần nhất',
+        THIS_QUARTER: 'Quý này',
+        THIS_YEAR: 'Năm nay',
+        LAST_12_MONTHS: '12 tháng gần nhất',
+        CUSTOM: 'Tuỳ chọn khoảng ngày',
+      },
+      recognitionNote: 'Doanh thu được ghi nhận khi quyết toán hoàn tất.',
+      estimateBadge: 'Ước tính quản trị',
+      estimateNote: 'Lợi nhuận = Doanh thu − Chi phí trực tiếp. Chi phí gián tiếp hiển thị riêng, không trừ vào lợi nhuận từng xe.',
+      loadError: 'Không tải được dữ liệu phân tích, vui lòng thử lại.',
+      // Màn Chi phí vận hành
+      costsTitle: 'Chi phí vận hành',
+      costsDescription: 'Chi phí nhập tay và chi phí ghi nhận tự động từ sự cố, bảo dưỡng.',
+      addCost: 'Thêm chi phí',
+      addCostForVehicle: 'Thêm chi phí cho xe này',
+      filterSource: 'Nguồn',
+      filterCategory: 'Loại chi phí',
+      filterAllocation: 'Phân bổ',
+      filterVehicle: 'Xe',
+      filterAll: 'Tất cả',
+      filterSourceManual: 'Nhập tay',
+      filterSourceIncident: 'Sự cố',
+      filterSourceSystem: 'Bảo dưỡng / phụ tùng',
+      showReversed: 'Hiện bản đã huỷ',
+      totalDirect: 'Chi phí trực tiếp',
+      totalIndirect: 'Chi phí gián tiếp',
+      totalAll: 'Tổng chi phí',
+      costsEmpty: 'Chưa có chi phí nào trong kỳ đã chọn.',
+      costsEmptyFiltered: 'Không có chi phí khớp bộ lọc. Thử đổi kỳ hoặc xoá bớt bộ lọc.',
+      // Bảng chi phí
+      columnDate: 'Ngày',
+      columnSource: 'Mã / Nguồn',
+      columnCategory: 'Loại',
+      columnAllocation: 'Phân bổ',
+      columnVehicle: 'Xe',
+      columnRental: 'Lượt thuê',
+      columnAmount: 'Số tiền',
+      columnActions: 'Thao tác',
+      sliceLabel: 'Phân bổ {index}/{total}',
+      unusualBadge: 'Bất thường',
+      reversedBadge: 'Đã huỷ',
+      reverseReasonLine: 'Lý do huỷ: {reason}',
+      sourceReadOnlyNote: 'Sửa ở màn hình nguồn',
+      edit: 'Sửa',
+      reverse: 'Huỷ',
+      // Form chi phí
+      formTitleCreate: 'Thêm chi phí',
+      formTitleEdit: 'Sửa chi phí',
+      formTitleEditWithCode: 'Sửa chi phí {code}',
+      categoryLabel: 'Loại chi phí',
+      categoryPlaceholder: 'Chọn loại chi phí',
+      amountLabel: 'Số tiền (đồng)',
+      costDateLabel: 'Ngày chi phí',
+      allocationLabel: 'Cách phân bổ',
+      vehicleLabel: 'Xe',
+      vehiclePlaceholder: 'Chọn xe',
+      rentalLabel: 'Lượt thuê (tuỳ chọn)',
+      rentalNone: 'Không gắn lượt thuê',
+      spreadLabel: 'Rải đều (số tháng)',
+      spreadHint: 'Để 1 nếu không rải. Bảo hiểm, đăng kiểm thường rải 12 tháng.',
+      unusualLabel: 'Chi phí bất thường / một lần',
+      evidenceLabel: 'Chứng từ (số hoá đơn)',
+      noteLabel: 'Ghi chú',
+      paymentHint: 'Việc nhập chi phí không tự tạo giao dịch chi — tạo ở Sổ giao dịch nếu cần.',
+      maintenanceHint: 'Chi phí đã ghi ở màn Bảo dưỡng được tính tự động — chỉ nhập khoản chưa ghi ở đó.',
+      createSuccess: 'Đã thêm chi phí.',
+      createError: 'Không thể thêm chi phí, vui lòng thử lại.',
+      updateSuccess: 'Đã cập nhật chi phí.',
+      updateError: 'Không thể cập nhật chi phí, vui lòng thử lại.',
+      // Huỷ chi phí
+      reverseTitle: 'Huỷ chi phí',
+      reverseWarning: 'Chi phí sẽ không còn được tính vào phân tích. Bản ghi vẫn được giữ lại để tra cứu, không xoá hẳn.',
+      reverseReasonLabel: 'Lý do huỷ',
+      reverseSuccess: 'Đã huỷ chi phí.',
+      reverseError: 'Không thể huỷ chi phí, vui lòng thử lại.',
+      // Tab Doanh thu
+      revenueCard: 'Doanh thu trong kỳ',
+      completedCountCard: 'Số lượt hoàn tất',
+      reductionsCard: 'Giảm trừ (miễn giảm, chiết khấu)',
+      revenueColumnDate: 'Ngày ghi nhận',
+      revenueColumnRental: 'Lượt thuê',
+      revenueColumnCategory: 'Danh mục',
+      revenueColumnNature: 'Bản chất',
+      revenueColumnAmount: 'Số tiền',
+      revenueColumnSource: 'Nguồn',
+      revenueSourceSettlement: 'Quyết toán',
+      revenueSourcePsc: 'Phát sinh sau quyết toán',
+      revenueEmpty: 'Chưa có doanh thu được ghi nhận trong kỳ đã chọn.',
+      // Tab Chi phí
+      costTabDirectCard: 'Chi phí trực tiếp trong kỳ',
+      costBreakdownTitle: 'Cơ cấu theo loại chi phí',
+      costBreakdownCount: '{count} khoản',
+      costTabEmpty: 'Xe này chưa có chi phí nào trong kỳ đã chọn.',
+      // Tab Lợi nhuận
+      profitRevenue: 'Doanh thu',
+      profitDirectCost: 'Chi phí trực tiếp',
+      profitEstimated: 'Lợi nhuận ước tính',
+      profitRentalCount: 'Số lượt hoàn tất',
+      profitRentalDays: 'Số ngày thuê',
+      profitAvailableDays: 'Số ngày khả dụng',
+      profitUtilization: 'Tỉ lệ khai thác',
+      profitIncidentCount: 'Số sự cố',
+      profitMonthlyTitle: 'Theo tháng',
+      profitColumnMonth: 'Tháng',
+      profitColumnRevenue: 'Doanh thu',
+      profitColumnCost: 'Chi phí trực tiếp',
+      profitColumnProfit: 'Lợi nhuận',
+      profitConsignmentBanner: 'Chưa gồm khoản chi trả cố định hàng tháng cho chủ xe — sẽ có khi triển khai Xe ký gửi.',
+      profitNotAvailable: 'Không có',
+    },
   },
   // Màn "Bảng điều phối trong ngày" (`/schedule/dispatch`, module `EA`/`RC`) —
   // `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §5.1.
@@ -1952,4 +2076,62 @@ export const POST_SETTLEMENT_CHARGE_SOURCE_LABELS: Record<PostSettlementChargeSo
   INCIDENT: 'Sự cố chốt sau',
   ADJUSTMENT: 'Điều chỉnh sau quyết toán',
   OTHER: 'Khác',
+}
+
+/** `RevenueCost-BRD.md` §6.1/§8 — danh mục doanh thu (`docs/REVENUE-COST-PLAN.md` §2.5). */
+export const REVENUE_CATEGORY_LABELS: Record<RevenueCategory, string> = {
+  BASE_RENTAL: 'Tiền thuê xe',
+  EXTRA_KM: 'Vượt km',
+  FUEL: 'Thiếu nhiên liệu',
+  OVERTIME: 'Trễ giờ / qua đêm',
+  DAMAGE_RECOVERY: 'Thu hồi chi phí sự cố',
+  VETC_RECOVERY: 'Thu hồi VETC',
+  FINE_RECOVERY: 'Thu hồi phạt nguội',
+  DELIVERY_FEE: 'Phí giao / nhận xe',
+  OTHER: 'Khác',
+}
+
+/** `RevenueCost-BRD.md` §6.2/§9 — danh mục chi phí. */
+export const COST_CATEGORY_LABELS: Record<CostCategory, string> = {
+  INCIDENT: 'Sự cố',
+  VETC: 'VETC (công ty chịu)',
+  TRAFFIC_FINE: 'Phạt nguội (công ty chịu)',
+  MAINTENANCE: 'Bảo dưỡng / phụ tùng',
+  INSURANCE: 'Bảo hiểm',
+  INSPECTION: 'Đăng kiểm',
+  PARKING: 'Bãi đỗ',
+  REPOSITION_FUEL: 'Nhiên liệu điều xe',
+  CLEANING: 'Rửa xe, vệ sinh',
+  OPERATIONS: 'Vận hành chung',
+  OTHER: 'Khác',
+  CONSIGNMENT_PAYOUT: 'Chi trả chủ xe ký gửi',
+}
+
+export const COST_SOURCE_LABELS: Record<CostSource, string> = {
+  INCIDENT: 'Sự cố',
+  MANUAL: 'Nhập tay',
+  SYSTEM: 'Bảo dưỡng / phụ tùng',
+}
+
+export const ALLOCATION_TYPE_LABELS: Record<AllocationType, string> = {
+  DIRECT: 'Trực tiếp (theo xe)',
+  INDIRECT: 'Gián tiếp (chung)',
+}
+
+export const COST_RECORD_STATUS_LABELS: Record<CostRecordStatus, string> = {
+  ACTIVE: 'Đang hiệu lực',
+  REVERSED: 'Đã huỷ',
+}
+
+export const REVENUE_LINE_NATURE_LABELS: Record<RevenueLineNature, string> = {
+  CHARGE: 'Khoản thu',
+  REDUCTION: 'Giảm trừ',
+  REVERSAL: 'Đảo quyết toán',
+}
+
+export const REVENUE_RECOGNITION_POLICY_LABELS: Record<RevenueRecognitionPolicy, string> = {
+  ON_BOOKING: 'Khi đặt xe',
+  ON_HANDOVER: 'Khi giao xe',
+  ON_SETTLEMENT: 'Khi quyết toán hoàn tất',
+  ON_PAYMENT: 'Khi thu tiền',
 }

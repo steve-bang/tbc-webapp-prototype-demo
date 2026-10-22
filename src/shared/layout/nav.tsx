@@ -8,6 +8,7 @@ import {
   History,
   KeyRound,
   LayoutDashboard,
+  Receipt,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -108,6 +109,13 @@ export const NAV_ENTRIES: NavEntry[] = [
         path: paths.financeReceivables,
         icon: Users,
         resource: 'PAYMENT',
+        action: 'VIEW',
+      },
+      {
+        label: vi.finance.revenueCost.navCosts,
+        path: paths.financeCosts,
+        icon: Receipt,
+        resource: 'FINANCE_REPORT',
         action: 'VIEW',
       },
       {

@@ -6,10 +6,14 @@ import type {
   ActorInfo,
   AdjustSettlementInput,
   CashDrawerSubmissionFilter,
+  CashEntryFilter,
   ConfirmLineInput,
   ConfirmTransactionInput,
   CreateAdjustmentInput,
   CreatePostSettlementChargeInput,
+  CostEntryFilter,
+  CostRecordFilter,
+  CostRecordInput,
   CreateRefundTransactionInput,
   CustomerAckInput,
   DecideRefundApprovalInput,
@@ -18,12 +22,16 @@ import type {
   PostSettlementChargeFilter,
   RecordTransactionInput,
   ResolveDisputeInput,
+  RevenueLineFilter,
   ReverseSettlementInput,
   SettlementFilter,
   SubmitCashDrawerInput,
   TransactionFilter,
   WaiverInput,
 } from './api'
+
+/** REVENUE-COST-PLAN.md §6.2 — key gốc của mọi query phân tích (Revenue/Cost/Cash). */
+const ANALYTICS_QUERY_KEY = ['finance', 'analytics'] as const
 
 /**
  * PAYMENT-PLAN.md §10.10 — F5: Settlement dùng key `['settlements']`, PSC dùng
@@ -34,6 +42,10 @@ import type {
  */
 function invalidateFinanceAll(queryClient: ReturnType<typeof useQueryClient>, rentalId?: string) {
   queryClient.invalidateQueries({ queryKey: ['finance', 'payment'] })
+  // REVENUE-COST-PLAN.md §6.2 — hoàn tất/đảo quyết toán, PSC, giao dịch làm đổi số liệu phân tích (Revenue Line/thực thu suy ra).
+  // Mutation của `incidents`/`maintenance` không invalidate được (ngoài phạm vi) — query analytics để `staleTime: 0` mặc định
+  // + refetch khi mount nên luôn tải lại khi mở màn/tab.
+  queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY })
   queryClient.invalidateQueries({ queryKey: ['settlements'] })
   if (rentalId) queryClient.invalidateQueries({ queryKey: ['settlements', 'byRental', rentalId] })
   queryClient.invalidateQueries({ queryKey: ['postSettlementCharges'] })
@@ -67,6 +79,8 @@ export function useSettlementByRental(rentalId?: string) {
 /** Invalidate chung cho mọi mutation — `['settlements']` luôn; `['rentals']` khi đổi trạng thái Rental (mở/đóng lượt). */
 function invalidateSettlements(queryClient: ReturnType<typeof useQueryClient>, rentalId?: string, invalidateRental = false) {
   queryClient.invalidateQueries({ queryKey: ['settlements'] })
+  // REVENUE-COST-PLAN.md §6.2 — mọi thay đổi Settlement làm đổi Revenue Line suy ra.
+  queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY })
   if (rentalId) queryClient.invalidateQueries({ queryKey: ['settlements', 'byRental', rentalId] })
   if (invalidateRental && rentalId) {
     queryClient.invalidateQueries({ queryKey: ['rentals'] })
@@ -388,5 +402,62 @@ export function useReceiveCashDrawerSubmission() {
   return useMutation({
     mutationFn: (id: string) => api.receiveCashDrawerSubmission(id, actor),
     onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+// ==== Revenue & Cost (RV) — REVENUE-COST-PLAN.md §6.2 ====
+
+export function useRevenueLines(filter?: RevenueLineFilter) {
+  return useQuery({
+    queryKey: [...ANALYTICS_QUERY_KEY, 'revenueLines', filter ?? {}],
+    queryFn: () => api.listRevenueLines(filter),
+  })
+}
+
+export function useCostRecords(filter?: CostRecordFilter) {
+  return useQuery({
+    queryKey: [...ANALYTICS_QUERY_KEY, 'costRecords', filter ?? {}],
+    queryFn: () => api.listCostRecords(filter),
+  })
+}
+
+export function useCostEntries(filter?: CostEntryFilter) {
+  return useQuery({
+    queryKey: [...ANALYTICS_QUERY_KEY, 'costEntries', filter ?? {}],
+    queryFn: () => api.listCostEntries(filter),
+  })
+}
+
+export function useCashEntries(filter?: CashEntryFilter) {
+  return useQuery({
+    queryKey: [...ANALYTICS_QUERY_KEY, 'cashEntries', filter ?? {}],
+    queryFn: () => api.listCashEntries(filter),
+  })
+}
+
+export function useCreateCostRecord() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (input: CostRecordInput) => api.createCostRecord(input, actor),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY }),
+  })
+}
+
+export function useUpdateCostRecord() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: CostRecordInput }) => api.updateCostRecord(id, input, actor),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY }),
+  })
+}
+
+export function useReverseCostRecord() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => api.reverseCostRecord(id, reason, actor),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY }),
   })
 }

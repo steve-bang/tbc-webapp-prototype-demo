@@ -89,6 +89,10 @@ Không gọi `localStorage` trực tiếp trong component/hook và không nhét 
 ## 7. Form & validate
 
 - `react-hook-form` + `zod`, schema đặt trong `model.ts` của feature.
+- **Ngoại lệ đã duyệt (22/10/2026 — `docs/REVENUE-COST-PLAN.md` §13 câu 5):** `features/finance` dùng
+  `useState` + `zod.safeParse()` thay `react-hook-form` (giữ nhất quán các dialog đã có từ Phase 4.1/4.2);
+  schema vẫn đặt ở `model.ts` và **bắt buộc được dùng thật** trong dialog — không validate inline song song rồi
+  bỏ schema. Feature khác vẫn theo dòng trên.
 - Thông báo lỗi tiếng Việt; trích mã business rule khi hữu ích (`"Vượt quá Allowed KM (BR-016)"`).
 
 ## 8. UI & styling

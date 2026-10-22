@@ -11,6 +11,26 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ---
 
+### 2026-10-22
+
+**Added**
+
+- **Phase 4.3 Round 1 — Phân tích tài chính: lõi dữ liệu + Chi phí vận hành + 3 tab xe** (`features/finance`,
+  module `RV`, theo [`docs/REVENUE-COST-PLAN.md`](docs/REVENUE-COST-PLAN.md)). Doanh thu ghi nhận
+  `ON_SETTLEMENT` (CR-2026-048) suy ra từ quyết toán/khoản phát sinh sau quyết toán, không lưu riêng — đảo
+  quyết toán giữ dòng kỳ gốc + dòng đối ứng âm ở kỳ đảo (EX-02). Chi phí nhập tay (Cost Record, rải đều theo
+  tháng, trực tiếp/gián tiếp, huỷ mềm có lý do) + chi phí tự suy ra từ Sự cố (phần công ty chịu) và Bảo
+  dưỡng/Phụ tùng. Màn mới `/finance/costs` (Chi phí vận hành); tab Doanh thu/Chi phí/Lợi nhuận ở Vehicle Detail
+  (lợi nhuận ước tính, tỉ lệ khai thác, bảng theo tháng; banner xe ký gửi chưa gồm chi trả chủ xe). Sửa scaffold
+  `COST_CATEGORIES` cho khớp BRD; 3 permission + 4 audit action mới; seed 10 lượt thuê lịch sử (1 lượt từng bị
+  đảo quyết toán) + 15 Cost Record, `SEED_VERSION` 18. Dọn kèm thông báo lỗi lộ mã UC/AC ở `finance/api.ts`.
+  Review `tech-lead` đạt vòng 1, không Blocker; ghi 3 nợ nhỏ vào `IMPLEMENTATION-PLAN.md` Phase 4.3.
+
+**Changed**
+
+- `CONVENTIONS.md` §7 — ghi ngoại lệ form `features/finance` (`useState` + `zod.safeParse()`, schema bắt buộc
+  dùng thật).
+
 ### 2026-10-21
 
 **Added**

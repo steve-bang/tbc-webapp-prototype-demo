@@ -21,6 +21,7 @@ export const paths = {
   financeTransactions: '/finance/transactions',
   financeCashDrawer: '/finance/cash-drawer',
   financeReceivables: '/finance/receivables',
+  financeCosts: '/finance/costs',
   financeReports: '/finance/reports',
   consignmentOwners: '/consignment/owners',
   consignmentContracts: '/consignment/contracts',

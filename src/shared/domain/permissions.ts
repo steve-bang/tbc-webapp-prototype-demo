@@ -443,6 +443,26 @@ const TABLE: PermissionEntry[] = [
     values: { SYSTEM_ADMIN: true, MANAGER: false, SALES: false, ACCOUNTANT: false, OPERATION_STAFF: false },
     source: 'WebappQuanTri.md §11.4 — Cấu hình danh mục chi phí / chính sách ghi nhận doanh thu',
   },
+  // REVENUE-COST-PLAN.md §5 — 3 entry mới cho Phase 4.3.
+  // TODO(OQ: RevenueCost-BRD.md §28 Q16 — ai được xem báo cáo/KPI chưa chốt; demo bám ma trận BRD §22 + SALES ≈ MANAGER)
+  {
+    resource: 'FINANCE_REPORT',
+    action: 'EDIT',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: 'TBD', ACCOUNTANT: true, OPERATION_STAFF: false }),
+    source: 'RevenueCost-BRD.md §22 — Sửa / xóa chi phí thủ công (trước chốt kỳ)',
+  },
+  {
+    resource: 'FINANCE_REPORT',
+    action: 'DELETE',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: 'TBD', ACCOUNTANT: true, OPERATION_STAFF: false }),
+    source: 'RevenueCost-BRD.md §22 — Sửa / xóa chi phí thủ công (dùng cho "Huỷ chi phí", huỷ mềm)',
+  },
+  {
+    resource: 'FINANCE_REPORT',
+    action: 'EXPORT',
+    values: likeManager({ SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, OPERATION_STAFF: false }),
+    source: 'RevenueCost-BRD.md §22 — Xuất báo cáo',
+  },
 
   // ---- Nhóm 7 — Xe ký gửi (§12.4) ----
   {

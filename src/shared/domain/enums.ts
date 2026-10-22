@@ -301,16 +301,57 @@ export type PostSettlementChargeStatus = (typeof POST_SETTLEMENT_CHARGE_STATUSES
 export const POST_SETTLEMENT_CHARGE_SOURCES = ['TRAFFIC_FINE', 'VETC', 'INCIDENT', 'ADJUSTMENT', 'OTHER'] as const
 export type PostSettlementChargeSource = (typeof POST_SETTLEMENT_CHARGE_SOURCES)[number]
 
-/** Danh mục chi phí — `RevenueCost-BRD.md`. */
+/**
+ * Danh mục chi phí — `RevenueCost-BRD.md` §6.2/§9 (12 giá trị; `INSPECTION` — CR-2026-042;
+ * `CONSIGNMENT_PAYOUT` — CR-2026-050). Sửa scaffold Phase 0 cũ cho khớp tài liệu (`DELIVERY_FEE`/`FUEL`
+ * là danh mục DOANH THU, không phải chi phí) — `docs/REVENUE-COST-PLAN.md` §0.1 F1.
+ * TODO(OQ: RevenueCost-BRD.md §28 Q4 — danh mục chi phí chuẩn chưa chốt; demo dùng nguyên danh mục BRD §9)
+ */
 export const COST_CATEGORIES = [
-  'MAINTENANCE',
   'INCIDENT',
-  'CONSIGNMENT_PAYOUT',
-  'DELIVERY_FEE',
-  'FUEL',
+  'VETC',
+  'TRAFFIC_FINE',
+  'MAINTENANCE',
+  'INSURANCE',
+  'INSPECTION',
+  'PARKING',
+  'REPOSITION_FUEL',
+  'CLEANING',
+  'OPERATIONS',
   'OTHER',
+  'CONSIGNMENT_PAYOUT',
 ] as const
 export type CostCategory = (typeof COST_CATEGORIES)[number]
+
+/** Danh mục doanh thu — `RevenueCost-BRD.md` §6.1/§8. */
+export const REVENUE_CATEGORIES = [
+  'BASE_RENTAL',
+  'EXTRA_KM',
+  'FUEL',
+  'OVERTIME',
+  'DAMAGE_RECOVERY',
+  'VETC_RECOVERY',
+  'FINE_RECOVERY',
+  'DELIVERY_FEE',
+  'OTHER',
+] as const
+export type RevenueCategory = (typeof REVENUE_CATEGORIES)[number]
+
+/** Nguồn của Cost Record — `RevenueCost-BRD.md` §6.2. */
+export const COST_SOURCES = ['INCIDENT', 'MANUAL', 'SYSTEM'] as const
+export type CostSource = (typeof COST_SOURCES)[number]
+
+/** Chính sách ghi nhận doanh thu — `RevenueCost-BRD.md` §7 (CR-2026-048 chốt `ON_SETTLEMENT`). */
+export const REVENUE_RECOGNITION_POLICIES = ['ON_BOOKING', 'ON_HANDOVER', 'ON_SETTLEMENT', 'ON_PAYMENT'] as const
+export type RevenueRecognitionPolicy = (typeof REVENUE_RECOGNITION_POLICIES)[number]
+
+/** Trạng thái Cost Record nhập tay — `RevenueCost-UseCase.md` §4.1 (bỏ `IN_CLOSED_PERIOD`: chưa làm Period Close). */
+export const COST_RECORD_STATUSES = ['ACTIVE', 'REVERSED'] as const
+export type CostRecordStatus = (typeof COST_RECORD_STATUSES)[number]
+
+/** Bản chất dòng doanh thu — BA đề xuất (`RevenueCost-BRD.md` §6.1/§8 BR/EX-02 chỉ mô tả hành vi). */
+export const REVENUE_LINE_NATURES = ['CHARGE', 'REDUCTION', 'REVERSAL'] as const
+export type RevenueLineNature = (typeof REVENUE_LINE_NATURES)[number]
 
 export const ALLOCATION_TYPES = ['DIRECT', 'INDIRECT'] as const
 export type AllocationType = (typeof ALLOCATION_TYPES)[number]
@@ -544,5 +585,10 @@ export const AUDIT_ACTIONS = [
   'OFFSET_DEPOSIT',
   'APPROVE_REFUND',
   'REJECT_REFUND',
+  // Revenue & Cost (RV) — REVENUE-COST-PLAN.md §7 (UseCase §20.3; `COST_MANUAL_REVERSE` BA đề xuất).
+  'COST_MANUAL_CREATE',
+  'COST_MANUAL_UPDATE',
+  'COST_MANUAL_REVERSE',
+  'REPORT_EXPORT',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
