@@ -19,4 +19,5 @@ export { VehicleCostTab } from './components/VehicleCostTab'
 export { VehicleProfitTab } from './components/VehicleProfitTab'
 export type { CostRecord } from './model'
 // REVENUE-COST-PLAN.md §19 — Round 2: màn Báo cáo tài chính.
-export { FinanceReportScreen } from './screens/FinanceReportScreen'
+// Round 3 (§20.4 nợ d): export bản lazy (`screens/lazyScreens.ts`) — KHÔNG export tĩnh `./screens/FinanceReportScreen` để `recharts` ra khỏi chunk chính.
+export { FinanceReportScreen } from './screens/lazyScreens'

@@ -3,11 +3,9 @@ import { vi } from '@/shared/i18n/vi'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { useCompleteSettlement, usePaymentRequests, useTransactions } from '../hooks'
-import { calcSettlementCollectOutstanding, getCompletionBlockers, type Settlement, type SettlementBlockerCode } from '../model'
+import { calcSettlementCollectOutstanding, getCompletionBlockers, type FinanceStringKey, type Settlement, type SettlementBlockerCode } from '../model'
 
 /** UC-RS-13, BRD §16, RS-BR-06/12/20, AC-RS-009/010 — liệt kê điều kiện chưa thoả (AC-RS-009). */
-// Chỉ lấy khoá `vi.finance` có giá trị là chuỗi (bỏ các object lồng `payment`/`receivables`/`revenueCost`/`reports`…) — thêm namespace mới không phải sửa lại.
-type FinanceStringKey = { [K in keyof typeof vi.finance]: (typeof vi.finance)[K] extends string ? K : never }[keyof typeof vi.finance]
 const BLOCKER_LABELS: Record<SettlementBlockerCode, FinanceStringKey> = {
   DRAFT_LINES: 'blockerDraftLines',
   DISPUTED_LINES: 'blockerDisputedLines',

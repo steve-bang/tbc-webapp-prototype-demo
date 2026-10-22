@@ -15,6 +15,18 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 4.3 Round 3 — Báo cáo Khách hàng / Sự cố / Đối chiếu & dòng tiền + Xuất CSV** (theo
+  [`docs/REVENUE-COST-PLAN.md`](docs/REVENUE-COST-PLAN.md) §20) — **Phase 4.3 hoàn tất**. `/finance/reports` thêm 3 tab
+  (tổng 7): Khách hàng (doanh thu, thực thu, còn phải thu hiện tại, số sự cố theo khách — chỉ mã + họ tên) · Sự cố
+  (chi phí thực tế, khách/công ty/bảo hiểm chịu, có tính vào chi phí chưa) · Đối chiếu & dòng tiền (doanh thu ghi
+  nhận ↔ thực thu, chi phí ghi nhận ↔ thực chi, chênh lệch theo lượt thuê, dòng tiền theo mốc/phương thức, cầu nối
+  về thẻ Thực thu). Nút Xuất CSV ở cả 7 tab (gate quyền xuất báo cáo, UTF-8 BOM cho Excel, chống CSV-injection, ghi
+  đúng 1 nhật ký `REPORT_EXPORT` rồi mới tải file). Gộp nợ Round 2: lazy-load màn báo cáo + biểu đồ tab Lợi nhuận
+  (bundle chính 1,86 MB → 1,46 MB, `recharts` sang chunk riêng), chú thích chi phí phân bổ ngày sau hôm nay, gom
+  kiểu `FinanceStringKey`, chú thích `asOf`. Không đổi seed. Review `tech-lead` **đạt vòng 2** — Blocker vòng 1:
+  chênh lệch theo lượt ở màn Đối chiếu khác số dư màn Công nợ (khoản phát sinh sau quyết toán đang tạm giữ vì
+  tranh chấp) mà không có giải thích → thêm chú thích + gợi ý "Gồm … tạm giữ" + `TODO(OQ)`; số liệu kiểm lại không
+  đổi. Nợ nhỏ còn treo (gom định dạng %, bundle chính > 500 kB) ghi ở `IMPLEMENTATION-PLAN.md` Phase 4.3.
 - **Phase 4.3 Round 2 — Báo cáo tài chính** (`/finance/reports`, theo
   [`docs/REVENUE-COST-PLAN.md`](docs/REVENUE-COST-PLAN.md) §19). 4 tab: Tổng quan (7 thẻ KPI so kỳ trước, biểu đồ
   doanh thu/chi phí trực tiếp/lợi nhuận, bảng theo xe) · Doanh thu (theo ngày/tuần/tháng, lọc xe/khách, cơ cấu danh

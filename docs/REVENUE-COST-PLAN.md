@@ -5,7 +5,8 @@
 nối tiếp `features/finance`, refactor tách thư mục là task riêng sau 4.3 · ghi ngoại lệ form `finance` vào
 `CONVENTIONS.md` §7) · **Round 1 `DONE` (22/10/2026 — review đạt vòng 1, không Blocker)** · **Round 2 `DONE`
 (22/10/2026 — chi tiết §19; review đạt vòng 1, không Blocker; nợ nhỏ ghi ở `IMPLEMENTATION-PLAN.md` Phase 4.3)** ·
-Round 3 chưa giao — kế hoạch chi tiết
+**Round 3 `DONE` (22/10/2026 — chi tiết §20; đạt ở review vòng 2 — Blocker vòng 1: giải thích chênh lệch PSC "Tạm giữ" ở
+màn Đối chiếu + `TODO(OQ)`, xem §0.4 điểm 18, đã sửa)** · **Trạng thái tổng: `DONE` — Phase 4.3 xong** — kế hoạch chi tiết
 Phase 4.3. Chia **3 round**: Round 1 = lõi dữ liệu (Revenue Line suy
 ra từ Settlement/PSC, kể cả đảo quyết toán · Cost Record nhập tay + chi phí suy ra từ Sự cố/Bảo dưỡng ·
 góc nhìn thực thu) + màn **Chi phí vận hành** + nối **3 tab Doanh thu/Chi phí/Lợi nhuận ở Vehicle
@@ -187,6 +188,26 @@ nội bộ** (`§…`, `UC-…`, `AC-…`, tên file `.md`, "Phase 4.3"). Đư�
 14. **"Thực chi" (BRD §15):** chi phí nhập tay không liên kết giao dịch (RV-BR-17) nên phía chi phí không đối
     chiếu được theo bản ghi; R3 hiển thị "Thực chi theo sổ giao dịch" = Σ OUT hiệu lực loại `OWNER_PAYOUT`
     (Phase 5 — hiện 0) kèm ghi chú.
+15. **Report 03 "trong kỳ" vs công nợ (BRD §13):** BRD ghi "Trong kỳ, cho mỗi Customer" cho cả 6 cột, nhưng
+    `Outstanding` là **số dư tại một thời điểm**, không phải số phát sinh theo kỳ. Diễn giải (R3 — §20.3): `Revenue`,
+    `Rental Count`, `Total Spending`, `Collected`, `Incident Count` tính **theo kỳ**; `Outstanding` = **số dư hiện tại**
+    (cùng hàm `deriveCustomerBalances` của màn Công nợ khách hàng), ghi rõ trên UI + CSV. BA xác nhận.
+16. **Report 06 ≠ thẻ "Thực thu":** Report 06 (BRD §16) là **mọi** dòng tiền thật (gồm cọc thu/hoàn, chi trả chủ xe;
+    loại `OFFSET`), còn "Thực thu" (BRD §15) chỉ gồm giao dịch liên quan doanh thu (gồm cả `OFFSET` — cọc cấn vào khoản
+    phải thu). Hai con số khác nhau theo định nghĩa; R3 hiển thị **dòng cầu nối** để đối chiếu được (§20.3).
+17. **Dữ liệu cá nhân trong báo cáo/xuất file:** BRD RV không liệt kê trường cá nhân cho Report 03 (chỉ "Khách");
+    danh sách trường nhạy cảm & quy tắc che còn treo (`AuditLog-BRD.md` §22 Q4, `CustomerManagement-BRD.md` §31 Q17).
+    Giả định an toàn: màn + CSV chỉ có **mã khách + họ tên + trạng thái**, không SĐT/CCCD/GPLX/email/địa chỉ; audit xuất
+    không chứa dữ liệu cá nhân (§20.2).
+18. **PSC "Tạm giữ" (sự cố đang tranh chấp) có được ghi nhận doanh thu không? (phát hiện ở review R3):** RV-BR-07 /
+    AC-RV-007 / UC-RS-14 bước 5 ghi PSC vào doanh thu **theo kỳ phát sinh** (demo: `psc.createdAt`); UC-RS-14 A1 chỉ nói
+    "khách không đồng ý → khoản tạm giữ", **không** nói có hoãn ghi nhận doanh thu hay không (AC-RS-007 loại dòng
+    `DISPUTED` khỏi Final Amount nhưng là dòng **trong** Settlement, không phải PSC; `RentalSettlement-BRD.md` §28 Q13
+    "khoản tranh chấp giữ trong Settlement hay tách ra Post-Settlement" còn mở). Hệ quả seed: `psc_003` 900.000 (gắn
+    `inc_010` `DISPUTED`) **được** ghi nhận doanh thu → màn Đối chiếu lượt `rt_026` có chênh lệch gồm 900.000 này, trong
+    khi màn Công nợ khách hàng để khoản này ở cột "Tạm giữ", **không** cộng vào "Đang nợ". Demo **giữ hành vi R1** (bám
+    đúng chữ tài liệu), UI Đối chiếu giải thích chênh lệch + `TODO(OQ)`. BA xác nhận: hoãn ghi nhận doanh thu PSC tới khi
+    hết tranh chấp, hay ghi nhận ngay rồi điều chỉnh (PSC `REFUND`) nếu khách thắng tranh chấp.
 
 ---
 
@@ -830,6 +851,8 @@ Tạo `src/shared/lib/csv.ts`, `components/CustomerReportPanel.tsx`, `IncidentRe
 
 ### 15.3. Round 3
 
+(DoD chi tiết thay thế ở §20.7.)
+
 - [ ] 3 cổng sạch; Report 03/04/06 + Đối chiếu đúng BRD §13/§15/§16 (AC-RV-008: chênh lệch = công nợ phải thu).
 - [ ] Xuất CSV mở được bằng Excel (tiếng Việt không lỗi font — BOM), mỗi lần xuất có audit `REPORT_EXPORT`; nút
       ẩn khi thiếu `FINANCE_REPORT.EXPORT`.
@@ -1130,3 +1153,264 @@ riêng cho từng hàm. Mặc định **tắt** (tính đủ).
 §19.3. 5. `FinanceTrendChart` → `FinanceKpiCards` → `VehiclePerformanceTable` → `VehicleFinanceSheet` (+ prop
 `initialSelection` 3 tab, biểu đồ tab Lợi nhuận) → `RevenueReportPanel` → `CostBreakdownPanel` → `FinanceReportScreen`
 → `index.ts` → `routes.tsx`. 6. 3 cổng + grep + tính tay §19.6.
+
+---
+
+## 20. Round 3 — chi tiết giao việc (`APPROVED` 22/10/2026, `tech-lead` tự duyệt theo plan tổng)
+
+Phạm vi = §1.4 + **gộp nợ (d)(e)(f)(g)** từ review Round 2 (§20.4). Không đổi cấu trúc entity, không sửa seed →
+**không** bump `SEED_VERSION` (giữ 19). Không cần enum/permission mới: `REPORT_EXPORT` (`AUDIT_ACTIONS`) và
+`FINANCE_REPORT.EXPORT` (ADMIN/MANAGER/ACCOUNTANT ✓, SALES ✓ qua `likeManager()`, OPERATION ✗ — BRD §22 "Xuất báo cáo")
+đã có từ R1.
+
+### 20.1. Trong / ngoài phạm vi
+
+**Trong phạm vi**
+
+1. `/finance/reports` thêm 3 tab (tổng 7): **Khách hàng** (Report 03 — `CustomerReportPanel`) · **Sự cố** (Report 04 —
+   `IncidentReportPanel`) · **Đối chiếu & dòng tiền** (BRD §15 accrual ↔ cash + Report 06 — `ReconciliationPanel`).
+2. **Xuất CSV** cho **cả 7 tab** (nút trong từng tab, `ReportExportButton`), gate `FINANCE_REPORT.EXPORT` (ẩn hẳn khi
+   thiếu quyền), mỗi lần xuất ghi **đúng 1** audit `REPORT_EXPORT` qua `recordReportExport` (`api.ts`) rồi mới tải file.
+3. `shared/lib/csv.ts` (`toCsv`, `downloadCsv`) — đã dự kiến ở §0.2/§14.3.
+4. Nợ (d) lazy-load + (e) ghi chú chi phí phân bổ ngày tương lai + (f) gom `FinanceStringKey` + (g) chú thích `asOf` (§20.4).
+
+**Ngoài phạm vi:** Xuất PDF/`.xlsx` (§1.5); Dashboard (Phase 6); Period Close; mọi file `vehicles/*`, `rentals/*`,
+`incidents/*`, `customers/*`, `maintenance/*`, `calendar/*`; `enums.ts`, `permissions.ts`, `paths.ts`, `nav.tsx`; mọi
+`seed.ts` + `seedAll.ts`; `shared/ui/*`; `package.json`, `vite.config.*` (không `manualChunks` — tách vendor chung là quyết
+định build riêng, không thuộc nợ (d)); nợ (b) (phải sửa bản ghi cũ `rentals/seed.ts` — cấm §0.2).
+
+### 20.2. Quyết định đã chốt khi lập Round 3 (kỹ thuật / suy trực tiếp từ tài liệu — không phải quyết định nghiệp vụ mới)
+
+| # | Điểm | Quyết định | Căn cứ |
+| --- | --- | --- | --- |
+| 1 | Định dạng CSV | **UTF-8 có BOM** (`﻿`, để Excel đọc đúng tiếng Việt), phân cách **dấu phẩy**, xuống dòng **CRLF**, ô có `,` `"` CR/LF bọc `"…"` và nhân đôi `"`. **Không** dòng `sep=` (Excel bỏ qua BOM khi có dòng này → lỗi font). Tiền = **số nguyên đồng không dấu phân cách** (Excel cộng được, không lệch locale); ngày = chuỗi `dd/MM/yyyy`; tỷ lệ % = chuỗi như trên màn (vd `80,0%`), `null` → ô trống. Chống CSV-injection: ô **chuỗi** bắt đầu bằng `=` `+` `-` `@` TAB CR → thêm tiền tố `'` (số âm là ô số, không bị đổi). Rủi ro ghi nhận: Excel đặt vùng "Việt Nam" (phân cách danh sách `;`) có thể cần Data → From Text/CSV — chấp nhận cho demo | Kỹ thuật; UC-RV-13 chỉ yêu cầu "file kèm tiêu đề, kỳ, bộ lọc, thời điểm, người xuất" |
+| 2 | Nội dung file | Khối đầu (mỗi dòng 2 ô nhãn · giá trị): Tên báo cáo · Kỳ `dd/MM/yyyy – dd/MM/yyyy` · Bộ lọc (hoặc "Không") · Ghi nhận doanh thu khi quyết toán hoàn tất · Số liệu chưa chốt kỳ · Xuất lúc `dd/MM/yyyy HH:mm` · Người xuất (họ tên + nhãn vai trò). Sau đó 1 dòng trống, rồi từng **phần** (tiêu đề phần · dòng tên cột · các dòng dữ liệu · dòng tổng nếu có), cách nhau 1 dòng trống. Cột = **đúng cột đang hiển thị** trên màn của tab đó | UC-RV-13 bước 3 |
+| 3 | Dữ liệu cá nhân | Report 03 (màn + CSV) chỉ có **Mã khách (`customer.id`) + Họ tên + Trạng thái khách**; **không** SĐT/CCCD/GPLX/email/địa chỉ. Audit xuất **không** chứa tên/SĐT khách — chỉ mã báo cáo, kỳ, số dòng, bộ lọc dạng id/enum/boolean | BRD §16 Report 03 chỉ ghi "Khách"; §0.4 điểm 17; `TODO(OQ: AuditLog-BRD.md §22 Q4 / CustomerManagement-BRD.md §31 Q17)` |
+| 4 | Ai được xuất | Đúng ma trận `FINANCE_REPORT.EXPORT` sẵn có — không thêm/sửa entry | BRD §22 + CR-2026-035 |
+| 5 | Report 03 công nợ | `Outstanding` = số dư **hiện tại**; các cột khác theo kỳ | §0.4 điểm 15 |
+| 6 | Report 06 vs Thực thu | Hiển thị **cầu nối** `Ròng Report 06 = Thực thu liên quan doanh thu − phần cấn trừ cọc (OFFSET) + dòng tiền ngoài doanh thu (cọc thu/hoàn, chi trả chủ xe)` | §0.4 điểm 16 |
+| 7 | Định dạng xuất | Chỉ CSV (UC-RV-13 nêu PDF/Excel) | §1.5; `TODO(OQ: RevenueCost-BRD.md §28 Q14 …)` |
+
+Không có điểm nào cần dừng hỏi người dùng.
+
+### 20.3. Hàm thuần R3 (`model.ts`, nối tiếp khối RV) — mọi số do hàm tính; màn hiển thị và CSV dùng **cùng** kết quả
+
+```text
+// ---- dùng chung ----
+isIncidentCostCounted(i: Incident) → boolean
+  = INCIDENT_COST_STATUSES.includes(i.status) && (i.companyCost ?? 0) > 0
+  deriveIncidentCostEntries() đổi sang gọi helper này — KHÔNG đổi hành vi (refactor 1 dòng)
+
+// ---- Report 03 — BRD §13/§16, UC-RV-09 ----
+CustomerReportRow { customerId; revenue; rentalCount; totalSpending; collected; outstandingNow; incidentCount }
+buildCustomerReport({ revenueLines, settlements, cashEntries, incidents, rentals, balances: CustomerBalance[], period })
+  → { rows; totals }
+  revenue       = Σ RevenueLine.amount có customerId, recognitionDate ∈ kỳ                       // RV-BR-03
+  rentalCount   = số Settlement COMPLETED của khách có completedAt ∈ kỳ (cùng điều kiện countCompletedSettlements)
+  totalSpending = Σ completedTotals.finalAmount của đúng các Settlement trên                      // "Σ Final Amount đã ghi nhận"
+  collected     = Σ CashEntry.signedAmount có revenueRelated, customerId, date ∈ kỳ               // RV-BR-14
+  outstandingNow= balances.find(customerId)?.outstanding ?? 0                                      // §0.4 điểm 15 — hiện tại
+  incidentCount = số Incident có rentalId → rental.customerId = khách, reportedAt ∈ kỳ
+  Dòng có mặt khi: có ≥1 RevenueLine trong kỳ, hoặc rentalCount > 0, hoặc có CashEntry revenueRelated trong kỳ,
+    hoặc incidentCount > 0, hoặc outstandingNow > 0. Không lọc theo khách còn tồn tại (tên thiếu → "—").
+  BẤT BIẾN (không lọc trạng thái): Σ revenue = summarizePeriod.revenue · Σ collected = sumRevenueCash(kỳ) (= thẻ Thực thu)
+    · Σ rentalCount = countCompletedSettlements(kỳ) · Σ outstandingNow = thẻ "Đang nợ" màn Công nợ khách hàng
+sortCustomerRows(rows, key: 'REVENUE' | 'OUTSTANDING') → giảm dần                                 // UC-RV-09 bước 3
+  Lọc trạng thái khách (Tất cả / ACTIVE / BLOCKED) làm ở panel trước khi sắp — tổng = Σ các dòng đang hiển thị.
+
+// ---- Report 04 — BRD §16, nguồn Damage & Incident ----
+IncidentReportRow { incidentId; incidentCode; vehicleId; rentalId?; reportedAt; status; actualCost: number | null;
+                    customerCharge: number | null; companyCost: number | null; insuranceCovered: number | null; countedAsCost }
+buildIncidentReport(incidents, period) → { rows (reportedAt giảm dần); totals }
+  kỳ theo reportedAt (cùng mốc Cost Date chi phí sự cố — TODO(OQ) UC-RV-02 sẵn có); mọi trạng thái đều hiện
+  actualCost = actualCostParts + actualCostLabor + actualCostOther (coi thiếu = 0) nếu ≥1 trường có giá trị, ngược lại null
+  countedAsCost = isIncidentCostCounted(i)
+  totals: Σ actualCost · Σ customerCharge · Σ companyCost · Σ insuranceCovered · countedCompanyCost = Σ companyCost của dòng countedAsCost
+  BẤT BIẾN: totals.countedCompanyCost = dòng INCIDENT của Report 05 cùng kỳ (= Σ CostEntry source INCIDENT trong kỳ)
+
+// ---- Đối chiếu — BRD §15, UC-RV-11, AC-RV-008 ----
+ReconciliationResult { revenueAccrual; revenueCash; revenueDiff; costRecognized; costPaid; costDiff;
+                       rentalRows: { rentalId: string | null; customerId?; accrual; cash; diff }[] }
+buildReconciliation({ revenueLines, cashEntries, costEntries, period }) →
+  s = summarizePeriod(revenueLines, costEntries, period)
+  revenueAccrual = s.revenue ; revenueCash = sumRevenueCash(cashEntries, period)
+  revenueDiff    = revenueAccrual − revenueCash      // > 0 công nợ phải thu · < 0 thu trước
+  costRecognized = s.directCost + s.indirectCost
+  costPaid       = Σ (−signedAmount) CashEntry type OWNER_PAYOUT, date ∈ kỳ    // §0.4 điểm 14 — hiện 0, TODO(Phase 5)
+  costDiff       = costRecognized − costPaid
+  rentalRows: nhóm theo rentalId (CashEntry không gắn lượt → nhóm null "Không gắn lượt thuê") —
+     accrual = Σ RevenueLine trong kỳ của lượt; cash = Σ CashEntry revenueRelated trong kỳ của lượt; giữ diff ≠ 0;
+     sắp |diff| giảm dần
+  BẤT BIẾN: Σ rentalRows.diff = revenueDiff
+
+// ---- Report 06 — BRD §16, dòng tiền vận hành ----
+CashflowPoint { bucket; cashIn; cashOut (số dương); net }
+CashflowMethodRow { method; cashIn; cashOut; net }
+buildCashflow({ cashEntries, period, granularity }) → { points; byMethod; totals: { cashIn; cashOut; net };
+                                                        bridge: { revenueCash; offsetRevenue; nonRevenueNet } }
+  phạm vi = CashEntry date ∈ kỳ và method ≠ OFFSET (OFFSET không có dòng tiền — §0.4 điểm 12); mọi type
+  points theo enumeratePeriodBuckets/bucketKeyOf (giống buildTimeSeries); byMethod chỉ phương thức có phát sinh
+  bridge.revenueCash   = sumRevenueCash(cashEntries, period)
+  bridge.offsetRevenue = Σ signedAmount CashEntry date ∈ kỳ, revenueRelated, method = OFFSET
+  bridge.nonRevenueNet = Σ signedAmount CashEntry date ∈ kỳ, !revenueRelated, method ≠ OFFSET
+  BẤT BIẾN: Σ points = Σ byMethod = totals ; totals.net = revenueCash − offsetRevenue + nonRevenueNet
+
+// ---- Nợ (e) ----
+sumFutureDatedCost(costEntries, period, today: Date) → number
+  = Σ amount CostEntry có costDate ∈ kỳ và costDate > ngày địa phương của today
+  (KHÔNG đổi quy tắc ghi nhận theo Cost Date — RV-BR-03, AC-RV-004; chỉ để hiện chú thích)
+
+// ---- Xuất ----
+FINANCE_REPORT_KEYS = ['OVERVIEW','REVENUE','VEHICLE_PERFORMANCE','COST_BREAKDOWN','CUSTOMER','INCIDENT','RECONCILIATION'] as const
+  (hằng số UI ở model.ts — không phải enum nghiệp vụ, không đưa vào enums.ts)
+ReportExportFilters { vehicleId?; customerId?; customerStatus?: CustomerStatus; granularity?: ReportGranularity;
+                      sortKey?: string; excludeUnusual?: boolean }          // chỉ id/enum/boolean — không tên, không SĐT
+CsvSection { title: string; headers: string[]; rows: CsvCell[][]; totalRow?: CsvCell[] }
+buildReportCsvRows(meta: { metaLines: [string, string][] }, sections: CsvSection[]) → CsvCell[][]
+  (meta đã là chuỗi tiếng Việt do component truyền từ vi.ts; hàm chỉ ghép khối đầu + dòng trống + các phần)
+countCsvDataRows(sections) = Σ sections.rows.length   (không tính khối đầu, dòng tên cột, dòng tổng) → `rowCount` của audit
+```
+
+`CsvCell = string | number | null | undefined` khai ở `shared/lib/csv.ts`.
+
+### 20.4. Nợ gộp
+
+1. **(d) Lazy-load — bắt buộc.** Đã đo trước khi giao (`npm run build`, HEAD `0934efc`): **1 chunk JS duy nhất
+   `index-*.js` 1.863,27 kB (gzip 483,60 kB)** + cảnh báo > 500 kB. `recharts` chỉ được import tĩnh ở
+   `FinanceTrendChart.tsx` và `CostBreakdownPanel.tsx`; nhưng `FinanceTrendChart` được `VehicleProfitTab` dùng →
+   barrel `finance` → `VehicleDetailScreen` (bundle chính). Vì vậy **chỉ lazy route là không đủ**, và `lazy(() =>
+   import('@/features/finance'))` ở `routes.tsx` cũng **không tách được** (barrel đã import tĩnh). Cách làm:
+   - `src/features/finance/screens/lazyScreens.ts` (mới): `export const FinanceReportScreen = lazy(() =>
+     import('./FinanceReportScreen').then((m) => ({ default: m.FinanceReportScreen })))`.
+   - `finance/index.ts`: dòng export `FinanceReportScreen` trỏ sang `./screens/lazyScreens` (**bỏ** export tĩnh từ
+     `./screens/FinanceReportScreen` — giữ nguyên tên export, `routes.tsx` không phải đổi import, không deep import).
+   - `app/routes.tsx`: bọc element route `financeReports` bằng `<Suspense fallback={…}>` (fallback = `<p
+     className="text-muted-foreground text-sm">{vi.common.loading}</p>` viết inline, không tạo component mới ở `app/`).
+   - `components/FinanceTrendChartLazy.tsx` (mới): `lazy(() => import('./FinanceTrendChart').then(…))` + `Suspense`
+     fallback khung cùng chiều cao (`h-65` = 260px, không dùng giá trị tuỳ ý); props lấy bằng `ComponentProps<typeof
+     FinanceTrendChart>` với `import type`. **Chỉ** `VehicleProfitTab` đổi sang bản lazy; `RevenueReportPanel` /
+     `FinanceReportScreen` / `CostBreakdownPanel` giữ import tĩnh (đã nằm trong chunk lazy).
+   - Kỳ vọng: chunk chính không còn mã `recharts` (kiểm `grep -c 'recharts-surface' dist/assets/index-*.js` = 0) + có chunk
+     riêng cho màn báo cáo / biểu đồ. Cảnh báo > 500 kB **có thể vẫn còn** (phần còn lại của app) — chấp nhận, ghi số.
+2. **(e) Chi phí phân bổ ngày tương lai — bắt buộc. Phương án: chú thích, không đổi dữ liệu.** Khi `sumFutureDatedCost
+   (…) > 0` (dùng đúng danh sách cost entry đang tính — sau công tắc "bất thường"), hiện 1 dòng nhỏ `text-muted-foreground`:
+   "Gồm {số tiền} chi phí phân bổ theo tháng có ngày ghi nhận sau hôm nay (mỗi tháng một phần theo ngày phân bổ)." Ở 3 chỗ:
+   dưới thẻ KPI tab Tổng quan · đầu `CostBreakdownPanel` · dưới 3 thẻ tổng `CostRecordsScreen`. **Không** đổi ngày lát
+   (`expandCostRecord`) — giữ RV-BR-03/AC-RV-004.
+3. **(f) `FinanceStringKey` — gộp (rẻ).** Khai **một lần** ở `model.ts` (`import type { vi } from '@/shared/i18n/vi'` +
+   `export type FinanceStringKey = …` y nguyên định nghĩa hiện có); 2 dialog xoá khai báo cục bộ, `import type` từ `../model`.
+4. **(g) — gộp dạng chú thích (rẻ):** JSDoc `calcSettlementCollectOutstanding` thêm 1 câu: `asOf` lọc giao dịch theo
+   thời điểm nhưng trạng thái hiệu lực (đảo/huỷ) lấy theo hiện tại — đủ cho cờ lịch sử + seed; muốn dùng như "số dư tại
+   ngày X" phải xét thêm `reversedAt`. Không đổi logic.
+5. **(b) — không gộp** (vùng cấm `rentals/seed.ts` bản ghi cũ).
+
+### 20.5. UI
+
+- **`FinanceReportScreen`**: thêm 3 query `usePostSettlementCharges()`, `usePaymentRequests()`, `useTransactions()` (gộp
+  vào `queries` loading/error); `onHoldPscIds` + `balances = deriveCustomerBalances(…)` tính **y như**
+  `CustomerReceivablesScreen` (cùng tham số) để Report 03 khớp màn Công nợ. 7 `TabsTrigger` (`TabsList className=
+  "max-w-full"` đã cuộn ngang). Tab Tổng quan và Hiệu quả xe: nút xuất đặt đầu tab, sections dựng từ **chính**
+  `kpiCurrent`/`kpiPrevious`/`series`/`overviewRows`/`sortedRows` đang render. Ghi chú (e) dưới `FinanceKpiCards`.
+- **`ReportExportButton`** (`components/`): props `{ reportKey; period; filters?: ReportExportFilters; filterLabels:
+  string[]; getSections: () => CsvSection[] }`. Ẩn khi `!can('FINANCE_REPORT','EXPORT')`. Click: `sections =
+  getSections()` → `rowCount = countCsvDataRows(sections)` → `await recordExport.mutateAsync({ reportKey, from, to,
+  rowCount, filters })` → **thành công mới** `downloadCsv(fileName, toCsv(buildReportCsvRows(…)))` + `toast.success`;
+  lỗi → `toast.error(err.message)` và **không** tải file. Disabled khi đang pending. Người xuất lấy từ session (họ tên +
+  `ROLE_LABELS`). Tên file ASCII: `bao-cao-<slug>_<from>_<to>.csv` (slug theo `reportKey`, vd `khach-hang`, `doi-chieu-dong-tien`
+  — map trong component/`vi.ts`, không chứa `§`/`UC-`/`AC-`/`Phase`). Comment `// TODO(OQ: RevenueCost-BRD.md §28 Q14 —
+  định dạng xuất PDF/Excel chưa chốt; demo xuất CSV mở bằng Excel)`.
+- **Sections từng tab** (cột = cột trên màn):
+  | Tab | Phần |
+  | --- | --- |
+  | Tổng quan | KPI (Chỉ số · Kỳ này · Kỳ so sánh · Thay đổi) 7 dòng · Theo mốc (Mốc · Doanh thu · Chi phí trực tiếp · Lợi nhuận vận hành) · Theo xe (bảng compact) |
+  | Doanh thu | Theo mốc (+ dòng tổng) · Cơ cấu danh mục · Dòng giảm trừ — **sau** bộ lọc Xe/Khách của panel (bộ lọc ghi vào `filters` + `filterLabels`) |
+  | Hiệu quả xe | Bảng full theo `sortKey` đang chọn + dòng tổng (`sumVehicleRows`) |
+  | Chi phí | Bảng Report 05 + dòng tổng |
+  | Khách hàng | Report 03 sau lọc trạng thái + sắp xếp + dòng tổng |
+  | Sự cố | Report 04 + dòng tổng |
+  | Đối chiếu & dòng tiền | Đối chiếu (6 chỉ số) · Chênh lệch theo lượt thuê · Dòng tiền theo mốc (+ tổng) · Theo phương thức (+ tổng) · Cầu nối |
+- **`CustomerReportPanel`**: lọc trạng thái (Tất cả/Hoạt động/Bị khoá — `CUSTOMER_STATUS_LABELS`) + sắp (Doanh thu/Công
+  nợ). Bảng: Mã khách · Khách (link `paths.customerDetail`) · Trạng thái · Số lượt · Doanh thu · Tổng chi tiêu · Thực
+  thu trong kỳ · Còn phải thu (hiện tại) · Số sự cố + dòng tổng; chú thích "Còn phải thu là số dư hiện tại, không theo
+  kỳ" + link `/finance/receivables`. Mobile `< sm`: card. Comment `TODO(OQ)` dữ liệu cá nhân (§20.2 điểm 3).
+- **`IncidentReportPanel`**: Ngày báo · Mã sự cố (link `paths.incidentDetail`) · Xe (biển số) · Lượt thuê (link) · Chi phí
+  thực tế · Khách chịu · Công ty chịu · Bảo hiểm · Trạng thái (`INCIDENT_STATUS_LABELS`) · Tính vào chi phí (Có/Chưa) +
+  dòng tổng; chú thích "Chỉ sự cố đã chốt phần công ty chịu mới được tính vào chi phí". Ô `null` hiện "—".
+- **`ReconciliationPanel`**: 2 khối thẻ — Doanh thu ghi nhận · Thực thu · Chênh lệch (nhãn "Công nợ phải thu" khi > 0,
+  "Thu trước" khi < 0, "Khớp" khi 0) và Chi phí ghi nhận · Thực chi · Chênh lệch (chú thích: chi phí nhập tay không gắn
+  giao dịch; thực chi hiện chỉ gồm chi trả chủ xe — sẽ có khi triển khai Xe ký gửi); bảng chênh lệch theo lượt (Lượt thuê
+  link · Khách (họ tên) · Ghi nhận · Thực thu · Chênh lệch) + link "Xem công nợ khách hàng"; Report 06 bảng theo mốc
+  (Mốc · Thu · Chi · Ròng + tổng) + bảng theo phương thức (`PAYMENT_METHOD_LABELS`) + khối cầu nối 4 dòng. Chú thích
+  "Công cụ quản trị, không phải báo cáo lưu chuyển tiền tệ" (BRD §15). **Không** biểu đồ mới (giữ chunk nhỏ).
+- **`RevenueReportPanel` / `CostBreakdownPanel`**: chỉ thêm nút xuất (+ ghi chú (e) ở `CostBreakdownPanel`, nhận thêm
+  prop `today`); không đổi cách tính hiện có.
+- Chuỗi mới: `vi.finance.reports.*` (nhãn tab, cột, chú thích, nhãn khối đầu CSV, tên báo cáo, slug, thông báo xuất).
+  Không chuỗi nào (UI, tên file, tiêu đề cột, thông báo lỗi, `summary` audit) chứa `§`, `UC-`, `AC-`, `.md`, "Phase".
+- Responsive §11.5; số liệu tiền `formatVnd` trên màn (CSV: số nguyên — §20.2 điểm 1).
+
+### 20.6. File
+
+| Thao tác | File |
+| --- | --- |
+| Tạo | `src/shared/lib/csv.ts` · `src/features/finance/screens/lazyScreens.ts` · `components/FinanceTrendChartLazy.tsx` · `ReportExportButton.tsx` · `CustomerReportPanel.tsx` · `IncidentReportPanel.tsx` · `ReconciliationPanel.tsx` |
+| Sửa | `src/features/finance/model.ts` (§20.3 + `FinanceStringKey` + JSDoc (g) + `isIncidentCostCounted`) · `api.ts` (`recordReportExport`) · `hooks.ts` (`useRecordReportExport`) · `index.ts` (export lazy) |
+| Sửa | `screens/FinanceReportScreen.tsx` · `screens/CostRecordsScreen.tsx` (chỉ ghi chú (e)) · `components/RevenueReportPanel.tsx` · `CostBreakdownPanel.tsx` · `VehicleProfitTab.tsx` (chỉ đổi sang chart lazy) · `PostSettlementChargeDialog.tsx` + `SettlementCompleteDialog.tsx` (chỉ kiểu `FinanceStringKey`) |
+| Sửa | `src/shared/i18n/vi.ts` (`vi.finance.reports.*`) · `src/app/routes.tsx` (`Suspense` route báo cáo) |
+| **Cấm** | mọi file ngoài 2 dòng trên, đặc biệt `features/vehicles/*`, `rentals/*`, `incidents/*`, `customers/*`, `maintenance/*`, `calendar/*`; `enums.ts`, `permissions.ts`, `paths.ts`, `nav.tsx`; mọi `seed.ts`, `seedAll.ts`, `registerSeeds.ts`; `shared/ui/*`, các file `shared/lib/*` hiện có; `package.json`, `vite.config.*`; `docs/*`, `CHANGELOG.md`, `CONVENTIONS.md` |
+
+### 20.7. Definition of Done — Round 3
+
+- [x] `npx tsc -b`, `npx oxlint` (không warning mới — kể cả `only-export-components`), `npm run build` sạch;
+      `grep -rn '\*/[a-zA-Z]' src/` không có kết quả mới.
+- [x] **Kích thước chunk:** ghi bảng trước (1.863,27 kB / gzip 483,60 kB, 1 chunk) và sau (mọi chunk JS + gzip);
+      `grep -c 'recharts-surface' dist/assets/index-*.js` = 0 và > 0 ở một chunk khác.
+- [x] **Tính tay — Report 06 ↔ thẻ Thực thu:** kỳ **Tháng trước** — liệt kê giao dịch hiệu lực có ngày trong kỳ (mã `GD-`,
+      type, method, số tiền) → `bridge.revenueCash` = thẻ Thực thu tab Tổng quan cùng kỳ; `totals.net` = `revenueCash −
+      offsetRevenue + nonRevenueNet` (ghi 3 số); Σ theo mốc = Σ theo phương thức = dòng tổng.
+- [x] **Tính tay — đối chiếu 1 lượt:** `rt_026`/`stl_026` (lượt "đóng kèm công nợ") kỳ **12 tháng gần nhất** — Ghi nhận
+      (Σ Revenue Line) − Thực thu (Σ giao dịch liên quan doanh thu của lượt, kể cả `OFFSET`) = Chênh lệch hiển thị; so với
+      số dư của lượt ở màn Công nợ khách hàng và giải thích nếu khác. Σ chênh lệch các lượt = Chênh lệch tổng.
+- [x] **Tính tay — Report 03:** kỳ **Tháng trước**, lọc Tất cả: Σ Doanh thu = thẻ Doanh thu ghi nhận; Σ Thực thu = thẻ Thực
+      thu; Σ Số lượt = thẻ Số lượt hoàn tất; Σ Còn phải thu = thẻ "Đang nợ" màn Công nợ khách hàng.
+- [x] **Tính tay — Report 04:** kỳ **12 tháng gần nhất** — Σ Công ty chịu của dòng "Tính vào chi phí" = dòng `INCIDENT` Report
+      05 cùng kỳ.
+- [x] **CSV:** với Report 04 (kỳ 12 tháng gần nhất) ghi số dòng dữ liệu + tổng cột Công ty chịu dự kiến của file, chỉ ra
+      rằng file dựng từ **cùng biến** `rows`/`totals` mà bảng render (dẫn dòng code); BOM + phân cách + chống injection
+      đúng §20.2 điểm 1; tên file + tiêu đề cột không chứa `§`/`UC-`/`AC-`/`.md`/"Phase".
+- [x] **Audit:** mỗi lần bấm xuất thành công = **đúng 1** `REPORT_EXPORT` (`entity: 'FinanceReport'`, `after` = `{ reportKey,
+      from, to, rowCount, filters }`, `summary` tiếng Việt có tên báo cáo + kỳ + số dòng); không chứa họ tên/SĐT/CCCD khách;
+      lỗi `fakeRequest` → không tải file; đọc/guard (reportKey hợp lệ, `from ≤ to` dạng `yyyy-MM-dd`, `rowCount` nguyên ≥ 0)
+      **trong** callback `fakeRequest`.
+- [x] Nút xuất ẩn khi thiếu `FINANCE_REPORT.EXPORT` (đổi vai trò `OPERATION_STAFF`: không vào được báo cáo; 4 vai trò
+      còn lại thấy nút).
+- [x] (e) ghi chú hiện ở 3 chỗ khi kỳ Tháng này có lát phân bổ ngày sau hôm nay (vd lát của `cst_002`/`cst_003`), ẩn khi = 0;
+      số liệu các thẻ không đổi so với trước khi sửa. (f) `FinanceStringKey` chỉ còn 1 khai báo. `deriveIncidentCostEntries`
+      cho kết quả y như cũ.
+- [x] Không diff ngoài danh sách §20.6 (`git status`); không `git stash`; không commit.
+
+### 20.8. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §0.2-§0.4 (đặc biệt điểm 12, 14-17), §3.4, §11.4-§11.5, §12, §19.3 (hàm R2 dùng lại) và **§20 toàn bộ**.
+2. `../thien-bao-car-docs/modules/RevenueCost-BRD.md` §13, §15, §16 (Report 03/04/06), §22 (dòng "Xuất báo cáo"), §23
+   AC-RV-008/012, §25.3-§25.4, §28 Q14; `RevenueCost-UseCase.md` §13 (UC-RV-09), §15 (UC-RV-11), §17 (UC-RV-13).
+3. `../thien-bao-car-docs/modules/AuditLog-BRD.md` §11 (che dữ liệu nhạy cảm — chỉ để hiểu giả định §20.2 điểm 3).
+4. `src/features/finance/model.ts` dòng 495-517 (`calcSettlementCollectOutstanding`), 1299-1321 (`buildOffsetTransaction`),
+   1405-1515 (`deriveCustomerBalances`), 1656-1760 (type RV), 1779-1860 (kỳ/bucket), 2009-2034, 2073-2135, 2312-2505 (R2).
+5. `src/features/finance/api.ts` dòng 1-40, 100-110 (`ActorInfo`), 2325-2353 (`reverseCostRecord` — mẫu `fakeRequest` + audit).
+6. `src/features/finance/hooks.ts` dòng 30-60 (`ANALYTICS_QUERY_KEY`, `useActor`), 405-465.
+7. `src/features/finance/screens/FinanceReportScreen.tsx` (toàn bộ), `CustomerReceivablesScreen.tsx` dòng 1-75,
+   `CostRecordsScreen.tsx` (khối 3 thẻ tổng); `components/RevenueReportPanel.tsx`, `CostBreakdownPanel.tsx`,
+   `VehicleProfitTab.tsx`, `FinanceTrendChart.tsx`, `VehiclePerformanceTable.tsx` dòng 1-40, `CashDrawerSubmitDialog.tsx`
+   dòng 40-60 (mẫu `toast`), 2 dialog có `FinanceStringKey` (dòng 1-30); `src/features/finance/index.ts`.
+8. `src/features/incidents/model.ts` dòng 20-90 (`Incident`); `src/features/customers/model.ts` dòng 33-57 (`Customer`).
+9. `src/shared/i18n/vi.ts` dòng 60-75 (`vi.common`), 1618-1700 (`vi.finance.reports`), các label map `ROLE_LABELS`,
+   `CUSTOMER_STATUS_LABELS`, `INCIDENT_STATUS_LABELS`, `PAYMENT_METHOD_LABELS`; `src/shared/lib/audit.ts`,
+   `fakeNetwork.ts`, `money.ts`, `datetime.ts`; `src/app/routes.tsx`, `src/app/paths.ts`; `.oxlintrc.json`.
+
+### 20.9. Thứ tự làm
+
+1. (f) `FinanceStringKey` → (g) JSDoc → `isIncidentCostCounted`. 2. `shared/lib/csv.ts`. 3. Hàm §20.3 trong `model.ts`.
+4. `recordReportExport` → `useRecordReportExport`. 5. `vi.ts`. 6. `ReportExportButton` → `CustomerReportPanel` →
+`IncidentReportPanel` → `ReconciliationPanel` → nút xuất ở `RevenueReportPanel`/`CostBreakdownPanel` → `FinanceReportScreen`
+(3 tab, nút xuất 2 tab, ghi chú (e)) → ghi chú (e) `CostRecordsScreen`. 7. (d): `FinanceTrendChartLazy` + `VehicleProfitTab`
+→ `lazyScreens.ts` → `index.ts` → `routes.tsx`. 8. 3 cổng + grep + đo chunk + tính tay §20.7.

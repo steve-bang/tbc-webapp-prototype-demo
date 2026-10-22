@@ -5,27 +5,51 @@ import { paths } from '@/app/paths'
 import { COST_CATEGORY_LABELS, vi } from '@/shared/i18n/vi'
 import { formatNumber, formatVnd } from '@/shared/lib/money'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
-import { buildCostBreakdown, type CostEntry, type FinancePeriod } from '../model'
+import { buildCostBreakdown, formatPercentText, sumFutureDatedCost, type CostEntry, type CsvSection, type FinancePeriod } from '../model'
+import { ReportExportButton } from './ReportExportButton'
 
 const compactFormatter = new Intl.NumberFormat('vi-VN', { notation: 'compact' })
 
 /**
  * Report 05 (chi phí theo loại) — bảng Loại · Số bản ghi · Tổng · % · Trực tiếp · Gián tiếp + dòng tổng, biểu đồ cột ngang.
  * `costEntries` đã được màn cha áp công tắc "Loại chi phí bất thường" (một lần, EX-04). AC-RV-009: trực tiếp/gián tiếp tách riêng.
+ * Chú thích khi kỳ có lát chi phí phân bổ ngày sau hôm nay (RV-BR-03 vẫn ghi nhận theo Cost Date, không đổi ngày lát).
  */
-export function CostBreakdownPanel({ costEntries, period }: { costEntries: CostEntry[]; period: FinancePeriod }) {
+export function CostBreakdownPanel({ costEntries, period, today, excludeUnusual }: { costEntries: CostEntry[]; period: FinancePeriod; today: Date; excludeUnusual: boolean }) {
   const t = vi.finance.reports
   const breakdown = useMemo(() => buildCostBreakdown(costEntries, period), [costEntries, period])
   const chartData = useMemo(() => breakdown.rows.map((r) => ({ name: COST_CATEGORY_LABELS[r.category], total: r.total })), [breakdown.rows])
+  const futureCost = useMemo(() => sumFutureDatedCost(costEntries, period, today), [costEntries, period, today])
+
+  function getSections(): CsvSection[] {
+    return [
+      {
+        title: t.chartTitleCosts,
+        headers: [t.costColumnCategory, t.costColumnCount, t.costColumnTotal, t.costColumnShare, t.costColumnDirect, t.costColumnIndirect],
+        rows: breakdown.rows.map((r) => [COST_CATEGORY_LABELS[r.category], r.count, r.total, formatPercentText(r.share, ''), r.directTotal, r.indirectTotal]),
+        totalRow: [t.costTotalRow, breakdown.count, breakdown.total, '', breakdown.directTotal, breakdown.indirectTotal],
+      },
+    ]
+  }
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{t.chartTitleCosts}</h3>
-        <Link to={paths.financeCosts} className="text-primary text-sm underline-offset-2 hover:underline">
-          {t.costsDetailLink}
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link to={paths.financeCosts} className="text-primary text-sm underline-offset-2 hover:underline">
+            {t.costsDetailLink}
+          </Link>
+          <ReportExportButton
+            reportKey="COST_BREAKDOWN"
+            period={period}
+            filters={{ excludeUnusual }}
+            filterLabels={excludeUnusual ? [t.exportFilterExcludeUnusual] : []}
+            getSections={getSections}
+          />
+        </div>
       </div>
+      {futureCost > 0 && <p className="text-muted-foreground text-xs">{t.futureCostNote.replace('{amount}', formatVnd(futureCost))}</p>}
 
       {breakdown.rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t.costsEmpty}</p>

@@ -20,6 +20,7 @@ import type {
   ManualLineInput,
   PaymentRequestFilter,
   PostSettlementChargeFilter,
+  RecordReportExportInput,
   RecordTransactionInput,
   ResolveDisputeInput,
   RevenueLineFilter,
@@ -461,5 +462,13 @@ export function useReverseCostRecord() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.reverseCostRecord(id, reason, actor),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY }),
+  })
+}
+
+/** Ghi audit `REPORT_EXPORT` — không đổi dữ liệu phân tích nên không invalidate query nào. */
+export function useRecordReportExport() {
+  const actor = useActor()
+  return useMutation({
+    mutationFn: (input: RecordReportExportInput) => api.recordReportExport(input, actor),
   })
 }

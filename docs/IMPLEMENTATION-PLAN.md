@@ -417,13 +417,13 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       `finance/seed`, đã đăng ký), xoá `ComingSoon` màn Sổ giao dịch/Quỹ tiền mặt (R1)/Công nợ khách
       hàng (R2).
 
-### Phase 4.3 — Phân tích tài chính (RevenueCost) — `[~]`
+### Phase 4.3 — Phân tích tài chính (RevenueCost) — `[x]`
 
-- [~] `features/finance` (RV): kế hoạch chi tiết ở [`docs/REVENUE-COST-PLAN.md`](REVENUE-COST-PLAN.md)
+- [x] `features/finance` (RV): kế hoạch chi tiết ở [`docs/REVENUE-COST-PLAN.md`](REVENUE-COST-PLAN.md)
       (`APPROVED` 22/10/2026 — người dùng chấp nhận cả 5 đề xuất ở §13: seed lịch sử **phương án B**, giữ **3
       round**, tab Tổng quan Vehicle Detail **ngoài phạm vi**, giữ nối tiếp `features/finance` + refactor tách
       thư mục là task riêng Phase 4.4, ghi ngoại lệ form `finance` vào `CONVENTIONS.md` §7). **Round 1 `DONE`
-      (22/10/2026)**; **Round 2 `DONE` (22/10/2026)**; Round 3 chưa giao. Chia **3 round**: Round 1 = lõi
+      (22/10/2026)**; **Round 2 `DONE` (22/10/2026)**; **Round 3 `DONE` (22/10/2026 — §20)** — cả Phase 4.3 xong. Chia **3 round**: Round 1 = lõi
       dữ liệu (Revenue Line **suy ra** từ Settlement/PSC — đảo quyết toán xử lý bằng `reversals[]` có sẵn, không
       cần ghi thêm; Cost Record nhập tay lưu riêng + chi phí suy ra từ Sự cố/Bảo dưỡng; góc nhìn thực thu) + màn
       **Chi phí vận hành** `/finance/costs` + 3 tab Vehicle Detail; Round 2 = Báo cáo tài chính phần chính (Tổng
@@ -448,15 +448,22 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       Gộp: invalidate `['finance','analytics']` trong `invalidatePayment`; **nợ (a)** sửa cờ `completedWithDebt` theo
       số còn phải thu thực tế lúc đóng (`calcSettlementCollectOutstanding` — suy từ RS BRD §15/EX-02, không quyết định
       nghiệp vụ mới), seed tính bằng hàm, `SEED_VERSION` 19; **nợ (c)** kiểu khoá i18n `FinanceStringKey`.
-- [ ] **Round 3** — Report 03/04/06 + đối chiếu ghi nhận ↔ thực thu + xuất CSV (`REVENUE-COST-PLAN.md` §1.4, §11.4).
-- [ ] Nợ ghi nhận từ review Round 2 (không chặn, có thể gộp vào Round 3): (d) bundle JS 1,86 MB (> 500 kB) do
-      `recharts` — lazy-load `FinanceReportScreen` bằng `React.lazy` + `Suspense` ở `app/routes.tsx` (route mỏng,
-      không đổi kiến trúc); (e) lát phân bổ chi phí (Cost Record rải theo tháng) mang `costDate` ở những ngày chưa tới
-      trong tháng hiện tại (vd `cst_002` 25/10, `cst_003` 24/10) → kỳ "Tháng này" đã tính cả phần đó — đúng RV-BR-03/
-      AC-RV-004 (ghi theo Cost Date, mỗi tháng một phần) nhưng dễ hỏi khi demo; cân nhắc thêm ghi chú dưới thẻ Chi phí
-      hoặc đặt ngày lát = ngày 1 của tháng; (f) kiểu `FinanceStringKey` đang khai báo lặp ở 2 dialog — gom một chỗ
-      (vd `finance/model.ts` hoặc file kiểu riêng); (g) `calcSettlementCollectOutstanding(asOf)` lọc giao dịch theo
-      thời điểm nhưng trạng thái hiệu lực (đảo/huỷ) lấy theo hiện tại — chấp nhận cho seed, ghi chú nếu dùng rộng hơn.
+- [x] **Round 3** (22/10/2026) — Report 03/04/06 + đối chiếu ghi nhận ↔ thực thu + xuất CSV (`REVENUE-COST-PLAN.md`
+      §1.4, §11.4, **chi tiết §20**). `/finance/reports` 7 tab (thêm Khách hàng / Sự cố / Đối chiếu & dòng tiền), nút
+      Xuất CSV ở cả 7 tab (`shared/lib/csv.ts`, UTF-8 BOM, chống CSV-injection, audit `REPORT_EXPORT` đúng 1 lần/lượt xuất
+      và chỉ tải file khi audit thành công, không dữ liệu cá nhân ngoài mã + họ tên khách). Qua **2 vòng review**: Blocker
+      vòng 1 — chênh lệch theo lượt ở màn Đối chiếu (vd `rt_026` 975.000) khác số dư màn Công nợ vì PSC "Tạm giữ" (sự cố
+      tranh chấp) vẫn ghi nhận doanh thu nhưng không cộng "Đang nợ" mà không có giải thích → thêm chú thích dưới bảng +
+      gợi ý "Gồm … tạm giữ" theo lượt + `TODO(OQ)` (`REVENUE-COST-PLAN.md` §0.4 điểm 18); số liệu không đổi (kiểm lại
+      bằng harness: `rt_026` chênh 975.000, tổng 12 tháng −45.760.000 = Σ các lượt). Không đổi seed (`SEED_VERSION` 19).
+- [x] Nợ ghi nhận từ review Round 2 — **(d)(e)(f)(g) ĐÃ XỬ LÝ ở Round 3** (§20.4): (d) lazy-load màn báo cáo + biểu đồ
+      tab Lợi nhuận — bundle chính 1.863,27 kB → **1.461,98 kB** (gzip 483,60 → 370,76 kB), `recharts` sang chunk riêng
+      `FinanceTrendChart` 388 kB, màn báo cáo 54 kB; (e) chú thích chi phí phân bổ ngày sau hôm nay ở 3 chỗ; (f)
+      `FinanceStringKey` khai báo một lần ở `model.ts`; (g) JSDoc `asOf` của `calcSettlementCollectOutstanding`.
+- [ ] Nợ ghi nhận từ review Round 3 (nhỏ, không chặn): (h) gom logic định dạng tỉ lệ % / % thay đổi — `formatPercentText`/
+      `formatChangeText` (`model.ts`, dùng cho CSV) đang song song với cách định dạng % trong các component hiển thị → một
+      helper chung để màn và CSV không lệch; (i) bundle chính vẫn 1,46 MB (> 500 kB, phần còn lại của app) — tách vendor
+      chung (`manualChunks`/`codeSplitting`) là quyết định build riêng, cân nhắc ở Phase 6 hoặc khi nối backend thật.
 - [ ] Nợ ghi nhận từ review Round 1 — **(a) và (c) ĐÃ XỬ LÝ ở Round 2** (`REVENUE-COST-PLAN.md` §19.2: cờ
       `completedWithDebt` tính bằng `calcSettlementCollectOutstanding`, chỉ `stl_026` còn cờ; kiểu `FinanceStringKey`);
       (b) còn treo (cần sửa bản ghi cũ `rentals/seed.ts` — ngoài ngoại lệ đã duyệt). Nội dung gốc: (a) `completedWithDebt` tính theo
@@ -466,8 +473,8 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       `createdAt` (và giao dịch BOOKING `GD-000003/4/8/9`) ở tương lai; (c) kiểu `Exclude<keyof typeof vi.finance,
       …>` ở `PostSettlementChargeDialog`/`SettlementCompleteDialog` phải sửa mỗi khi thêm namespace con — đổi sang
       mapped type chỉ lấy khoá có giá trị `string`.
-- [ ] Cập nhật `registerSeeds.ts` phần `CostRecord`/`RevenueLine`, xoá `ComingSoon` còn lại của
-      Phase 4 (nếu còn). (Ghi chú plan: `costRecords` seed trong `finance/seed.ts` — đã đăng ký sẵn qua
+- [x] Cập nhật `registerSeeds.ts` phần `CostRecord`/`RevenueLine`, xoá `ComingSoon` còn lại của
+      Phase 4 (nếu còn) — xác nhận 22/10/2026: không còn `ComingSoon` nào dưới `/finance/*`. (Ghi chú plan: `costRecords` seed trong `finance/seed.ts` — đã đăng ký sẵn qua
       `registerSeeds.ts`; `RevenueLine` là view suy ra, không seed; `ComingSoon` `/finance/reports` xoá ở Round 2.)
 
 ### Phase 4.4 — Refactor tách `features/finance` theo module (RS/PM/RV) — `[ ]`

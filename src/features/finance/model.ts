@@ -17,6 +17,7 @@ import type {
   CostCategory,
   CostRecordStatus,
   CostSource,
+  CustomerStatus,
   PaymentMethod,
   PaymentMilestone,
   PaymentRequestPurpose,
@@ -43,8 +44,16 @@ import type {
   TransactionStatus,
   TransactionType,
 } from '@/shared/domain/enums'
-import { ALLOCATION_TYPES, COST_CATEGORIES, POST_SETTLEMENT_CHARGE_SOURCES, POST_SETTLEMENT_CHARGE_TYPES, SETTLEMENT_WAIVER_TYPES } from '@/shared/domain/enums'
+import { ALLOCATION_TYPES, COST_CATEGORIES, PAYMENT_METHODS, POST_SETTLEMENT_CHARGE_SOURCES, POST_SETTLEMENT_CHARGE_TYPES, SETTLEMENT_WAIVER_TYPES } from '@/shared/domain/enums'
+import type { vi } from '@/shared/i18n/vi'
 import { generateId } from '@/shared/lib/id'
+import type { CsvCell } from '@/shared/lib/csv'
+
+/**
+ * Khoá chuỗi phẳng (giá trị là `string`) của `vi.finance` — dùng cho bảng ánh xạ mã chặn → nhãn ở các dialog.
+ * Bỏ các object lồng (`payment`/`receivables`/`revenueCost`/`reports`…) — thêm namespace mới không phải sửa lại.
+ */
+export type FinanceStringKey = { [K in keyof typeof vi.finance]: (typeof vi.finance)[K] extends string ? K : never }[keyof typeof vi.finance]
 
 /**
  * Dòng khoản mục quyết toán — `RentalSettlement-BRD.md` §6/§8-§9 (module `RS`),
@@ -495,6 +504,8 @@ export function getCompletionBlockers(settlement: Settlement): SettlementBlocker
  * RentalSettlement-BRD.md §15 / EX-02 — số tiền khách CÒN PHẢI NỘP trên các yêu cầu thu (`COLLECT`) của quyết toán,
  * tại thời điểm `asOf` (mặc định: hiện tại = mọi giao dịch). Yêu cầu chưa sang Payment = chưa thu đồng nào.
  * "Đóng kèm công nợ" (`completedWithDebt`) = outstanding > 0 lúc đóng lượt; cờ là sự kiện lịch sử, không tự xoá khi khách trả sau.
+ * Lưu ý `asOf`: lọc giao dịch theo thời điểm, nhưng trạng thái hiệu lực (đảo/huỷ) lấy theo HIỆN TẠI — đủ cho cờ lịch sử + seed;
+ * muốn dùng như "số dư tại ngày X" phải xét thêm `reversedAt`.
  * TODO(OQ: RentalSettlement-BRD.md §28 Q11 — đóng lượt khi còn công nợ; demo cho đóng khi đã tạo yêu cầu thu, không hạn mức.)
  */
 export function calcSettlementCollectOutstanding(settlement: Pick<Settlement, 'paymentRequests'>, paymentRequests: PaymentRequest[], txns: Transaction[], asOf?: string): number {
@@ -1954,6 +1965,7 @@ export function deriveRevenueLines(settlements: Settlement[], pscs: PostSettleme
     }
   }
   for (const psc of pscs) {
+    // TODO(OQ: RevenueCost-BRD.md RV-BR-07 / RentalSettlement-UseCase.md UC-RS-14 A1 / RentalSettlement-BRD.md §28 Q13 — PSC "Tạm giữ" (sự cố DISPUTED) có hoãn ghi nhận doanh thu không; demo ghi tại psc.createdAt — REVENUE-COST-PLAN.md §0.4 điểm 18)
     result.push({
       id: `rvl:psc:${psc.id}`,
       category: PSC_SOURCE_TO_REVENUE_CATEGORY[psc.source],
@@ -2009,13 +2021,18 @@ export function expandCostRecord(record: CostRecord): CostEntry[] {
 /** Sự cố đã chốt phần công ty chịu — loại OPEN/ASSESSING/WAITING_APPROVAL (chưa chốt), DISPUTED, CANCELLED/CLOSED_NO_ACTION (§0.4 điểm 10). */
 const INCIDENT_COST_STATUSES: Incident['status'][] = ['APPROVED', 'IN_REPAIR', 'REPAIRED', 'CLOSED', 'WRITTEN_OFF']
 
+/** Sự cố có được tính vào chi phí `INCIDENT` không — đã chốt phần công ty chịu (`INCIDENT_COST_STATUSES`) và `companyCost > 0`. Dùng chung cho `deriveIncidentCostEntries` và Report 04. */
+export function isIncidentCostCounted(incident: Incident): boolean {
+  return INCIDENT_COST_STATUSES.includes(incident.status) && (incident.companyCost ?? 0) > 0
+}
+
 /**
  * RV-BR-04 / RV-BR-11 / DI-BR-18 — Company Cost của sự cố tự chuyển thành chi phí `INCIDENT`, sửa ở module nguồn.
  * TODO(OQ: RevenueCost-UseCase.md UC-RV-02 bước 2 — Cost Date = ngày chốt hay ngày phát sinh; demo dùng reportedAt)
  */
 export function deriveIncidentCostEntries(incidents: Incident[]): CostEntry[] {
   return incidents
-    .filter((i) => INCIDENT_COST_STATUSES.includes(i.status) && (i.companyCost ?? 0) > 0)
+    .filter(isIncidentCostCounted)
     .map(
       (i): CostEntry => ({
         id: `inc:${i.id}`,
@@ -2500,6 +2517,386 @@ export function sortVehicleRows(rows: VehiclePerformanceRow[], key: VehicleSortK
     if (vb === null) return -1
     return vb - va
   })
+}
+
+// ==== Round 3 — Báo cáo 03/04/06, đối chiếu, xuất CSV (REVENUE-COST-PLAN.md §20.3) ====
+
+// ---- Report 03 — Khách hàng (BRD §13/§16, UC-RV-09) ----
+
+/** Một dòng Report 03. `outstandingNow` là số dư HIỆN TẠI, các cột còn lại theo kỳ. */
+export interface CustomerReportRow {
+  customerId: string
+  revenue: number
+  rentalCount: number
+  totalSpending: number
+  collected: number
+  outstandingNow: number
+  incidentCount: number
+}
+
+export type CustomerReportTotals = Omit<CustomerReportRow, 'customerId'>
+
+/** Dòng tổng của Report 03 — panel gọi lại sau khi lọc trạng thái khách để tổng = Σ các dòng đang hiển thị. */
+export function sumCustomerRows(rows: CustomerReportRow[]): CustomerReportTotals {
+  return rows.reduce<CustomerReportTotals>(
+    (acc, r) => ({
+      revenue: acc.revenue + r.revenue,
+      rentalCount: acc.rentalCount + r.rentalCount,
+      totalSpending: acc.totalSpending + r.totalSpending,
+      collected: acc.collected + r.collected,
+      outstandingNow: acc.outstandingNow + r.outstandingNow,
+      incidentCount: acc.incidentCount + r.incidentCount,
+    }),
+    { revenue: 0, rentalCount: 0, totalSpending: 0, collected: 0, outstandingNow: 0, incidentCount: 0 },
+  )
+}
+
+/**
+ * Report 03 — RV-BR-03 (doanh thu theo Recognition Date), RV-BR-14 (thực thu liên quan doanh thu), §0.4 điểm 15 (công nợ = hiện tại).
+ * BẤT BIẾN (khi không lọc trạng thái): Σ revenue = `summarizePeriod.revenue` · Σ collected = `sumRevenueCash` · Σ rentalCount =
+ * `countCompletedSettlements` · Σ outstandingNow = thẻ "Đang nợ" màn Công nợ khách hàng.
+ * Chỉ trả mã khách (tên/trạng thái do panel tra từ hồ sơ) — không SĐT/CCCD/GPLX/email/địa chỉ.
+ * TODO(OQ: AuditLog-BRD.md §22 Q4 / CustomerManagement-BRD.md §31 Q17 — trường nhạy cảm & quy tắc che chưa chốt; báo cáo/CSV chỉ mã + họ tên + trạng thái khách)
+ */
+export function buildCustomerReport(input: {
+  revenueLines: RevenueLine[]
+  settlements: Settlement[]
+  cashEntries: CashEntry[]
+  incidents: Incident[]
+  rentals: Rental[]
+  balances: CustomerBalance[]
+  period: FinancePeriod
+}): { rows: CustomerReportRow[]; totals: CustomerReportTotals } {
+  const { period } = input
+  const map = new Map<string, CustomerReportRow>()
+  const present = new Set<string>()
+  function ensure(customerId: string): CustomerReportRow {
+    let row = map.get(customerId)
+    if (!row) {
+      row = { customerId, revenue: 0, rentalCount: 0, totalSpending: 0, collected: 0, outstandingNow: 0, incidentCount: 0 }
+      map.set(customerId, row)
+    }
+    return row
+  }
+
+  for (const line of input.revenueLines) {
+    if (!isDateInPeriod(line.recognitionDate, period)) continue
+    ensure(line.customerId).revenue += line.amount
+    present.add(line.customerId)
+  }
+  for (const settlement of input.settlements) {
+    // Cùng điều kiện `countCompletedSettlements`.
+    if (settlement.status !== 'COMPLETED' || !settlement.completedAt || !isDateInPeriod(settlement.completedAt, period)) continue
+    const row = ensure(settlement.customerId)
+    row.rentalCount += 1
+    row.totalSpending += settlement.completedTotals?.finalAmount ?? 0
+    present.add(settlement.customerId)
+  }
+  for (const cash of input.cashEntries) {
+    if (!cash.revenueRelated || !isDateInPeriod(cash.date, period)) continue
+    ensure(cash.customerId).collected += cash.signedAmount
+    present.add(cash.customerId)
+  }
+  const customerByRental = new Map(input.rentals.map((r) => [r.id, r.customerId]))
+  for (const incident of input.incidents) {
+    if (!incident.rentalId || !isDateInPeriod(incident.reportedAt, period)) continue
+    const customerId = customerByRental.get(incident.rentalId)
+    if (!customerId) continue
+    ensure(customerId).incidentCount += 1
+    present.add(customerId)
+  }
+  for (const balance of input.balances) {
+    if (balance.outstanding <= 0) continue
+    ensure(balance.customerId).outstandingNow = balance.outstanding
+    present.add(balance.customerId)
+  }
+
+  const rows = Array.from(map.values()).filter((r) => present.has(r.customerId))
+  return { rows, totals: sumCustomerRows(rows) }
+}
+
+export type CustomerReportSortKey = 'REVENUE' | 'OUTSTANDING'
+
+/** UC-RV-09 bước 3 — sắp giảm dần theo Doanh thu hoặc Còn phải thu; hoà thì theo mã khách để thứ tự ổn định. */
+export function sortCustomerRows(rows: CustomerReportRow[], key: CustomerReportSortKey): CustomerReportRow[] {
+  const value = (row: CustomerReportRow) => (key === 'REVENUE' ? row.revenue : row.outstandingNow)
+  return [...rows].sort((a, b) => value(b) - value(a) || a.customerId.localeCompare(b.customerId))
+}
+
+// ---- Report 04 — Sự cố (BRD §16, nguồn Damage & Incident) ----
+
+export interface IncidentReportRow {
+  incidentId: string
+  incidentCode: string
+  vehicleId: string
+  rentalId?: string
+  reportedAt: string
+  status: Incident['status']
+  /** Σ phụ tùng + nhân công + khác (thiếu = 0) nếu có ≥ 1 trường; ngược lại `null`. */
+  actualCost: number | null
+  customerCharge: number | null
+  companyCost: number | null
+  insuranceCovered: number | null
+  /** `isIncidentCostCounted` — sự cố đã chốt phần công ty chịu mới được tính vào chi phí. */
+  countedAsCost: boolean
+}
+
+export interface IncidentReportTotals {
+  actualCost: number
+  customerCharge: number
+  companyCost: number
+  insuranceCovered: number
+  /** Σ `companyCost` của các dòng `countedAsCost` — bằng dòng `INCIDENT` của Report 05 cùng kỳ. */
+  countedCompanyCost: number
+}
+
+/**
+ * Report 04. Kỳ theo `reportedAt` (cùng mốc Cost Date chi phí sự cố); mọi trạng thái đều hiện.
+ * BẤT BIẾN: `totals.countedCompanyCost` = Σ CostEntry nguồn `INCIDENT` trong kỳ (dòng `INCIDENT` của Report 05).
+ * TODO(OQ: RevenueCost-UseCase.md UC-RV-02 bước 2 — Cost Date = ngày chốt hay ngày phát sinh; demo dùng reportedAt)
+ */
+export function buildIncidentReport(incidents: Incident[], period: FinancePeriod): { rows: IncidentReportRow[]; totals: IncidentReportTotals } {
+  const rows = incidents
+    .filter((i) => isDateInPeriod(i.reportedAt, period))
+    .map((i): IncidentReportRow => {
+      const parts = [i.actualCostParts, i.actualCostLabor, i.actualCostOther]
+      const hasActual = parts.some((v) => v !== undefined)
+      return {
+        incidentId: i.id,
+        incidentCode: i.incidentCode,
+        vehicleId: i.vehicleId,
+        rentalId: i.rentalId,
+        reportedAt: i.reportedAt,
+        status: i.status,
+        actualCost: hasActual ? parts.reduce<number>((sum, v) => sum + (v ?? 0), 0) : null,
+        customerCharge: i.customerCharge ?? null,
+        companyCost: i.companyCost ?? null,
+        insuranceCovered: i.insuranceCovered ?? null,
+        countedAsCost: isIncidentCostCounted(i),
+      }
+    })
+    .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt) || a.incidentCode.localeCompare(b.incidentCode))
+  const totals = rows.reduce<IncidentReportTotals>(
+    (acc, r) => ({
+      actualCost: acc.actualCost + (r.actualCost ?? 0),
+      customerCharge: acc.customerCharge + (r.customerCharge ?? 0),
+      companyCost: acc.companyCost + (r.companyCost ?? 0),
+      insuranceCovered: acc.insuranceCovered + (r.insuranceCovered ?? 0),
+      countedCompanyCost: acc.countedCompanyCost + (r.countedAsCost ? (r.companyCost ?? 0) : 0),
+    }),
+    { actualCost: 0, customerCharge: 0, companyCost: 0, insuranceCovered: 0, countedCompanyCost: 0 },
+  )
+  return { rows, totals }
+}
+
+// ---- Đối chiếu ghi nhận ↔ thực thu/thực chi (BRD §15, UC-RV-11, AC-RV-008) ----
+
+export interface ReconciliationRentalRow {
+  /** `null` = giao dịch/doanh thu không gắn lượt thuê. */
+  rentalId: string | null
+  customerId?: string
+  accrual: number
+  cash: number
+  diff: number
+}
+
+export interface ReconciliationResult {
+  revenueAccrual: number
+  revenueCash: number
+  /** > 0: công nợ phải thu · < 0: thu trước (AC-RV-008). */
+  revenueDiff: number
+  costRecognized: number
+  costPaid: number
+  costDiff: number
+  rentalRows: ReconciliationRentalRow[]
+}
+
+/**
+ * Đối chiếu doanh thu ghi nhận (Recognition Date) với thực thu (Cash Date) và chi phí ghi nhận với thực chi.
+ * BẤT BIẾN: Σ `rentalRows.diff` = `revenueDiff`. Công cụ quản trị, không phải báo cáo lưu chuyển tiền tệ (BRD §15).
+ * `costPaid` hiện chỉ gồm chi trả chủ xe (`OWNER_PAYOUT`) — chi phí nhập tay không gắn giao dịch (RV-BR-17, BRD §15).
+ * TODO(Phase 5): `OWNER_PAYOUT` chỉ phát sinh khi có features/consignment — hiện luôn 0.
+ */
+export function buildReconciliation(input: { revenueLines: RevenueLine[]; cashEntries: CashEntry[]; costEntries: CostEntry[]; period: FinancePeriod }): ReconciliationResult {
+  const { period } = input
+  const summary = summarizePeriod(input.revenueLines, input.costEntries, period)
+  const revenueAccrual = summary.revenue
+  const revenueCash = sumRevenueCash(input.cashEntries, period)
+  const costRecognized = summary.directCost + summary.indirectCost
+  const costPaid = input.cashEntries.filter((c) => c.type === 'OWNER_PAYOUT' && isDateInPeriod(c.date, period)).reduce((sum, c) => sum - c.signedAmount, 0)
+
+  const NO_RENTAL = '__NO_RENTAL__'
+  const byRental = new Map<string, ReconciliationRentalRow>()
+  function ensure(rentalId: string | undefined): ReconciliationRentalRow {
+    const key = rentalId ?? NO_RENTAL
+    let row = byRental.get(key)
+    if (!row) {
+      row = { rentalId: rentalId ?? null, accrual: 0, cash: 0, diff: 0 }
+      byRental.set(key, row)
+    }
+    return row
+  }
+  for (const line of input.revenueLines) {
+    if (!isDateInPeriod(line.recognitionDate, period)) continue
+    const row = ensure(line.rentalId)
+    row.accrual += line.amount
+    row.customerId ??= line.customerId
+  }
+  for (const cash of input.cashEntries) {
+    if (!cash.revenueRelated || !isDateInPeriod(cash.date, period)) continue
+    const row = ensure(cash.rentalId)
+    row.cash += cash.signedAmount
+    row.customerId ??= cash.customerId
+  }
+  const rentalRows = Array.from(byRental.values())
+    .map((r) => ({ ...r, diff: r.accrual - r.cash }))
+    .filter((r) => r.diff !== 0)
+    .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff) || (a.rentalId ?? '').localeCompare(b.rentalId ?? ''))
+
+  return { revenueAccrual, revenueCash, revenueDiff: revenueAccrual - revenueCash, costRecognized, costPaid, costDiff: costRecognized - costPaid, rentalRows }
+}
+
+// ---- Report 06 — Dòng tiền vận hành (BRD §16) ----
+
+export interface CashflowPoint {
+  bucket: string
+  cashIn: number
+  /** Số dương. */
+  cashOut: number
+  net: number
+}
+
+export interface CashflowMethodRow {
+  method: PaymentMethod
+  cashIn: number
+  cashOut: number
+  net: number
+}
+
+export interface CashflowResult {
+  points: CashflowPoint[]
+  byMethod: CashflowMethodRow[]
+  totals: { cashIn: number; cashOut: number; net: number }
+  /** Cầu nối với thẻ Thực thu: `totals.net = revenueCash − offsetRevenue + nonRevenueNet`. */
+  bridge: { revenueCash: number; offsetRevenue: number; nonRevenueNet: number }
+}
+
+/**
+ * Report 06. Phạm vi = giao dịch có hiệu lực trong kỳ, bỏ `OFFSET` (cấn trừ cọc không có dòng tiền — §0.4 điểm 12), mọi loại giao dịch
+ * (kể cả cọc thu/hoàn, chi trả chủ xe) nên khác thẻ Thực thu (chỉ phần liên quan doanh thu) — `bridge` giải thích phần lệch.
+ * BẤT BIẾN: Σ points = Σ byMethod = totals; totals.net = revenueCash − offsetRevenue + nonRevenueNet.
+ */
+export function buildCashflow(input: { cashEntries: CashEntry[]; period: FinancePeriod; granularity: ReportGranularity }): CashflowResult {
+  const { period, granularity } = input
+  const points = new Map<string, CashflowPoint>(enumeratePeriodBuckets(period, granularity).map((bucket) => [bucket, { bucket, cashIn: 0, cashOut: 0, net: 0 }]))
+  const methods = new Map<PaymentMethod, CashflowMethodRow>()
+  const totals = { cashIn: 0, cashOut: 0, net: 0 }
+  let offsetRevenue = 0
+  let nonRevenueNet = 0
+  for (const cash of input.cashEntries) {
+    if (!isDateInPeriod(cash.date, period)) continue
+    if (cash.method === 'OFFSET') {
+      if (cash.revenueRelated) offsetRevenue += cash.signedAmount
+      continue
+    }
+    if (!cash.revenueRelated) nonRevenueNet += cash.signedAmount
+    const amountIn = cash.direction === 'IN' ? cash.signedAmount : 0
+    const amountOut = cash.direction === 'OUT' ? -cash.signedAmount : 0
+    const point = points.get(bucketKeyOf(cash.date, granularity))
+    if (point) {
+      point.cashIn += amountIn
+      point.cashOut += amountOut
+      point.net += cash.signedAmount
+    }
+    const row = methods.get(cash.method) ?? { method: cash.method, cashIn: 0, cashOut: 0, net: 0 }
+    row.cashIn += amountIn
+    row.cashOut += amountOut
+    row.net += cash.signedAmount
+    methods.set(cash.method, row)
+    totals.cashIn += amountIn
+    totals.cashOut += amountOut
+    totals.net += cash.signedAmount
+  }
+  const order = PAYMENT_METHODS as readonly PaymentMethod[]
+  return {
+    points: Array.from(points.values()),
+    byMethod: Array.from(methods.values()).sort((a, b) => order.indexOf(a.method) - order.indexOf(b.method)),
+    totals,
+    bridge: { revenueCash: sumRevenueCash(input.cashEntries, period), offsetRevenue, nonRevenueNet },
+  }
+}
+
+// ---- Nợ (e) — chú thích chi phí phân bổ ngày tương lai ----
+
+/**
+ * Σ chi phí có `costDate` trong kỳ nhưng SAU ngày địa phương của `today` (lát chi phí rải theo tháng). Chỉ để hiện chú thích —
+ * KHÔNG đổi quy tắc ghi nhận theo Cost Date (RV-BR-03, AC-RV-004).
+ */
+export function sumFutureDatedCost(costEntries: CostEntry[], period: FinancePeriod, today: Date): number {
+  const todayKey = dateKeyOf(today)
+  return costEntries.filter((c) => isDateInPeriod(c.costDate, period) && toLocalDateKey(c.costDate) > todayKey).reduce((sum, c) => sum + c.amount, 0)
+}
+
+/** Tỉ lệ 0..1 → "80%" / "73,3%" (1 chữ số thập phân); `null` → `none`. Cùng cách hiển thị với các bảng trên màn (dùng khi dựng CSV). */
+export function formatPercentText(ratio: number | null, none: string): string {
+  if (ratio === null) return none
+  return `${(Math.round(ratio * 1000) / 10).toLocaleString('vi-VN')}%`
+}
+
+/** "+12,5%" / "-3%" / "0%"; `null` (kỳ trước bằng 0) → `none`. Cùng cách hiển thị với thẻ KPI (dùng khi dựng CSV). */
+export function formatChangeText(ratio: number | null, none: string): string {
+  if (ratio === null) return none
+  const percent = Math.round(ratio * 1000) / 10
+  const text = Math.abs(percent).toLocaleString('vi-VN', { maximumFractionDigits: 1 })
+  if (percent > 0) return `+${text}%`
+  if (percent < 0) return `-${text}%`
+  return '0%'
+}
+
+// ---- Xuất báo cáo (UC-RV-13) ----
+
+/** Mã báo cáo của 7 tab — hằng số UI (không phải enum nghiệp vụ nên không đặt ở `enums.ts`). */
+export const FINANCE_REPORT_KEYS = ['OVERVIEW', 'REVENUE', 'VEHICLE_PERFORMANCE', 'COST_BREAKDOWN', 'CUSTOMER', 'INCIDENT', 'RECONCILIATION'] as const
+export type FinanceReportKey = (typeof FINANCE_REPORT_KEYS)[number]
+
+export function isFinanceReportKey(value: string): value is FinanceReportKey {
+  return (FINANCE_REPORT_KEYS as readonly string[]).includes(value)
+}
+
+/** Bộ lọc ghi vào audit khi xuất — CHỈ id/enum/boolean, không tên, không SĐT. */
+export interface ReportExportFilters {
+  vehicleId?: string
+  customerId?: string
+  customerStatus?: CustomerStatus
+  granularity?: ReportGranularity
+  sortKey?: string
+  excludeUnusual?: boolean
+}
+
+/** Một phần của file CSV: tiêu đề phần · dòng tên cột · dòng dữ liệu · dòng tổng (nếu có). */
+export interface CsvSection {
+  title: string
+  headers: string[]
+  rows: CsvCell[][]
+  totalRow?: CsvCell[]
+}
+
+/** Ghép khối đầu (`metaLines`, mỗi dòng 2 ô nhãn · giá trị) + dòng trống + các phần cách nhau 1 dòng trống. */
+export function buildReportCsvRows(meta: { metaLines: [string, string][] }, sections: CsvSection[]): CsvCell[][] {
+  const rows: CsvCell[][] = meta.metaLines.map(([label, value]) => [label, value])
+  for (const section of sections) {
+    rows.push([])
+    rows.push([section.title])
+    rows.push(section.headers)
+    rows.push(...section.rows)
+    if (section.totalRow) rows.push(section.totalRow)
+  }
+  return rows
+}
+
+/** `rowCount` của audit xuất = Σ số dòng dữ liệu (không tính khối đầu, dòng tên cột, dòng tổng). */
+export function countCsvDataRows(sections: CsvSection[]): number {
+  return sections.reduce((sum, s) => sum + s.rows.length, 0)
 }
 
 // ---- Form schema Cost Record (dùng thật trong dialog — `CONVENTIONS.md` §7 ngoại lệ `finance`) ----

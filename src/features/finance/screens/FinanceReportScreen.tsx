@@ -7,34 +7,48 @@ import { useIncidents } from '@/features/incidents'
 import { useRentals } from '@/features/rentals'
 // Deep-import `hooks.ts` theo tiền lệ `CostRecordsScreen` — cấm import giá trị runtime từ barrel `vehicles` (vòng barrel).
 import { useVehicles } from '@/features/vehicles/hooks'
-import { REVENUE_RECOGNITION_POLICY_LABELS, vi } from '@/shared/i18n/vi'
+import { OWNERSHIP_TYPE_LABELS, REVENUE_RECOGNITION_POLICY_LABELS, VEHICLE_CLASS_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
+import { formatVnd } from '@/shared/lib/money'
 import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Switch } from '@/shared/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { CostBreakdownPanel } from '../components/CostBreakdownPanel'
+import { CustomerReportPanel } from '../components/CustomerReportPanel'
 import { FinanceKpiCards, type FinanceKpiValues } from '../components/FinanceKpiCards'
 import { FinancePeriodPicker } from '../components/FinancePeriodPicker'
 import { FinanceTrendChart } from '../components/FinanceTrendChart'
+import { IncidentReportPanel } from '../components/IncidentReportPanel'
+import { ReconciliationPanel } from '../components/ReconciliationPanel'
+import { ReportExportButton } from '../components/ReportExportButton'
 import { RevenueReportPanel } from '../components/RevenueReportPanel'
 import { VehicleFinanceSheet } from '../components/VehicleFinanceSheet'
 import { VehiclePerformanceTable } from '../components/VehiclePerformanceTable'
-import { useCashEntries, useCostEntries, useRevenueLines, useSettlements } from '../hooks'
+import { useCashEntries, useCostEntries, usePaymentRequests, usePostSettlementCharges, useRevenueLines, useSettlements, useTransactions } from '../hooks'
 import {
   REVENUE_RECOGNITION_POLICY,
+  bucketDisplayLabel,
   buildTimeSeries,
   buildVehiclePerformance,
+  calcChangeRatio,
   comparisonPeriodOf,
   countCompletedSettlements,
+  deriveCustomerBalances,
+  formatChangeText,
+  formatPercentText,
   initialPeriodSelection,
+  isPscOnHold,
   selectReportVehicleRows,
   sortVehicleRows,
   suggestGranularity,
+  sumFutureDatedCost,
   sumRevenueCash,
+  sumVehicleRows,
   summarizePeriod,
   type CashEntry,
   type CostEntry,
+  type CsvSection,
   type FinancePeriod,
   type PeriodSelection,
   type ReportGranularity,
@@ -62,7 +76,8 @@ function buildKpiValues(input: { revenueLines: RevenueLine[]; costEntries: CostE
 
 /**
  * `WebappQuanTri.md` §11.2 — Báo cáo tài chính (`/finance/reports`): Tổng quan · Doanh thu (Report 01) · Hiệu quả xe (Report 02) ·
- * Chi phí (Report 05). AC-RV-012: thiếu `FINANCE_REPORT.VIEW` chỉ thấy thông điệp không có quyền, không tải dữ liệu nào.
+ * Chi phí (Report 05) · Khách hàng (Report 03) · Sự cố (Report 04) · Đối chiếu & dòng tiền (BRD §15 + Report 06). Mỗi tab có nút Xuất CSV
+ * (UC-RV-13) dựng từ chính dữ liệu đang hiển thị. AC-RV-012: thiếu `FINANCE_REPORT.VIEW` chỉ thấy thông điệp không có quyền, không tải dữ liệu nào.
  */
 export function FinanceReportScreen() {
   const { can } = usePermission()
@@ -91,6 +106,9 @@ function FinanceReportContent() {
   const blockQuery = useVehicleBlocks()
   const vehicleQuery = useVehicles()
   const customerQuery = useCustomers()
+  const pscQuery = usePostSettlementCharges()
+  const requestQuery = usePaymentRequests()
+  const txnQuery = useTransactions()
 
   const revenueLines = useMemo(() => revenueQuery.data ?? [], [revenueQuery.data])
   const costEntries = useMemo(() => costQuery.data ?? [], [costQuery.data])
@@ -101,9 +119,12 @@ function FinanceReportContent() {
   const blocks = useMemo(() => blockQuery.data ?? [], [blockQuery.data])
   const vehicles = useMemo(() => vehicleQuery.data ?? [], [vehicleQuery.data])
   const customers = useMemo(() => customerQuery.data ?? [], [customerQuery.data])
+  const pscs = useMemo(() => pscQuery.data ?? [], [pscQuery.data])
+  const requests = useMemo(() => requestQuery.data ?? [], [requestQuery.data])
+  const txns = useMemo(() => txnQuery.data ?? [], [txnQuery.data])
   const vehicleById = useMemo(() => new Map(vehicles.map((v) => [v.id, v])), [vehicles])
 
-  const queries = [revenueQuery, costQuery, cashQuery, settlementQuery, rentalQuery, incidentQuery, blockQuery, vehicleQuery, customerQuery]
+  const queries = [revenueQuery, costQuery, cashQuery, settlementQuery, rentalQuery, incidentQuery, blockQuery, vehicleQuery, customerQuery, pscQuery, requestQuery, txnQuery]
   const isLoading = queries.some((q) => q.isLoading)
   const isError = queries.some((q) => q.isError)
 
@@ -149,6 +170,23 @@ function FinanceReportContent() {
   const sortedRows = useMemo(() => sortVehicleRows(vehicleRows, sortKey), [vehicleRows, sortKey])
   const hasConsignedVehicle = vehicleRows.some((r) => vehicleById.get(r.vehicleId)?.ownershipType === 'CONSIGNED')
 
+  // Report 03 — số dư HIỆN TẠI tính y như màn Công nợ khách hàng (cùng tham số) để `Σ Còn phải thu` khớp thẻ "Đang nợ".
+  const onHoldPscIds = useMemo(() => new Set(pscs.filter((p) => isPscOnHold(p, incidents)).map((p) => p.id)), [pscs, incidents])
+  const onHoldByRental = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const p of pscs) {
+      if (onHoldPscIds.has(p.id) && p.type === 'RECEIVABLE') map.set(p.rentalId, (map.get(p.rentalId) ?? 0) + p.amount)
+    }
+    return map
+  }, [pscs, onHoldPscIds])
+  const balances = useMemo(
+    () => deriveCustomerBalances({ customers, rentals, settlements, pscs, requests, txns, onHoldPscIds }),
+    [customers, rentals, settlements, pscs, requests, txns, onHoldPscIds],
+  )
+
+  // Nợ (e) — chú thích chi phí phân bổ ngày sau hôm nay (dùng đúng danh sách chi phí đang tính, sau công tắc "bất thường").
+  const futureCost = useMemo(() => sumFutureDatedCost(reportCostEntries, period, today), [reportCostEntries, period, today])
+
   const sheetVehicle = sheetVehicleId ? (vehicleById.get(sheetVehicleId) ?? null) : null
   function handleSelectVehicle(vehicleId: string) {
     setSheetVehicleId(vehicleId)
@@ -156,6 +194,79 @@ function FinanceReportContent() {
   const onSelectVehicle = canDrillDown ? handleSelectVehicle : undefined
 
   const sortLabels: Record<VehicleSortKey, string> = { PROFIT: t.sortProfit, REVENUE: t.sortRevenue, UTILIZATION: t.sortUtilization }
+
+  // ---- Xuất CSV: sections dựng từ chính các biến đang render bảng (kpiCurrent/kpiPrevious/series/overviewRows/sortedRows). ----
+  const granularityFilterLabel = t.exportFilterGranularity.replace('{value}', t.granularity[granularity])
+  const excludeUnusualLabels = excludeUnusual ? [t.exportFilterExcludeUnusual] : []
+  const plateOf = (id: string) => vehicleById.get(id)?.plate ?? id
+
+  function getOverviewSections(): CsvSection[] {
+    const kpiRows: { label: string; key: keyof FinanceKpiValues }[] = [
+      { label: t.kpiRevenue, key: 'revenue' },
+      { label: t.kpiCash, key: 'cash' },
+      { label: t.kpiDirectCost, key: 'directCost' },
+      { label: t.kpiOperatingProfit, key: 'operatingProfit' },
+      { label: t.kpiIndirectCost, key: 'indirectCost' },
+      { label: t.kpiAfterIndirect, key: 'afterIndirect' },
+      { label: t.kpiCompletedCount, key: 'completedCount' },
+    ]
+    return [
+      {
+        title: t.overviewKpiSection,
+        headers: [t.overviewKpiColumnMetric, t.overviewKpiColumnCurrent, t.overviewKpiColumnPrevious, t.overviewKpiColumnChange],
+        rows: kpiRows.map((k) => [k.label, kpiCurrent[k.key], kpiPrevious[k.key], formatChangeText(calcChangeRatio(kpiCurrent[k.key], kpiPrevious[k.key]), t.compareNone)]),
+      },
+      {
+        title: t.overviewSeriesSection,
+        headers: [t.revenueColumnBucket, t.revenueColumnRevenue, t.chartDirectCost, t.overviewSeriesColumnProfit],
+        rows: series.map((p) => [bucketDisplayLabel(p.bucket, granularity, t.weekPrefix), p.revenue, p.directCost, p.operatingProfit]),
+      },
+      {
+        title: t.vehiclesTableTitle,
+        headers: [t.vehicleColumnPlate, t.vehicleColumnUtilization, t.vehicleColumnRevenue, t.vehicleColumnDirectCost, t.vehicleColumnProfit],
+        rows: overviewRows.map((r) => [plateOf(r.vehicleId), formatPercentText(r.utilization, ''), r.revenue, r.directCost, r.estimatedProfit]),
+      },
+    ]
+  }
+
+  function getVehicleSections(): CsvSection[] {
+    const total = sumVehicleRows(sortedRows)
+    return [
+      {
+        title: t.vehiclesTableTitle,
+        headers: [
+          t.vehicleColumnPlate,
+          t.vehicleColumnClass,
+          t.vehicleColumnOwnership,
+          t.vehicleColumnRentalCount,
+          t.vehicleColumnRentalDays,
+          t.vehicleColumnAvailableDays,
+          t.vehicleColumnUtilization,
+          t.vehicleColumnRevenue,
+          t.vehicleColumnDirectCost,
+          t.vehicleColumnProfit,
+          t.vehicleColumnIncidents,
+        ],
+        rows: sortedRows.map((r) => {
+          const vehicle = vehicleById.get(r.vehicleId)
+          return [
+            plateOf(r.vehicleId),
+            vehicle ? VEHICLE_CLASS_LABELS[vehicle.vehicleClass] : '',
+            vehicle ? OWNERSHIP_TYPE_LABELS[vehicle.ownershipType] : '',
+            r.rentalCount,
+            r.rentalDays,
+            r.availableDays,
+            formatPercentText(r.utilization, ''),
+            r.revenue,
+            r.directCost,
+            r.estimatedProfit,
+            r.incidentCount,
+          ]
+        }),
+        totalRow: [t.vehicleTotalRow, '', '', total.rentalCount, total.rentalDays, total.availableDays, formatPercentText(total.utilization, ''), total.revenue, total.directCost, total.estimatedProfit, total.incidentCount],
+      },
+    ]
+  }
 
   return (
     <div>
@@ -207,10 +318,23 @@ function FinanceReportContent() {
             <TabsTrigger value="revenue">{t.tabRevenue}</TabsTrigger>
             <TabsTrigger value="vehicles">{t.tabVehicles}</TabsTrigger>
             <TabsTrigger value="costs">{t.tabCosts}</TabsTrigger>
+            <TabsTrigger value="customers">{t.tabCustomer}</TabsTrigger>
+            <TabsTrigger value="incidents">{t.tabIncident}</TabsTrigger>
+            <TabsTrigger value="reconciliation">{t.tabReconciliation}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="flex min-w-0 flex-col gap-5 pt-2">
+            <div className="flex justify-end">
+              <ReportExportButton
+                reportKey="OVERVIEW"
+                period={period}
+                filters={{ granularity, excludeUnusual }}
+                filterLabels={[granularityFilterLabel, ...excludeUnusualLabels]}
+                getSections={getOverviewSections}
+              />
+            </div>
             <FinanceKpiCards current={kpiCurrent} previous={kpiPrevious} comparison={comparison} />
+            {futureCost > 0 && <p className="text-muted-foreground -mt-3 text-xs">{t.futureCostNote.replace('{amount}', formatVnd(futureCost))}</p>}
             <section className="flex min-w-0 flex-col gap-2">
               <h3 className="text-sm font-semibold">{t.chartTitleOverview}</h3>
               <FinanceTrendChart data={series.map((p) => ({ bucket: p.bucket, revenue: p.revenue, directCost: p.directCost, profit: p.operatingProfit }))} granularity={granularity} />
@@ -233,20 +357,29 @@ function FinanceReportContent() {
           <TabsContent value="vehicles" className="flex min-w-0 flex-col gap-3 pt-2">
             <div className="flex min-w-0 flex-wrap items-end justify-between gap-3">
               <p className="text-muted-foreground text-xs">{t.vehiclesNote}</p>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label>{t.sortLabel}</Label>
-                <Select value={sortKey} onValueChange={(value) => setSortKey(value as VehicleSortKey)}>
-                  <SelectTrigger className="w-full sm:w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SORT_KEYS.map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {sortLabels[key]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex min-w-0 flex-wrap items-end gap-3">
+                <ReportExportButton
+                  reportKey="VEHICLE_PERFORMANCE"
+                  period={period}
+                  filters={{ sortKey, excludeUnusual }}
+                  filterLabels={[t.exportFilterSort.replace('{value}', sortLabels[sortKey]), ...excludeUnusualLabels]}
+                  getSections={getVehicleSections}
+                />
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <Label>{t.sortLabel}</Label>
+                  <Select value={sortKey} onValueChange={(value) => setSortKey(value as VehicleSortKey)}>
+                    <SelectTrigger className="w-full sm:w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORT_KEYS.map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {sortLabels[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
             {/* TODO(Phase 5): gộp CONSIGNMENT_PAYOUT khi có features/consignment.
@@ -263,7 +396,37 @@ function FinanceReportContent() {
           </TabsContent>
 
           <TabsContent value="costs" className="pt-2">
-            <CostBreakdownPanel costEntries={reportCostEntries} period={period} />
+            <CostBreakdownPanel costEntries={reportCostEntries} period={period} today={today} excludeUnusual={excludeUnusual} />
+          </TabsContent>
+
+          <TabsContent value="customers" className="pt-2">
+            <CustomerReportPanel
+              revenueLines={revenueLines}
+              settlements={settlements}
+              cashEntries={cashEntries}
+              incidents={incidents}
+              rentals={rentals}
+              balances={balances}
+              customers={customers}
+              period={period}
+            />
+          </TabsContent>
+
+          <TabsContent value="incidents" className="pt-2">
+            <IncidentReportPanel incidents={incidents} vehicles={vehicles} period={period} />
+          </TabsContent>
+
+          <TabsContent value="reconciliation" className="pt-2">
+            <ReconciliationPanel
+              revenueLines={revenueLines}
+              cashEntries={cashEntries}
+              costEntries={reportCostEntries}
+              customers={customers}
+              period={period}
+              granularity={granularity}
+              excludeUnusual={excludeUnusual}
+              onHoldByRental={onHoldByRental}
+            />
           </TabsContent>
         </Tabs>
       )}

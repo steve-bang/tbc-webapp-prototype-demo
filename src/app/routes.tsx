@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
 import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
@@ -10,6 +11,7 @@ import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents'
 import { MaintenanceScreen } from '@/features/maintenance'
 import { RentalDetailScreen, RentalListScreen } from '@/features/rentals'
 import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
+import { vi } from '@/shared/i18n/vi'
 import { AppShell } from '@/shared/layout/AppShell'
 import { ComingSoon } from '@/shared/layout/ComingSoon'
 import { paths } from './paths'
@@ -49,7 +51,13 @@ export function AppRoutes() {
         <Route path={paths.financeCashDrawer} element={<CashDrawerScreen />} />
         <Route path={paths.financeReceivables} element={<CustomerReceivablesScreen />} />
         <Route path={paths.financeCosts} element={<CostRecordsScreen />} />
-        <Route path={paths.financeReports} element={<FinanceReportScreen />} />
+        <Route path={paths.financeReports} element={
+            // Màn báo cáo tải lười (`finance/screens/lazyScreens.ts`) — `recharts` nằm ngoài chunk chính.
+            <Suspense fallback={<p className="text-muted-foreground text-sm">{vi.common.loading}</p>}>
+              <FinanceReportScreen />
+            </Suspense>
+          }
+        />
 
         <Route path={paths.consignmentOwners} element={<ComingSoon title="Hồ sơ chủ xe" />} />
         <Route path={paths.consignmentContracts} element={<ComingSoon title="Hợp đồng ký gửi" />} />

@@ -29,7 +29,9 @@ import type {
   TransactionStatus,
   TransactionType,
 } from '@/shared/domain/enums'
+import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
+import { formatDate } from '@/shared/lib/datetime'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
@@ -69,6 +71,7 @@ import {
   getLineDiscountedAmount,
   getSubmitBlockers,
   isEffectiveTransaction,
+  isFinanceReportKey,
   isManualCostCategory,
   isPscOnHold,
   isRequestActionable,
@@ -83,10 +86,12 @@ import {
   type CostEntry,
   type CostRecord,
   type DepositReconciliation,
+  type FinanceReportKey,
   type PaymentRequest,
   type PostSettlementCharge,
   type PscBlockerCode,
   type Receipt,
+  type ReportExportFilters,
   type RevenueLine,
   type Settlement,
   type SettlementLine,
@@ -2349,5 +2354,58 @@ export async function reverseCostRecord(id: string, reason: string, actor: Actor
       after: { status: after.status, reason: trimmedReason },
     })
     return after
+  })
+}
+
+export interface RecordReportExportInput {
+  reportKey: FinanceReportKey
+  /** `yyyy-MM-dd`. */
+  from: string
+  /** `yyyy-MM-dd`. */
+  to: string
+  /** Số dòng dữ liệu của file (không tính khối đầu, dòng tên cột, dòng tổng). */
+  rowCount: number
+  filters: ReportExportFilters
+}
+
+const REPORT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Chỉ giữ các khoá bộ lọc đã biết, đúng kiểu id/enum/boolean — không để lọt tên/SĐT khách vào audit (AuditLog-BRD.md §11). */
+function sanitizeReportFilters(filters: ReportExportFilters): ReportExportFilters {
+  const safe: ReportExportFilters = {}
+  if (typeof filters.vehicleId === 'string') safe.vehicleId = filters.vehicleId
+  if (typeof filters.customerId === 'string') safe.customerId = filters.customerId
+  if (filters.customerStatus === 'ACTIVE' || filters.customerStatus === 'BLOCKED') safe.customerStatus = filters.customerStatus
+  if (filters.granularity === 'DAY' || filters.granularity === 'WEEK' || filters.granularity === 'MONTH') safe.granularity = filters.granularity
+  if (typeof filters.sortKey === 'string') safe.sortKey = filters.sortKey
+  if (typeof filters.excludeUnusual === 'boolean') safe.excludeUnusual = filters.excludeUnusual
+  return safe
+}
+
+/**
+ * UC-RV-13 / AuditLog — ghi ĐÚNG một bản ghi `REPORT_EXPORT` mỗi lần xuất; UI chỉ tải file sau khi hàm này thành công.
+ * Không ghi họ tên/SĐT/CCCD khách: `filters` chỉ chứa id/enum/boolean.
+ * TODO(OQ: RevenueCost-BRD.md §28 Q14 — định dạng xuất PDF/Excel chưa chốt; demo xuất CSV mở bằng Excel)
+ */
+export async function recordReportExport(input: RecordReportExportInput, actor: ActorInfo): Promise<void> {
+  return fakeRequest(() => {
+    if (!isFinanceReportKey(input.reportKey)) throw new Error(vi.finance.reports.exportAuditInvalid)
+    if (!REPORT_DATE_RE.test(input.from) || !REPORT_DATE_RE.test(input.to) || input.from > input.to) throw new Error(vi.finance.reports.exportAuditInvalid)
+    if (!Number.isInteger(input.rowCount) || input.rowCount < 0) throw new Error(vi.finance.reports.exportAuditInvalid)
+    const filters = sanitizeReportFilters(input.filters)
+    appendAudit({
+      action: 'REPORT_EXPORT',
+      entity: 'FinanceReport',
+      entityId: input.reportKey,
+      summary: vi.finance.reports.exportAuditSummary
+        .replace('{report}', vi.finance.reports.exportNames[input.reportKey])
+        .replace('{from}', formatDate(input.from))
+        .replace('{to}', formatDate(input.to))
+        .replace('{count}', String(input.rowCount)),
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: { reportKey: input.reportKey, from: input.from, to: input.to, rowCount: input.rowCount, filters },
+    })
   })
 }

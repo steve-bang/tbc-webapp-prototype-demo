@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useCostEntries, useRevenueLines, useSettlements } from '../hooks'
 import { REVENUE_RECOGNITION_POLICY, buildMonthlyVehicleSeries, buildVehiclePerformance, initialPeriodSelection, type PeriodSelection } from '../model'
 import { FinancePeriodPicker } from './FinancePeriodPicker'
-import { FinanceTrendChart } from './FinanceTrendChart'
+import { FinanceTrendChartLazy } from './FinanceTrendChartLazy'
 
 /** Tỉ lệ 0..1 → "80%" / "73,3%" (1 chữ số thập phân, AC-RV-014). */
 function formatUtilization(value: number | null): string {
@@ -94,7 +94,7 @@ export function VehicleProfitTab({ vehicle, initialSelection }: { vehicle: Vehic
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">{vi.finance.revenueCost.profitMonthlyTitle}</h3>
-        <FinanceTrendChart data={monthly.map((m) => ({ bucket: m.month, revenue: m.revenue, directCost: m.directCost, profit: m.profit }))} granularity="MONTH" />
+        <FinanceTrendChartLazy data={monthly.map((m) => ({ bucket: m.month, revenue: m.revenue, directCost: m.directCost, profit: m.profit }))} granularity="MONTH" />
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

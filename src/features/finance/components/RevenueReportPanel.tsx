@@ -16,14 +16,18 @@ import {
   buildTimeSeries,
   countCompletedSettlements,
   findRevenueReconciliationIssues,
+  formatPercentText,
   isDateInPeriod,
   summarizePeriod,
+  type CsvSection,
   type FinancePeriod,
+  type ReportExportFilters,
   type ReportGranularity,
   type RevenueLine,
   type Settlement,
 } from '../model'
 import { FinanceTrendChart } from './FinanceTrendChart'
+import { ReportExportButton } from './ReportExportButton'
 
 const ALL = '__ALL__'
 
@@ -81,6 +85,38 @@ export function RevenueReportPanel({
   )
   const issues = useMemo(() => findRevenueReconciliationIssues(filteredSettlements, lines, period), [filteredSettlements, lines, period])
 
+  // Xuất CSV: dựng từ chính `series`/`total`/`categories`/`reductions` đã lọc theo Xe/Khách ở trên.
+  const exportFilters: ReportExportFilters = {
+    granularity,
+    ...(vehicleId === ALL ? {} : { vehicleId }),
+    ...(customerId === ALL ? {} : { customerId }),
+  }
+  const filterLabels = [
+    t.exportFilterGranularity.replace('{value}', t.granularity[granularity]),
+    ...(vehicleId === ALL ? [] : [t.exportFilterVehicle.replace('{value}', vehicles.find((v) => v.id === vehicleId)?.plate ?? vehicleId)]),
+    ...(customerId === ALL ? [] : [t.exportFilterCustomer.replace('{value}', customers.find((c) => c.id === customerId)?.fullName ?? customerId)]),
+  ]
+  function getSections(): CsvSection[] {
+    return [
+      {
+        title: t.chartTitleRevenue,
+        headers: [t.revenueColumnBucket, t.revenueColumnRevenue, t.revenueColumnCount, t.revenueColumnAverage],
+        rows: series.map((p) => [bucketDisplayLabel(p.bucket, granularity, t.weekPrefix), p.revenue, p.rentalCount, p.avgRevenuePerRental]),
+        totalRow: [t.revenueTotalRow, total.revenue, total.rentalCount, total.average],
+      },
+      {
+        title: t.categoryTitle,
+        headers: [t.categoryColumnName, t.categoryColumnCharge, t.categoryColumnReduction, t.categoryColumnReversal, t.categoryColumnNet, t.categoryColumnShare],
+        rows: categories.map((r) => [REVENUE_CATEGORY_LABELS[r.category], r.charge, r.reduction, r.reversal, r.net, r.share === null ? null : formatPercentText(r.share, '')]),
+      },
+      {
+        title: t.reductionsTitle,
+        headers: [t.reductionColumnDate, t.reductionColumnRental, t.reductionColumnCategory, t.reductionColumnAmount, t.reductionColumnNote],
+        rows: reductions.map((l) => [formatDate(l.recognitionDate), l.rentalId, REVENUE_CATEGORY_LABELS[l.category], l.amount, l.note ?? '']),
+      },
+    ]
+  }
+
   return (
     <div className="flex min-w-0 flex-col gap-5">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -114,6 +150,9 @@ export function RevenueReportPanel({
             ))}
           </SelectContent>
         </Select>
+        <div className="sm:ml-auto">
+          <ReportExportButton reportKey="REVENUE" period={period} filters={exportFilters} filterLabels={filterLabels} getSections={getSections} />
+        </div>
       </div>
 
       {issues.length > 0 && (

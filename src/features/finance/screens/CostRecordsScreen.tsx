@@ -15,7 +15,7 @@ import { CostRecordFormDialog } from '../components/CostRecordFormDialog'
 import { CostRecordReverseDialog } from '../components/CostRecordReverseDialog'
 import { FinancePeriodPicker } from '../components/FinancePeriodPicker'
 import { useCostEntries, useCostRecords } from '../hooks'
-import { initialPeriodSelection, isDateInPeriod, type CostRecord, type PeriodSelection } from '../model'
+import { initialPeriodSelection, isDateInPeriod, sumFutureDatedCost, type CostRecord, type PeriodSelection } from '../model'
 
 const ALL = '__ALL__'
 
@@ -72,6 +72,10 @@ export function CostRecordsScreen() {
     const indirect = filteredEntries.filter((e) => e.allocationType === 'INDIRECT').reduce((sum, e) => sum + e.amount, 0)
     return { direct, indirect, all: direct + indirect }
   }, [filteredEntries])
+
+  // Chú thích lát chi phí phân bổ có ngày sau hôm nay — chỉ hiển thị, không đổi số liệu (RV-BR-03).
+  const today = useMemo(() => new Date(), [])
+  const futureCost = useMemo(() => sumFutureDatedCost(filteredEntries, selection.period, today), [filteredEntries, selection.period, today])
 
   const hasAnyRow = filteredEntries.length > 0 || reversedRecords.length > 0
   const hasActiveFilter = source !== ALL || category !== ALL || allocation !== ALL || vehicleId !== ALL
@@ -179,6 +183,7 @@ export function CostRecordsScreen() {
           <p className="font-medium">{formatVnd(totals.all)}</p>
         </div>
       </div>
+      {futureCost > 0 && <p className="text-muted-foreground -mt-2 mb-4 text-xs">{vi.finance.reports.futureCostNote.replace('{amount}', formatVnd(futureCost))}</p>}
 
       {isLoading ? (
         <p className="text-muted-foreground text-sm">{vi.common.loading}</p>
