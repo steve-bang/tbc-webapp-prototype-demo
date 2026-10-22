@@ -25,6 +25,7 @@ import {
   calcDepositHeld,
   calcDepositReconciliation,
   calcPaidToDate,
+  calcSettlementCollectOutstanding,
   calcSettlementTotals,
   deriveRentalPaymentSummary,
   deriveRequestStatus,
@@ -697,6 +698,15 @@ function seedFinance(): void {
   const paymentRequests = readJson<PaymentRequest[]>(PAYMENT_REQUESTS_STORAGE_KEY) ?? []
   const transactions = readJson<Transaction[]>(TRANSACTIONS_STORAGE_KEY) ?? []
 
+  /**
+   * Cờ "đóng kèm công nợ" tính bằng đúng hàm của `completeSettlement()` tại `completedAt` — không gõ tay.
+   * Yêu cầu thu của Settlement seed sang Payment ở `seedPaymentRound2` (chạy sau): lúc này chưa có `PaymentRequest`
+   * nên coi như chưa thu đồng nào — kết quả trùng với việc tính sau (giao dịch thu của `stl_026` nằm SAU `completedAt`).
+   */
+  function debtAtCompletion(settlement: Settlement): boolean {
+    return calcSettlementCollectOutstanding(settlement, paymentRequests, transactions, settlement.completedAt) > 0
+  }
+
   function rentalOrThrow(id: string): Rental {
     const r = rentals.find((x) => x.id === id)
     if (!r) throw new Error(`finance/seed.ts: không tìm thấy Rental ${id}`)
@@ -832,7 +842,6 @@ function seedFinance(): void {
       approval: undefined,
       paymentRequests: [refundRequest],
       paymentStatus: 'REFUND_PENDING',
-      completedWithDebt: false,
       completedTotals: { ...totals, ...reconciliation },
       completedByName: MANAGER,
       completedAt,
@@ -841,7 +850,7 @@ function seedFinance(): void {
       createdAt: openedAt,
       updatedAt: completedAt,
     }
-    settlementsToSeed.push(settlement)
+    settlementsToSeed.push({ ...settlement, completedWithDebt: debtAtCompletion(settlement) })
   }
 
   // ---- rt_025 — COMPLETED: có 1 PARTIAL_DISCOUNT ≤ ngưỡng, APPROVED; yêu cầu DEPOSIT_REFUND. ----
@@ -898,7 +907,6 @@ function seedFinance(): void {
       customerAck: { recordedByName: ACCOUNTANT, recordedAt: dt(-27, 16) },
       paymentRequests: [refundRequest],
       paymentStatus: 'REFUND_PENDING',
-      completedWithDebt: false,
       completedTotals: { ...totals, ...reconciliation },
       completedByName: MANAGER,
       completedAt,
@@ -907,7 +915,7 @@ function seedFinance(): void {
       createdAt: openedAt,
       updatedAt: completedAt,
     }
-    settlementsToSeed.push(settlement)
+    settlementsToSeed.push({ ...settlement, completedWithDebt: debtAtCompletion(settlement) })
   }
 
   // ---- rt_026 — COMPLETED: KHÔNG có dòng sự cố (inc_010 DISPUTED chốt sau — RS-BR-24, §7 kế hoạch);
@@ -954,8 +962,7 @@ function seedFinance(): void {
       paymentRequests: [collectRequest],
       paymentStatus: 'UNPAID',
       // TODO(OQ: RentalSettlement-BRD.md §28 Q11/Q12 — đóng lượt khi còn công nợ; demo: cho đóng vì
-      // đã tạo yêu cầu thu, đánh dấu completedWithDebt, chờ Payment (Phase 4.2) xác nhận đã thu đủ.
-      completedWithDebt: true,
+      // đã tạo yêu cầu thu, cờ `completedWithDebt` tính bằng `calcSettlementCollectOutstanding` lúc đóng.
       completedTotals: { ...totals, ...reconciliation },
       completedByName: MANAGER,
       completedAt,
@@ -964,7 +971,7 @@ function seedFinance(): void {
       createdAt: openedAt,
       updatedAt: completedAt,
     }
-    settlementsToSeed.push(settlement)
+    settlementsToSeed.push({ ...settlement, completedWithDebt: debtAtCompletion(settlement) })
   }
 
   writeJson(SETTLEMENTS_STORAGE_KEY, settlementsToSeed)
@@ -1407,7 +1414,7 @@ function seedRevenueHistory(): void {
         createdAt: dt(-61, 12),
       }
       const completedAt1 = dt(-60, 10)
-      const settlement1: Settlement = {
+      const settlement1Base: Settlement = {
         id: settlementId,
         rentalId,
         customerId: rental.customerId,
@@ -1422,7 +1429,6 @@ function seedRevenueHistory(): void {
         customerAck: { recordedByName: ACCOUNTANT, recordedAt: dt(-61, 11, 30) },
         paymentRequests: [spr],
         paymentStatus: 'UNPAID',
-        completedWithDebt: r1.reconciliation.balanceDue > 0,
         completedTotals: { ...r1.totals, ...r1.reconciliation },
         completedByName: MANAGER,
         completedAt: completedAt1,
@@ -1431,7 +1437,12 @@ function seedRevenueHistory(): void {
         createdAt: openedAt,
         updatedAt: completedAt1,
       }
-      const collectRequest = buildSettlementPaymentRequest(settlement1, spr, ACCOUNTANT, spr.createdAt)
+      const collectRequest = buildSettlementPaymentRequest(settlement1Base, spr, ACCOUNTANT, spr.createdAt)
+      // Lúc đóng bản 1 yêu cầu thu còn mở (chưa thu đồng nào) — tính cờ trước khi bản này bị đảo/huỷ yêu cầu.
+      const settlement1: Settlement = {
+        ...settlement1Base,
+        completedWithDebt: calcSettlementCollectOutstanding(settlement1Base, [...allRequests(), collectRequest], allTxns(), completedAt1) > 0,
+      }
 
       // ---- Đảo (≈ −58 ngày) bởi SYSTEM_ADMIN: yêu cầu thu bị huỷ, bản 1 vào `reversals[].snapshot`. ----
       const reversedAt = dt(-58, 10)
@@ -1443,7 +1454,7 @@ function seedRevenueHistory(): void {
       const lines2 = reset.lines.filter((l) => l.source !== 'MANUAL')
       const r2 = reconcile(rental, lines2, dt(-58, 14))
       const completedAt2 = dt(-57, 10)
-      newSettlements.push({
+      const settlement2Base: Settlement = {
         ...reset,
         status: 'COMPLETED',
         lines: lines2,
@@ -1451,13 +1462,13 @@ function seedRevenueHistory(): void {
         depositHeld: r2.depositHeld,
         depositReconciliation: r2.reconciliation,
         customerAck: { recordedByName: ACCOUNTANT, recordedAt: dt(-58, 15) },
-        completedWithDebt: r2.reconciliation.balanceDue > 0,
         completedTotals: { ...r2.totals, ...r2.reconciliation },
         completedByName: MANAGER,
         completedAt: completedAt2,
         updatedAt: completedAt2,
         reversals: [reversal],
-      })
+      }
+      newSettlements.push({ ...settlement2Base, completedWithDebt: calcSettlementCollectOutstanding(settlement2Base, allRequests(), allTxns(), completedAt2) > 0 })
       continue
     }
 
@@ -1470,7 +1481,7 @@ function seedRevenueHistory(): void {
       reconciliation.balanceDue > 0
         ? [{ id: generateId('pyr'), type: 'COLLECT', amount: reconciliation.balanceDue, status: 'REQUESTED', createdByName: ACCOUNTANT, createdAt: hoursAfter(openedAt, 4) }]
         : []
-    const settlement: Settlement = {
+    const settlementBase: Settlement = {
       id: settlementId,
       rentalId,
       customerId: rental.customerId,
@@ -1484,7 +1495,6 @@ function seedRevenueHistory(): void {
       depositReconciliation: reconciliation,
       customerAck: { recordedByName: ACCOUNTANT, recordedAt: hoursAfter(openedAt, 3) },
       paymentRequests: sprList,
-      completedWithDebt: reconciliation.balanceDue > 0,
       completedTotals: { ...totals, ...reconciliation },
       completedByName: MANAGER,
       completedAt,
@@ -1493,12 +1503,13 @@ function seedRevenueHistory(): void {
       createdAt: openedAt,
       updatedAt: completedAt,
     }
-    newSettlements.push(settlement)
+    // Dựng yêu cầu thu + giao dịch thu TRƯỚC (giao dịch ở openedAt + 5h < completedAt = openedAt + 6h), rồi mới tính cờ.
     for (const spr of sprList) {
-      const collectRequest = buildSettlementPaymentRequest(settlement, spr, ACCOUNTANT, spr.createdAt)
+      const collectRequest = buildSettlementPaymentRequest(settlementBase, spr, ACCOUNTANT, spr.createdAt)
       newRequests.push(collectRequest)
       recordTransfer({ rental, request: collectRequest, performedAt: hoursAfter(openedAt, 5), settlementId })
     }
+    newSettlements.push({ ...settlementBase, completedWithDebt: calcSettlementCollectOutstanding(settlementBase, allRequests(), allTxns(), completedAt) > 0 })
   }
 
   // ---- Đồng bộ cuối — KHÔNG gõ tay trạng thái (mirror khối "Đồng bộ cuối C" của seedPaymentRound2). ----

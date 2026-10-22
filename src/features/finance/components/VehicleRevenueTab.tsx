@@ -22,8 +22,9 @@ const NATURE_VARIANT: Record<RevenueLine['nature'], 'success' | 'warning' | 'neu
  * Tab "Doanh thu" của Vehicle Detail — `docs/REVENUE-COST-PLAN.md` §11.2. Chỉ đọc. Doanh thu ghi nhận theo
  * `Recognition Date` (RV-BR-03), chính sách `ON_SETTLEMENT` (CR-2026-048). Gate quyền `VEHICLE.EXPORT` do màn cha đảm nhiệm.
  */
-export function VehicleRevenueTab({ vehicle }: { vehicle: Vehicle }) {
-  const [selection, setSelection] = useState<PeriodSelection>(() => initialPeriodSelection('LAST_12_MONTHS'))
+export function VehicleRevenueTab({ vehicle, initialSelection }: { vehicle: Vehicle; initialSelection?: PeriodSelection }) {
+  // `initialSelection` (drill-down từ Báo cáo tài chính) — mặc định giữ 12 tháng gần nhất như ở Vehicle Detail.
+  const [selection, setSelection] = useState<PeriodSelection>(() => initialSelection ?? initialPeriodSelection('LAST_12_MONTHS'))
   const { data: lines = [], isLoading } = useRevenueLines({ vehicleId: vehicle.id })
   const { data: settlements = [] } = useSettlements()
 

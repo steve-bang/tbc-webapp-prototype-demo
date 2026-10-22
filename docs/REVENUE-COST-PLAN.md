@@ -3,7 +3,9 @@
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (22/10/2026 — người dùng duyệt, chấp nhận cả
 5 đề xuất ở §13: seed lịch sử phương án B · giữ 3 round · tab Tổng quan Vehicle Detail ngoài phạm vi · giữ
 nối tiếp `features/finance`, refactor tách thư mục là task riêng sau 4.3 · ghi ngoại lệ form `finance` vào
-`CONVENTIONS.md` §7) · **Round 1 `DONE` (22/10/2026 — review đạt vòng 1, không Blocker)** · Round 2/3 chưa giao — kế hoạch chi tiết
+`CONVENTIONS.md` §7) · **Round 1 `DONE` (22/10/2026 — review đạt vòng 1, không Blocker)** · **Round 2 `DONE`
+(22/10/2026 — chi tiết §19; review đạt vòng 1, không Blocker; nợ nhỏ ghi ở `IMPLEMENTATION-PLAN.md` Phase 4.3)** ·
+Round 3 chưa giao — kế hoạch chi tiết
 Phase 4.3. Chia **3 round**: Round 1 = lõi dữ liệu (Revenue Line suy
 ra từ Settlement/PSC, kể cả đảo quyết toán · Cost Record nhập tay + chi phí suy ra từ Sự cố/Bảo dưỡng ·
 góc nhìn thực thu) + màn **Chi phí vận hành** + nối **3 tab Doanh thu/Chi phí/Lợi nhuận ở Vehicle
@@ -223,6 +225,7 @@ cuối cùng cần khách xác nhận", OQ Q14). Round 1 đặt Vehicle Detail c
 - `VehicleFinanceSheet` (drill-down — tái dùng 3 tab của R1 trong Sheet, truyền kỳ đang chọn) + link "Mở hồ sơ xe".
 - Thêm biểu đồ tháng vào `VehicleProfitTab` (dùng lại component biểu đồ).
 - Banner "chưa gồm chi trả chủ xe ký gửi" (§4.4).
+- **Chi tiết hoá + 3 việc gộp (invalidate thực thu · sửa cờ "Đóng kèm công nợ" · kiểu khoá i18n) — xem §19.**
 
 ### 1.4. Trong phạm vi — Round 3 (Báo cáo phụ + đối chiếu + xuất)
 
@@ -894,3 +897,236 @@ drill-down); Round 3 cần Round 2 (khung `FinanceReportScreen`).
 - Chính sách nợ xấu (OQ Q12).
 - Refactor tách `features/finance` theo module (§13 câu 4 — đã chốt làm sau 4.3; backlog `IMPLEMENTATION-PLAN.md`
   Phase 4.4).
+
+---
+
+## 19. Round 2 — chi tiết giao việc (`APPROVED` 22/10/2026, `tech-lead` tự duyệt theo plan tổng)
+
+Phạm vi = §1.3 + **3 việc gộp** (§19.2). Không đổi cấu trúc entity; chỉ đổi **giá trị** cờ `completedWithDebt` của
+seed → `SEED_VERSION` 18 → **19** (để trình duyệt đang chạy bản cũ tự seed lại).
+
+### 19.1. Trong / ngoài phạm vi
+
+**Trong phạm vi**
+
+1. Màn **Báo cáo tài chính** `/finance/reports` (`FinanceReportScreen`, thay `ComingSoon`): thanh công cụ chung
+   (`FinancePeriodPicker` mặc định `THIS_MONTH` · độ chi tiết Ngày/Tuần/Tháng · switch "Loại chi phí bất thường"
+   — EX-04) + 4 tab **Tổng quan** · **Doanh thu** (Report 01) · **Hiệu quả xe** (Report 02) · **Chi phí** (Report 05).
+2. `VehicleFinanceSheet` — drill-down theo xe (CR-2026-018), tái dùng 3 tab R1 với kỳ đang chọn.
+3. Biểu đồ `recharts` (component dùng chung `FinanceTrendChart`) ở Tổng quan, Doanh thu, Chi phí và **tab Lợi nhuận
+   Vehicle Detail** (`VehicleProfitTab` — file thuộc `finance/components`, **không** phải ngoại lệ `vehicles/*`).
+4. 3 việc gộp §19.2.
+
+**Ngoài phạm vi** (giữ nguyên quyết định §1.4/§1.5): Report 03/04/06, view đối chiếu accrual ↔ cash, Xuất CSV
+(Round 3); Dashboard (Phase 6); Period Close; mọi thay đổi `vehicles/*` (kể cả `VehicleDetailScreen.tsx` —
+R2 **không** cần đụng: prop mới của 3 tab là tuỳ chọn); `rentals/*`, `incidents/*`, `maintenance/*`, `calendar/*`,
+`customers/*`; `enums.ts`, `permissions.ts` (không cần entry mới — dùng `FINANCE_REPORT.VIEW` + `VEHICLE.EXPORT` sẵn
+có); `app/paths.ts`, `shared/layout/nav.tsx` (path + mục menu "Báo cáo tài chính" đã có); `shared/lib/*`,
+`shared/ui/*` (`sheet`, `switch`, `tabs`, `card` đã có); `package.json`. Nợ (b) và góp ý "lọc lượt
+`CANCELLED`/`NO_SHOW` ở form chi phí" — **không gộp** (§19.2 điểm 4-5).
+
+### 19.2. Ba việc gộp + quyết định về nợ treo
+
+1. **Bắt buộc — invalidate thực thu:** `finance/hooks.ts` `invalidatePayment()` thêm
+   `queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY })` (KPI "Thực thu" đọc `useCashEntries`; các
+   mutation chỉ gọi `invalidatePayment` — lập lịch, biên lai, quỹ — phải làm mới góc nhìn thực thu).
+2. **Nợ (a) — cờ "Đóng kèm công nợ" (`completedWithDebt`) tính sai.** Hiện `completeSettlement()` gán
+   `completedWithDebt = depositReconciliation.balanceDue > 0` — `balanceDue` là số **lúc đối trừ cọc**, không trừ phần
+   khách đã nộp qua yêu cầu `COLLECT` trước khi đóng. Đối chiếu `RentalSettlement-BRD.md`:
+   - §15: `Balance Due > 0 → Tạo "Yêu cầu thu" → Payment ghi nhận → Khi Payment xác nhận đã thu đủ → cập nhật Paid To
+     Date, Balance Due = 0`; AC-RS-008 cùng nội dung.
+   - EX-02: `Balance Due > 0, khách chưa nộp đủ → … → Nếu cho nợ → COMPLETED với công nợ`.
+   - §16.1: điều kiện đóng `Balance Due = 0 (hoặc được phép ghi công nợ)`.
+
+   ⇒ "Đóng kèm công nợ" = **tại thời điểm đóng, khách còn chưa nộp đủ** phần Balance Due đã chuyển Payment thu. Suy ra
+   trực tiếp từ BRD — **không phải quyết định nghiệp vụ mới**; giả định OQ RS §28 Q11 giữ nguyên (cho đóng khi đã
+   tạo yêu cầu thu, không hạn mức). Cờ vẫn là **sự kiện lịch sử lúc đóng** (không tự xoá khi khách trả sau — trạng
+   thái thanh toán hiện tại đã có ở `paymentStatus`).
+
+   Hàm thuần mới (`model.ts`, cạnh `getCompletionBlockers`):
+
+   ```text
+   calcSettlementCollectOutstanding(settlement, paymentRequests, txns, asOf?) → number
+     Σ trên mỗi spr ∈ settlement.paymentRequests với spr.type = COLLECT và spr.status = REQUESTED:
+         pr = paymentRequests.find(p.settlementRequestId = spr.id và p.status ≠ CANCELLED)
+         nếu không có pr  → + spr.amount                       (chưa sang Payment = chưa thu đồng nào)
+         ngược lại        → + calcRequestProgress(pr, txnsAsOf).remaining
+     txnsAsOf = asOf ? txns lọc (confirmedAt ?? performedAt) ≤ asOf : txns       (so bằng thời điểm, không so chuỗi)
+   completedWithDebt = calcSettlementCollectOutstanding(...) > 0
+   ```
+
+   Dùng ở 3 nơi: (i) `api.ts` `completeSettlement` — đọc `readAllPaymentRequests()`/`readAllTransactions()` **trong**
+   callback `fakeRequest`, không `asOf`; đồng thời bỏ đuôi `— OQ RS §28 Q11` khỏi `summary` audit (chuỗi người dùng
+   thấy ở Nhật ký); (ii) `SettlementCompleteDialog` — cảnh báo "sẽ đóng kèm công nợ" hiện khi outstanding > 0 (thay
+   `balanceDue > 0`), dữ liệu qua `usePaymentRequests({ rentalId })` + `useTransactions({ rentalId })` (gọi hook
+   **trước** `if (!settlement) return null`; khi đang tải coi như chưa thu — cảnh báo thận trọng); sửa chuỗi
+   `vi.finance.completeWithDebtWarning` bỏ `(OQ RS §28 Q11)`; (iii) seed — mọi Settlement `COMPLETED` (kể cả
+   `reversals[].snapshot`) tính cờ bằng hàm này với `asOf = completedAt`, không gõ `true/false`.
+
+   Kết quả kỳ vọng trên seed: `stl_034`/`stl_037` → `false` (giao dịch thu `COLLECT` ở `openedAt + 5h` < `completedAt
+   = openedAt + 6h`); `stl_026` → **vẫn `true`** (lúc đóng chưa có `PaymentRequest`/giao dịch nào; khoản thu một phần ở
+   `completedAt + 20h`); `stl_038` bản hiện tại → `false`, snapshot bản 1 → `true`; `stl_024`/`stl_025` → `false`
+   (không có `COLLECT`). Badge chỉ còn ở `stl_026`.
+
+   Hệ quả với góp ý R1 "dời giao dịch `COLLECT` `stl_034/037` ra sau `completedAt`": **không làm** — sau khi sửa cờ,
+   câu chuyện "khách nộp đủ phần phát sinh rồi mới đóng lượt" (giao dịch trước `completedAt`) đã nhất quán, và trong
+   app thật thu `COLLECT` được khi Rental còn `SETTLEMENT` (`isRequestActionable`).
+3. **Nợ (c) — kiểu khoá i18n:** ở `PostSettlementChargeDialog.tsx` và `SettlementCompleteDialog.tsx` thay
+   `Exclude<keyof typeof vi.finance, 'payment' | 'receivables' | 'revenueCost'>` bằng kiểu khai báo cục bộ
+   `type FinanceStringKey = { [K in keyof typeof vi.finance]: (typeof vi.finance)[K] extends string ? K : never }[keyof typeof vi.finance]`
+   (sửa comment đi kèm). Thêm namespace `vi.finance.reports` sau đó không phải sửa 2 file này.
+4. **Nợ (b) — không gộp:** sửa `createdAt` tương lai buộc đụng `buildRental`/bản ghi cũ `rentals/seed.ts` (cấm, §0.2).
+5. **Góp ý R1 "form chi phí lọc lượt `CANCELLED`/`NO_SHOW`" — không gộp:** BRD §9/§18 không giới hạn; lượt `NO_SHOW`
+   vẫn có thể phát sinh chi phí thật (điều xe tới điểm giao) — giữ nguyên hành vi R1.
+
+### 19.3. Hàm thuần R2 (`model.ts`, nối tiếp khối RV) — mọi số tổng do hàm tính, UI chỉ hiển thị
+
+```text
+TimeSeriesPoint { bucket; revenue; directCost; indirectCost; operatingProfit; cashIn; rentalCount;
+                  avgRevenuePerRental: number | null }
+buildTimeSeries({ revenueLines, costEntries, cashEntries, settlements, period, granularity }) → TimeSeriesPoint[]
+  buckets = enumeratePeriodBuckets(period, granularity); chỉ lấy bản ghi có ngày ∈ kỳ (isDateInPeriod) rồi nhóm bucketKeyOf
+  revenue      = Σ RevenueLine.amount theo recognitionDate                       // AC-RV-006, RV-BR-03
+  directCost / indirectCost = Σ CostEntry theo costDate, tách allocationType     // AC-RV-009
+  operatingProfit = revenue − directCost                                         // CR-2026-048
+  cashIn       = Σ CashEntry.signedAmount với revenueRelated, theo date          // RV-BR-14
+  rentalCount  = số Settlement COMPLETED có completedAt trong bucket (= countCompletedSettlements)
+  avgRevenuePerRental = rentalCount > 0 ? round(revenue / rentalCount) : null    // Report 01 "Doanh thu TB/lượt"
+  BẤT BIẾN: Σ các bucket = summarizePeriod(...) cùng kỳ (revenue, directCost, indirectCost)
+
+sumRevenueCash(cashEntries, period) → number                                    // KPI "Thực thu"
+calcChangeRatio(current, previous) → number | null   // previous = 0 → null; ngược lại (current − previous) / |previous|
+comparisonPeriodOf(selection: PeriodSelection) → FinancePeriod                   // BRD §14 "so với kỳ trước"
+  THIS_MONTH / LAST_MONTH → tháng lịch liền trước tháng của period.from; THIS_QUARTER → quý liền trước;
+  THIS_YEAR → năm liền trước; còn lại (LAST_30_DAYS, LAST_12_MONTHS, CUSTOM) → previousPeriod(period)
+suggestGranularity(period) → ReportGranularity   // ≤ 31 ngày DAY · ≤ 92 ngày WEEK · còn lại MONTH (gợi ý khi đổi kỳ)
+
+RevenueCategoryRow { category; charge; reduction (≤ 0); reversal; net; share: number | null }
+buildRevenueByCategory(revenueLines, period) → RevenueCategoryRow[]   // nature CHARGE/REDUCTION/REVERSAL, sắp net giảm dần
+  BẤT BIẾN: Σ net = summarizePeriod.revenue; Σ reduction = summarizePeriod.reductions          // RV-BR-06, AC-RV-002
+
+CostBreakdownRow { category; count; total; share: number | null; directTotal; indirectTotal }
+buildCostBreakdown(costEntries, period) → { rows: CostBreakdownRow[]; total }   // Report 05; count = số CostEntry trong kỳ
+  BẤT BIẾN: total = directCost + indirectCost của summarizePeriod cùng kỳ; share = total dòng / total (null nếu total = 0)
+
+findRevenueReconciliationIssues(settlements, revenueLines, period) → { settlementId; rentalId; expected; recognized; diff }[]
+  Settlement COMPLETED có completedAt ∈ kỳ và checkSettlementRevenueReconciliation(...).diff ≠ 0   // EX-07 UseCase
+
+selectReportVehicleRows(rows: VehiclePerformanceRow[], vehicles) → VehiclePerformanceRow[]
+  giữ mọi xe không INACTIVE; xe INACTIVE chỉ giữ nếu có phát sinh (revenue ≠ 0 / directCost ≠ 0 / rentalCount / incidentCount)  // EX-05
+  BẤT BIẾN: Σ estimatedProfit các dòng = summarizePeriod.operatingProfit (mọi Revenue Line/Cost DIRECT đều gắn xe)
+sortVehicleRows(rows, key: 'PROFIT' | 'REVENUE' | 'UTILIZATION') → giảm dần (utilization null xếp cuối)
+```
+
+Switch "Loại chi phí bất thường" (EX-04) xử lý **một lần** ở màn: `costEntriesForReport = exclude ? costEntries.filter(c
+=> !c.isUnusual) : costEntries`, rồi truyền vào mọi hàm (KPI, biểu đồ, Hiệu quả xe, Chi phí) — không thêm tham số
+riêng cho từng hàm. Mặc định **tắt** (tính đủ).
+
+### 19.4. UI
+
+- **`FinanceReportScreen`** (`screens/`): kiểm `can('FINANCE_REPORT','VIEW')` — thiếu quyền thì `PageHeader` + thông
+  điệp không có quyền (AC-RV-012, truy cập thẳng URL), không gọi dữ liệu nào khác. `PageHeader` (tiêu đề "Báo cáo tài
+  chính", mô tả) + dòng ghi chú: "Ghi nhận doanh thu khi quyết toán hoàn tất" (`REVENUE_RECOGNITION_POLICY_LABELS`) ·
+  "Số liệu chưa chốt kỳ — có thể thay đổi khi phát sinh điều chỉnh" (`// TODO(OQ: RevenueCost-BRD.md §28 Q11/Q13 …)`).
+  Comment đầu file `// TODO(OQ: RevenueCost-BRD.md §28 Q14/Q15/Q16 — danh mục báo cáo, KPI, người xem chưa chốt; dựng
+  theo BRD §16)`. Dữ liệu: `useRevenueLines()`, `useCostEntries()`, `useCashEntries()`, `useSettlements()`,
+  `useRentals()` (barrel `rentals`), `useIncidents()` (barrel `incidents`), `useVehicleBlocks()` (barrel `calendar`),
+  `useVehicles` + `useCustomers` (deep import `hooks` — tiền lệ đã chấp nhận). `today = new Date()` một lần qua
+  `useMemo`. Khi đổi kỳ: đặt lại độ chi tiết theo `suggestGranularity` (người dùng vẫn đổi tay được).
+- **Tổng quan** (CR-2026-018): `FinanceKpiCards` — 7 thẻ: Doanh thu ghi nhận · Thực thu · Chi phí trực tiếp · **Lợi
+  nhuận vận hành** (badge "Ước tính quản trị" — RV-BR-09) · Chi phí gián tiếp · Còn lại sau chi phí chung · Số lượt hoàn
+  tất; mỗi thẻ: số kỳ này + "so kỳ trước" (`calcChangeRatio` ±x,x% hoặc "—", kèm khoảng ngày kỳ so sánh ở tooltip/
+  dòng phụ). Màu ± trung tính (`text-muted-foreground`), không tô xanh/đỏ. Biểu đồ `FinanceTrendChart` (cột Doanh thu
+  + cột Chi phí trực tiếp + đường Lợi nhuận vận hành). Bảng theo xe (`VehiclePerformanceTable variant="compact"`:
+  Biển số · Doanh thu · Chi phí TT · Lợi nhuận · Utilization, sắp Lợi nhuận giảm dần) — click hàng mở
+  `VehicleFinanceSheet`. Dòng chú thích AC-RV-009 (`vi.finance.revenueCost.estimateNote` dùng lại).
+- **Doanh thu** (`RevenueReportPanel`, Report 01): lọc Xe + Khách (Select có "Tất cả"; lọc `revenueLines` và
+  `settlements` theo `vehicleId`/`customerId` trước khi gọi `buildTimeSeries`); biểu đồ cột doanh thu; bảng Mốc ·
+  Doanh thu · Số lượt · TB/lượt + dòng tổng; bảng cơ cấu theo danh mục (Danh mục · Thu · Giảm trừ · Đảo quyết toán ·
+  Thuần · %); danh sách dòng giảm trừ (Ngày · Lượt thuê link `/rentals/:id` · Danh mục · Số tiền · Ghi chú); nếu
+  `findRevenueReconciliationIssues` ≠ rỗng → khối cảnh báo liệt kê lượt + số lệch (seed kỳ vọng rỗng).
+- **Hiệu quả xe** (`VehiclePerformanceTable variant="full"`, Report 02): Biển số · Hạng · Sở hữu · Số lượt · Ngày thuê
+  · Ngày khả dụng · Utilization (1 chữ số thập phân) · Doanh thu · Chi phí TT · Lợi nhuận ước tính · Sự cố; Select sắp
+  xếp Lợi nhuận/Doanh thu/Utilization; dòng tổng; banner xe ký gửi khi có xe `CONSIGNED` trong bảng (dùng lại
+  `vi.finance.revenueCost.profitConsignmentBanner`; `// TODO(Phase 5)` + `// TODO(OQ: RevenueCost-BRD.md §28 Q18 …)`);
+  click hàng → Sheet. Mobile `< sm`: card thay bảng.
+- **Chi phí** (`CostBreakdownPanel`, Report 05): bảng Loại · Số bản ghi · Tổng · % · Trực tiếp · Gián tiếp + dòng tổng;
+  biểu đồ cột ngang theo loại (`BarChart layout="vertical"`); link "Xem chi tiết chi phí" → `/finance/costs`.
+- **`VehicleFinanceSheet`** (`components/`): `Sheet` phải, `w-full sm:max-w-3xl overflow-y-auto`; tiêu đề biển số +
+  hãng/dòng; link "Mở hồ sơ xe" → `paths.vehicleDetail(id)`; bên trong `Tabs` Doanh thu / Chi phí / Lợi nhuận render
+  `VehicleRevenueTab`/`VehicleCostTab`/`VehicleProfitTab` với prop mới `initialSelection` = kỳ đang chọn của báo cáo
+  (`key` theo `vehicleId + from + to` để reset). Gate: chỉ cho mở khi `can('VEHICLE','EXPORT')` (CR-2026-036 — cùng
+  gate 3 tab ở Vehicle Detail); thiếu quyền thì hàng không click được.
+- **3 tab R1**: thêm prop tuỳ chọn `initialSelection?: PeriodSelection` (mặc định giữ `LAST_12_MONTHS` — Vehicle
+  Detail không đổi hành vi). `VehicleProfitTab` thêm `FinanceTrendChart` theo tháng (dữ liệu `buildMonthlyVehicleSeries`)
+  phía trên bảng tháng.
+- **`FinanceTrendChart`** (`components/`): `ResponsiveContainer width="100%" height={260}` + `ComposedChart`; props
+  `{ data: { bucket; revenue; directCost; profit }[]; granularity }`; màu **chỉ** `var(--color-primary)` (doanh thu),
+  `var(--color-status-pending)` (chi phí), `var(--color-status-done)` (lợi nhuận); trục Y rút gọn bằng
+  `Intl.NumberFormat('vi-VN', { notation: 'compact' })` khai báo trong component; tooltip `formatVnd`; nhãn mốc: Ngày
+  `dd/MM` · Tuần "Tuần dd/MM" (chuỗi "Tuần" ở `vi.ts`) · Tháng `MM/yyyy`. Rỗng (mọi giá trị 0) → thông điệp trạng
+  thái rỗng thay vì trục trống.
+- Chuỗi mới: namespace `vi.finance.reports.*` (sau §19.2 điểm 3 không phải sửa kiểu ở 2 dialog). Không chuỗi nào chứa
+  `§`, `UC-`, `AC-`, `.md`, "Phase".
+- Responsive §11.5.
+
+### 19.5. File
+
+| Thao tác | File |
+| --- | --- |
+| Tạo | `src/features/finance/screens/FinanceReportScreen.tsx` · `components/FinanceKpiCards.tsx` · `FinanceTrendChart.tsx` · `VehiclePerformanceTable.tsx` · `RevenueReportPanel.tsx` · `CostBreakdownPanel.tsx` · `VehicleFinanceSheet.tsx` |
+| Sửa | `src/features/finance/model.ts` (hàm §19.3 + `calcSettlementCollectOutstanding`) · `api.ts` (`completeSettlement` — chỉ cờ + chuỗi audit) · `hooks.ts` (`invalidatePayment`) · `seed.ts` (cờ `completedWithDebt` tính bằng hàm) · `index.ts` (`FinanceReportScreen`) |
+| Sửa | `components/SettlementCompleteDialog.tsx` (kiểu khoá + cảnh báo) · `PostSettlementChargeDialog.tsx` (chỉ kiểu khoá) · `VehicleRevenueTab.tsx` / `VehicleCostTab.tsx` (prop `initialSelection`) · `VehicleProfitTab.tsx` (prop + biểu đồ) |
+| Sửa | `src/shared/i18n/vi.ts` (`vi.finance.reports.*`; sửa `completeWithDebtWarning`) · `src/app/routes.tsx` (thay `ComingSoon` `/finance/reports`; giữ import `ComingSoon` vì route khác còn dùng) · `src/shared/fixtures/seedAll.ts` (`SEED_VERSION` 19) |
+| **Cấm** | mọi file `features/vehicles/*`, `rentals/*`, `incidents/*`, `maintenance/*`, `calendar/*`, `customers/*`; `enums.ts`, `permissions.ts`, `paths.ts`, `nav.tsx`, `shared/lib/*`, `shared/ui/*`, `package.json`; mọi file `docs/*`, `CHANGELOG.md` |
+
+### 19.6. Definition of Done — Round 2
+
+- [ ] `npx tsc -b`, `npx oxlint`, `npm run build` sạch (cảnh báo chunk > 500 kB do `recharts` chấp nhận — §0.1 F7,
+      ghi rõ trong báo cáo); `grep -rn '\*/[a-zA-Z]' src/` không có kết quả mới.
+- [ ] `/finance/reports` không còn `ComingSoon`; `OPERATION_STAFF` vào thẳng URL thấy thông điệp không có quyền.
+- [ ] **Tính tay kiểm chứng (ghi số cụ thể vào báo cáo bàn giao):** chọn preset **Tháng trước** — (a) liệt kê Revenue
+      Line có `recognitionDate` trong tháng (theo Settlement/PSC seed) → Σ = thẻ Doanh thu ghi nhận = Σ cột Doanh thu
+      bảng theo xe = Σ bucket biểu đồ = Σ cột Thuần ở cơ cấu danh mục; (b) liệt kê CostEntry trong tháng (lát Cost Record
+      nhập tay + sự cố + bảo dưỡng) → Σ DIRECT = thẻ Chi phí trực tiếp, Σ INDIRECT = thẻ Chi phí gián tiếp, tổng = dòng
+      tổng Report 05; (c) Σ Lợi nhuận các xe = thẻ Lợi nhuận vận hành; (d) bật "Loại chi phí bất thường" ở kỳ chứa
+      khoản `OPERATIONS` 22.000.000 (≈ −35 ngày) → Chi phí gián tiếp giảm đúng 22.000.000, các thẻ khác không đổi.
+- [ ] Report 02 một xe (vd `veh_017`, `LAST_12_MONTHS`) khớp từng số với tab Lợi nhuận Vehicle Detail cùng kỳ; drill-down
+      mở đúng kỳ báo cáo đang chọn (CR-2026-018); Vehicle Detail mở trực tiếp vẫn mặc định 12 tháng gần nhất.
+- [ ] "So kỳ trước": Tháng này ↔ tháng lịch trước; 30 ngày qua ↔ 30 ngày liền trước; kỳ trước bằng 0 → "—".
+- [ ] **Badge "Đóng kèm công nợ":** không còn ở `stl_034`/`stl_037` (và `stl_038` bản hiện tại); **vẫn hiện** ở
+      `stl_026`; ghi trong báo cáo giá trị `completedWithDebt` của cả 13 Settlement `COMPLETED` + snapshot `stl_038` bản 1
+      (`true`) — tất cả do `calcSettlementCollectOutstanding` tính. Cảnh báo trong dialog đóng lượt dùng cùng hàm.
+- [ ] Ghi/xác nhận/huỷ giao dịch trong Sổ giao dịch → quay lại Báo cáo, thẻ Thực thu cập nhật (invalidate §19.2 điểm 1).
+- [ ] Biểu đồ chỉ dùng biến màu theme (không hex — `grep -rn '#[0-9a-fA-F]\{3,6\}' src/features/finance` không có kết
+      quả mới); không chuỗi UI/lỗi/audit mới nào chứa `§`/`UC-`/`AC-`/`.md`/"Phase"; 2 dialog dùng kiểu
+      `FinanceStringKey`; `vehicles/*` không có diff.
+
+### 19.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §0.2-§0.4, §3.5-§3.6, §4, §11.3, §11.5, §12 và **§19 toàn bộ**.
+2. `../thien-bao-car-docs/modules/RevenueCost-BRD.md` §12, §14, §16 (Report 01/02/05), §23 AC-RV-005/006/009/012/014,
+   §24 EX-04/EX-05; `RevenueCost-UseCase.md` §12 (UC-RV-08), §14 (UC-RV-10), §16 (UC-RV-12), §24 EX-07.
+3. `../thien-bao-car-docs/modules/RentalSettlement-BRD.md` §15, §16.1, §23 AC-RS-008/010, §24 EX-02 (nợ a).
+4. `../thien-bao-car-docs/WebappQuanTri.md` §11.2 (gạch "Báo cáo tài chính").
+5. `src/features/finance/model.ts` dòng 100-175 (`SettlementPaymentRequest`, `Settlement`), 467-492
+   (`getCompletionBlockers`), 1019-1044 (`calcRequestProgress`), 1239-1256 (`buildSettlementPaymentRequest`), 1716-1840
+   (kỳ phân tích), 1957-1962, 2080-2254 (tổng hợp R1).
+6. `src/features/finance/api.ts` dòng 842-892 (`completeSettlement`), 1231-1242 (đọc Payment storage).
+7. `src/features/finance/hooks.ts` dòng 30-62, 270-300, 405-463.
+8. `src/features/finance/seed.ts` dòng 913-968 (`stl_026`), 1193-1218, 1277-1517 (`seedRevenueHistory`).
+9. `src/features/finance/components/SettlementCompleteDialog.tsx`, `PostSettlementChargeDialog.tsx` dòng 1-40,
+   `VehicleProfitTab.tsx`, `VehicleRevenueTab.tsx`, `VehicleCostTab.tsx` dòng 1-40, `FinancePeriodPicker.tsx`,
+   `screens/CostRecordsScreen.tsx` (mẫu màn có kỳ + bảng/card).
+10. `src/shared/i18n/vi.ts` dòng 1150-1160, 1495-1640 (`vi.finance.revenueCost`); `src/app/routes.tsx`;
+    `src/shared/ui/sheet.tsx`, `switch.tsx`; `src/features/vehicles/model.ts` dòng 40-70 (chỉ đọc `Vehicle`).
+11. Tài liệu `recharts` v3 (`ResponsiveContainer`, `ComposedChart`, `BarChart`, `Bar`, `Line`, `XAxis`, `YAxis`,
+    `Tooltip`, `Legend`) — chỉ khi cần.
+
+### 19.8. Thứ tự làm
+
+1. Nợ (c) kiểu khoá → `vi.ts` (sửa chuỗi cảnh báo + khung `reports`). 2. `calcSettlementCollectOutstanding` →
+`completeSettlement` → `SettlementCompleteDialog` → seed (cờ) → `SEED_VERSION` 19. 3. `invalidatePayment`. 4. Hàm
+§19.3. 5. `FinanceTrendChart` → `FinanceKpiCards` → `VehiclePerformanceTable` → `VehicleFinanceSheet` (+ prop
+`initialSelection` 3 tab, biểu đồ tab Lợi nhuận) → `RevenueReportPanel` → `CostBreakdownPanel` → `FinanceReportScreen`
+→ `index.ts` → `routes.tsx`. 6. 3 cổng + grep + tính tay §19.6.

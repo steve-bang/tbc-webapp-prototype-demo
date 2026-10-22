@@ -15,6 +15,17 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 4.3 Round 2 — Báo cáo tài chính** (`/finance/reports`, theo
+  [`docs/REVENUE-COST-PLAN.md`](docs/REVENUE-COST-PLAN.md) §19). 4 tab: Tổng quan (7 thẻ KPI so kỳ trước, biểu đồ
+  doanh thu/chi phí trực tiếp/lợi nhuận, bảng theo xe) · Doanh thu (theo ngày/tuần/tháng, lọc xe/khách, cơ cấu danh
+  mục, dòng giảm trừ, cảnh báo lệch quyết toán ↔ doanh thu) · Hiệu quả xe (sắp theo lợi nhuận/doanh thu/tỉ lệ khai
+  thác, dòng tổng) · Chi phí (theo loại, trực tiếp/gián tiếp). Công tắc loại chi phí bất thường; drill-down theo xe
+  (Sheet 3 tab tài chính, giữ kỳ đang chọn). Biểu đồ `recharts` chỉ dùng màu theme, thêm vào tab Lợi nhuận Vehicle
+  Detail. Người thiếu quyền xem báo cáo không tải dữ liệu. Gộp kèm: KPI Thực thu làm mới khi ghi/xác nhận/huỷ giao
+  dịch; cờ "Đóng kèm công nợ" tính theo số còn phải thu thực tế lúc đóng (`stl_034/037` hết hiện sai, `stl_026`
+  giữ), seed tính bằng cùng hàm, `SEED_VERSION` 19; kiểu khoá i18n `FinanceStringKey`. Review `tech-lead` đạt vòng
+  1, không Blocker; ghi 4 nợ nhỏ (lazy-load route báo cáo do bundle 1,86 MB, ghi chú lát phân bổ chi phí ngày
+  tương lai…) vào `IMPLEMENTATION-PLAN.md` Phase 4.3.
 - **Phase 4.3 Round 1 — Phân tích tài chính: lõi dữ liệu + Chi phí vận hành + 3 tab xe** (`features/finance`,
   module `RV`, theo [`docs/REVENUE-COST-PLAN.md`](docs/REVENUE-COST-PLAN.md)). Doanh thu ghi nhận
   `ON_SETTLEMENT` (CR-2026-048) suy ra từ quyết toán/khoản phát sinh sau quyết toán, không lưu riêng — đảo

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useCostEntries, useRevenueLines, useSettlements } from '../hooks'
 import { REVENUE_RECOGNITION_POLICY, buildMonthlyVehicleSeries, buildVehiclePerformance, initialPeriodSelection, type PeriodSelection } from '../model'
 import { FinancePeriodPicker } from './FinancePeriodPicker'
+import { FinanceTrendChart } from './FinanceTrendChart'
 
 /** Tỉ lệ 0..1 → "80%" / "73,3%" (1 chữ số thập phân, AC-RV-014). */
 function formatUtilization(value: number | null): string {
@@ -26,8 +27,9 @@ function formatMonth(key: string): string {
  * Tab "Lợi nhuận" của Vehicle Detail — `docs/REVENUE-COST-PLAN.md` §11.2 (một dòng Report 02 cho một xe + bảng theo tháng).
  * Lợi nhuận = Doanh thu − Chi phí trực tiếp (CR-2026-048); chi phí gián tiếp không trừ vào xe (AC-RV-009).
  */
-export function VehicleProfitTab({ vehicle }: { vehicle: Vehicle }) {
-  const [selection, setSelection] = useState<PeriodSelection>(() => initialPeriodSelection('LAST_12_MONTHS'))
+export function VehicleProfitTab({ vehicle, initialSelection }: { vehicle: Vehicle; initialSelection?: PeriodSelection }) {
+  // `initialSelection` (drill-down từ Báo cáo tài chính) — mặc định giữ 12 tháng gần nhất như ở Vehicle Detail.
+  const [selection, setSelection] = useState<PeriodSelection>(() => initialSelection ?? initialPeriodSelection('LAST_12_MONTHS'))
   const { data: revenueLines = [] } = useRevenueLines({ vehicleId: vehicle.id })
   const { data: costEntries = [] } = useCostEntries({ vehicleId: vehicle.id })
   const { data: settlements = [] } = useSettlements()
@@ -92,6 +94,7 @@ export function VehicleProfitTab({ vehicle }: { vehicle: Vehicle }) {
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">{vi.finance.revenueCost.profitMonthlyTitle}</h3>
+        <FinanceTrendChart data={monthly.map((m) => ({ bucket: m.month, revenue: m.revenue, directCost: m.directCost, profit: m.profit }))} granularity="MONTH" />
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

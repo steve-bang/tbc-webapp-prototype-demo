@@ -492,6 +492,24 @@ export function getCompletionBlockers(settlement: Settlement): SettlementBlocker
 }
 
 /**
+ * RentalSettlement-BRD.md §15 / EX-02 — số tiền khách CÒN PHẢI NỘP trên các yêu cầu thu (`COLLECT`) của quyết toán,
+ * tại thời điểm `asOf` (mặc định: hiện tại = mọi giao dịch). Yêu cầu chưa sang Payment = chưa thu đồng nào.
+ * "Đóng kèm công nợ" (`completedWithDebt`) = outstanding > 0 lúc đóng lượt; cờ là sự kiện lịch sử, không tự xoá khi khách trả sau.
+ * TODO(OQ: RentalSettlement-BRD.md §28 Q11 — đóng lượt khi còn công nợ; demo cho đóng khi đã tạo yêu cầu thu, không hạn mức.)
+ */
+export function calcSettlementCollectOutstanding(settlement: Pick<Settlement, 'paymentRequests'>, paymentRequests: PaymentRequest[], txns: Transaction[], asOf?: string): number {
+  const asOfTime = asOf ? parseISO(asOf).getTime() : undefined
+  const visibleTxns = asOfTime === undefined ? txns : txns.filter((t) => parseISO(t.confirmedAt ?? t.performedAt).getTime() <= asOfTime)
+  let outstanding = 0
+  for (const spr of settlement.paymentRequests) {
+    if (spr.type !== 'COLLECT' || spr.status !== 'REQUESTED') continue
+    const pr = paymentRequests.find((p) => p.settlementRequestId === spr.id && p.status !== 'CANCELLED')
+    outstanding += pr ? calcRequestProgress(pr, visibleTxns).remaining : spr.amount
+  }
+  return outstanding
+}
+
+/**
  * EX-05 — ghép dòng cũ với dòng tính lại từ nguồn hiện tại: dòng nguồn mới →
  * thêm `DRAFT`; dòng nguồn biến mất → xoá nếu `DRAFT`, nếu không thì về
  * `DRAFT` + `sourceChanged`; `estimatedAmount` đổi trên dòng đã chốt → về
@@ -2250,6 +2268,238 @@ export function breakdownCostByCategory(entries: CostEntry[]): { category: CostC
     map.set(e.category, row)
   }
   return Array.from(map.values()).sort((a, b) => b.total - a.total)
+}
+
+// ---- Báo cáo tài chính (REVENUE-COST-PLAN.md §19.3) — hàm thuần, UI chỉ hiển thị kết quả ----
+
+/** `RevenueCost-BRD.md` §14 "so với kỳ trước": tháng/quý/năm lịch so với kỳ lịch liền trước; còn lại so với kỳ cùng độ dài liền trước. */
+export function comparisonPeriodOf(selection: PeriodSelection): FinancePeriod {
+  const from = parseISO(selection.period.from)
+  switch (selection.preset) {
+    case 'THIS_MONTH':
+    case 'LAST_MONTH': {
+      const prev = subMonths(from, 1)
+      return { from: dateKeyOf(startOfMonth(prev)), to: dateKeyOf(endOfMonth(prev)) }
+    }
+    case 'THIS_QUARTER': {
+      const prev = subMonths(from, 3)
+      return { from: dateKeyOf(startOfQuarter(prev)), to: dateKeyOf(endOfQuarter(prev)) }
+    }
+    case 'THIS_YEAR': {
+      const prev = subMonths(from, 12)
+      return { from: dateKeyOf(startOfYear(prev)), to: dateKeyOf(endOfYear(prev)) }
+    }
+    default:
+      return previousPeriod(selection.period)
+  }
+}
+
+/** Kỳ trước bằng 0 thì không có tỉ lệ (`null`, UI hiện "—"); ngược lại (hiện tại − trước) / |trước|. */
+export function calcChangeRatio(current: number, previous: number): number | null {
+  if (previous === 0) return null
+  return (current - previous) / Math.abs(previous)
+}
+
+/** Gợi ý độ chi tiết khi đổi kỳ: ≤ 31 ngày theo ngày · ≤ 92 ngày theo tuần · còn lại theo tháng. */
+export function suggestGranularity(period: FinancePeriod): ReportGranularity {
+  const days = differenceInCalendarDays(parseISO(period.to), parseISO(period.from)) + 1
+  if (days <= 31) return 'DAY'
+  if (days <= 92) return 'WEEK'
+  return 'MONTH'
+}
+
+/** RV-BR-14 — thực thu liên quan doanh thu trong kỳ (IN dương, OUT âm). */
+export function sumRevenueCash(cashEntries: CashEntry[], period: FinancePeriod): number {
+  return cashEntries.filter((c) => c.revenueRelated && isDateInPeriod(c.date, period)).reduce((sum, c) => sum + c.signedAmount, 0)
+}
+
+/** Nhãn hiển thị của khoá mốc: Ngày `dd/MM` · Tuần "<weekPrefix> dd/MM" (ngày thứ Hai) · Tháng `MM/yyyy`. */
+export function bucketDisplayLabel(bucket: string, granularity: ReportGranularity, weekPrefix: string): string {
+  if (granularity === 'MONTH') return `${bucket.slice(5, 7)}/${bucket.slice(0, 4)}`
+  const day = `${bucket.slice(8, 10)}/${bucket.slice(5, 7)}`
+  return granularity === 'WEEK' ? `${weekPrefix} ${day}` : day
+}
+
+/** Một mốc của biểu đồ/báo cáo theo thời gian. `bucket` là khoá của `bucketKeyOf` (ngày · thứ Hai của tuần · `yyyy-MM`). */
+export interface TimeSeriesPoint {
+  bucket: string
+  revenue: number
+  directCost: number
+  indirectCost: number
+  operatingProfit: number
+  cashIn: number
+  rentalCount: number
+  /** Report 01 "Doanh thu TB/lượt" — `null` khi không có lượt hoàn tất. */
+  avgRevenuePerRental: number | null
+}
+
+/**
+ * Report 01 + biểu đồ Tổng quan. BẤT BIẾN: Σ các mốc = `summarizePeriod` cùng kỳ (doanh thu, chi phí trực tiếp, chi phí gián tiếp).
+ * AC-RV-006 (ghi nhận theo Recognition Date), AC-RV-009 (gián tiếp tách riêng), RV-BR-14 (thực thu).
+ */
+export function buildTimeSeries(input: {
+  revenueLines: RevenueLine[]
+  costEntries: CostEntry[]
+  cashEntries: CashEntry[]
+  settlements: Settlement[]
+  period: FinancePeriod
+  granularity: ReportGranularity
+}): TimeSeriesPoint[] {
+  const { period, granularity } = input
+  const points = new Map<string, TimeSeriesPoint>(
+    enumeratePeriodBuckets(period, granularity).map((bucket) => [
+      bucket,
+      { bucket, revenue: 0, directCost: 0, indirectCost: 0, operatingProfit: 0, cashIn: 0, rentalCount: 0, avgRevenuePerRental: null },
+    ]),
+  )
+  for (const line of input.revenueLines) {
+    if (!isDateInPeriod(line.recognitionDate, period)) continue
+    const point = points.get(bucketKeyOf(line.recognitionDate, granularity))
+    if (point) point.revenue += line.amount
+  }
+  for (const cost of input.costEntries) {
+    if (!isDateInPeriod(cost.costDate, period)) continue
+    const point = points.get(bucketKeyOf(cost.costDate, granularity))
+    if (!point) continue
+    if (cost.allocationType === 'DIRECT') point.directCost += cost.amount
+    else point.indirectCost += cost.amount
+  }
+  for (const cash of input.cashEntries) {
+    if (!cash.revenueRelated || !isDateInPeriod(cash.date, period)) continue
+    const point = points.get(bucketKeyOf(cash.date, granularity))
+    if (point) point.cashIn += cash.signedAmount
+  }
+  for (const settlement of input.settlements) {
+    if (settlement.status !== 'COMPLETED' || !settlement.completedAt || !isDateInPeriod(settlement.completedAt, period)) continue
+    const point = points.get(bucketKeyOf(settlement.completedAt, granularity))
+    if (point) point.rentalCount += 1
+  }
+  return Array.from(points.values()).map((point) => ({
+    ...point,
+    operatingProfit: point.revenue - point.directCost,
+    avgRevenuePerRental: point.rentalCount > 0 ? Math.round(point.revenue / point.rentalCount) : null,
+  }))
+}
+
+/** Một dòng cơ cấu doanh thu theo danh mục. `reduction` ≤ 0; `reversal` là Σ dòng đối ứng khi đảo quyết toán (có dấu). */
+export interface RevenueCategoryRow {
+  category: RevenueCategory
+  charge: number
+  reduction: number
+  reversal: number
+  net: number
+  /** Tỉ trọng `net` so với tổng `net`; `null` khi tổng bằng 0. */
+  share: number | null
+}
+
+/** BẤT BIẾN: Σ `net` = doanh thu của kỳ, Σ `reduction` = giảm trừ của kỳ (`summarizePeriod`) — RV-BR-06, AC-RV-002. Sắp theo `net` giảm dần. */
+export function buildRevenueByCategory(revenueLines: RevenueLine[], period: FinancePeriod): RevenueCategoryRow[] {
+  const map = new Map<RevenueCategory, RevenueCategoryRow>()
+  for (const line of revenueLines) {
+    if (!isDateInPeriod(line.recognitionDate, period)) continue
+    const row = map.get(line.category) ?? { category: line.category, charge: 0, reduction: 0, reversal: 0, net: 0, share: null }
+    if (line.nature === 'CHARGE') row.charge += line.amount
+    else if (line.nature === 'REDUCTION') row.reduction += line.amount
+    else row.reversal += line.amount
+    row.net += line.amount
+    map.set(line.category, row)
+  }
+  const rows = Array.from(map.values()).sort((a, b) => b.net - a.net)
+  const total = rows.reduce((sum, r) => sum + r.net, 0)
+  return rows.map((r) => ({ ...r, share: total === 0 ? null : r.net / total }))
+}
+
+/** Một dòng Report 05 — chi phí theo loại. */
+export interface CostBreakdownRow {
+  category: CostCategory
+  count: number
+  total: number
+  /** Tỉ trọng so với tổng chi phí; `null` khi tổng bằng 0. */
+  share: number | null
+  directTotal: number
+  indirectTotal: number
+}
+
+/** Report 05. BẤT BIẾN: `total` = chi phí trực tiếp + gián tiếp của `summarizePeriod` cùng kỳ; `count` = số CostEntry trong kỳ. Sắp theo tổng giảm dần. */
+export function buildCostBreakdown(costEntries: CostEntry[], period: FinancePeriod): { rows: CostBreakdownRow[]; total: number; directTotal: number; indirectTotal: number; count: number } {
+  const map = new Map<CostCategory, CostBreakdownRow>()
+  for (const entry of costEntries) {
+    if (!isDateInPeriod(entry.costDate, period)) continue
+    const row = map.get(entry.category) ?? { category: entry.category, count: 0, total: 0, share: null, directTotal: 0, indirectTotal: 0 }
+    row.count += 1
+    row.total += entry.amount
+    if (entry.allocationType === 'DIRECT') row.directTotal += entry.amount
+    else row.indirectTotal += entry.amount
+    map.set(entry.category, row)
+  }
+  const sorted = Array.from(map.values()).sort((a, b) => b.total - a.total)
+  const total = sorted.reduce((sum, r) => sum + r.total, 0)
+  return {
+    rows: sorted.map((r) => ({ ...r, share: total === 0 ? null : r.total / total })),
+    total,
+    directTotal: sorted.reduce((sum, r) => sum + r.directTotal, 0),
+    indirectTotal: sorted.reduce((sum, r) => sum + r.indirectTotal, 0),
+    count: sorted.reduce((sum, r) => sum + r.count, 0),
+  }
+}
+
+/** EX-07 (Use Case) — Settlement `COMPLETED` trong kỳ mà Σ dòng doanh thu lệch `completedTotals.finalAmount`. */
+export function findRevenueReconciliationIssues(
+  settlements: Settlement[],
+  revenueLines: RevenueLine[],
+  period: FinancePeriod,
+): { settlementId: string; rentalId: string; expected: number; recognized: number; diff: number }[] {
+  const issues: { settlementId: string; rentalId: string; expected: number; recognized: number; diff: number }[] = []
+  for (const settlement of settlements) {
+    if (settlement.status !== 'COMPLETED' || !settlement.completedAt || !isDateInPeriod(settlement.completedAt, period)) continue
+    const { expected, recognized, diff } = checkSettlementRevenueReconciliation(settlement, revenueLines)
+    if (diff !== 0) issues.push({ settlementId: settlement.id, rentalId: settlement.rentalId, expected, recognized, diff })
+  }
+  return issues
+}
+
+/**
+ * EX-05 — xe `INACTIVE` chỉ hiện trong Report 02 nếu có phát sinh trong kỳ. BẤT BIẾN: Σ `estimatedProfit` các dòng giữ lại
+ * = Lợi nhuận vận hành của kỳ (mọi dòng doanh thu/chi phí trực tiếp đều gắn xe; xe bị loại không có phát sinh nên lợi nhuận 0).
+ */
+export function selectReportVehicleRows(rows: VehiclePerformanceRow[], vehicles: Vehicle[]): VehiclePerformanceRow[] {
+  const statusById = new Map(vehicles.map((v) => [v.id, v.status]))
+  return rows.filter((row) => {
+    if (statusById.get(row.vehicleId) !== 'INACTIVE') return true
+    return row.revenue !== 0 || row.directCost !== 0 || row.rentalCount > 0 || row.incidentCount > 0
+  })
+}
+
+/** Dòng tổng của Report 02. Utilization tổng = Σ ngày thuê / Σ ngày khả dụng (AC-RV-014); `null` khi Σ ngày khả dụng = 0. */
+export function sumVehicleRows(rows: VehiclePerformanceRow[]): Omit<VehiclePerformanceRow, 'vehicleId'> {
+  const total = rows.reduce(
+    (acc, r) => ({
+      revenue: acc.revenue + r.revenue,
+      directCost: acc.directCost + r.directCost,
+      estimatedProfit: acc.estimatedProfit + r.estimatedProfit,
+      rentalCount: acc.rentalCount + r.rentalCount,
+      rentalDays: acc.rentalDays + r.rentalDays,
+      availableDays: acc.availableDays + r.availableDays,
+      incidentCount: acc.incidentCount + r.incidentCount,
+    }),
+    { revenue: 0, directCost: 0, estimatedProfit: 0, rentalCount: 0, rentalDays: 0, availableDays: 0, incidentCount: 0 },
+  )
+  return { ...total, utilization: total.availableDays > 0 ? total.rentalDays / total.availableDays : null }
+}
+
+export type VehicleSortKey = 'PROFIT' | 'REVENUE' | 'UTILIZATION'
+
+/** Sắp giảm dần theo tiêu chí; Utilization `null` (không có ngày khả dụng) xếp cuối. */
+export function sortVehicleRows(rows: VehiclePerformanceRow[], key: VehicleSortKey): VehiclePerformanceRow[] {
+  const value = (row: VehiclePerformanceRow): number | null => (key === 'PROFIT' ? row.estimatedProfit : key === 'REVENUE' ? row.revenue : row.utilization)
+  return [...rows].sort((a, b) => {
+    const va = value(a)
+    const vb = value(b)
+    if (va === null && vb === null) return 0
+    if (va === null) return 1
+    if (vb === null) return -1
+    return vb - va
+  })
 }
 
 // ---- Form schema Cost Record (dùng thật trong dialog — `CONVENTIONS.md` §7 ngoại lệ `finance`) ----

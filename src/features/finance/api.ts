@@ -63,6 +63,7 @@ import {
   expandCostRecord,
   findEffectiveOffset,
   fixedPscType,
+  calcSettlementCollectOutstanding,
   getCompletionBlockers,
   getIncidentPscBlocker,
   getLineDiscountedAmount,
@@ -863,7 +864,8 @@ export async function completeSettlement(id: string, actor: ActorInfo): Promise<
     }
     const totals = calcSettlementTotals(before.lines, before.waivers)
     const now = new Date().toISOString()
-    const completedWithDebt = (before.depositReconciliation?.balanceDue ?? 0) > 0
+    // RentalSettlement-BRD.md §15 / EX-02 — còn phải thu trên yêu cầu thu lúc đóng = đóng kèm công nợ (cờ lịch sử).
+    const completedWithDebt = calcSettlementCollectOutstanding(before, readAllPaymentRequests(), readAllTransactions()) > 0
     const result: Settlement = {
       ...before,
       status: 'COMPLETED',
@@ -878,7 +880,7 @@ export async function completeSettlement(id: string, actor: ActorInfo): Promise<
       action: 'COMPLETE_SETTLEMENT',
       entity: 'Settlement',
       entityId: id,
-      summary: completedWithDebt ? `Đóng lượt thuê kèm công nợ (quyết toán ${id}) — OQ RS §28 Q11` : `Đóng lượt thuê (quyết toán ${id})`,
+      summary: completedWithDebt ? `Đóng lượt thuê kèm công nợ (quyết toán ${id})` : `Đóng lượt thuê (quyết toán ${id})`,
       actorUserId: actor.userId,
       actorName: actor.fullName,
       actorRole: actor.role,

@@ -423,7 +423,7 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       (`APPROVED` 22/10/2026 — người dùng chấp nhận cả 5 đề xuất ở §13: seed lịch sử **phương án B**, giữ **3
       round**, tab Tổng quan Vehicle Detail **ngoài phạm vi**, giữ nối tiếp `features/finance` + refactor tách
       thư mục là task riêng Phase 4.4, ghi ngoại lệ form `finance` vào `CONVENTIONS.md` §7). **Round 1 `DONE`
-      (22/10/2026)**; Round 2/3 chưa giao. Chia **3 round**: Round 1 = lõi
+      (22/10/2026)**; **Round 2 `DONE` (22/10/2026)**; Round 3 chưa giao. Chia **3 round**: Round 1 = lõi
       dữ liệu (Revenue Line **suy ra** từ Settlement/PSC — đảo quyết toán xử lý bằng `reversals[]` có sẵn, không
       cần ghi thêm; Cost Record nhập tay lưu riêng + chi phí suy ra từ Sự cố/Bảo dưỡng; góc nhìn thực thu) + màn
       **Chi phí vận hành** `/finance/costs` + 3 tab Vehicle Detail; Round 2 = Báo cáo tài chính phần chính (Tổng
@@ -441,11 +441,25 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       `FINANCE_REPORT.EDIT/DELETE/EXPORT` + seed 10 lượt lịch sử `rt_030`…`rt_039` (`stl_038` từng bị đảo) + 15
       Cost Record, `SEED_VERSION` 18. Review đạt vòng 1, không Blocker.
 - [x] Nối 3 tab Revenue/Cost/Profit ở Vehicle Detail vào dữ liệu thật (Round 1).
-- [ ] **Round 2** — màn Báo cáo tài chính phần chính (`REVENUE-COST-PLAN.md` §1.3, §11.3). **Bắt buộc gộp vào
-      brief R2**: thêm invalidate `['finance','analytics']` vào `invalidatePayment` trong `finance/hooks.ts` (R2
-      dùng `useCashEntries` — giao dịch chỉ gọi `invalidatePayment` sẽ không làm mới thực thu).
+- [x] **Round 2** (22/10/2026) — màn Báo cáo tài chính phần chính (`REVENUE-COST-PLAN.md` §1.3, §11.3, **chi tiết
+      §19**; review đạt vòng 1, không Blocker): `/finance/reports` 4 tab Tổng quan (KPI + so kỳ trước + biểu đồ +
+      bảng theo xe) / Doanh thu (Report 01) / Hiệu quả xe (Report 02) / Chi phí (Report 05), drill-down
+      `VehicleFinanceSheet`, biểu đồ `recharts` (kể cả tab Lợi nhuận Vehicle Detail), switch loại chi phí bất thường.
+      Gộp: invalidate `['finance','analytics']` trong `invalidatePayment`; **nợ (a)** sửa cờ `completedWithDebt` theo
+      số còn phải thu thực tế lúc đóng (`calcSettlementCollectOutstanding` — suy từ RS BRD §15/EX-02, không quyết định
+      nghiệp vụ mới), seed tính bằng hàm, `SEED_VERSION` 19; **nợ (c)** kiểu khoá i18n `FinanceStringKey`.
 - [ ] **Round 3** — Report 03/04/06 + đối chiếu ghi nhận ↔ thực thu + xuất CSV (`REVENUE-COST-PLAN.md` §1.4, §11.4).
-- [ ] Nợ ghi nhận từ review Round 1 (không chặn, gom task dọn riêng hoặc 4.4): (a) `completedWithDebt` tính theo
+- [ ] Nợ ghi nhận từ review Round 2 (không chặn, có thể gộp vào Round 3): (d) bundle JS 1,86 MB (> 500 kB) do
+      `recharts` — lazy-load `FinanceReportScreen` bằng `React.lazy` + `Suspense` ở `app/routes.tsx` (route mỏng,
+      không đổi kiến trúc); (e) lát phân bổ chi phí (Cost Record rải theo tháng) mang `costDate` ở những ngày chưa tới
+      trong tháng hiện tại (vd `cst_002` 25/10, `cst_003` 24/10) → kỳ "Tháng này" đã tính cả phần đó — đúng RV-BR-03/
+      AC-RV-004 (ghi theo Cost Date, mỗi tháng một phần) nhưng dễ hỏi khi demo; cân nhắc thêm ghi chú dưới thẻ Chi phí
+      hoặc đặt ngày lát = ngày 1 của tháng; (f) kiểu `FinanceStringKey` đang khai báo lặp ở 2 dialog — gom một chỗ
+      (vd `finance/model.ts` hoặc file kiểu riêng); (g) `calcSettlementCollectOutstanding(asOf)` lọc giao dịch theo
+      thời điểm nhưng trạng thái hiệu lực (đảo/huỷ) lấy theo hiện tại — chấp nhận cho seed, ghi chú nếu dùng rộng hơn.
+- [ ] Nợ ghi nhận từ review Round 1 — **(a) và (c) ĐÃ XỬ LÝ ở Round 2** (`REVENUE-COST-PLAN.md` §19.2: cờ
+      `completedWithDebt` tính bằng `calcSettlementCollectOutstanding`, chỉ `stl_026` còn cờ; kiểu `FinanceStringKey`);
+      (b) còn treo (cần sửa bản ghi cũ `rentals/seed.ts` — ngoài ngoại lệ đã duyệt). Nội dung gốc: (a) `completedWithDebt` tính theo
       `depositReconciliation.balanceDue` lúc đối trừ, nên lượt đã thu đủ yêu cầu `COLLECT` trước khi đóng vẫn hiện
       "Đóng kèm công nợ" (hành vi app từ 4.1, seed `stl_034/037` phản ánh đúng) — cân nhắc tính theo số còn phải
       thu tại thời điểm đóng; (b) `rentals/seed.ts` `createdAt = pickup − 3 ngày` → lượt có pickup > +3 ngày bị

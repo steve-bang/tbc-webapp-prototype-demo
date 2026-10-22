@@ -15,11 +15,12 @@ import { FinancePeriodPicker } from './FinancePeriodPicker'
  * Tab "Chi phí" của Vehicle Detail — `docs/REVENUE-COST-PLAN.md` §11.2: chi phí trực tiếp của xe (nhập tay + sự cố + bảo dưỡng).
  * Thêm chi phí khoá sẵn `DIRECT` + xe này. Gate xem `VEHICLE.EXPORT` do màn cha; nút Thêm/Sửa/Huỷ theo `FINANCE_REPORT.*`.
  */
-export function VehicleCostTab({ vehicle }: { vehicle: Vehicle }) {
+export function VehicleCostTab({ vehicle, initialSelection }: { vehicle: Vehicle; initialSelection?: PeriodSelection }) {
   const { can } = usePermission()
   const canCreate = can('FINANCE_REPORT', 'CREATE')
 
-  const [selection, setSelection] = useState<PeriodSelection>(() => initialPeriodSelection('LAST_12_MONTHS'))
+  // `initialSelection` (drill-down từ Báo cáo tài chính) — mặc định giữ 12 tháng gần nhất như ở Vehicle Detail.
+  const [selection, setSelection] = useState<PeriodSelection>(() => initialSelection ?? initialPeriodSelection('LAST_12_MONTHS'))
   const { data: entries = [], isLoading } = useCostEntries({ vehicleId: vehicle.id })
   const { data: records = [] } = useCostRecords({ vehicleId: vehicle.id, includeReversed: true })
   const recordById = useMemo(() => new Map(records.map((r) => [r.id, r])), [records])

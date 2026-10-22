@@ -2,12 +2,13 @@ import { toast } from 'sonner'
 import { vi } from '@/shared/i18n/vi'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
-import { useCompleteSettlement } from '../hooks'
-import { getCompletionBlockers, type Settlement, type SettlementBlockerCode } from '../model'
+import { useCompleteSettlement, usePaymentRequests, useTransactions } from '../hooks'
+import { calcSettlementCollectOutstanding, getCompletionBlockers, type Settlement, type SettlementBlockerCode } from '../model'
 
 /** UC-RS-13, BRD §16, RS-BR-06/12/20, AC-RS-009/010 — liệt kê điều kiện chưa thoả (AC-RS-009). */
-// PAYMENT-PLAN.md §7/§10 — loại `'payment'`/`'receivables'` vì là object lồng, không phải chuỗi.
-const BLOCKER_LABELS: Record<SettlementBlockerCode, Exclude<keyof typeof vi.finance, 'payment' | 'receivables' | 'revenueCost'>> = {
+// Chỉ lấy khoá `vi.finance` có giá trị là chuỗi (bỏ các object lồng `payment`/`receivables`/`revenueCost`/`reports`…) — thêm namespace mới không phải sửa lại.
+type FinanceStringKey = { [K in keyof typeof vi.finance]: (typeof vi.finance)[K] extends string ? K : never }[keyof typeof vi.finance]
+const BLOCKER_LABELS: Record<SettlementBlockerCode, FinanceStringKey> = {
   DRAFT_LINES: 'blockerDraftLines',
   DISPUTED_LINES: 'blockerDisputedLines',
   DEPOSIT_NOT_RECONCILED: 'blockerDepositNotReconciled',
@@ -30,9 +31,13 @@ export function SettlementCompleteDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const completeSettlement = useCompleteSettlement()
+  // Hook gọi TRƯỚC `return null`. Khi đang tải coi như chưa thu đồng nào (cảnh báo thận trọng).
+  const paymentRequests = usePaymentRequests({ rentalId: settlement?.rentalId })
+  const transactions = useTransactions({ rentalId: settlement?.rentalId })
   if (!settlement) return null
   const blockers = getCompletionBlockers(settlement)
-  const balanceDue = settlement.depositReconciliation?.balanceDue ?? 0
+  // RentalSettlement-BRD.md §15 / EX-02 — cùng hàm với `completeSettlement()` ở api: còn phải thu trên yêu cầu thu = đóng kèm công nợ.
+  const outstanding = calcSettlementCollectOutstanding(settlement, paymentRequests.data ?? [], transactions.data ?? [])
 
   async function handleConfirm() {
     try {
@@ -60,7 +65,7 @@ export function SettlementCompleteDialog({
             </ul>
           </div>
         ) : (
-          balanceDue > 0 && <p className="text-status-pending text-sm">{vi.finance.completeWithDebtWarning}</p>
+          outstanding > 0 && <p className="text-status-pending text-sm">{vi.finance.completeWithDebtWarning}</p>
         )}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

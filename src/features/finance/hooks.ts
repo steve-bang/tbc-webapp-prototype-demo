@@ -273,6 +273,8 @@ export function useReverseSettlement() {
 
 function invalidatePayment(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['finance', 'payment'] })
+  // KPI "Thực thu" đọc `useCashEntries` (analytics) — lập lịch, biên lai, quỹ cũng phải làm mới góc nhìn thực thu.
+  queryClient.invalidateQueries({ queryKey: ANALYTICS_QUERY_KEY })
 }
 
 export function usePaymentRequests(filter?: PaymentRequestFilter) {

@@ -18,3 +18,5 @@ export { VehicleRevenueTab } from './components/VehicleRevenueTab'
 export { VehicleCostTab } from './components/VehicleCostTab'
 export { VehicleProfitTab } from './components/VehicleProfitTab'
 export type { CostRecord } from './model'
+// REVENUE-COST-PLAN.md §19 — Round 2: màn Báo cáo tài chính.
+export { FinanceReportScreen } from './screens/FinanceReportScreen'
