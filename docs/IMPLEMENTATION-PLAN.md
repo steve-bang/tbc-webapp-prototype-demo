@@ -236,7 +236,7 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       người xem.
 - [x] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng (`/incidents`, `/incidents/:id`).
 
-## Phase 4 — Tài chính — `[~]`
+## Phase 4 — Tài chính — `[x]`
 
 **Chia nhỏ 07/10/2026** theo rà soát của agent `ba` (3 module `RentalSettlement`/RS,
 `Payment`/PM, `RevenueCost`/RV) — tái cấu trúc backlog thuần, **chưa phải implementation plan chi
@@ -360,6 +360,7 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
         (schema này + `postSettlementChargeCloseFormSchema` đang không dùng); thông điệp
         `assertRentalInSettlement` cố định đuôi "không thể gửi khách xác nhận" cho cả 12 hàm;
         `usePostSettlementCharges({ settlementId: undefined })` tải toàn bộ PSC khi Settlement chưa có.
+        **→ 3 nợ này ĐÃ XỬ LÝ ở Phase 4.4 (B6, 22/10/2026).**
         Ngoài phạm vi (giữ `TODO(OQ)`): tách tranh chấp ra PSC (RS §28 Q13), thời hạn truy thu/bỏ qua khoản
         nhỏ (Q14/Q15). Ghi cho BA: trùng mã `RS-BR-21` giữa BRD §21 và UseCase §26 (§10.2).
 - [x] Cập nhật `registerSeeds.ts` phần `Settlement` (`finance/seed` chạy cuối), xoá `ComingSoon` màn
@@ -460,7 +461,7 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       tab Lợi nhuận — bundle chính 1.863,27 kB → **1.461,98 kB** (gzip 483,60 → 370,76 kB), `recharts` sang chunk riêng
       `FinanceTrendChart` 388 kB, màn báo cáo 54 kB; (e) chú thích chi phí phân bổ ngày sau hôm nay ở 3 chỗ; (f)
       `FinanceStringKey` khai báo một lần ở `model.ts`; (g) JSDoc `asOf` của `calcSettlementCollectOutstanding`.
-- [ ] Nợ ghi nhận từ review Round 3 (nhỏ, không chặn): (h) gom logic định dạng tỉ lệ % / % thay đổi — `formatPercentText`/
+- [ ] Nợ ghi nhận từ review Round 3 (nhỏ, không chặn) — **(h) ĐÃ XỬ LÝ ở Phase 4.4 (B6)**, (i) còn treo: (h) gom logic định dạng tỉ lệ % / % thay đổi — `formatPercentText`/
       `formatChangeText` (`model.ts`, dùng cho CSV) đang song song với cách định dạng % trong các component hiển thị → một
       helper chung để màn và CSV không lệch; (i) bundle chính vẫn 1,46 MB (> 500 kB, phần còn lại của app) — tách vendor
       chung (`manualChunks`/`codeSplitting`) là quyết định build riêng, cân nhắc ở Phase 6 hoặc khi nối backend thật.
@@ -477,9 +478,23 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       Phase 4 (nếu còn) — xác nhận 22/10/2026: không còn `ComingSoon` nào dưới `/finance/*`. (Ghi chú plan: `costRecords` seed trong `finance/seed.ts` — đã đăng ký sẵn qua
       `registerSeeds.ts`; `RevenueLine` là view suy ra, không seed; `ComingSoon` `/finance/reports` xoá ở Round 2.)
 
-### Phase 4.4 — Refactor tách `features/finance` theo module (RS/PM/RV) — `[ ]`
+### Phase 4.4 — Refactor tách `features/finance` theo module (RS/PM/RV) — `[x]`
 
-- [ ] **Chỉ bắt đầu sau khi Phase 4.3 `DONE`** (quyết định người dùng 22/10/2026 — `REVENUE-COST-PLAN.md`
+- [x] **DONE 22/10/2026** — kế hoạch [`docs/FINANCE-REFACTOR-PLAN.md`](FINANCE-REFACTOR-PLAN.md) (`DONE`). Tách
+      `model/api/hooks/seed.ts` (~9.400 dòng) thành tầng một chiều `core ← payment ← settlement ← revenue-cost`, gốc chỉ
+      `finance/{index,seed}.ts`; `git mv` 50 component + 7 screen. Refactor thuần: barrel 18 export, 6 storage key, query
+      key, 43 `appendAudit`, `SEED_VERSION` 19, thứ tự 5 bước seed giữ nguyên; seed snapshot toàn bộ `localStorage` +
+      số kiểm chứng (−45.760.000 / 975.000 / 7.050.000) giống hệt `14eb623` (harness tất định có đặt lại hạt giống
+      trước `forceReseed()` — plan §6.1); không vòng import; chunk chính 1.461,98 → 1.453,40 kB. Gộp 4 nợ: (h) helper
+      `formatPercentText`/`formatChangeText` dùng chung màn + CSV; `assertRentalInSettlement(actionText)` — 11 hàm đổi
+      đuôi lỗi thành "không thể cập nhật quyết toán" (**đổi chuỗi có chủ đích**, `submitForCustomer` giữ "gửi khách xác
+      nhận"); `usePostSettlementCharges(filter, { enabled })`; `PostSettlementChargeDialog` validate qua
+      `postSettlementChargeFormSchema` (thứ tự + nội dung lỗi giữ nguyên, bỏ đuôi `— UC-RS-21`). Review `tech-lead` **đạt
+      vòng 1**, không Blocker. Nợ nhỏ còn treo (không chặn): 60 import tương đối có đuôi `.ts` trong 18 file
+      `finance/**` (khác quy ước cả repo — bỏ đuôi khi chạm file); `amount` trong dialog PSC nay được `trim` trước khi
+      kiểm (trước đây " 100" bị từ chối) — chấp nhận; nợ (b) `rentals/seed.ts` + (i) bundle chính > 500 kB vẫn treo
+      (Phase 6).
+- [x] **Chỉ bắt đầu sau khi Phase 4.3 `DONE`** (quyết định người dùng 22/10/2026 — `REVENUE-COST-PLAN.md`
       §13 câu 4). `features/finance` gom 3 module (`api.ts` ~2.800, `model.ts` ~2.300 dòng sau 4.3) → tách
       thư mục con theo module (vd `finance/settlement`, `finance/payment`, `finance/revenue-cost`, mỗi nhánh đủ
       model/api/hooks/seed + barrel `finance/index.ts` giữ nguyên public API để `rentals`/`vehicles` không phải

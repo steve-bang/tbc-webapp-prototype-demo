@@ -51,6 +51,19 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Changed**
 
+- **Phase 4.4 — Refactor tách `features/finance` theo module** (theo
+  [`docs/FINANCE-REFACTOR-PLAN.md`](docs/FINANCE-REFACTOR-PLAN.md)) — **Phase 4 hoàn tất**. `model/api/hooks/seed.ts`
+  (~9.400 dòng) tách thành thư mục con xếp tầng một chiều `core ← payment ← settlement ← revenue-cost`, gốc chỉ còn
+  `index.ts` (barrel, 18 export giữ nguyên) + `seed.ts` (đăng ký 5 bước seed đúng thứ tự cũ); `git mv` 50 component +
+  7 screen. **Refactor thuần**: storage key, query key, audit action, `SEED_VERSION` 19 không đổi; snapshot seed toàn
+  bộ `localStorage` và số kiểm chứng 4.1-4.3 giống hệt commit trước (harness seed tất định — bản v2 đặt lại hạt giống
+  trước khi seed để loại nhiễu lúc nạp module); không vòng import; chunk chính giảm nhẹ 1.461,98 → 1.453,40 kB. Gộp 4
+  nợ nhỏ: helper định dạng % dùng chung màn + CSV; lỗi chặn khi biên bản trả xe hết hiệu lực nay nói đúng hành động
+  (**đổi chuỗi có chủ đích**: 11 thao tác báo "không thể cập nhật quyết toán", gửi khách xác nhận giữ nguyên);
+  không tải toàn bộ khoản phát sinh sau quyết toán khi Worksheet chưa có Settlement; dialog khoản phát sinh validate
+  qua schema (thứ tự + nội dung lỗi giữ nguyên). `CONVENTIONS.md` §3 + `docs/ARCHITECTURE.md` §2 ghi quy tắc thư mục
+  con. Review `tech-lead` **đạt vòng 1**, không Blocker; nợ nhỏ (đuôi `.ts` ở import tương đối) ghi ở
+  `IMPLEMENTATION-PLAN.md` Phase 4.4.
 - `CONVENTIONS.md` §7 — ghi ngoại lệ form `features/finance` (`useState` + `zod.safeParse()`, schema bắt buộc
   dùng thật).
 

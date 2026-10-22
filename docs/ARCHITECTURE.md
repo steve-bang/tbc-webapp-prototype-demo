@@ -32,7 +32,9 @@ src/
 │   ├── contracts                   CT (Phase 2)
 │   ├── handover-return              VH + VR (Phase 3)
 │   ├── incidents                     DI (Phase 3)
-│   ├── finance                        RS + PM + RV (Phase 4)
+│   ├── finance                        RS + PM + RV (Phase 4) — chia thư mục con từ Phase 4.4:
+│   │                                    core ← payment (PM) ← settlement (RS) ← revenue-cost (RV),
+│   │                                    gốc chỉ index.ts + seed.ts (docs/FINANCE-REFACTOR-PLAN.md)
 │   ├── consignment                     VC (Phase 5)
 │   ├── audit                            AL — đọc `shared/lib/audit.ts` (Phase 6)
 │   └── notifications                     NT (Phase 6)

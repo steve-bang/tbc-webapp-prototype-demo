@@ -45,6 +45,14 @@ Mỗi `src/features/<feature>/` gồm:
 
 - **Không import sâu vào nội bộ feature khác** (`features/x/screens/Y`) — chỉ qua
   `@/features/<x>` (barrel `index.ts`).
+- **Feature gom nhiều module chia thư mục con theo module** (áp dụng từ Phase 4.4 cho `features/finance` —
+  [`docs/FINANCE-REFACTOR-PLAN.md`](docs/FINANCE-REFACTOR-PLAN.md)): mỗi thư mục con (`payment/`, `settlement/`,
+  `revenue-cost/`) có bộ file như bảng trên (trừ `index.ts`); thứ dùng chung bởi ≥ 2 module và phải nằm dưới các
+  module đặt ở `core/`. Thư mục con xếp tầng **một chiều** (`core ← payment ← settlement ← revenue-cost`) — chỉ
+  import thư mục tầng dưới, **trực tiếp file đích bằng đường dẫn tương đối**; không tạo barrel con, không re-export
+  trung gian, không import ngược barrel/gốc của chính feature. Gốc feature chỉ giữ `index.ts` (barrel công khai) +
+  `seed.ts` (đăng ký các bước seed của thư mục con theo đúng thứ tự). Luật nghiệp vụ riêng của một module không đặt ở
+  `core/`.
 - `src/app/**` chỉ chứa route: khai path ở `app/paths.ts`, khai `<Route>` ở `app/routes.tsx` mount
   thẳng `<XxxScreen>` từ `@/features/<x>`. Không đặt business logic ở `app/`.
 - Route/menu cấp điều hướng khai thêm ở `shared/layout/nav.tsx` (kèm `resource`/`action` để
