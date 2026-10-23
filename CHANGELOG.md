@@ -15,6 +15,15 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6 Round 2 — Trung tâm thông báo** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §19).
+  `/platform/notifications` hết `ComingSoon`: các cảnh báo của R1 được chốt thành thông báo có lưu (kênh trong Webapp), không trùng
+  lặp, tự chuyển "đã hết hiệu lực" khi điều kiện không còn (giữ lại, không xoá), nội dung chụp lúc tạo. Mỗi người chỉ thấy thông báo
+  gửi cho vai trò/tài khoản của mình, trạng thái đã đọc tính riêng từng người; lọc theo loại, mức ưu tiên, đã đọc, module, khoảng
+  ngày; "Đánh dấu tất cả đã đọc". Chuông + số chưa đọc trên Topbar; Dashboard có lại "Xem tất cả". Mở thông báo tài chính lần đầu được
+  ghi nhật ký; mỗi lượt đồng bộ có một bản ghi tóm tắt. Thêm 4 quyền `NOTIFICATION` (giữ ô `TBD`) để màn Vai trò & quyền sau này hiện
+  rõ quyết định còn treo. Dữ liệu thông báo có trần dung lượng riêng; `writeJson` báo ghi thất bại để tự co dữ liệu. **`SEED_VERSION`
+  giữ 24.** Review `tech-lead` **đạt vòng 1**, không Blocker; chấp nhận 7 lệch nhỏ; chốt từ R3 tải lười các màn nền tảng vì chunk
+  chính đã sát trần (1.828/1.830 kB).
 - **Phase 6 Round 1 — Tín hiệu cảnh báo + Dashboard** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md)
   §18; plan Phase 6 `APPROVED` — người dùng duyệt 7 điểm). `/dashboard` hết `ComingSoon`: KPI vận hành (xe theo trạng thái, giao/nhận
   hôm nay, lượt đang diễn ra), widget KPI tài chính do `finance` sở hữu (doanh thu/chi phí trực tiếp/lợi nhuận vận hành "ước tính"

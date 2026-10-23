@@ -667,6 +667,9 @@ export const AUDIT_ACTIONS = [
   'APPROVE_CONSIGNMENT_PROPOSAL',
   'REJECT_CONSIGNMENT_PROPOSAL',
   'CREATE_CONSIGNMENT_ADDENDUM',
+  // Notification (NT) — DASHBOARD-PLATFORM-PLAN.md §6: NT-BR-13 (BA đề xuất gộp một bản ghi mỗi lượt đồng bộ), AC-NT-009.
+  'SYNC_NOTIFICATIONS',
+  'VIEW_SENSITIVE_NOTIFICATION',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 

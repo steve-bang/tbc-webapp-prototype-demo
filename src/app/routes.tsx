@@ -19,6 +19,7 @@ import { CashDrawerScreen, CostRecordsScreen, CustomerReceivablesScreen, Finance
 import { HandoverReturnListScreen } from '@/features/handover-return'
 import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents'
 import { MaintenanceScreen } from '@/features/maintenance'
+import { NotificationBell, NotificationCenterScreen } from '@/features/notifications'
 import { RentalDetailScreen, RentalListScreen } from '@/features/rentals'
 import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
 import { vi } from '@/shared/i18n/vi'
@@ -31,7 +32,7 @@ export function AppRoutes() {
     <Routes>
       <Route path={paths.login} element={<LoginScreen />} />
 
-      <Route element={<AppShell />}>
+      <Route element={<AppShell topbarSlot={<NotificationBell />} />}>
         <Route path="/" element={<Navigate to={paths.dashboard} replace />} />
         <Route path={paths.dashboard} element={<DashboardScreen />} />
         <Route path={paths.calendar} element={<CalendarScreen />} />
@@ -82,7 +83,7 @@ export function AppRoutes() {
         <Route path={paths.platformSystemConfig} element={<ComingSoon title="Cấu hình hệ thống" />} />
         <Route path={paths.platformPermissions} element={<ComingSoon title="Vai trò & quyền" />} />
         <Route path={paths.platformAudit} element={<ComingSoon title="Nhật ký thao tác" />} />
-        <Route path={paths.platformNotifications} element={<ComingSoon title="Trung tâm thông báo" />} />
+        <Route path={paths.platformNotifications} element={<NotificationCenterScreen />} />
       </Route>
 
       <Route path="*" element={<Navigate to={paths.dashboard} replace />} />

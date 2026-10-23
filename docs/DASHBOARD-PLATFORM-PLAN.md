@@ -1,7 +1,7 @@
 # Kế hoạch triển khai — Dashboard & Nền tảng (Thông báo · Nhật ký thao tác · Quản trị hệ thống) (Phase 6)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (23/10/2026 — người dùng duyệt cả 7 điểm §16 theo đề xuất,
-ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9). Các Open Question nghiệp vụ
+ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9) · **Round 2 — `DONE`** (23/10/2026, brief §19, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết §19.9; quyết định bundle D11 áp cho R3/R4). Các Open Question nghiệp vụ
 xử lý bằng giả định tạm + `TODO(OQ)` ở §11 (không tự chốt).
 
 Kế hoạch chi tiết **Phase 6** (`docs/IMPLEMENTATION-PLAN.md` mục "Phase 6 — Hoàn thiện nền tảng & polish"). Chia **4 round**:
@@ -71,6 +71,7 @@ CR liên quan: `CR-2026-025` (NT), `CR-2026-032` (Dashboard là trang mặc đ�
 | D7 | **Audit Record mở rộng bằng trường tuỳ chọn** (`module?`, `severity?`, `actorType?`, `correlationId?`, `reason?`); bản ghi cũ không có `module` được **suy ra** từ `entity` qua bảng ánh xạ ở `features/audit/model.ts`. **Không** sửa 227 lời gọi `appendAudit` hiện có. | Giữ diff nhỏ, không đụng các feature trong SCC; Correlation ID chỉ có ở bản ghi mới/seed (ghi rõ ở §11). |
 | D8 | **Trần audit theo ký tự** (`AUDIT_MAX_CHARS`) thay trần 500 bản ghi; `writeJson` trả `boolean` để audit/thông báo tự cắt bớt bản ghi cũ và ghi lại khi `localStorage` đầy (thay vì im lặng mất dữ liệu). | §9 — biến "ngân sách thao tác demo 0,75 triệu ký tự" (5.1) từ giả định thành giới hạn được thực thi. |
 | D9 | **Biểu đồ "doanh thu theo ngày (30 ngày)" trên Dashboard vẽ bằng thanh CSS** (`bg-primary`, chiều cao theo tỉ lệ), **không** dùng `recharts`. | Dashboard là trang mặc định → nằm ở chunk chính; `recharts` (397 kB) phải tiếp tục ở chunk lười. |
+| D11 | **Tải lười mọi màn `/platform/*` + màn mới của R3/R4** (chốt 23/10/2026 khi review R2 — chunk chính còn dư 1,75 kB). Mỗi feature có `screens/lazyScreens.ts` theo mẫu `finance/revenue-cost/screens/lazyScreens.ts`; barrel export bản lazy; `app/routes.tsx` bọc `<Suspense>`. R3: chuyển `NotificationCenterScreen` sang lazy (việc đầu tiên) + `AuditLogScreen` lazy. R4: `SystemConfigScreen`, `PermissionMatrixScreen`, màn Chi tiết nhân viên lazy. Chuông `NotificationBell` giữ tĩnh. Trần chunk chính giữ **≤ 1.830 kB** cho R3/R4. | Trang mặc định (Dashboard) và Topbar phải nằm trong chunk chính; các màn nền tảng ít dùng không cần. Rẻ, có tiền lệ. |
 | D10 | `NOTIFICATION_EVENT_TYPES` **thay toàn bộ** bằng đúng 18 mã của `Notification-BRD.md` §7 (giữ thứ tự tài liệu). | Ngoại lệ có tiền lệ (`INCIDENT_STATUSES` — `DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §0.1): sửa scaffold Phase 0 cho khớp tài liệu, mảng chưa được dùng ở đâu nên không phá dữ liệu. Ghi rõ comment. |
 
 ### 0.3. Không thuộc phạm vi Phase 6 (lý do)
@@ -702,7 +703,7 @@ render bảng).
 4. `buildDashboardFinanceSummary` + `DashboardFinanceWidget` (đối chiếu số 5.1).
 5. `dashboard/*` + route; 3 cổng + SCC + evalorder + kích thước chunk.
 
-Brief giao việc R1 đầy đủ: **§18**. Round 2–4: `tech-lead` viết mục chi tiết giao việc (§19+ — chèn trước mục Lịch sử) khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
+Brief giao việc R1 đầy đủ: **§18**. Brief R2: **§19**. Round 3–4: `tech-lead` viết mục chi tiết giao việc (§21+ — chèn trước mục Lịch sử) khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
 
 ---
 
@@ -921,10 +922,223 @@ của app) khớp `expect-r1.mjs`: **30 tín hiệu** (giấy tờ 2, bảo dư�
 
 ---
 
-## 19. Lịch sử
+## 19. Round 2 — brief giao việc cho `dev` (`APPROVED` 23/10/2026)
+
+### 19.1. Bối cảnh
+
+R1 đã có danh sách tín hiệu cảnh báo tính động (`collectAllSignals`, 30 tín hiệu trên seed ở `FIXED_NOW`) và bảng định tuyến người
+nhận (`recipientRolesFor`). R2 biến các tín hiệu đó thành **Notification Event có lưu** (`Notification-BRD.md` §6, kênh duy nhất
+`IN_APP_WEBAPP` — NT-BR-07): khử trùng theo `dedupeKey` (EX-02), tự `CANCELLED` khi tín hiệu biến mất (AC-NT-008, NT-BR-14 — không
+xoá), chụp tiêu đề/nội dung lúc tạo theo Template v1 (NT-BR-09, AC-NT-007). Người dùng xem ở **Trung tâm thông báo**
+(`/platform/notifications` — `NT` §10, UC-NT-05/06), có **chuông + số chưa đọc** trên Topbar (giả định §11 Q4), Dashboard có lại
+nút "Xem tất cả". Mô hình quét (E3): đồng bộ chạy mỗi lần đọc danh sách thông báo; không module nguồn nào gọi vào `notifications`.
+
+### 19.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §19.6)
+
+1. **`shared/lib/storage.ts`** — `writeJson(name, value): boolean` (`true` khi `setItem` thành công, `false` khi ném lỗi — vẫn
+   không ném ra ngoài). Không sửa caller cũ (65 lời gọi bỏ qua giá trị trả về vẫn biên dịch). Thêm
+   `measureAppStorage(): { totalChars: number; keys: { name: string; chars: number }[] }` (tính `key.length + value.length` cho
+   các key namespace `tbc_admin:*`, sắp giảm dần) — R2 chỉ dùng trong harness/không cần UI; R4 hiển thị.
+2. **`shared/domain/enums.ts`** — nối **cuối** `AUDIT_ACTIONS` (khối comment `// Notification (NT) — DASHBOARD-PLATFORM-PLAN.md §6`):
+   `'SYNC_NOTIFICATIONS'`, `'VIEW_SENSITIVE_NOTIFICATION'`.
+3. **`shared/domain/permissions.ts`** — đúng bảng §7 dòng R2: sửa `source` của `NOTIFICATION.VIEW`; thêm `NOTIFICATION.CONFIG`,
+   `NOTIFICATION.EDIT`, `NOTIFICATION.VOID`, `NOTIFICATION.EXPORT` (giữ `'TBD'` đúng ô; `SALES` = `false` theo chữ `NT` §14 kèm
+   `TODO(OQ)` Q2; `DISPATCHER` = `'TBD'` kèm ghi chú Q19). **Không** dùng `likeManager()` cho 4 entry này. Không sửa entry khác.
+4. **`features/notifications/model.ts`** (nối tiếp R1):
+   - `interface NotificationEvent` đúng §3.2 (`deliveryStatus: 'SENT' | 'CANCELLED'` — lấy từ `NotificationDeliveryStatus`,
+     `channel: 'IN_APP_WEBAPP'`, `templateVersion: number` = `vi.notifications.templateVersion`, `readBy: Record<string, string>`).
+   - `isRecipient(event, user: { userId; role })` — `recipientRoles.includes(role) || recipientUserIds.includes(userId)` (NT-BR-12;
+     EX-03: theo vai trò **hiện tại**). Người nhận trực tiếp (`recipientUserIds`) **không** lọc theo quyền `VIEW` của vai trò (đúng
+     NT-BR-12 — vd. `OPERATION_STAFF` nhận phân công của chính mình dù `ASSIGNMENT.VIEW` = `TBD`); người nhận theo vai trò đã được
+     `recipientRolesFor` lọc từ R1.
+   - `planSync(existing: NotificationEvent[], signals: OperationalSignal[], now: Date): { toCreate: NewNotificationEvent[]; toCancelIds: string[] }`
+     — **thuần, không sinh id** (`NewNotificationEvent` = `Omit<NotificationEvent, 'id'>`). Quy tắc: event "đang hiệu lực" =
+     `deliveryStatus === 'SENT'`; tín hiệu có `dedupeKey` chưa có event đang hiệu lực → tạo (kể cả khi trước đó đã có event
+     `CANCELLED` cùng key — tạo bản mới, giữ bản cũ); event đang hiệu lực mà `dedupeKey` không còn trong `signals` → huỷ. Tạo:
+     `title`/`body` = `renderTemplate(...)`, `recipientRoles` = `recipientRolesFor(signal)`, `recipientUserIds` = `signal.recipientUserIds ?? []`,
+     `triggerAt` = `now.toISOString()`, `readBy` = `{}`, sao chép `eventType/sourceModule/entityType/entityId/entityLabel/priority/dueRef/link/resource/dedupeKey`
+     (`group` **không** lưu — Dashboard vẫn đọc tín hiệu R1). Tín hiệu không có người nhận nào → bỏ qua (không tạo event mồ côi).
+   - `pruneToBudget(events, maxChars): NotificationEvent[]` — thuần; nếu `JSON.stringify(events).length > maxChars` bỏ lần lượt:
+     (1) `CANCELLED`, cũ nhất theo `cancelledAt` trước; (2) event đang hiệu lực đã có ít nhất một người đọc (`readBy` khác rỗng),
+     cũ nhất theo `triggerAt` trước; (3) mọi event còn lại, cũ nhất theo `triggerAt` trước — dừng khi ≤ `maxChars`. Hằng
+     `NOTIFICATIONS_MAX_CHARS = 80_000` (§9.1) — comment: giới hạn kỹ thuật bản demo, không phải chính sách lưu trữ (NT-BR-14).
+   - `filterNotifications(events, filter)` — thuần; `filter`: `tab: 'ACTIVE' | 'CANCELLED'`, `eventType?`, `priority?`,
+     `readState?: 'ALL' | 'UNREAD' | 'READ'` (theo `userId`), `sourceModule?`, `from?`/`to?` (`yyyy-MM-dd`, so ngày địa phương của
+     `triggerAt`) — `NT` §10. Sắp: chưa đọc trước → ưu tiên (URGENT→LOW) → `triggerAt` mới trước.
+   - `isSensitiveNotification(event)` — `eventType` ∈ { `PAYMENT_INCOMPLETE`, `CONSIGNMENT_PAYMENT_DUE` } (AC-NT-009, §5.1).
+   - `countUnread(events, user)` — event đang hiệu lực, `isRecipient`, chưa có `readBy[userId]`.
+5. **`features/notifications/api.ts`** (nối tiếp R1 — `listOperationalSignals()` giữ nguyên):
+   - `export const NOTIFICATIONS_STORAGE_KEY = 'notifications'`.
+   - `export function syncNotifications(now: Date): { created: number; cancelled: number }` — **đồng bộ, không bọc `fakeRequest`**
+     (export ở `api.ts` để harness gọi; **không** export qua barrel): đọc event + `collectAllSignals(readSources(), now)` → `planSync` →
+     gán `id = generateId('NT')` → set `CANCELLED` + `cancelledAt` → `pruneToBudget` → `writeJson`; nếu `writeJson` trả `false`: cắt
+     thêm 20% số event theo thứ tự ưu tiên bỏ của `pruneToBudget` rồi ghi lại **một lần** (D8). Nếu `created + cancelled > 0` →
+     **một** `appendAudit` `SYNC_NOTIFICATIONS`, `entity: 'NotificationEvent'`, `entityId: 'batch'`, `summary` từ `vi`
+     ("Hệ thống tạo N, huỷ M thông báo"), actor hằng `SYSTEM_ACTOR` (`actorUserId: 'system'`, `actorName: vi.notifications.systemActor`,
+     `actorRole: 'SYSTEM'`) — `TODO(Phase 6 R3)`: chuyển sang `actorType: 'SYSTEM'` khi `AuditRecord` có trường này.
+   - `listMyNotifications(user, filter)` → `fakeRequest`: `syncNotifications(new Date())` rồi `filterNotifications(events.filter(isRecipient))`.
+   - `getUnreadCount(user)` → `fakeRequest`: sync rồi `countUnread`.
+   - `markNotificationRead(id, user)` → chỉ ghi khi `isRecipient` và chưa đọc: `readBy[userId] = now`; nếu `isSensitiveNotification`
+     → `appendAudit` `VIEW_SENSITIVE_NOTIFICATION` (entity `NotificationEvent`, actor = user) — **chỉ lần đọc đầu** (mở lại không ghi).
+   - `markAllNotificationsRead(user)` → đánh dấu mọi event đang hiệu lực mà user là người nhận và chưa đọc; **không** ghi audit cho
+     từng event nhạy cảm (đánh dấu hàng loạt ≠ mở chi tiết — AC-NT-009); trả số event đã đánh dấu.
+   - Cả 2 hàm đánh dấu: không tồn tại / không phải người nhận → ném `Error` (chuỗi trong `vi`).
+6. **`features/notifications/hooks.ts`** — `useMyNotifications(filter)`, `useUnreadNotificationCount()` (`refetchInterval: 60_000`,
+   `refetchOnWindowFocus: true`), `useMarkNotificationRead()`, `useMarkAllNotificationsRead()`; user lấy từ `useSessionStore` của
+   `@/features/auth`. Query key gốc `['notifications', …]`; mutation thành công → `invalidateQueries({ queryKey: ['notifications'] })`.
+7. **`features/notifications/components/`** — `NotificationBell.tsx` (icon `Bell`, badge số chưa đọc — ẩn khi 0, hiển thị `99+`
+   khi > 99, `Link` tới `paths.platformNotifications`, `aria-label`/`title` từ `vi`, `shrink-0`; comment
+   `TODO(OQ: Notification-BRD.md §20 Q5)`), `NotificationCard.tsx` (tiêu đề, nội dung, nhãn đối tượng, thời điểm `formatRelative` +
+   tooltip `formatDateTime`, badge ưu tiên dùng lại bảng màu `AlertPanel`, chấm chưa đọc; bấm → `markRead` rồi `navigate(event.link)`).
+8. **`features/notifications/screens/NotificationCenterScreen.tsx`** — §8.2: `PageHeader` (tiêu đề, mô tả, nút "Đánh dấu tất cả đã
+   đọc" — vô hiệu khi 0 chưa đọc), `Tabs` "Đang hiệu lực" / "Đã hết hiệu lực", bộ lọc 5 tiêu chí (Select loại sự kiện = nhãn
+   `NOTIFICATION_EVENT_TYPE_LABELS`, mức ưu tiên, đã đọc, module nguồn, khoảng ngày bằng 2 `Input type="date"`), danh sách thẻ, trạng
+   thái rỗng theo tab. Event `CANCELLED` hiển thị mờ, không chấm chưa đọc, vẫn bấm mở được (không đánh dấu đọc). Không phân trang ở R2
+   (~30 sự kiện; phân trang là R3/R4).
+9. **`features/notifications/seed.ts`** — `registerSeedStep(() => writeJson(NOTIFICATIONS_STORAGE_KEY, []))` + comment lý do (§9.2: không
+   sinh dữ liệu giả; tránh sự kiện trỏ id cũ sau reseed). `shared/fixtures/registerSeeds.ts`: `import '@/features/notifications/seed'`
+   **sau** `finance` (cuối danh sách hiện tại) + 1 dòng ghi chú. **Không** bump `SEED_VERSION` (vẫn 24).
+10. **`features/notifications/index.ts`** — thêm `NotificationCenterScreen`, `NotificationBell` (và type `NotificationEvent`). Không export
+    `syncNotifications`/`planSync`.
+11. **`shared/layout/AppShell.tsx` + `Topbar.tsx`** (E4) — `AppShell({ topbarSlot }: { topbarSlot?: ReactNode })` truyền xuống
+    `<Topbar topbarSlot={topbarSlot} …>`; Topbar render `topbarSlot` là phần tử **đầu tiên** trong nhóm `ml-auto` (trước nút Reset).
+    Không import gì mới từ `features/`.
+12. **`app/routes.tsx`** — `<Route element={<AppShell topbarSlot={<NotificationBell />} />}>`; `/platform/notifications` mount
+    `NotificationCenterScreen` (bỏ `ComingSoon` dòng này, giữ 3 `ComingSoon` `/platform/*` còn lại + `/employees/:id`).
+13. **`features/dashboard/components/AlertPanel.tsx`** — bật lại "Xem tất cả" (link `paths.platformNotifications`, hiện ở mọi nhóm có
+    ≥ 1 tín hiệu; nhãn trong `vi.dashboard`), bỏ comment "ẩn ở Round 1".
+14. **`shared/i18n/vi.ts`** — `vi.notifications`: tiêu đề/mô tả màn, nhãn tab, bộ lọc, nút, trạng thái rỗng, `systemActor`,
+    `syncAuditSummary`, lỗi; `NOTIFICATION_SOURCE_MODULE_LABELS` (8 mã); `vi.dashboard.alertViewAll`.
+
+### 19.3. Ngoài phạm vi R2 (không làm dù "tiện tay")
+
+Template editor / cấu hình ngưỡng / báo cáo gửi / huỷ thủ công (UI dùng 4 entry quyền mới) · kênh khác `IN_APP_WEBAPP` ·
+`measureAppStorage` trên UI (R4) · mọi sửa `shared/lib/audit.ts`, `AuditRecord`, `AUDIT.VIEW`, màn Nhật ký (R3) · phân trang (R3/R4) ·
+sửa toast hardcode `Đã chuyển sang vai trò…` trong `Topbar.tsx` (R4 — chỉ thêm slot) · cho module nguồn gọi `notifications` · sửa
+collector/ngưỡng R1 (nếu thấy sai → báo `tech-lead`) · thêm query param lọc cho Inbox từ Dashboard · sửa `docs/` · commit/push.
+
+### 19.4. Quy tắc bắt buộc
+
+1. Không file `shared/**` nào import `@/features/notifications`; module nguồn không import `notifications`/`dashboard`;
+   `notifications` không import `dashboard`. `app/routes.tsx` là nơi duy nhất ghép chuông vào layout.
+2. `planSync`, `pruneToBudget`, `filterNotifications`, `countUnread`, `isRecipient` thuần (không `new Date()`/`Math.random`/`readJson`
+   bên trong); id và thời điểm do `api.ts` cấp.
+3. Không xoá vật lý event trừ `pruneToBudget` (giới hạn kỹ thuật — comment NT-BR-14); không sửa `title`/`body` của event đã tạo
+   (NT-BR-09); không có trạng thái nào ngoài `SENT`/`CANCELLED` được ghi.
+4. Mọi lời gọi `localStorage` qua `storage.ts`; mọi ghi trạng thái nghiệp vụ có audit theo §6 (đánh dấu đọc thường **không** audit —
+   chỉ ca nhạy cảm, AC-NT-009).
+5. Comment mã tài liệu 1 dòng tại chỗ (`NT-BR-07/09/12/13/14`, EX-02, EX-03, AC-NT-004/008/009); giả định Q1/Q4/Q5 có `TODO(OQ)`.
+6. Chuỗi UI ở `vi.ts`; token theme; chuông không làm Topbar tràn ở ~375px (`shrink-0`, badge `absolute` trên icon, không thêm chữ ở
+   màn hẹp); bộ lọc dùng lưới `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5`.
+7. Không `console.log`, `any`, TS `enum`, `*/` kẹt trong comment.
+
+### 19.5. Definition of Done R2 — chạy đủ và dán kết quả vào báo cáo
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+1. `npx tsc -b` · `npx oxlint` (không cảnh báo mới ngoài 2 cảnh báo cũ ở `shared/ui/badge.tsx`/`button.tsx`) · `npm run build` — sạch.
+2. `grep -rn '\*/[a-zA-Z]' src/` — rỗng. `grep -rn "features/notifications" src/shared` — chỉ còn dòng import seed ở `shared/fixtures/registerSeeds.ts` (mục 9 bắt buộc; sửa mâu thuẫn — §19.9 L2).
+3. Chunk chính ≤ **1.830 kB** (sau R1: 1.810,71 kB); `recharts` không vào chunk chính. Nếu vượt: tải lười
+   `NotificationCenterScreen` theo mẫu `finance/revenue-cost/screens/lazyScreens.ts` (chuông giữ tĩnh) — ghi vào báo cáo.
+4. `node $SP/consignment-r3/sccfiles.mjs $REPO | diff - $SP/consignment-r3/scc-target.txt` → rỗng. `node $SP/tl-verify/evalorder.mjs $REPO /src/app/routes.tsx` → `OK`.
+5. `TZ=Asia/Ho_Chi_Minh node $SP/phase6/sizes.mjs $REPO` → `TOTAL` ≤ 1.850.000 (dự kiến 1.822.1xx + key `notifications` rỗng `[]`).
+   `TZ=Asia/Ho_Chi_Minh node $SP/demo-data/verify.mjs $REPO $SP/phase6/before-r2.json` → `errors: 0` (`before-r2.json` do `tech-lead`
+   dựng sẵn = `before-r1.json` + `"tbc_admin:notifications": []` — thay đổi duy nhất được phép trên seed ở R2).
+6. Harness `$SP/phase6/notif-r2.mjs` (`dev` tự viết; `boot()` của `$SP/demo-data/lib.mjs`, `FIXED_NOW` 22/10/2026 10:00 +07; tham
+   khảo `$SP/phase6/expect-r2.mjs`), gọi **code thật** (`syncNotifications`, `planSync`, `pruneToBudget`, `countUnread`, `isRecipient`,
+   các hàm `markNotificationRead`/`markAllNotificationsRead` — có thể gọi phần thân đồng bộ nếu tách hàm nội bộ, hoặc `await` bản
+   `fakeRequest`). Kỳ vọng:
+   - Sync lần 1: `created 30`, `cancelled 0`; key `notifications` ≤ **30.000** ký tự (báo số thật); audit +1 bản ghi `SYNC_NOTIFICATIONS`.
+   - Sync lần 2 ngay sau: `0/0`, audit không tăng.
+   - Số chưa đọc theo user (khớp `expect-r2.mjs`): `usr_admin` **10** · `usr_manager` **23** · `usr_dispatcher` **4** · `usr_sales` **22** ·
+     `usr_accountant` **7** · `usr_staff` **2** (phân công `asg_001`/`asg_003`).
+   - Đổi `expiryDate` giấy tờ đăng kiểm sắp hết hạn (xe `51A-234.56`) thành +2 năm trong store → sync: `0/1`, event cũ `CANCELLED` có
+     `cancelledAt`, vẫn còn trong store; khôi phục ngày cũ → sync: `1/0`, event mới id khác, tổng 31 event (30 `SENT` + 1 `CANCELLED`).
+   - `markAllNotificationsRead(usr_manager)` → manager 0, `usr_sales` vẫn 22 (đọc theo từng user — AC-NT-004).
+   - `usr_accountant` đọc một event `PAYMENT_INCOMPLETE` → +1 audit `VIEW_SENSITIVE_NOTIFICATION`; đọc lại cùng event → không thêm;
+     `markNotificationRead` của `usr_staff` lên event không phải của mình → ném lỗi.
+   - `pruneToBudget` với 300 event giả (kết hợp `CANCELLED`/đã đọc/chưa đọc) → ≤ 80.000 ký tự, event `CANCELLED` bị bỏ trước, 20 event
+     chưa đọc mới nhất còn nguyên.
+   - Giả lập `setItem` ném lỗi cho key `tbc_admin:notifications` → `writeJson` trả `false`, `syncNotifications` không ném, thử ghi lại đúng 1 lần.
+   - Thời gian `syncNotifications` (store đã có 30 event) ≤ **50 ms**.
+7. Kiểm tĩnh quyền (cùng harness): `can('SYSTEM_ADMIN','NOTIFICATION',x)` = `true` với `CONFIG/EDIT/VOID/EXPORT`; `MANAGER` → `false`
+   (`TBD`) cho `EDIT/VOID/EXPORT`, `false` (đã chốt) cho `CONFIG`; `permissionValue('MANAGER','NOTIFICATION','EDIT') === 'TBD'`.
+8. `git status` chỉ gồm file thuộc §19.2; không file `docs/`.
+
+**Không yêu cầu** test trình duyệt (quyết định 14/09/2026).
+
+### 19.6. Thứ tự làm
+
+1. Mục 1–3 (`storage.ts`, enum audit, quyền) → `npx tsc -b`.
+2. Mục 4 (hàm thuần) + phần harness kiểm `planSync`/`pruneToBudget`/`countUnread`.
+3. Mục 5–6 (`api.ts`, hooks) + harness DoD 6.
+4. Mục 9 (seed) → DoD 5.
+5. Mục 7–8, 10–14 (UI, slot, route, Dashboard, i18n) → DoD 1–4.
+6. Chạy lại toàn bộ DoD 1–8.
+
+### 19.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §3.2, §4.2, §5.1, §6, §7, §8.2, §9, §11 (Q1, Q2, Q4, Q5, Q19), §18.9, §19.
+2. `../thien-bao-car-docs/modules/Notification-BRD.md` §6.4–§6.5, §10, §13–§16.
+3. `CONVENTIONS.md` §3–§6, §8, §11 · `docs/ARCHITECTURE.md` §1, §3, §6.
+4. Code R1: `src/features/notifications/{model,api,hooks,index}.ts`, `src/shared/domain/alerts.ts`,
+   `src/features/dashboard/components/AlertPanel.tsx`, `src/shared/i18n/vi.ts` (khối `notifications` + `dashboard`).
+5. Nền: `src/shared/lib/{storage,audit,id,fakeNetwork,datetime}.ts` · `src/shared/fixtures/{registerSeeds,seedAll}.ts` ·
+   `src/shared/layout/{AppShell,Topbar,PageHeader}.tsx` · `src/features/auth/{index,store,usePermission,model}.ts` ·
+   `src/shared/domain/permissions.ts` dòng 1–80, 520–575 · `src/shared/domain/enums.ts` khối `AUDIT_ACTIONS` + `NOTIFICATION_*`.
+6. UI mẫu: `src/shared/ui/{tabs,select,badge,card,input}.tsx` · một màn có bộ lọc + `Select` để bám pattern:
+   `src/features/finance/payment/screens/TransactionLedgerScreen.tsx` (chỉ phần bộ lọc) · `src/app/{routes,paths}.ts(x)`.
+7. Harness: `$SP/demo-data/lib.mjs`, `$SP/phase6/{expect-r2,signals-r1,sizes}.mjs`.
+
+### 19.8. Báo cáo bàn giao `dev` phải có
+
+Danh sách file đổi (khớp `git status`) · output rút gọn DoD 1–7 (chunk chính, SCC, `evalorder`, `TOTAL`, `verify`, bảng số harness DoD 6
+từng gạch, kích thước key `notifications`, thời gian sync) · mọi chỗ lệch plan + lý do · `TODO(OQ)` đã đặt (file:dòng).
+
+---
+
+### 19.9. Kết quả review & phán quyết (23/10/2026 — đạt vòng 1, không Blocker)
+
+`tech-lead` tự chạy lại DoD: 3 cổng sạch (`oxlint` chỉ 2 cảnh báo cũ) · không `*/` kẹt · chunk chính **1.828,25 kB** (≤ 1.830 — dư 1,75 kB
+→ quyết định D11) · `recharts` không vào chunk chính · `sccfiles.mjs` = `scc-target.txt` (98 file) · `evalorder` OK · seed **1.822.127** ký tự
+(27 key, `notifications` = `[]`) · `verify.mjs` + `before-r2.json` → `errors: 0` · `notif-r2.mjs` (gọi code thật) **ALL PASS 52 kiểm**: sync
+30/0 rồi 0/0, key `notifications` 18.665 ký tự, chưa đọc 10/23/4/22/7/2, huỷ/tạo lại → 31 event, đọc riêng theo user, audit nhạy cảm 1 lần,
+chặn đọc hộ, prune 300 → 136 event (79.513 ký tự), ghi lỗi → thử ghi đúng 2 lần, sync 10,87 ms; quyền `NOTIFICATION` đúng §7. Đọc diff:
+`shared/layout` không import `features/notifications`; `planSync`/`pruneToBudget`/`filterNotifications` thuần; không sửa `title/body` đã tạo.
+
+**Phán quyết 7 chỗ lệch (chấp nhận cả 7):**
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L1 | `NotificationCard` lặp bảng màu ưu tiên của `AlertPanel` (4 dòng) | **Chấp nhận** — `notifications` không được import `dashboard`. Nếu lặp lần 3 → chuyển bảng vào `notifications/model.ts` và `AlertPanel` dùng qua barrel. |
+| L2 | `grep features/notifications src/shared` ra `registerSeeds.ts` | **Chấp nhận** — lỗi mâu thuẫn trong brief (§19.2 mục 9 bắt buộc import seed ở đó; `registerSeeds.ts` vốn là nơi import seed mọi feature). DoD 2 đã sửa. |
+| L3 | Thêm `trimByRatio`, type `NotificationFilter`/`NotificationUser` | **Chấp nhận** — hiện thực bước "cắt 20%" (D8) thành hàm thuần dùng chung thứ tự bỏ. |
+| L4 | `filterNotifications` nhận thêm `userId` | **Chấp nhận** — lọc "đã đọc/chưa đọc" và sắp "chưa đọc trước" cần biết người xem. |
+| L5 | `markNotificationRead` không ném lỗi với event `CANCELLED` / đã đọc (bỏ qua êm) | **Chấp nhận** — mở lại thẻ cũ là thao tác hợp lệ; vẫn ném khi không phải người nhận/không tồn tại. |
+| L6 | `seed.ts` import key từ `./api` | **Chấp nhận** — cùng feature; `registerSeeds` đã kéo barrel các feature khác qua seed `finance`, `evalorder` OK. |
+| L7 | Số kỳ vọng chỉ đúng với `TZ=Asia/Ho_Chi_Minh` (không TZ: 28 tín hiệu) | **Chấp nhận — không phải lỗi collector.** Đối chiếu `dedupeKey` TZ=HCM vs UTC (`phase6/tzdiff.mjs`): khác biệt nằm ở **mốc thời gian do seed sinh ra** (seed đặt giờ theo giờ máy, vd. giao lúc 14:00 giờ địa phương), collector so mốc tuyệt đối (ms) đúng. Ghi nợ N8. |
+
+**Kết luận múi giờ (yêu cầu điều phối viên, mục b):** collector R1/R2 **không** sai — so cửa sổ 24h bằng mốc tuyệt đối; ranh giới ngày
+(`todayKey`, `documentExpiryStatus`, lọc ngày Inbox) dùng giờ trình duyệt, **giống toàn bộ app** (`shared/lib/datetime.ts`, seed). App đang ngầm giả
+định "giờ trình duyệt = UTC+7" thay vì đọc múi giờ hệ thống (`SA-BR-14`) — nợ chung toàn app, không chặn R2.
+
+**Nợ ghi nhận (không chặn):**
+
+- **N5 —** `pruneToBudget` có thể bỏ event `SENT` chưa đọc khi > 80.000 ký tự → lần đồng bộ sau tín hiệu vẫn còn nên tạo lại (thêm 1 audit
+  `SYNC_NOTIFICATIONS`). Chỉ xảy ra khi > ~150 sự kiện (seed hiện 30). Nếu gặp: bước (3) chỉ bỏ event có tín hiệu đã mất.
+- **N6 —** Hai query chuông + Inbox mỗi lần đọc đều đồng bộ (đọc ~1,8 triệu ký tự JSON, ~11 ms) — chấp nhận ở demo.
+- **N7 —** Bảng màu ưu tiên lặp 2 nơi (L1).
+- **N8 —** Seed và ranh giới ngày phụ thuộc giờ trình duyệt; app chưa áp `SA-BR-14` (múi giờ hệ thống cố định UTC+7). Harness phải chạy với
+  `TZ=Asia/Ho_Chi_Minh`. Đề xuất xử lý cùng màn Cấu hình hệ thống (R4) — chỉ hiển thị, sửa gốc là việc riêng cần duyệt.
+
+---
+
+## 20. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 23/10/2026 | **R2 `DONE`** — review `tech-lead` đạt vòng 1, không Blocker; chấp nhận 7 lệch L1–L7, nợ N5–N8 (§19.9); chốt D11 (tải lười màn `/platform/*` từ R3). |
+| 23/10/2026 | R2 `APPROVED` (người dùng duyệt theo gợi ý `tech-lead`, gồm bật lại "Xem tất cả" ở Dashboard) — viết brief §19, **giao `dev`**. Dựng `phase6/expect-r2.mjs` (số chưa đọc kỳ vọng theo từng tài khoản demo) + `phase6/before-r2.json`. |
 | 23/10/2026 | **R1 `DONE`** — review `tech-lead` đạt vòng 1, không Blocker; chấp nhận 10 lệch L1–L10, ghi nợ N1–N4 + OQ Q20 (§18.9). `SEED_VERSION` 24. |
 | 23/10/2026 | Người dùng duyệt 7 điểm §16 → `APPROVED`; đồng bộ `Vehicle Status` seed chuyển lên R1 (`SEED_VERSION` R1 = 24, R3 = 25, R4 = 26); màn Chi tiết nhân viên vào R4. Viết brief R1 (§18), **giao `dev`**. Dựng `phase6/expect-r1.mjs` + `phase6/before-r1.json`. |
 | 23/10/2026 | Tạo kế hoạch (`DRAFT — CHỜ NGƯỜI DÙNG DUYỆT`). Đo hiện trạng: dung lượng seed 1.822.111, SCC 98 file, chunk chính 1.788,69 kB, ~35–45 tín hiệu cảnh báo trên seed; dựng `phase6/{sizes,signals,reach}.mjs` ở scratchpad. |

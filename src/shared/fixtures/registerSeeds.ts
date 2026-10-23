@@ -58,3 +58,5 @@ import '@/features/handover-return/seed'
 import '@/features/incidents/seed'
 import '@/features/consignment/seed'
 import '@/features/finance/seed'
+// docs/DASHBOARD-PLATFORM-PLAN.md §9.2 — sau finance: chỉ đặt key `notifications` về rỗng (không phụ thuộc dữ liệu).
+import '@/features/notifications/seed'

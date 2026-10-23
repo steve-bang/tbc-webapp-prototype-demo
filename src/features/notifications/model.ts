@@ -1,4 +1,4 @@
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { collectConsignmentSignals, type ConsignmentContract, type OwnerPayoutRecord } from '@/features/consignment'
 import { collectContractSignals, type Contract } from '@/features/contracts'
 import { collectAssignmentSignals, type Assignment, type Employee } from '@/features/employees'
@@ -15,7 +15,10 @@ import type { OperationalSignal } from '@/shared/domain/alerts'
 import {
   DASHBOARD_ALERT_GROUPS,
   type DashboardAlertGroup,
+  type NotificationDeliveryStatus,
   type NotificationEventType,
+  type NotificationPriority,
+  type NotificationSourceModule,
   type Role,
 } from '@/shared/domain/enums'
 import { can as canRole, type Action, type Resource } from '@/shared/domain/permissions'
@@ -164,4 +167,186 @@ export function groupSignalsForDashboard(
     views.push({ group, signals: inGroup })
   }
   return views
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Round 2 — Notification Event có lưu (DASHBOARD-PLATFORM-PLAN.md §3.2, §19). Mọi hàm dưới đây THUẦN: id và thời điểm do api.ts cấp.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Notification Event + Delivery gộp một bản ghi (Notification-BRD.md §6.1/§6.4) — Phase 1 chỉ một kênh `IN_APP_WEBAPP`.
+ * `deliveryStatus` chỉ `SENT` | `CANCELLED` (IN_APP coi là SENT ngay khi tạo — NT §6.5).
+ */
+export interface NotificationEvent {
+  id: string
+  /** EX-02 — duy nhất trong các bản ghi đang hiệu lực (`SENT`). */
+  dedupeKey: string
+  eventType: NotificationEventType
+  sourceModule: NotificationSourceModule
+  entityType: string
+  entityId: string
+  entityLabel: string
+  priority: NotificationPriority
+  dueRef?: string
+  link: string
+  resource: Resource
+  /** Snapshot từ Template v1 tại thời điểm tạo — không sửa về sau (NT-BR-09, AC-NT-007). */
+  title: string
+  body: string
+  templateVersion: number
+  recipientRoles: Role[]
+  recipientUserIds: string[]
+  channel: 'IN_APP_WEBAPP'
+  deliveryStatus: Extract<NotificationDeliveryStatus, 'SENT' | 'CANCELLED'>
+  triggerAt: string
+  /** AC-NT-008 / NT-BR-14 — huỷ khi tín hiệu biến mất, không xoá vật lý. */
+  cancelledAt?: string
+  /** Trạng thái đọc theo từng người nhận (AC-NT-004): userId → thời điểm ISO. */
+  readBy: Record<string, string>
+}
+
+export type NewNotificationEvent = Omit<NotificationEvent, 'id'>
+
+export interface NotificationUser {
+  userId: string
+  role: Role
+}
+
+/** NT-BR-12 + EX-03: người nhận theo vai trò HIỆN TẠI hoặc được chỉ định trực tiếp (không lọc thêm theo quyền VIEW). */
+export function isRecipient(event: Pick<NotificationEvent, 'recipientRoles' | 'recipientUserIds'>, user: NotificationUser): boolean {
+  return event.recipientRoles.includes(user.role) || event.recipientUserIds.includes(user.userId)
+}
+
+/**
+ * Đồng bộ tín hiệu → sự kiện lưu (EX-02 khử trùng theo `dedupeKey`, AC-NT-008/NT-BR-14 tự CANCELLED khi tín hiệu mất).
+ * Thuần, không sinh id.
+ */
+export function planSync(
+  existing: NotificationEvent[],
+  signals: OperationalSignal[],
+  now: Date,
+): { toCreate: NewNotificationEvent[]; toCancelIds: string[] } {
+  const activeKeys = new Set(existing.filter((e) => e.deliveryStatus === 'SENT').map((e) => e.dedupeKey))
+  const signalKeys = new Set(signals.map((s) => s.dedupeKey))
+  const toCreate: NewNotificationEvent[] = []
+  const created = new Set<string>()
+  for (const signal of signals) {
+    if (activeKeys.has(signal.dedupeKey) || created.has(signal.dedupeKey)) continue
+    const recipientRoles = recipientRolesFor(signal)
+    const recipientUserIds = signal.recipientUserIds ?? []
+    // Không có người nhận nào → không tạo event mồ côi.
+    if (recipientRoles.length === 0 && recipientUserIds.length === 0) continue
+    created.add(signal.dedupeKey)
+    const { title, body } = renderTemplate(signal.eventType, signal.payload)
+    toCreate.push({
+      dedupeKey: signal.dedupeKey,
+      eventType: signal.eventType,
+      sourceModule: signal.sourceModule,
+      entityType: signal.entityType,
+      entityId: signal.entityId,
+      entityLabel: signal.entityLabel,
+      priority: signal.priority,
+      dueRef: signal.dueRef,
+      link: signal.link,
+      resource: signal.resource,
+      title,
+      body,
+      templateVersion: vi.notifications.templateVersion,
+      recipientRoles,
+      recipientUserIds,
+      channel: 'IN_APP_WEBAPP',
+      deliveryStatus: 'SENT',
+      triggerAt: now.toISOString(),
+      readBy: {},
+    })
+  }
+  const toCancelIds = existing
+    .filter((e) => e.deliveryStatus === 'SENT' && !signalKeys.has(e.dedupeKey))
+    .map((e) => e.id)
+  return { toCreate, toCancelIds }
+}
+
+/**
+ * Giới hạn KỸ THUẬT của bản demo (localStorage), KHÔNG phải chính sách lưu trữ — NT-BR-14 cấm xoá thông báo.
+ * DASHBOARD-PLATFORM-PLAN.md §9.1.
+ */
+export const NOTIFICATIONS_MAX_CHARS = 80_000
+
+/** Thứ tự bỏ: (1) CANCELLED cũ nhất → (2) SENT đã có người đọc, cũ nhất → (3) còn lại, cũ nhất. */
+function dropOrder(events: NotificationEvent[]): NotificationEvent[] {
+  const rank = (e: NotificationEvent) => (e.deliveryStatus === 'CANCELLED' ? 0 : Object.keys(e.readBy).length > 0 ? 1 : 2)
+  const time = (e: NotificationEvent) => (e.deliveryStatus === 'CANCELLED' ? (e.cancelledAt ?? e.triggerAt) : e.triggerAt)
+  return [...events].sort((a, b) => rank(a) - rank(b) || time(a).localeCompare(time(b)))
+}
+
+/** Bỏ bớt cho tới khi `JSON.stringify(events).length <= maxChars`; giữ nguyên thứ tự các event còn lại. */
+export function pruneToBudget(events: NotificationEvent[], maxChars: number): NotificationEvent[] {
+  if (JSON.stringify(events).length <= maxChars) return events
+  const dropped = new Set<string>()
+  let kept = events
+  for (const candidate of dropOrder(events)) {
+    dropped.add(candidate.id)
+    kept = events.filter((e) => !dropped.has(e.id))
+    if (JSON.stringify(kept).length <= maxChars) break
+  }
+  return kept
+}
+
+/** Bỏ thêm `ratio` (0–1) số event theo cùng thứ tự ưu tiên bỏ — dùng khi `writeJson` thất bại (D8). */
+export function trimByRatio(events: NotificationEvent[], ratio: number): NotificationEvent[] {
+  const count = Math.max(1, Math.ceil(events.length * ratio))
+  const dropped = new Set(dropOrder(events).slice(0, count).map((e) => e.id))
+  return events.filter((e) => !dropped.has(e.id))
+}
+
+export interface NotificationFilter {
+  tab: 'ACTIVE' | 'CANCELLED'
+  eventType?: NotificationEventType
+  priority?: NotificationPriority
+  readState?: 'ALL' | 'UNREAD' | 'READ'
+  sourceModule?: NotificationSourceModule
+  /** `yyyy-MM-dd`, so theo ngày địa phương của `triggerAt`. */
+  from?: string
+  to?: string
+}
+
+/** Bộ lọc Inbox (NT §10). Sắp: chưa đọc trước → ưu tiên → mới trước. */
+export function filterNotifications(
+  events: NotificationEvent[],
+  filter: NotificationFilter,
+  userId: string,
+): NotificationEvent[] {
+  const wantStatus = filter.tab === 'ACTIVE' ? 'SENT' : 'CANCELLED'
+  const isUnread = (e: NotificationEvent) => e.deliveryStatus === 'SENT' && !e.readBy[userId]
+  return events
+    .filter((e) => {
+      if (e.deliveryStatus !== wantStatus) return false
+      if (filter.eventType && e.eventType !== filter.eventType) return false
+      if (filter.priority && e.priority !== filter.priority) return false
+      if (filter.sourceModule && e.sourceModule !== filter.sourceModule) return false
+      if (filter.readState === 'UNREAD' && e.readBy[userId]) return false
+      if (filter.readState === 'READ' && !e.readBy[userId]) return false
+      if (filter.from || filter.to) {
+        const day = format(parseISO(e.triggerAt), 'yyyy-MM-dd')
+        if (filter.from && day < filter.from) return false
+        if (filter.to && day > filter.to) return false
+      }
+      return true
+    })
+    .sort(
+      (a, b) =>
+        Number(isUnread(b)) - Number(isUnread(a)) ||
+        PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
+        b.triggerAt.localeCompare(a.triggerAt),
+    )
+}
+
+/** AC-NT-009, NT §5.1 — thông báo nhóm tài chính: mở lần đầu phải ghi audit. */
+export function isSensitiveNotification(event: Pick<NotificationEvent, 'eventType'>): boolean {
+  return event.eventType === 'PAYMENT_INCOMPLETE' || event.eventType === 'CONSIGNMENT_PAYMENT_DUE'
+}
+
+/** Số chưa đọc của người dùng: event đang hiệu lực, là người nhận, chưa có `readBy[userId]`. */
+export function countUnread(events: NotificationEvent[], user: NotificationUser): number {
+  return events.filter((e) => e.deliveryStatus === 'SENT' && isRecipient(e, user) && !e.readBy[user.userId]).length
 }

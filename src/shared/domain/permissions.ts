@@ -529,7 +529,34 @@ const TABLE: PermissionEntry[] = [
     resource: 'NOTIFICATION',
     action: 'VIEW',
     values: ALL_ROLES.reduce((acc, r) => ({ ...acc, [r]: true }), {} as RoleValueMap),
-    source: 'Notification-BRD.md — trung tâm thông báo hiển thị cho mọi tài khoản nội bộ',
+    source: 'Notification-BRD.md §14 — Xem Trung tâm thông báo của mình / Đánh dấu đã đọc',
+  },
+  // 4 entry dưới chưa có UI dùng ở Phase 6 — chỉ để màn "Vai trò & quyền" hiện rõ quyết định còn treo (DASHBOARD-PLATFORM-PLAN.md §7).
+  // Cột DISPATCHER không có trong bảng NT §14 → 'TBD' (TODO(OQ) §11 Q19). SALES = false theo đúng chữ NT §14
+  // dù CR-2026-035 nói SALES ≈ MANAGER — TODO(OQ) §11 Q2, báo BA. Không dùng likeManager().
+  {
+    resource: 'NOTIFICATION',
+    action: 'CONFIG',
+    values: { SYSTEM_ADMIN: true, MANAGER: false, SALES: false, DISPATCHER: 'TBD', OPERATION_STAFF: false, ACCOUNTANT: false },
+    source: 'Notification-BRD.md §14 — Cấu hình danh mục sự kiện / ngưỡng / kênh',
+  },
+  {
+    resource: 'NOTIFICATION',
+    action: 'EDIT',
+    values: { SYSTEM_ADMIN: true, MANAGER: 'TBD', SALES: false, DISPATCHER: 'TBD', OPERATION_STAFF: false, ACCOUNTANT: false },
+    source: 'Notification-BRD.md §14 — Soạn / sửa Template',
+  },
+  {
+    resource: 'NOTIFICATION',
+    action: 'VOID',
+    values: { SYSTEM_ADMIN: true, MANAGER: 'TBD', SALES: false, DISPATCHER: 'TBD', OPERATION_STAFF: false, ACCOUNTANT: false },
+    source: 'Notification-BRD.md §14 — Huỷ (CANCELLED) một Notification Event',
+  },
+  {
+    resource: 'NOTIFICATION',
+    action: 'EXPORT',
+    values: { SYSTEM_ADMIN: true, MANAGER: 'TBD', SALES: false, DISPATCHER: 'TBD', OPERATION_STAFF: false, ACCOUNTANT: 'TBD' },
+    source: 'Notification-BRD.md §14 — Xem báo cáo gửi thông báo toàn hệ thống',
   },
   {
     resource: 'SYSTEM_ADMIN',

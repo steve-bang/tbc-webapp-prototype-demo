@@ -1,4 +1,6 @@
 export type { OperationalSignal } from '@/shared/domain/alerts'
 export { groupSignalsForDashboard, renderTemplate } from './model'
-export type { DashboardAlertGroupView } from './model'
+export type { DashboardAlertGroupView, NotificationEvent } from './model'
 export { useOperationalSignals } from './hooks'
+export { NotificationBell } from './components/NotificationBell'
+export { NotificationCenterScreen } from './screens/NotificationCenterScreen'

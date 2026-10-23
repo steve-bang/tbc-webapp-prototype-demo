@@ -35,6 +35,7 @@ import type {
   MaintenanceRuleAppliesTo,
   NotificationEventType,
   NotificationPriority,
+  NotificationSourceModule,
   OwnerType,
   OwnershipType,
   PaymentMethod,
@@ -2768,6 +2769,34 @@ export const vi = {
   // TODO(OQ: Notification-BRD.md §20 Q3) — ai soạn/sửa Template chưa chốt, Phase 6 cố định trong file này.
   notifications: {
     templateVersion: 1,
+    // Trung tâm thông báo (`/platform/notifications`) — Notification-BRD.md §10, DASHBOARD-PLATFORM-PLAN.md §8.2/§19.
+    title: 'Trung tâm thông báo',
+    description: 'Thông báo vận hành gửi đến bạn — trạng thái đã đọc tính riêng theo từng người dùng.',
+    tabActive: 'Đang hiệu lực',
+    tabCancelled: 'Đã hết hiệu lực',
+    markAllRead: 'Đánh dấu tất cả đã đọc',
+    markAllReadDone: 'Đã đánh dấu {{count}} thông báo là đã đọc.',
+    filterEventType: 'Loại sự kiện',
+    filterPriority: 'Mức ưu tiên',
+    filterReadState: 'Trạng thái đọc',
+    filterSourceModule: 'Module nguồn',
+    filterFrom: 'Từ ngày',
+    filterTo: 'Đến ngày',
+    filterAll: 'Tất cả',
+    readStateUnread: 'Chưa đọc',
+    readStateRead: 'Đã đọc',
+    emptyActive: 'Bạn chưa có thông báo nào đang hiệu lực.',
+    emptyCancelled: 'Chưa có thông báo nào đã hết hiệu lực.',
+    emptyFiltered: 'Không có thông báo khớp bộ lọc.',
+    loadError: 'Không tải được thông báo.',
+    cancelledNote: 'Đã hết hiệu lực',
+    unreadDot: 'Chưa đọc',
+    bellLabel: 'Thông báo',
+    bellLabelWithCount: 'Thông báo — {{count}} chưa đọc',
+    systemActor: 'Hệ thống',
+    syncAuditSummary: 'Hệ thống tạo {{created}}, huỷ {{cancelled}} thông báo',
+    viewSensitiveAuditSummary: 'Mở thông báo tài chính: {{title}}',
+    errorNotFound: 'Không tìm thấy thông báo hoặc bạn không phải người nhận.',
     entity: {
       vehicle: 'Xe',
       rental: 'Lượt thuê',
@@ -2872,6 +2901,7 @@ export const vi = {
     alertsDescription: 'Tín hiệu cần chú ý, tính động từ dữ liệu nguồn (ngưỡng do từng module quy định).',
     alertGroupEmpty: 'Không có cảnh báo.',
     alertMore: 'và {{count}} cảnh báo khác',
+    alertViewAll: 'Xem tất cả',
     overusePending: 'Chưa có ngưỡng cảnh báo — chờ chốt (OQ).',
     emptyAllTitle: 'Chưa có nội dung để hiển thị',
     emptyAllDescription: 'Vai trò hiện tại không có quyền xem các nhóm dữ liệu trên Dashboard.',
@@ -2899,6 +2929,18 @@ export const NOTIFICATION_EVENT_TYPE_LABELS: Record<NotificationEventType, strin
   VEHICLE_OVERUSE: 'Xe chạy vượt ngưỡng',
   TASK_ASSIGNMENT: 'Giao việc',
   OPERATION_ALERT_OTHER: 'Cảnh báo vận hành khác',
+}
+
+// Notification-BRD.md §6.1 "Source Module" — nhãn module nguồn cho bộ lọc Trung tâm thông báo.
+export const NOTIFICATION_SOURCE_MODULE_LABELS: Record<NotificationSourceModule, string> = {
+  VM: 'Quản lý xe',
+  MT: 'Bảo dưỡng',
+  RM: 'Lượt thuê',
+  CT: 'Hợp đồng',
+  PM: 'Thanh toán',
+  DI: 'Sự cố',
+  EA: 'Nhân viên & phân công',
+  VC: 'Xe ký gửi',
 }
 
 export const NOTIFICATION_PRIORITY_LABELS: Record<NotificationPriority, string> = {

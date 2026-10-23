@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Menu, RotateCcw, UserCog } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -21,7 +22,7 @@ function initials(fullName: string): string {
   return parts[parts.length - 1]?.[0]?.toUpperCase() ?? '?'
 }
 
-export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
+export function Topbar({ onOpenMobileNav, topbarSlot }: { onOpenMobileNav: () => void; topbarSlot?: ReactNode }) {
   const navigate = useNavigate()
   const user = useSessionStore((s) => s.user)
   const logout = useSessionStore((s) => s.logout)
@@ -47,6 +48,7 @@ export function Topbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
       </Button>
       <span className="min-w-0 truncate font-semibold">{vi.common.appName}</span>
       <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+        {topbarSlot}
         <Button variant="outline" size="sm" onClick={handleReset} title={vi.common.resetDemoData}>
           <RotateCcw className="size-4" />
           <span className="hidden sm:inline">{vi.common.resetDemoData}</span>

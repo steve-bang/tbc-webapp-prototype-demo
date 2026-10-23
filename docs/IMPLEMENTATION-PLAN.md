@@ -586,7 +586,10 @@ Kế hoạch: [`docs/DASHBOARD-PLATFORM-PLAN.md`](DASHBOARD-PLATFORM-PLAN.md) �
       module nguồn, gom ở `features/notifications` (tính động, không lưu); `features/dashboard` (KPI vận hành + widget KPI tài
       chính do `finance` sở hữu + bảng cảnh báo); sửa enum `NOTIFICATION_EVENT_TYPES` theo `NT` §7; đồng bộ `Vehicle Status` seed
       3 xe đang có lượt (`VH-BR-10`, `SEED_VERSION` 23 → 24).
-- [ ] **R2 — Trung tâm thông báo** (`IN_APP_WEBAPP`, sự kiện có lưu + khử trùng + tự `CANCELLED`, Inbox, chuông Topbar qua slot).
+- [x] **R2 — Trung tâm thông báo** — **DONE** (23/10/2026, review `tech-lead` đạt vòng 1, không Blocker — plan §19.9; chunk chính
+      1.828,25 kB → từ R3 tải lười màn `/platform/*` (D11)): `IN_APP_WEBAPP`, sự kiện có lưu + khử trùng
+      + tự `CANCELLED`, Inbox `/platform/notifications`, chuông Topbar qua slot, 4 entry quyền `NOTIFICATION` (ô `TBD` giữ nguyên),
+      bật lại "Xem tất cả" ở Dashboard. Không bump `SEED_VERSION` (vẫn 24).
 - [ ] **R3 — Nhật ký thao tác** (Audit Record mở rộng tương thích ngược, trần theo ký tự, lọc/phân trang/che dữ liệu/xuất CSV,
       seed nhật ký mẫu, `AUDIT.VIEW` theo `AL` §16; component phân trang; nợ tab Nhật ký ký gửi).
 - [ ] **R4 — Quản trị hệ thống + polish** (Vai trò & quyền, Cấu hình hệ thống, phân trang danh sách dài, màn Chi tiết nhân viên

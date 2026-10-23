@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useSessionStore } from '@/features/auth'
 import { paths } from '@/app/paths'
@@ -7,7 +7,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 
-export function AppShell() {
+/** `topbarSlot`: phần tử do `app/routes.tsx` ghép vào Topbar (vd. chuông thông báo) — shared không import features (E4). */
+export function AppShell({ topbarSlot }: { topbarSlot?: ReactNode }) {
   const user = useSessionStore((s) => s.user)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -17,7 +18,7 @@ export function AppShell() {
 
   return (
     <div className="bg-background flex h-svh flex-col">
-      <Topbar onOpenMobileNav={() => setMobileNavOpen(true)} />
+      <Topbar onOpenMobileNav={() => setMobileNavOpen(true)} topbarSlot={topbarSlot} />
       <div className="flex min-h-0 flex-1">
         <aside className="bg-sidebar border-sidebar-border hidden w-64 shrink-0 border-r md:block">
           <Sidebar className="h-full" />

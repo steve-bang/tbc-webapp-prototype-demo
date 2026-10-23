@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { paths } from '@/app/paths'
 import { renderTemplate, type DashboardAlertGroupView, type OperationalSignal } from '@/features/notifications'
 import { DASHBOARD_ALERT_GROUP_LABELS, NOTIFICATION_PRIORITY_LABELS, vi } from '@/shared/i18n/vi'
 import { Badge } from '@/shared/ui/badge'
@@ -31,7 +32,7 @@ function AlertRow({ signal }: { signal: OperationalSignal }) {
 /**
  * Bảng cảnh báo Dashboard (WebappQuanTri.md §5.3): mỗi nhóm `DASHBOARD_ALERT_GROUPS` một thẻ — số lượng + tối đa 5 dòng.
  * Dữ liệu là danh sách tín hiệu của `features/notifications` (một định nghĩa duy nhất cho Dashboard và Trung tâm thông báo).
- * Nút "Xem tất cả" ẩn ở Round 1 (Inbox thuộc Round 2).
+ * "Xem tất cả" → Trung tâm thông báo (Round 2), hiện ở mọi nhóm có ≥ 1 tín hiệu.
  */
 export function AlertPanel({ groups }: { groups: DashboardAlertGroupView[] }) {
   const t = vi.dashboard
@@ -58,9 +59,15 @@ export function AlertPanel({ groups }: { groups: DashboardAlertGroupView[] }) {
                     <AlertRow key={signal.dedupeKey} signal={signal} />
                   ))}
                 </ul>
-                {signals.length > MAX_ROWS_PER_GROUP && (
-                  <p className="text-muted-foreground mt-1 px-2 text-xs">{t.alertMore.replace('{{count}}', String(signals.length - MAX_ROWS_PER_GROUP))}</p>
-                )}
+                <div className="mt-1 flex min-w-0 items-center justify-between gap-2 px-2">
+                  <p className="text-muted-foreground min-w-0 truncate text-xs">
+                    {signals.length > MAX_ROWS_PER_GROUP &&
+                      t.alertMore.replace('{{count}}', String(signals.length - MAX_ROWS_PER_GROUP))}
+                  </p>
+                  <Link to={paths.platformNotifications} className="text-primary shrink-0 text-xs font-medium hover:underline">
+                    {t.alertViewAll}
+                  </Link>
+                </div>
               </>
             )}
           </CardContent>
