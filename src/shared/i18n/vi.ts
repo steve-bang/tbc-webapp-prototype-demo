@@ -78,6 +78,9 @@ export const vi = {
   common: {
     appName: 'Thiên Bảo Car — Quản trị',
     loading: 'Đang tải...',
+    noPermissionTitle: 'Không có quyền truy cập',
+    noPermissionDescription: 'Vai trò hiện tại không được phép xem màn hình này. Đổi vai trò hoặc liên hệ quản trị viên.',
+    backToDashboard: 'Về Tổng quan',
     save: 'Lưu',
     cancel: 'Hủy',
     create: 'Tạo mới',
@@ -360,6 +363,9 @@ export const vi = {
     documentRemoveError: 'Không thể xoá giấy tờ, vui lòng thử lại.',
   },
   vehicles: {
+    // TECH-HARDENING-PLAN.md §2.3 — audit SYSTEM_CHANGE_VEHICLE_STATUS.
+    systemStatusChangeSummary: (plate: string, from: string, to: string, rentalId: string) =>
+      `Hệ thống đổi trạng thái xe ${plate} từ ${from} sang ${to} do huỷ biên bản của lượt thuê ${rentalId}`,
     conditionHandoverSummary: (odo: string, fuel: string | number, existingCount: number) => `Odo ${odo} km · Fuel ${fuel} · ${existingCount} hư hỏng có sẵn`,
     conditionReturnSummary: (odo: string, fuel: string | number, incidentCount: number) => `Odo ${odo} km · Fuel ${fuel} · ${incidentCount} sự cố mới`,
     conditionCustomerCharge: (amount: string) => ` · Khách chịu ${amount}`,
@@ -1725,11 +1731,15 @@ export const vi = {
     cancelStep2Title: 'Xác nhận huỷ',
     cancelStep2Warning: 'Thao tác này sẽ đổi trạng thái lượt thuê liên quan. Bạn có chắc chắn muốn tiếp tục?',
     cancelStep2VehicleNotice:
-      'Vui lòng tự kiểm tra và cập nhật trạng thái/Odometer của xe (nếu cần) tại trang Chi tiết xe — hệ thống chưa tự động hoàn tác.',
+      'Hệ thống tự cập nhật trạng thái xe theo quy tắc hoàn tác (xe đang ở lượt thuê khác hoặc đang bảo dưỡng/ngừng hoạt động thì giữ nguyên). Odometer hiện tại của xe không tự khôi phục — vui lòng kiểm tra tại trang Chi tiết xe.',
     cancelHandoverSuccess: 'Đã huỷ biên bản giao xe.',
     cancelHandoverError: 'Không thể huỷ biên bản giao xe, vui lòng thử lại.',
     cancelReturnSuccess: 'Đã huỷ biên bản trả xe.',
     cancelReturnError: 'Không thể huỷ biên bản trả xe, vui lòng thử lại.',
+    errors: {
+      cancelReturnVehicleInUse: (rentalId: string) =>
+        `Không thể huỷ biên bản trả xe: xe đang ở lượt thuê ${rentalId}. Hoàn tác sẽ tạo hai lượt đang thuê cùng một xe.`,
+    },
   },
   incidents: {
     // Màn "Hồ sơ sự cố" (`/incidents`) — `docs/DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §5.1.

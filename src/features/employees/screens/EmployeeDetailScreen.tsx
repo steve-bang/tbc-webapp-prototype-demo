@@ -72,6 +72,7 @@ function ProfileTab({ employee }: { employee: Employee }) {
 }
 
 function AssignmentsTab({ employeeId }: { employeeId: string }) {
+  const { can } = usePermission()
   const t = vi.employees
   const { data: assignments, isLoading } = useAssignments()
   if (isLoading) return <p className="text-muted-foreground text-sm">{vi.common.loading}</p>
@@ -118,9 +119,13 @@ function AssignmentsTab({ employeeId }: { employeeId: string }) {
                 <TableRow key={a.id}>
                   <TableCell>{ASSIGNMENT_ROLE_LABELS[a.role]}</TableCell>
                   <TableCell>
-                    <Link to={`${paths.rentalDetail(a.rentalId)}?tab=assignment`} className="font-medium hover:underline">
-                      {a.rentalId}
-                    </Link>
+                    {can('RENTAL', 'VIEW') ? (
+                      <Link to={`${paths.rentalDetail(a.rentalId)}?tab=assignment`} className="font-medium hover:underline">
+                        {a.rentalId}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{a.rentalId}</span>
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {formatDateTime(a.plannedWindowStart)} – {formatDateTime(a.plannedWindowEnd)}

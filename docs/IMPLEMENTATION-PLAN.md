@@ -619,3 +619,22 @@ Dashboard → R1 · Trung tâm thông báo → R1+R2 · Nhật ký thao tác →
 - [x] Rà lại `shared/i18n/vi.ts` — không còn chuỗi tiếng Việt hardcode rải rác trong component.
 - [x] Viết lại `README.md` (hiện vẫn là README mặc định của Vite) — cách chạy, cách reset dữ liệu demo,
       cách thêm một feature mới theo pattern.
+
+## Phase 6.1 — Vòng kỹ thuật: route guard · N4 · gỡ vòng import · N8 múi giờ — `[~]`
+
+Kế hoạch: [`docs/TECH-HARDENING-PLAN.md`](TECH-HARDENING-PLAN.md) — **`APPROVED`** (23/10/2026, người dùng duyệt cả 6 điểm plan §10;
+Round chạy liên tục R1 → R2 → R3a → R3b).
+Không thêm tính năng nghiệp vụ; trả nợ `docs/DASHBOARD-PLATFORM-PLAN.md` §22.10 (N4, N8), lỗ hổng route guard (Phase 2,
+`docs/ARCHITECTURE.md` §5) và SCC 98 file (Phase 5). Đo trên HEAD `ef42332`: 18 ô vai trò × nhóm route vào được bằng URL dù thiếu quyền;
+seed lệch 2.818 bản ghi giữa giờ máy HCM và UTC; 69 file phụ thuộc giờ trình duyệt; mô phỏng tách barrel → SCC 0.
+
+- [x] **R1 — Route guard + N4** — **DONE** (23/10/2026, brief plan §11, review `tech-lead` đạt vòng 1, không Blocker — plan §11.9; tải đầu
+      1.863.679 B, ngân sách R2/R3 phân bổ lại; SCC giữ 98 file; seed không đổi) (plan §1, §2): `RequirePermission` (layout route, quyền theo `nav.tsx`, 18 nhóm) + `NoPermissionState`;
+      huỷ giao/nhận xe tự cập nhật `Vehicle Status` theo bảng giả định (`UC-VH-14`/`UC-VR-19`, `TODO(OQ)`), audit
+      `SYSTEM_CHANGE_VEHICLE_STATUS`; `DISPATCHER` mở thông báo phân công → Bảng điều phối (`linkFallback`, phương án B); không đổi `permissions.ts`, seed, SCC.
+- [ ] **R2 — Gỡ vòng import** (plan §3): mỗi feature 2 điểm nhập `index.ts` (dữ liệu) + `ui.ts` (màn/component) → SCC 98 → **0**; bật
+      `import/no-cycle` trong `oxlint` (đã duyệt E2–E4). Không đổi hành vi (dump seed + harness y hệt).
+- [ ] **R3a — N8 nền + dữ liệu/logic** (plan §4): `shared/lib/datetime.ts` offset cố định UTC+7 (`SA-BR-14`), 13 seed + 15 file logic → seed
+      và harness giống hệt dưới mọi múi giờ máy.
+- [ ] **R3b — N8 giao diện** (plan §4): ~40 màn/dialog (lưới lịch, bộ lọc ngày, ô nhập ngày giờ) → `tz-scan` = 0 ngoài `datetime.ts`.
+- [ ] *(Tuỳ chọn)* **R2b** — gom 89 import sâu chéo feature vào barrel (plan §3.3).

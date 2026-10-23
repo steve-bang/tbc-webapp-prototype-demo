@@ -55,6 +55,8 @@ Mỗi `src/features/<feature>/` gồm:
   `core/`.
 - `src/app/**` chỉ chứa route: khai path ở `app/paths.ts`, khai `<Route>` ở `app/routes.tsx` mount
   thẳng `<XxxScreen>` từ `@/features/<x>`. Không đặt business logic ở `app/`.
+- **Route mới phải thuộc một nhóm trong `app/routeAccess.ts` và nằm trong `<RequirePermission access={ROUTE_ACCESS.<nhóm>} />`**
+  ở `app/routes.tsx` (trừ Dashboard) — `docs/TECH-HARDENING-PLAN.md` §11.
 - Route/menu cấp điều hướng khai thêm ở `shared/layout/nav.tsx` (kèm `resource`/`action` để
   `Sidebar` tự lọc theo quyền — xem §7).
 
@@ -88,6 +90,8 @@ Không gọi `localStorage` trực tiếp trong component/hook và không nhét 
 
 - Luôn qua `usePermission()` (`features/auth`) + ma trận `shared/domain/permissions.ts`. **Không
   bao giờ** viết `if (role === 'MANAGER')` rải rác trong component.
+- Chặn truy cập màn hình ở tầng route (`RequirePermission` + `app/routeAccess.ts`, xem `docs/ARCHITECTURE.md` §5) — màn mới
+  không cần tự viết trạng thái "không có quyền" cho quyền xem; vẫn tự gate nút/tab/hành động bên trong.
 - Thiếu entry cho một `resource`/`action` cần dùng → thêm vào `permissions.ts` theo đúng format
   hiện có (field `source` trích `WebappQuanTri.md §...`; nếu tài liệu không có dòng rõ ràng, ghi
   `"BA đề xuất — <lý do>"` thay vì bịa mà không chú thích).

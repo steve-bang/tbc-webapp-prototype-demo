@@ -32,6 +32,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   CREATE_VEHICLE: 'Tạo xe',
   UPDATE_VEHICLE: 'Cập nhật xe',
   CHANGE_VEHICLE_STATUS: 'Đổi trạng thái xe',
+  SYSTEM_CHANGE_VEHICLE_STATUS: 'Hệ thống đổi trạng thái xe',
   ADD_VEHICLE_DOCUMENT: 'Thêm giấy tờ xe',
   UPDATE_VEHICLE_DOCUMENT: 'Cập nhật giấy tờ xe',
   CREATE_MAINTENANCE_RULE: 'Tạo quy tắc bảo dưỡng',

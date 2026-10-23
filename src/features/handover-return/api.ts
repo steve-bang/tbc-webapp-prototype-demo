@@ -3,12 +3,22 @@
 // thuần từ `api.ts`, không phải hook) qua barrel `@/features/rentals` — mirror tiền lệ
 // `contracts/api.ts` gọi thẳng `markContractCreated()`.
 import { canCancelHandover, canCancelReturn, revertHandoverCancelled, revertReturnCancelled } from '@/features/rentals'
-import { getById as getRentalById } from '@/features/rentals/api'
+import { getById as getRentalById, list as listRentals } from '@/features/rentals/api'
+// Ngoại lệ E1 (TECH-HARDENING-PLAN.md §2.3): import sâu `vehicles/api` để đồng bộ Vehicle Status, không qua barrel.
+import { applySystemStatusChange, getById as getVehicleById } from '@/features/vehicles/api'
 import type { HandoverReturnStatus, Role } from '@/shared/domain/enums'
+import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { readJson, writeJson } from '@/shared/lib/storage'
-import { canCancelHandoverRecord, canCancelReturnRecord, canEditHandoverRecord, canEditReturnRecord } from './model'
+import {
+  canCancelHandoverRecord,
+  canCancelReturnRecord,
+  canEditHandoverRecord,
+  canEditReturnRecord,
+  vehicleStatusAfterHandoverCancel,
+  vehicleStatusAfterReturnCancel,
+} from './model'
 import type { HandoverRecord, ReturnRecord } from './model'
 
 export const HANDOVER_RECORDS_STORAGE_KEY = 'handoverRecords'
@@ -126,7 +136,8 @@ export async function updateHandover(id: string, patch: HandoverUpdateInput, rea
  * Return chỉ tồn tại sau khi Handover hoàn tất, nên không thể huỷ ngược
  * Handover trong khi Return vẫn còn hiệu lực). Sau khi ghi `CANCELLED`, gọi
  * `revertHandoverCancelled()` (`@/features/rentals`, kế hoạch §0.3/§9.2) để
- * hoàn tác Rental — giới hạn demo fake-API: không có transaction thật xuyên 2
+ * hoàn tác Rental, rồi đồng bộ `Vehicle Status` qua `applySystemStatusChange()` theo
+ * `vehicleStatusAfterHandoverCancel()` (N4, TECH-HARDENING-PLAN.md §2.2) — giới hạn demo fake-API: không có transaction thật xuyên 2
  * storage key, giống ghi chú ở `contracts/api.ts`'s `create()`.
  */
 export async function cancelHandover(id: string, reason: string, actor: ActorInfo): Promise<HandoverRecord> {
@@ -144,6 +155,11 @@ export async function cancelHandover(id: string, reason: string, actor: ActorInf
   if (!rental || !canCancelHandover(rental)) {
     throw new Error('Lượt thuê liên quan đang không ở trạng thái cho phép huỷ giao xe.')
   }
+  // N4 — tính quyết định trạng thái xe TRƯỚC mọi thao tác ghi (fake API không có transaction xuyên key).
+  const vehicle = await getVehicleById(rental.vehicleId)
+  const decision = vehicle
+    ? vehicleStatusAfterHandoverCancel(vehicle, await listRentals({ vehicleId: rental.vehicleId }), rental.id)
+    : undefined
 
   const record = await fakeRequest(() => {
     const all = readHandovers()
@@ -174,6 +190,9 @@ export async function cancelHandover(id: string, reason: string, actor: ActorInf
   })
 
   await revertHandoverCancelled(before.rentalId, actor)
+  if (decision?.next) {
+    await applySystemStatusChange(rental.vehicleId, decision.next, { rentalId: rental.id, recordId: id, cause: 'CANCEL_HANDOVER' }, actor)
+  }
 
   return record
 }
@@ -230,9 +249,9 @@ export async function updateReturn(id: string, patch: ReturnUpdateInput, reason:
 
 /**
  * UC-VR-19 — Huỷ biên bản trả xe `COMPLETED`, gọi `revertReturnCancelled()`
- * (`@/features/rentals`, kế hoạch §0.3/§9.2) để hoàn tác Rental. Phần hoàn tác
- * Vehicle.status/currentKm KHÔNG tự động (kế hoạch §0.4) — dialog UI hiển thị
- * cảnh báo tương ứng.
+ * (`@/features/rentals`, kế hoạch §0.3/§9.2) để hoàn tác Rental, rồi đồng bộ
+ * `Vehicle Status` theo `vehicleStatusAfterReturnCancel()` (N4); xe đang ở lượt khác thì
+ * ném lỗi trước mọi ghi. `Current Odometer` KHÔNG tự khôi phục (OQ-N4-4) — dialog UI cảnh báo.
  */
 export async function cancelReturn(id: string, reason: string, actor: ActorInfo): Promise<ReturnRecord> {
   const trimmedReason = reason.trim()
@@ -244,6 +263,14 @@ export async function cancelReturn(id: string, reason: string, actor: ActorInfo)
   const rental = await getRentalById(before.rentalId)
   if (!rental || !canCancelReturn(rental)) {
     throw new Error('Lượt thuê liên quan đang không ở trạng thái cho phép huỷ trả xe.')
+  }
+  // N4 — tính quyết định trạng thái xe và chặn (OQ-N4-2) TRƯỚC mọi thao tác ghi.
+  const vehicle = await getVehicleById(rental.vehicleId)
+  const decision = vehicle
+    ? vehicleStatusAfterReturnCancel(vehicle, await listRentals({ vehicleId: rental.vehicleId }), rental.id)
+    : undefined
+  if (decision?.blockedByRentalId) {
+    throw new Error(vi.handoverReturn.errors.cancelReturnVehicleInUse(decision.blockedByRentalId))
   }
 
   const record = await fakeRequest(() => {
@@ -275,6 +302,9 @@ export async function cancelReturn(id: string, reason: string, actor: ActorInfo)
   })
 
   await revertReturnCancelled(before.rentalId, actor)
+  if (decision?.next) {
+    await applySystemStatusChange(rental.vehicleId, decision.next, { rentalId: rental.id, recordId: id, cause: 'CANCEL_RETURN' }, actor)
+  }
 
   return record
 }

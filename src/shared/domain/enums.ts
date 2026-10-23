@@ -676,6 +676,8 @@ export const AUDIT_ACTIONS = [
   'VIEW_AUDIT_SENSITIVE_VALUE',
   // System Administration (SA) — DASHBOARD-PLATFORM-PLAN.md §6: CONFIG_CHANGE (AL §6, SA-BR-09) — mọi thay đổi cấu hình hệ thống.
   'CONFIG_CHANGE',
+  // Vehicle Management (VM) — TECH-HARDENING-PLAN.md §2.3: hệ thống đổi trạng thái xe khi huỷ giao/nhận (UC-VH-14, UC-VR-19).
+  'SYSTEM_CHANGE_VEHICLE_STATUS',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 

@@ -66,6 +66,8 @@ export function useCancelHandover() {
       queryClient.invalidateQueries({ queryKey: ['handoverRecords'] })
       queryClient.invalidateQueries({ queryKey: ['handoverRecords', 'detail', variables.id] })
       queryClient.invalidateQueries({ queryKey: ['rentals'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
@@ -93,6 +95,8 @@ export function useCancelReturn() {
       queryClient.invalidateQueries({ queryKey: ['returnRecords'] })
       queryClient.invalidateQueries({ queryKey: ['returnRecords', 'detail', variables.id] })
       queryClient.invalidateQueries({ queryKey: ['rentals'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }

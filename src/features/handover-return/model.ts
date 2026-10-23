@@ -1,5 +1,13 @@
 import { z } from 'zod'
-import type { AdditionalChargeType, ConditionItemType, HandoverReturnStatus, IncidentItemType } from '@/shared/domain/enums'
+import type { Rental } from '@/features/rentals'
+import type { Vehicle } from '@/features/vehicles'
+import type {
+  AdditionalChargeType,
+  ConditionItemType,
+  HandoverReturnStatus,
+  IncidentItemType,
+  VehicleStatus,
+} from '@/shared/domain/enums'
 import { generateId } from '@/shared/lib/id'
 
 /**
@@ -210,6 +218,70 @@ export function canCancelReturnRecord(record: ReturnRecord): boolean {
 }
 export function canEditReturnRecord(record: ReturnRecord): boolean {
   return record.status === 'COMPLETED'
+}
+
+// ---- N4 — đồng bộ `Vehicle Status` khi huỷ giao/nhận (TECH-HARDENING-PLAN.md §2.2) ----
+
+export type VehicleStatusDecisionReason =
+  | 'TO_AVAILABLE'
+  | 'TO_RENTED'
+  | 'OTHER_ACTIVE_RENTAL'
+  | 'KEEP_MAINTENANCE'
+  | 'KEEP_INACTIVE'
+  | 'ALREADY_TARGET'
+
+/** `next` = trạng thái xe cần đặt (null = không đổi); `blockedByRentalId` có giá trị = phải chặn huỷ (chỉ huỷ nhận xe). */
+export interface VehicleStatusDecision {
+  next: VehicleStatus | null
+  blockedByRentalId?: string
+  reason: VehicleStatusDecisionReason
+}
+
+/** "Lượt khác đang giữ xe" = Rental khác cùng xe đang `HANDED_OVER` hoặc `IN_RENTAL`. */
+function findOtherActiveRental(vehicle: Pick<Vehicle, 'id'>, rentals: Pick<Rental, 'id' | 'vehicleId' | 'status'>[], rentalId: string) {
+  return rentals.find(
+    (r) => r.vehicleId === vehicle.id && r.id !== rentalId && (r.status === 'HANDED_OVER' || r.status === 'IN_RENTAL'),
+  )
+}
+
+/**
+ * UC-VH-14 §18.4 bước 4 — sau khi huỷ giao xe, xe quay về `AVAILABLE` "nếu không có ràng buộc khác".
+ * TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N4-1) — "ràng buộc khác" chưa định nghĩa; giả định tạm: xe đang ở lượt khác,
+ * `MAINTENANCE`, `INACTIVE` thì giữ nguyên trạng thái xe.
+ * TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N4-4) — KHÔNG khôi phục `Vehicle.Current Odometer` (hệ thống không lưu giá trị trước đó).
+ */
+export function vehicleStatusAfterHandoverCancel(
+  vehicle: Pick<Vehicle, 'id' | 'status'>,
+  rentals: Pick<Rental, 'id' | 'vehicleId' | 'status'>[],
+  rentalId: string,
+): VehicleStatusDecision {
+  if (vehicle.status === 'AVAILABLE') return { next: null, reason: 'ALREADY_TARGET' }
+  // VM: INACTIVE là trạng thái cuối, một chiều.
+  if (vehicle.status === 'INACTIVE') return { next: null, reason: 'KEEP_INACTIVE' }
+  // TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N4-1) — xe đã được đặt bảo dưỡng sau khi giao: giữ nguyên.
+  if (vehicle.status === 'MAINTENANCE') return { next: null, reason: 'KEEP_MAINTENANCE' }
+  // TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N4-1) — xe vẫn ở lượt khác: giữ RENTED.
+  if (findOtherActiveRental(vehicle, rentals, rentalId)) return { next: null, reason: 'OTHER_ACTIVE_RENTAL' }
+  return { next: 'AVAILABLE', reason: 'TO_AVAILABLE' }
+}
+
+/**
+ * UC-VR-19 §23.4 bước 4 — sau khi huỷ nhận xe, xe quay lại `RENTED`.
+ * TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N4-2) — xe đã giao cho lượt khác sau khi nhận: giả định tạm là CHẶN huỷ
+ * (hoàn tác sẽ tạo 2 lượt đang thuê cùng một xe).
+ * TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N4-3) — `MAINTENANCE` → `RENTED` (UC-VR-19 không điều kiện); `INACTIVE` giữ nguyên.
+ * TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N4-4) — KHÔNG khôi phục `Vehicle.Current Odometer`.
+ */
+export function vehicleStatusAfterReturnCancel(
+  vehicle: Pick<Vehicle, 'id' | 'status'>,
+  rentals: Pick<Rental, 'id' | 'vehicleId' | 'status'>[],
+  rentalId: string,
+): VehicleStatusDecision {
+  const other = findOtherActiveRental(vehicle, rentals, rentalId)
+  if (other) return { next: null, blockedByRentalId: other.id, reason: 'OTHER_ACTIVE_RENTAL' }
+  if (vehicle.status === 'INACTIVE') return { next: null, reason: 'KEEP_INACTIVE' }
+  if (vehicle.status === 'RENTED') return { next: null, reason: 'ALREADY_TARGET' }
+  return { next: 'RENTED', reason: 'TO_RENTED' }
 }
 
 // ---- §3.2 kế hoạch — Tính khoản phát sinh ước tính (VR-BR-21/22/24/25). ----

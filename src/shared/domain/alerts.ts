@@ -25,6 +25,8 @@ export interface OperationalSignal {
   payload: Record<string, string | number>
   /** Đường dẫn mở đối tượng nguồn. */
   link: string
+  /** Dùng khi người xem không qua được guard của `link` — TECH-HARDENING-PLAN.md §11.2 mục 5. */
+  linkFallback?: string
   recipientUserIds?: string[]
 }
 

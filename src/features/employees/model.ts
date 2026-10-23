@@ -304,6 +304,8 @@ export function collectAssignmentSignals(
         time: formatDateTime(assignment.plannedWindowEnd),
       },
       link: `${paths.rentalDetail(assignment.rentalId)}?tab=assignment`,
+      // TODO(OQ-G1: TECH-HARDENING-PLAN.md §9; DASHBOARD-PLATFORM-PLAN.md §11 Q20) — DISPATCHER không có RENTAL.VIEW nên về Bảng điều phối.
+      linkFallback: paths.dispatchBoard,
       recipientUserIds: employee?.account ? [employee.account.userId] : undefined,
     })
   }

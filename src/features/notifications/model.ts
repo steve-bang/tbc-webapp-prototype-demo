@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns'
+import { canAccessPath } from '@/app/routeAccess'
 import { collectConsignmentSignals, type ConsignmentContract, type OwnerPayoutRecord } from '@/features/consignment'
 import { collectContractSignals, type Contract } from '@/features/contracts'
 import { collectAssignmentSignals, type Assignment, type Employee } from '@/features/employees'
@@ -125,6 +126,19 @@ export function renderTemplate(
   return { title: fill(template.title), body: fill(template.body) }
 }
 
+/**
+ * Link theo người xem (TECH-HARDENING-PLAN.md §11.2 mục 5): `link` nếu người xem qua được guard route,
+ * ngược lại `linkFallback` nếu qua được, ngược lại `undefined` (không điều hướng).
+ */
+export function resolveLink(
+  item: { link: string; linkFallback?: string },
+  check: (resource: Resource, action: Action) => boolean,
+): string | undefined {
+  if (canAccessPath(item.link, check)) return item.link
+  if (item.linkFallback && canAccessPath(item.linkFallback, check)) return item.linkFallback
+  return undefined
+}
+
 /** Nhóm cảnh báo → resource quyết định ai được thấy nhóm (ẩn cả nhóm nếu không có `VIEW`). */
 export const ALERT_GROUP_RESOURCE: Record<DashboardAlertGroup, Resource> = {
   VEHICLE_DOCUMENT: 'VEHICLE',
@@ -189,6 +203,8 @@ export interface NotificationEvent {
   priority: NotificationPriority
   dueRef?: string
   link: string
+  /** Dùng khi người xem không qua được guard của `link` — TECH-HARDENING-PLAN.md §11.2 mục 5. */
+  linkFallback?: string
   resource: Resource
   /** Snapshot từ Template v1 tại thời điểm tạo — không sửa về sau (NT-BR-09, AC-NT-007). */
   title: string
@@ -248,6 +264,7 @@ export function planSync(
       priority: signal.priority,
       dueRef: signal.dueRef,
       link: signal.link,
+      ...(signal.linkFallback ? { linkFallback: signal.linkFallback } : {}),
       resource: signal.resource,
       title,
       body,

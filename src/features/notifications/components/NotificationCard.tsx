@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom'
+import { usePermission } from '@/features/auth'
 import { NOTIFICATION_PRIORITY_LABELS, NOTIFICATION_EVENT_TYPE_LABELS, vi } from '@/shared/i18n/vi'
 import { cn } from '@/shared/lib/cn'
 import { formatDateTime, formatRelative } from '@/shared/lib/datetime'
 import { Badge } from '@/shared/ui/badge'
-import type { NotificationEvent } from '../model'
+import { resolveLink, type NotificationEvent } from '../model'
 
 // Cùng bảng màu ưu tiên với AlertPanel của Dashboard (notifications không import dashboard nên lặp lại 4 dòng).
 const PRIORITY_VARIANT = {
@@ -24,6 +25,7 @@ export function NotificationCard({
   onOpen: (event: NotificationEvent) => Promise<void> | void
 }) {
   const navigate = useNavigate()
+  const { can } = usePermission()
   const cancelled = event.deliveryStatus === 'CANCELLED'
 
   async function handleClick() {
@@ -33,7 +35,9 @@ export function NotificationCard({
     } catch {
       // bỏ qua
     }
-    navigate(event.link)
+    // Người xem không qua được guard của link (kể cả linkFallback) → chỉ đánh dấu đã đọc, không điều hướng.
+    const target = resolveLink(event, can)
+    if (target) navigate(target)
   }
 
   return (

@@ -1,4 +1,5 @@
 import type { OwnershipType, Role, VehicleClass, VehicleStatus } from '@/shared/domain/enums'
+import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
@@ -200,6 +201,38 @@ export async function changeStatus(id: string, status: VehicleStatus, actor: Act
       actorRole: actor.role,
       before: { status: before.status },
       after: { status },
+    })
+    return after
+  })
+}
+
+/**
+ * Hệ thống đổi trạng thái xe khi huỷ biên bản giao/nhận (`VH-BR-10`/`VR-BR-11`/`VR-BR-18`; UC-VH-14 §18.4, UC-VR-19 §23.4).
+ * KHÔNG đi qua `canChangeStatus` (ma trận chuyển trạng thái THỦ CÔNG — `RENTED` không có thao tác tay);
+ * audit riêng `SYSTEM_CHANGE_VEHICLE_STATUS` để phân biệt với `CHANGE_VEHICLE_STATUS`. Caller không gọi khi no-op.
+ */
+export async function applySystemStatusChange(
+  id: string,
+  to: VehicleStatus,
+  context: { rentalId: string; recordId: string; cause: 'CANCEL_HANDOVER' | 'CANCEL_RETURN' },
+  actor: ActorInfo,
+): Promise<Vehicle> {
+  return fakeRequest(() => {
+    const all = readAll()
+    const before = findOrThrow(all, id)
+    if (before.status === to) throw new Error(`Xe ${before.plate} đã ở trạng thái ${to}`)
+    const after: Vehicle = { ...before, status: to, updatedAt: new Date().toISOString() }
+    writeAll(all.map((v) => (v.id === id ? after : v)))
+    appendAudit({
+      action: 'SYSTEM_CHANGE_VEHICLE_STATUS',
+      entity: 'Vehicle',
+      entityId: id,
+      summary: vi.vehicles.systemStatusChangeSummary(after.plate, before.status, to, context.rentalId),
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: { status: before.status },
+      after: { status: to, rentalId: context.rentalId, recordId: context.recordId, cause: context.cause },
     })
     return after
   })

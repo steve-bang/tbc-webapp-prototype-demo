@@ -15,6 +15,23 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6.1 Round 1 — Chặn truy cập theo quyền ở tầng route + đồng bộ trạng thái xe khi huỷ giao/nhận** (theo
+  [`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md) §1, §2, §11). **Hành vi mới:** gõ thẳng URL một màn mà vai trò hiện tại không có quyền
+  (vd. `DISPATCHER` mở `/vehicles`, `OPERATION_STAFF` mở `/finance/settlement`) giờ hiện màn **"Không có quyền truy cập"** kèm nút về Tổng quan thay vì
+  mở được dữ liệu — 18 nhóm route khai một chỗ ở `app/routeAccess.ts` (cùng quyền với menu), URL giữ nguyên nên đổi vai trò nhanh là xem lại được; ô
+  `TBD` bị chặn như menu. Bấm thông báo phân công với vai trò `DISPATCHER` (không có quyền xem lượt thuê) nay mở **Bảng điều phối**; người được giao vẫn mở
+  lượt thuê. **Huỷ biên bản giao xe / trả xe** trên Webapp nay **tự đổi trạng thái xe** (`UC-VH-14` / `UC-VR-19`): huỷ giao → xe về `AVAILABLE` (giữ nguyên
+  nếu xe đang ở lượt khác, bảo dưỡng hoặc ngừng hoạt động); huỷ nhận → xe về `RENTED` (giữ nếu ngừng hoạt động); **chặn huỷ nhận xe khi xe đã ở lượt thuê
+  khác**. Ghi nhật ký `SYSTEM_CHANGE_VEHICLE_STATUS`. Odometer vẫn kiểm tra thủ công. Các giả định nghiệp vụ gắn `TODO(OQ)` (OQ-N4-1…4). Không đổi
+  `permissions.ts`, seed (`SEED_VERSION` 26). Review `tech-lead` **đạt vòng 1**, không Blocker; tải đầu Dashboard 1.863.679 B (≤ 1.870 kB), vòng import giữ 98 file.
+
+**Planned**
+
+- **Phase 6.1 — Vòng kỹ thuật** ([`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md), `APPROVED`): R1 route guard + N4 (xong) → R2 gỡ vòng
+  import (SCC 98 → 0, tách `index.ts`/`ui.ts`) → R3a/R3b cố định múi giờ `Asia/Ho_Chi_Minh` (`SA-BR-14`).
+
+**Added**
+
 - **Phase 6 Round 4b — Polish · Phase 6 hoàn tất** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §22). Phân trang
   25 dòng/trang cho Danh sách lượt thuê, Sổ giao dịch, Danh sách quyết toán, Lịch chi trả hàng tháng, Danh sách khách (số tổng vẫn tính trên toàn bộ dữ
   liệu đã lọc; đổi bộ lọc về trang 1) — dùng chung `shared/lib/pagination.ts`. Gom chuỗi giao diện còn viết cứng (nhãn menu, toast đổi vai trò/đăng

@@ -99,10 +99,13 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
 - `usePermission()` (`features/auth`) đọc vai trò hiện tại từ session store, trả về hàm
   `can(resource, action)`.
 - `shared/layout/Sidebar.tsx` lọc mục điều hướng theo `resource`/`action` khai trong
-  `shared/layout/nav.tsx`. **Đây mới chỉ là ẩn/hiện ở tầng UI (menu + nút hành động)** — chưa có
-  chặn ở tầng route (một người dùng gõ thẳng URL vẫn mở được screen; các màn có kiểm quyền tự hiện trạng thái "không có quyền"). Với một
-  prototype demo cục bộ, rủi ro này chấp nhận được; nếu cần chặn chặt hơn ở phase sau, thêm một
-  route guard đọc `usePermission()` tương tự `AppShell`'s auth guard hiện tại.
+  `shared/layout/nav.tsx` (ẩn/hiện menu + nút hành động).
+- **Chặn ở tầng route (Phase 6.1 R1 — `docs/TECH-HARDENING-PLAN.md` §1, §11):** bảng `app/routeAccess.ts`
+  (`ROUTE_ACCESS` — 18 nhóm, cùng `resource`/`action` với `nav.tsx`) là nguồn duy nhất; `app/routes.tsx` bọc mỗi nhóm bằng layout
+  route `RequirePermission` (`features/auth`). Thiếu quyền → hiện `shared/layout/NoPermissionState` ("Không có quyền truy cập"),
+  **giữ nguyên URL** (đổi vai trò nhanh sang vai trò có quyền thì màn hiện lại ngay); màn tải lười không bị tải. Chỉ `/`, `/dashboard`,
+  `/login` không guard. Ô `TBD` bị chặn (như `can()`). Các màn có kiểm quyền riêng bên trong vẫn giữ (phòng thủ 2 lớp). Link thông báo /
+  cảnh báo chọn theo người xem qua `resolveLink()` (`features/notifications`: `link`, nếu không qua guard thì `linkFallback`).
 - Topbar có dropdown **đổi vai trò nhanh** (`switchRole`) để demo khác biệt phân quyền giữa các
   role trong cùng một phiên, không cần đăng xuất/đăng nhập lại.
 
