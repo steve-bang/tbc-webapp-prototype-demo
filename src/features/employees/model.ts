@@ -4,7 +4,7 @@ import type { Rental } from '@/features/rentals'
 import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
 import { ASSIGNMENT_ROLE_LABELS, vi } from '@/shared/i18n/vi'
 import { formatDateTime } from '@/shared/lib/datetime'
-import { EMPLOYEE_STATUSES, ROLES } from '@/shared/domain/enums'
+import { ASSIGNMENT_STATUSES, EMPLOYEE_STATUSES, ROLES } from '@/shared/domain/enums'
 import type { AccountStatus, AssignmentRole, AssignmentStatus, EmployeeStatus, Role } from '@/shared/domain/enums'
 
 /**
@@ -308,4 +308,39 @@ export function collectAssignmentSignals(
     })
   }
   return signals
+}
+
+// ---- Chi tiết nhân viên — DASHBOARD-PLATFORM-PLAN.md §21.2 mục 10 ----
+
+export interface EmployeeAssignmentSummary {
+  /** Số assignment nhân viên đang giữ (`assigneeEmployeeId`). */
+  total: number
+  byStatus: Record<AssignmentStatus, number>
+  /** `EA` §17 "Reassigned away" — số assignment từng giao cho nhân viên rồi được đổi sang người khác. */
+  reassignedAway: number
+}
+
+/**
+ * Tóm tắt phân công của một nhân viên (đếm theo trạng thái + bị chuyển đi). Hàm thuần.
+ * TODO(OQ: EmployeeAssignment-BRD.md §17 — dung sai trễ) — chưa tính On-time/Late; đây không phải Báo cáo hiệu suất UC-EA-18.
+ */
+export function summarizeEmployeeAssignments(assignments: Assignment[], employeeId: string): EmployeeAssignmentSummary {
+  const byStatus = Object.fromEntries(ASSIGNMENT_STATUSES.map((s) => [s, 0])) as Record<AssignmentStatus, number>
+  let total = 0
+  let reassignedAway = 0
+  for (const a of assignments) {
+    if (a.assigneeEmployeeId === employeeId) {
+      total++
+      byStatus[a.status]++
+    }
+    if (a.reassignmentHistory.some((h) => h.fromEmployeeId === employeeId)) reassignedAway++
+  }
+  return { total, byStatus, reassignedAway }
+}
+
+/** Assignment nhân viên đang giữ, `plannedWindowStart` mới → cũ. Hàm thuần. */
+export function listEmployeeAssignments(assignments: Assignment[], employeeId: string): Assignment[] {
+  return assignments
+    .filter((a) => a.assigneeEmployeeId === employeeId)
+    .sort((a, b) => b.plannedWindowStart.localeCompare(a.plannedWindowStart))
 }

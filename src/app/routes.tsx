@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuditLogScreen } from '@/features/audit'
-import { LoginScreen } from '@/features/auth'
+import { LoginScreen, PermissionMatrixScreen, SystemConfigScreen } from '@/features/auth'
 import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
 import {
   ConsignmentContractDetailScreen,
@@ -15,7 +15,7 @@ import {
 import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { DashboardScreen } from '@/features/dashboard'
-import { EmployeeListScreen } from '@/features/employees'
+import { EmployeeDetailScreen, EmployeeListScreen } from '@/features/employees'
 import { CashDrawerScreen, CostRecordsScreen, CustomerReceivablesScreen, FinanceReportScreen, OwnerPayoutScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance'
 import { HandoverReturnListScreen } from '@/features/handover-return'
 import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents'
@@ -25,7 +25,6 @@ import { RentalDetailScreen, RentalListScreen } from '@/features/rentals'
 import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
 import { vi } from '@/shared/i18n/vi'
 import { AppShell } from '@/shared/layout/AppShell'
-import { ComingSoon } from '@/shared/layout/ComingSoon'
 import { paths } from './paths'
 
 export function AppRoutes() {
@@ -47,7 +46,14 @@ export function AppRoutes() {
 
         <Route path={paths.dispatchBoard} element={<DispatchBoardScreen />} />
         <Route path={paths.employees} element={<EmployeeListScreen />} />
-        <Route path="/employees/:id" element={<ComingSoon title="Chi tiết nhân viên" />} />
+        <Route
+          path="/employees/:id"
+          element={
+            <Suspense fallback={<p className="text-muted-foreground text-sm">{vi.common.loading}</p>}>
+              <EmployeeDetailScreen />
+            </Suspense>
+          }
+        />
 
         <Route path={paths.rentals} element={<RentalListScreen />} />
         <Route path="/rentals/:id" element={<RentalDetailScreen />} />
@@ -81,8 +87,22 @@ export function AppRoutes() {
         {/* Màn của `finance/payment` — mount ở nhóm Xe ký gửi (WebappQuanTri.md §5.4). */}
         <Route path={paths.consignmentOwnerPayouts} element={<OwnerPayoutScreen />} />
 
-        <Route path={paths.platformSystemConfig} element={<ComingSoon title="Cấu hình hệ thống" />} />
-        <Route path={paths.platformPermissions} element={<ComingSoon title="Vai trò & quyền" />} />
+        <Route
+          path={paths.platformSystemConfig}
+          element={
+            <Suspense fallback={<p className="text-muted-foreground text-sm">{vi.common.loading}</p>}>
+              <SystemConfigScreen />
+            </Suspense>
+          }
+        />
+        <Route
+          path={paths.platformPermissions}
+          element={
+            <Suspense fallback={<p className="text-muted-foreground text-sm">{vi.common.loading}</p>}>
+              <PermissionMatrixScreen />
+            </Suspense>
+          }
+        />
         <Route
           path={paths.platformAudit}
           element={

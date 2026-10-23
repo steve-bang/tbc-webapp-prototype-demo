@@ -15,6 +15,14 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6 Round 4a — Quản trị hệ thống + Chi tiết nhân viên** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §21).
+  3 màn mới (tải lười), **không còn route nào hiển thị `ComingSoon`**: **Cấu hình hệ thống** (`/platform/system-config` — thông tin công ty theo
+  SystemAdministration-BRD §10, chỉ `SYSTEM_ADMIN` sửa, mỗi lần lưu ghi nhật ký `CONFIG_CHANGE` chỉ các trường đổi; múi giờ UTC+7/VND chỉ đọc kèm cảnh
+  báo khi giờ trình duyệt khác; đồng hồ dung lượng dữ liệu demo + nút Reset) · **Vai trò & quyền** (`/platform/permissions` — ma trận Role × Resource ×
+  Action chỉ đọc, làm nổi 35 ô `TBD` ở 23 dòng, lọc theo resource / chỉ dòng `TBD`) · **Chi tiết nhân viên** (`/employees/:id` — hồ sơ + tài khoản,
+  danh sách phân công và số đếm theo trạng thái, nhật ký thao tác; sửa/đổi trạng thái dùng lại form sẵn có). **`SEED_VERSION` 26 — demo đang mở sẽ tự
+  reset dữ liệu ở lần tải kế tiếp.** Review `tech-lead` **đạt vòng 2**: vòng 1 có 1 Blocker (schema email chấp nhận chuỗi `[...]` — lỗi từ brief, đã
+  sửa: email/SĐT seed để trống, hiển thị gợi ý bằng placeholder). Tải đầu trang Dashboard 1.853 kB JS (≤ 1.870).
 - **Phase 6 Round 3 — Nhật ký thao tác** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §20).
   `/platform/audit` hết `ComingSoon`: tra cứu nhật ký toàn hệ thống (lọc theo module, hành động, người thực hiện/Hệ thống, đối
   tượng, mức độ, correlation, khoảng ngày; phân trang 25 dòng), xem chi tiết trước/sau với dữ liệu nhạy cảm (CCCD/GPLX/SĐT/số tài

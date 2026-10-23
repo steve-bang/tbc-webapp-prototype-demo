@@ -47,6 +47,8 @@
  * lịch chi trả của ký gửi để sinh chi phí `CONSIGNMENT_PAYOUT`, nên ký gửi phải có dữ liệu trước.
  */
 
+// docs/DASHBOARD-PLATFORM-PLAN.md §21.2 — đầu tiên: cấu hình hệ thống không phụ thuộc dữ liệu nào.
+import '@/features/auth/seed'
 import '@/features/employees/seed'
 import '@/features/customers/seed'
 import '@/features/vehicles/seed'

@@ -1,7 +1,7 @@
 # Kế hoạch triển khai — Dashboard & Nền tảng (Thông báo · Nhật ký thao tác · Quản trị hệ thống) (Phase 6)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (23/10/2026 — người dùng duyệt cả 7 điểm §16 theo đề xuất,
-ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9) · **Round 2 — `DONE`** (23/10/2026, brief §19, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết §19.9; quyết định bundle D11 áp cho R3/R4) · **Round 3 — `APPROVED`, đã giao `dev`** (23/10/2026, brief §20; người dùng duyệt 7 mục gợi ý gồm tải lười D11) — **`DONE`** (23/10/2026, review `tech-lead` đạt vòng 2 sau 1 Blocker — §20.9). Các Open Question nghiệp vụ
+ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9) · **Round 2 — `DONE`** (23/10/2026, brief §19, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết §19.9; quyết định bundle D11 áp cho R3/R4) · **Round 3 — `APPROVED`, đã giao `dev`** (23/10/2026, brief §20; người dùng duyệt 7 mục gợi ý gồm tải lười D11) — **`DONE`** (23/10/2026, review `tech-lead` đạt vòng 2 sau 1 Blocker — §20.9) · **Round 4 tách 2 lượt** (người dùng duyệt 23/10/2026): **R4a — `DONE`** (brief §21: Cấu hình hệ thống, Vai trò & quyền, Chi tiết nhân viên; review đạt vòng 2 sau 1 Blocker — §21.11) · **R4b** (khung §21.10: phân trang, i18n, responsive, README) — brief viết sau khi R4a `DONE`. Các Open Question nghiệp vụ
 xử lý bằng giả định tạm + `TODO(OQ)` ở §11 (không tự chốt).
 
 Kế hoạch chi tiết **Phase 6** (`docs/IMPLEMENTATION-PLAN.md` mục "Phase 6 — Hoàn thiện nền tảng & polish"). Chia **4 round**:
@@ -704,7 +704,7 @@ render bảng).
 4. `buildDashboardFinanceSummary` + `DashboardFinanceWidget` (đối chiếu số 5.1).
 5. `dashboard/*` + route; 3 cổng + SCC + evalorder + kích thước chunk.
 
-Brief giao việc R1 đầy đủ: **§18**. Brief R2: **§19**. Brief R3: **§20**. Round 4: `tech-lead` viết mục chi tiết giao việc (§21+ — chèn trước mục Lịch sử) khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
+Brief giao việc R1 đầy đủ: **§18**. Brief R2: **§19**. Brief R3: **§20**. Brief R4a: **§21** (khung R4b §21.10 — brief chi tiết chèn trước mục Lịch sử khi R4a `DONE`) khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
 
 ---
 
@@ -1383,10 +1383,252 @@ meta tượng trưng — đúng hướng sửa (không ép).
 
 ---
 
-## 21. Lịch sử
+## 21. Round 4a — brief giao việc cho `dev` (`APPROVED` 23/10/2026)
+
+### 21.1. Bối cảnh
+
+Còn 3 route `ComingSoon` thuộc phạm vi Phase 6: `/platform/system-config`, `/platform/permissions` (nhóm Nền tảng — `WebappQuanTri.md` §5.4, §13.1)
+và `/employees/:id` (nợ Phase 1 — người dùng đưa vào R4). R4a dựng 3 màn này, **tất cả tải lười** (D11) với trần mới **tổng JS tải đầu `/dashboard`
+≤ 1.870 kB** (R3: 1.845,24 kB → dư ~24,8 kB). Phạm vi bám tài liệu, **không mở rộng**:
+
+- **Cấu hình hệ thống** — `SystemAdministration-BRD.md` §6.3/§10 (UC-SA-12): thông tin công ty (tên, địa chỉ, mã số thuế, người đại diện, logo,
+  liên hệ), múi giờ (UTC+7 — `SA-BR-14`), tham số dùng chung (VND); sửa chỉ `SYSTEM_ADMIN` (`SA` §13); mọi thay đổi audit (`SA-BR-09`); không hồi tố
+  hợp đồng/biên lai đã sinh (`SA-BR-11`). Kèm bản sao nút "Reset dữ liệu demo" (backlog Phase 6) và đồng hồ dung lượng (`measureAppStorage`, §8.5).
+- **Vai trò & quyền** — `SA` §9 (UC-SA-09 phần **xem**): bảng Role × Resource × Action từ `listPermissionMatrix()`, làm nổi ô `TBD`; **chỉ đọc**
+  (`SA` §19 Q10 chưa chốt cho tuỳ chỉnh).
+- **Chi tiết nhân viên** — `WebappQuanTri.md` §8.2 "Hồ sơ nhân viên — thông tin, trạng thái làm việc, liên kết tài khoản, chọn vai trò" +
+  `EmployeeAssignment-BRD.md` §6.1 (trường hồ sơ), §7 (tài khoản & vai trò), §8 (trạng thái) — UC-EA-01 (xem/sửa), UC-EA-03/04 qua **form sẵn có**;
+  thêm danh sách assignment của nhân viên (dữ liệu sẵn có, chỉ đọc) và nhật ký thao tác của hồ sơ (`AuditLog-BRD.md` §8).
+
+### 21.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §21.6)
+
+**A. Cấu hình hệ thống (`features/auth` — D6)**
+
+1. **`features/auth/model.ts`** — `interface SystemConfig { companyName; address; taxCode; representative; phone; email; logoNote; timezone: 'Asia/Ho_Chi_Minh';
+   currency: 'VND'; updatedAt?: string; updatedBy?: string }` (comment `SA` §6.3/§10; `TODO(OQ: SystemAdministration-BRD.md §19 Q8)` danh sách trường;
+   `TODO(OQ: §19 Q9)` một pháp nhân). `systemConfigSchema` (zod): `companyName` bắt buộc (≥ 3 ký tự); `email` đúng định dạng **nếu có**; trường khác
+   tuỳ chọn, cắt khoảng trắng; `timezone`/`currency` **không** nằm trong form (chỉ đọc). Hằng `DEMO_STORAGE_QUOTA_CHARS = 2_600_000` (giả định WebKit —
+   `DEMO-DATA-PLAN.md` D13) + `storageUsageRatio(totalChars)` (thuần).
+2. **`features/auth/api.ts`** (mới, bọc `fakeRequest`): `SYSTEM_CONFIG_STORAGE_KEY = 'systemConfig'`; `getSystemConfig()`; `updateSystemConfig(input,
+   actor)` — kiểm `can(actor.role, 'SYSTEM_ADMIN', 'CONFIG')` (không có → ném lỗi), validate schema, ghi `updatedAt`/`updatedBy`, `appendAudit`
+   `CONFIG_CHANGE` (`module: 'SYSTEM_ADMIN'`, `severity: 'NOTICE'`, `entity: 'SystemConfig'`, `entityId: 'company'`, `before`/`after` = **chỉ các trường đổi**,
+   summary liệt kê tên trường đổi); không đổi gì → không ghi, trả nguyên. `getAppStorageUsage()` → `measureAppStorage()` (bọc `fakeRequest`).
+3. **`features/auth/hooks.ts`** (mới): `useSystemConfig()`, `useUpdateSystemConfig()` (invalidate `['systemConfig']` + `['audit']`), `useAppStorageUsage()`.
+4. **`features/auth/seed.ts`** (mới) — `registerSeedStep` ghi **đúng** object sau (không `updatedAt`/`updatedBy` để snapshot tất định):
+   ```text
+   { companyName: 'Công ty TNHH Thiên Bảo Car', address: '[Địa chỉ công ty]', taxCode: '[Mã số thuế]',
+     representative: '[Người đại diện theo pháp luật]', phone: '', email: '',
+     logoNote: '[Logo — chưa tải lên ở bản demo]', timezone: 'Asia/Ho_Chi_Minh', currency: 'VND' }
+   ```
+   (Sửa ở review vòng 1 — §21.11 B1: `phone`/`email` để **rỗng**, gợi ý hiển thị qua thuộc tính `placeholder` của ô nhập; trước đó seed
+   `'[Email liên hệ]'` khiến schema email phải nới cho chuỗi `[...]`.) Comment: tên công ty trùng hằng `COMPANY_NAME` của `contracts/model.ts` (không import — `contracts` thuộc SCC); placeholder vì `SA` §19 Q8 chưa chốt.
+   `registerSeeds.ts`: import `@/features/auth/seed` **đầu tiên** (không phụ thuộc). `seedAll.ts`: `SEED_VERSION` 25 → **26**.
+5. **`features/auth/screens/SystemConfigScreen.tsx`** (§8.5, gate xem `SYSTEM_ADMIN.VIEW` — không có quyền → trạng thái "không có quyền", không gọi api):
+   - Thẻ **Thông tin công ty**: form `react-hook-form` + `zod` (CONVENTIONS §7); `SYSTEM_ADMIN.CONFIG` = false → các ô `readOnly`, ẩn nút Lưu; dòng "Cập
+     nhật lần cuối" khi có `updatedAt`; ghi chú `SA-BR-11` + `TODO`: "Hợp đồng/biên lai bản demo chưa đọc cấu hình này".
+   - Thẻ **Thông số chung**: múi giờ `Asia/Ho_Chi_Minh (UTC+7)` và tiền tệ `VND` chỉ đọc; hiển thị múi giờ **trình duyệt**
+     (`Intl.DateTimeFormat().resolvedOptions().timeZone`) và **cảnh báo** khi khác `Asia/Ho_Chi_Minh` (nợ N8 — `SA-BR-14`: bản demo tính ngày theo giờ trình
+     duyệt). Không sửa cách app tính giờ.
+   - Thẻ **Dữ liệu demo**: tổng ký tự / `DEMO_STORAGE_QUOTA_CHARS` (thanh tiến độ CSS + %), top 5 key, ghi chú trần audit 400.000 / thông báo 80.000
+     (§9.1); nút "Reset dữ liệu demo" → `window.confirm(vi.common.resetDemoDataConfirm)` → `resetDemoData()` (cùng hành vi Topbar).
+6. **`features/auth/screens/PermissionMatrixScreen.tsx`** (§8.4, gate `SYSTEM_ADMIN.VIEW`):
+   - Nguồn `listPermissionMatrix()` + `ROLES` (thuần — không api, không audit vì chỉ đọc hằng). Hàm thuần mới trong `features/auth/model.ts`:
+     `summarizePermissionMatrix(entries, roles)` → `{ entries, cells, trueCells, falseCells, tbdCells, undefinedCells, rowsWithTbd }`;
+     `groupPermissionEntries(entries)` → theo `resource` (giữ thứ tự `RESOURCES`).
+   - Bảng nhóm theo resource; dòng = action; 6 cột vai trò: ✓ / ✗ / `TBD` (Badge màu `status-pending`) / "—" (chưa khai báo = hệ thống coi như không có
+     quyền); cột "Nguồn" (`source`, `break-words`; màn hẹp hiện dưới dòng). Bộ lọc resource (Select) + công tắc "Chỉ dòng có TBD" (`Switch`). Đầu
+     màn: 4 số tổng (`tbdCells`, `rowsWithTbd`, `trueCells`, `undefinedCells`) + chú thích "`TBD` = chưa quyết định, không phải cấm — hệ thống tạm coi như
+     chưa cấp" và "`SALES` Phase 1 ≈ `MANAGER` (CR-2026-035)" + "Chỉ đọc — `SA` §19 Q10" (`TODO(OQ)`).
+7. **Nhãn**: `shared/i18n/platformLabels.ts` (mới — cùng lý do D12, chỉ màn lười import): `RESOURCE_LABELS: Record<Resource, string>`,
+   `ACTION_LABELS: Record<Action, string>` (đủ mọi giá trị). Nếu `vi.ts` **đã có** nhãn tương đương → dùng lại, không tạo trùng (ghi trong báo cáo).
+8. **`features/auth/screens/lazyScreens.ts`** + barrel `@/features/auth` export **bản lazy** `SystemConfigScreen`, `PermissionMatrixScreen` (D11 — barrel
+   `auth` được `shared/layout` import nên tuyệt đối không export tĩnh 2 màn này). `LoginScreen` giữ nguyên.
+9. **Audit**: nối **cuối** `AUDIT_ACTIONS` `'CONFIG_CHANGE'` (mã nguyên văn `AL` §6 — khối comment `// System Administration (SA) — DASHBOARD-PLATFORM-PLAN.md §6`);
+   `AUDIT_ACTION_LABELS` thêm nhãn (`auditLabels.ts`); `ENTITY_MODULE_MAP` (`features/audit/model.ts`) thêm `SystemConfig: 'SYSTEM_ADMIN'`.
+
+**B. Chi tiết nhân viên (`features/employees`)**
+
+10. **`features/employees/model.ts`** — hàm thuần `summarizeEmployeeAssignments(assignments, employeeId)` → `{ total, byStatus: Record<AssignmentStatus, number>,
+    reassignedAway }` (`reassignedAway` = số assignment có `reassignmentHistory[].fromEmployeeId === employeeId` — `EA` §17 "Reassigned away"; **không**
+    tính On-time/Late: dung sai chưa cấu hình — `TODO(OQ: EmployeeAssignment-BRD.md §17 — dung sai trễ)`; đây **không** phải màn Báo cáo hiệu suất UC-EA-18).
+    `listEmployeeAssignments(assignments, employeeId)` → assignment của nhân viên (đang giữ) sắp `plannedWindowStart` mới → cũ.
+11. **`features/employees/screens/EmployeeDetailScreen.tsx`** (đọc `:id` qua `useParams`; gate `EMPLOYEE.VIEW`; không tồn tại → trạng thái rỗng + link về
+    danh sách). `PageHeader`: họ tên + mã + `EmployeeStatusBadge` + vai trò; nút **Chỉnh sửa** (khi `can('EMPLOYEE','EDIT')`) mở **`EmployeeFormSheet` sẵn có**
+    (đã gồm sửa hồ sơ, đổi vai trò kèm lý do, cấp/khoá/mở tài khoản theo quyền) và nút **Đổi trạng thái** mở **`EmployeeStatusDialog` sẵn có** — **không viết
+    lại** logic, không đổi 2 component này ngoài việc truyền prop. `Tabs`:
+    - **Hồ sơ** — các trường `EA` §6.1 **đang có trong model** (mã, họ tên, SĐT, email, vai trò, trạng thái, ngày vào làm, khu vực phụ trách, ghi chú) + khối
+      **Tài khoản** (username, trạng thái tài khoản `ACTIVE`/`LOCKED`/…, hoặc "Chưa có tài khoản" — `EA` §7.1). Không thêm trường mới (ảnh, CCCD: tuỳ chọn/
+      cần khách xác nhận — ngoài phạm vi).
+    - **Phân công** — tóm tắt `summarizeEmployeeAssignments` (số theo trạng thái + "Bị chuyển đi") + bảng assignment: vai trò giao/nhận, mã lượt (link
+      `paths.rentalDetail(id) + '?tab=assignment'`), khung giờ dự kiến, trạng thái (`AssignmentStatusBadge`), người phân công. Chỉ đọc (đổi người/huỷ làm ở
+      tab Phân công của lượt thuê — đã có). Rỗng → "Chưa có phân công".
+    - **Nhật ký thao tác** — mirror `VehicleAuditTab`: `listAuditRecords()` lọc `(entity === 'Employee' && entityId === id)` **hoặc**
+      `(entity === 'UserAccount' && entityId === employee.account?.userId)`, mới → cũ. Hiện tab khi `can('EMPLOYEE','EDIT')` (`BA đề xuất` — người quản lý hồ
+      sơ xem lịch sử của hồ sơ; `AuditLog-BRD.md` §16 cho Accountant chỉ đối tượng tài chính, Ops ✗ — `TODO(OQ: AL §16 — quyền xem nhật ký theo đối tượng)`).
+    Màn chỉ import `@/features/auth`, `@/app/paths`, `@/shared/*` và nội bộ `employees` — **không** import barrel feature khác.
+12. **`features/employees/screens/lazyScreens.ts`** + barrel export bản lazy `EmployeeDetailScreen` (D11; tránh `employees/index` kéo tĩnh màn mới).
+13. **Điều hướng vào chi tiết**: `EmployeeCard.tsx` — họ tên thành `Link` tới `paths.employeeDetail(id)` (giữ nút Sửa hiện có). Không đổi gì khác ở danh sách.
+
+**C. Route & i18n**
+
+14. **`app/routes.tsx`** — 3 route bỏ `ComingSoon`: `/platform/system-config` → `SystemConfigScreen`, `/platform/permissions` → `PermissionMatrixScreen`,
+    `/employees/:id` → `EmployeeDetailScreen`; mỗi route bọc `<Suspense>` như 2 route `/platform/*` của R3. Sau R4a **không còn** `ComingSoon` nào được
+    mount trong `routes.tsx` (giữ file `ComingSoon.tsx` — R4b quyết).
+15. **`shared/i18n/vi.ts`** — `vi.systemConfig`, `vi.permissionMatrix`, `vi.employees.detail*` (tiêu đề tab, nhãn trường, trạng thái rỗng, cảnh báo múi
+    giờ, nhãn dung lượng, `CONFIG_CHANGE` summary). Chỉ chuỗi màn hình; nhãn resource/action ở `platformLabels.ts` (mục 7).
+
+### 21.3. Ngoài phạm vi R4a (không làm dù "tiện tay")
+
+Sửa ma trận quyền trên UI / thêm-sửa entry `permissions.ts` (R4a **không đổi** quyền nào) · nối hợp đồng/biên lai đọc `SystemConfig` · upload logo thật ·
+sửa cách app tính múi giờ (N8) · tài khoản không gắn nhân viên, quản lý tài khoản ở `/platform` (đã có ở `employees`) · thêm `ON_LEAVE`/đánh dấu không sẵn
+sàng (UC-EA-05), ảnh/CCCD nhân viên · Bảng khối lượng (UC-EA-14), Báo cáo hiệu suất (UC-EA-18), On-time/Late · đổi người/huỷ assignment từ màn nhân viên ·
+sửa `EmployeeFormSheet`/`EmployeeStatusDialog`/các tab Nhật ký khác · phân trang, gom chuỗi cũ, responsive toàn app, README (R4b) · sửa `docs/` · commit/push.
+
+### 21.4. Quy tắc bắt buộc
+
+1. 3 màn mới **tải lười**; barrel `auth`/`employees` chỉ export bản lazy (D11). `shared/**` không import màn mới. Màn nhân viên không import barrel feature khác.
+2. Không đổi `permissions.ts` (số entry/ô phải giữ nguyên — DoD 6). Kiểm quyền qua `usePermission()`/`can()`; `updateSystemConfig` kiểm quyền **ở api**.
+3. Form cấu hình dùng `react-hook-form` + `zod` (schema ở `model.ts`, dùng thật). Không `localStorage` trực tiếp. Hàm thuần không `new Date()`.
+4. Comment mã tài liệu 1 dòng (`SA-BR-09/11/14`, `SA` §10/§13, `EA` §6.1/§7/§8/§17, `AL` §6/§8); `TODO(OQ)` cho `SA` §19 Q8/Q9/Q10, `EA` §17 dung sai,
+   `AL` §16 quyền xem nhật ký theo đối tượng.
+5. Chuỗi UI ở `vi.ts`/`platformLabels.ts`; token theme (thanh dung lượng `bg-primary`, cảnh báo `text-status-pending`/`warning`); bảng trong `Table`;
+   hàng flex có `min-w-0` + `truncate`; không `console.log`/`any`/`enum`/`*/` kẹt.
+
+### 21.5. Definition of Done R4a — chạy đủ và dán kết quả vào báo cáo
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+1. `npx tsc -b` · `npx oxlint` (không cảnh báo mới ngoài 2 cảnh báo cũ) · `npm run build` — sạch. `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. **Tổng JS tải đầu `/dashboard` ≤ 1.870 kB** = `dist/assets/index-*.js` + mọi file trong `<link rel="modulepreload">` của `dist/index.html` (R3: 1.845,24 kB) —
+   báo từng file + tổng. Có chunk lười riêng cho `SystemConfigScreen`, `PermissionMatrixScreen`, `EmployeeDetailScreen`; nhãn trong `platformLabels.ts`
+   **không** nằm trong file tải đầu (grep một nhãn chỉ có ở file đó = 0).
+3. `node $SP/consignment-r3/sccfiles.mjs $REPO | diff - $SP/consignment-r3/scc-target.txt` → rỗng · `node $SP/tl-verify/evalorder.mjs $REPO /src/app/routes.tsx` → `OK`.
+4. `TZ=Asia/Ho_Chi_Minh node $SP/phase6/sizes.mjs $REPO` → `TOTAL` ≤ **1.840.000** (R3: 1.837.619 + key `systemConfig` ~350).
+5. `TZ=Asia/Ho_Chi_Minh node $SP/demo-data/verify.mjs $REPO $SP/phase6/before-r4a.json` → `errors: 0` (`before-r4a.json` = `before-r3.json` + object
+   `systemConfig` **đúng như §21.2 mục 4** — `tech-lead` dựng sẵn; lệch một trường là lỗi). `TZ=Asia/Ho_Chi_Minh node $SP/phase6/audit-seed-timeline.mjs $REPO`
+   → `errors: 0` (seed audit không bị ảnh hưởng).
+6. Harness `$SP/phase6/platform-r4a.mjs` (`dev` tự viết; `boot()`; gọi **code thật**; tham khảo `$SP/phase6/expect-r4a.mjs`). Kỳ vọng:
+   - `summarizePermissionMatrix(listPermissionMatrix(), ROLES)` = `{ entries: 74, cells: 444, trueCells: 245, falseCells: 107, tbdCells: 35, undefinedCells: 57,
+     rowsWithTbd: 23 }` (khớp `expect-r4a.mjs` trên HEAD `e9e4b9d` — R4a không đổi quyền); `groupPermissionEntries` ra **17** nhóm, thứ tự theo `RESOURCES`.
+   - `RESOURCE_LABELS`/`ACTION_LABELS` đủ 100% giá trị `RESOURCES`/`ACTIONS`.
+   - Cấu hình: `getSystemConfig()` sau seed = object §21.2 mục 4; `updateSystemConfig({ … address: 'X' … }, SYSTEM_ADMIN)` → lưu, có `updatedAt`/`updatedBy`,
+     +1 audit `CONFIG_CHANGE` (`module SYSTEM_ADMIN`, `before`/`after` **chỉ** chứa `address`); gửi lại y hệt → **không** thêm audit; `MANAGER` gọi → ném lỗi,
+     không ghi; `companyName: ''` → lỗi validate; `email: 'abc'` → lỗi validate; `email: ''` → hợp lệ.
+   - `resolveModule({ entity: 'SystemConfig' })` = `SYSTEM_ADMIN`; `ENTITY_MODULE_MAP` vẫn phủ 100% entity literal (thêm `SystemConfig`).
+   - `measureAppStorage().totalChars` = `TOTAL` của `sizes.mjs` (± độ dài key `seedMeta` nếu khác cách tính — giải thích); `storageUsageRatio` đúng.
+   - Nhân viên (`summarizeEmployeeAssignments`): `emp_staff1` → `total 5` (`ASSIGNED 2`, `DONE 1`, `CANCELLED 1`, `MISSED 1`), `reassignedAway 1`;
+     `emp_staff2` → `DONE 1`, `reassignedAway 0`; `emp_manager` → `ASSIGNED 1`, `REASSIGNED 1`; `emp_dispatcher` → `total 0`.
+     `listEmployeeAssignments` sắp mới → cũ.
+   - Lọc nhật ký hồ sơ: với `emp_staff1` (account `usr_staff`) trả cả bản ghi `entity 'Employee'` của `emp_staff1` **và** `entity 'UserAccount'` của
+     `usr_staff` (vd. `LOGIN`/`LOGOUT` trong seed audit) — báo số.
+7. Đọc code (báo trong báo cáo): `EmployeeDetailScreen` dùng lại nguyên `EmployeeFormSheet`/`EmployeeStatusDialog`; 3 route bọc `Suspense`; `routes.tsx` không
+   còn `<ComingSoon`; `auth/index.ts` không export tĩnh 2 màn mới.
+8. `git status` chỉ gồm file thuộc §21.2; không file `docs/`.
+
+**Không yêu cầu** test trình duyệt (quyết định 14/09/2026).
+
+### 21.6. Thứ tự làm
+
+1. Mục 9 (audit `CONFIG_CHANGE` + map) → `npx tsc -b`.
+2. Mục 1–4 (model/api/hooks/seed cấu hình, `SEED_VERSION` 26) → DoD 4–5 + phần harness cấu hình.
+3. Mục 6–8 (ma trận quyền, nhãn, lazy) → phần harness ma trận.
+4. Mục 5 (màn cấu hình).
+5. Mục 10–13 (nhân viên) → phần harness nhân viên.
+6. Mục 14–15 (route, i18n) → DoD 1–3, 7.
+7. Chạy lại toàn bộ DoD 1–8.
+
+### 21.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §0.2 (D6, D11, D12), §0.3, §2, §3.4, §8.4–§8.5, §9, §11 (Q11), §19.9 (N8), §20.9 (L1 — cách đo tải đầu), §21.
+2. `../thien-bao-car-docs/modules/SystemAdministration-BRD.md` §6, §9–§10, §12–§13, §19 · `modules/EmployeeAssignment-BRD.md` §6–§8, §17, §20 ·
+   `WebappQuanTri.md` §8.2, §8.4, §13.1 · `modules/AuditLog-BRD.md` §8, §16.
+3. `CONVENTIONS.md` §1–§8, §11 · `docs/ARCHITECTURE.md` §1, §2, §6.
+4. Nền: `src/shared/domain/{permissions,enums}.ts` (permissions: toàn bộ phần đầu + cuối file; enums: `ROLES`, `EMPLOYEE_STATUSES`, `ASSIGNMENT_STATUSES`,
+   khối `AUDIT_*`) · `src/shared/lib/{storage,audit,fakeNetwork}.ts` · `src/shared/fixtures/{registerSeeds,seedAll,resetDemoData}.ts` ·
+   `src/shared/i18n/auditLabels.ts` (mẫu file nhãn riêng).
+5. `src/features/auth/{index,model,store,usePermission}.ts` · `src/features/audit/{model,screens/lazyScreens}.ts` (map + mẫu lazy) ·
+   `src/features/notifications/screens/lazyScreens.ts`.
+6. `src/features/employees/{index,model,hooks}.ts` · `src/features/employees/screens/EmployeeListScreen.tsx` · `src/features/employees/components/{EmployeeCard,EmployeeFormSheet,EmployeeStatusDialog,EmployeeStatusBadge,AssignmentStatusBadge}.tsx`
+   (đọc props, không sửa logic) · `src/features/vehicles/components/VehicleAuditTab.tsx` · `src/features/vehicles/screens/VehicleDetailScreen.tsx` (mẫu màn chi
+   tiết nhiều tab — chỉ phần khung `Tabs`).
+7. UI: `src/shared/ui/{tabs,switch,select,table,badge,card,input,label}.tsx` · `src/shared/layout/{PageHeader,Topbar}.tsx` (nút Reset) · `src/app/{routes.tsx,paths.ts}`.
+8. Harness: `$SP/demo-data/lib.mjs`, `$SP/phase6/{expect-r4a,sizes,audit-seed-timeline}.mjs`.
+
+### 21.8. Báo cáo bàn giao `dev` phải có
+
+Danh sách file đổi (khớp `git status`) · output rút gọn DoD 1–7 (bảng file tải đầu + tổng, tên + kích thước 3 chunk lười mới, SCC, `evalorder`, `TOTAL`, `verify`,
+timeline, từng gạch harness DoD 6 có số) · nhãn resource/action dùng lại hay mới · mọi chỗ lệch plan + lý do · `TODO(OQ)` đã đặt (file:dòng).
+
+### 21.9. Quyết định `tech-lead` khi lập R4a (kỹ thuật — không phải quyết định nghiệp vụ mới)
+
+- Trường cấu hình công ty = đúng danh sách `SA` §10 (tên, địa chỉ, MST, người đại diện, logo, liên hệ) → **không** cần hỏi người dùng; danh sách cuối cùng
+  vẫn là `SA` §19 Q8 (`TODO(OQ)`). Logo chỉ là ghi chú văn bản ở bản demo.
+- Tab "Nhật ký thao tác" ở Chi tiết nhân viên gate bằng `EMPLOYEE.EDIT` (BA đề xuất — xấp xỉ `AL` §16), không thêm entry quyền mới.
+- `platformLabels.ts` mở rộng D12 (nhãn chỉ màn lười dùng nằm ngoài chunk tải đầu).
+- Màn Chi tiết nhân viên **không** gồm Bảng khối lượng / Báo cáo hiệu suất (`WebappQuanTri.md` §8.2 tách thành màn riêng) — chỉ số đếm assignment theo
+  trạng thái của chính nhân viên.
+
+### 21.11. Review vòng 1 (23/10/2026) — **1 Blocker**, trả `dev` sửa
+
+`tech-lead` chạy lại: 3 cổng sạch (2 cảnh báo `oxlint` cũ) · tải đầu `/dashboard` **1.853.305 B** = 9 file (`index` 1.334.817 + `clsx` 242.029 +
+`select` 86.995 + `input` 73.724 + `PageHeader` 58.250 + `model` 27.063 + `parseISO` 22.128 + `enums` 6.917 + `alerts` 1.382) ≤ 1.870 kB · 3 chunk lười
+(`SystemConfigScreen` 6.616 B, `PermissionMatrixScreen` 4.907 B, `EmployeeDetailScreen` 7.666 B) · SCC = target · `evalorder` OK · `TOTAL` 1.837.936 ·
+`verify` (`before-r4a` cũ) / timeline → `errors: 0` · `platform-r4a.mjs` ALL PASS · `permissions.ts` không đổi · `routes.tsx` không còn `<ComingSoon`.
+Đọc diff: barrel `auth`/`employees` chỉ export bản lazy; `updateSystemConfig` kiểm quyền ở api, audit chỉ trường đổi; màn nhân viên dùng lại nguyên
+`EmployeeFormSheet`/`EmployeeStatusDialog`, chỉ import `@/features/auth`.
+
+**Blocker B1 — schema email chấp nhận mọi chuỗi dạng `[...]`** (`src/features/auth/model.ts` dòng 109–113). Hệ quả: Admin lưu được email `[abc]` —
+validate bị nới để chiều dữ liệu seed. Nguồn lỗi là brief (§21.2 mục 4 cũ seed `email: '[Email liên hệ]'`) — `tech-lead` đã sửa brief. Sửa:
+1. `src/features/auth/seed.ts`: `phone: ''`, `email: ''` (các trường văn bản tự do còn lại giữ placeholder `[...]`).
+2. `model.ts`: `email: OPTIONAL_TEXT.refine((v) => v === '' || EMAIL_RE.test(v), …)` — bỏ nhánh `[...]` và comment đi kèm.
+3. `SystemConfigScreen.tsx`: ô `phone`/`email` có `placeholder` lấy từ `vi.systemConfig` (vd. `[Số điện thoại]`, `[Email liên hệ]`); chế độ chỉ đọc hiện "—"
+   khi rỗng.
+4. Harness `platform-r4a.mjs`: ca seed so với object mới; thêm ca `email: '[abc]'` → **lỗi validate**.
+DoD vòng 2: `verify` với `before-r4a.json` **đã cập nhật** (`phone`/`email` = `''`) → `errors: 0`; chạy lại DoD 1–8.
+
+**Nên sửa (gộp luôn vòng 2, không chặn):** `src/features/auth/api.ts` — 2 thông báo lỗi (`'Bạn không có quyền sửa cấu hình hệ thống'`, `'Chưa có cấu hình hệ
+thống'`) và tiền tố summary audit (`'Đổi cấu hình hệ thống: '`) đang hardcode → chuyển vào `vi.systemConfig` (như `features/audit/api.ts` dùng `vi.audit.errors`).
+
+**Phán quyết lệch đã xem:**
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L1 | Schema email cho phép `[...]` | **Không chấp nhận** → B1. |
+| L2 | `ENTITY_MODULE_MAP` đã có `SystemConfig` từ R3 | **Chấp nhận.** |
+| L3 | Seed audit không có bản ghi `Employee`; lọc kiểm bằng `employees/api.update` thật | **Chấp nhận** — tab hiện bản ghi `UserAccount` (`LOGIN`/`LOGOUT`) có sẵn và bản ghi mới khi sửa hồ sơ. |
+| L4 | Không export `PermissionEntry`, dùng `ReturnType<…>` | **Chấp nhận** — không đổi `permissions.ts`. |
+| L5 | `vi.systemConfig`/`vi.permissionMatrix` trong chunk chính | **Chấp nhận** — đúng §21.2 mục 15; tải đầu vẫn ≤ 1.870 kB. |
+
+Rủi ro UI `dev` nêu (toast "không có thay đổi"; tab Nhật ký đọc `listAuditRecords()` lúc render theo mẫu `VehicleAuditTab`) — chấp nhận.
+
+**Review vòng 2 (23/10/2026) — đạt, không Blocker.** B1 đã sửa: schema email chỉ nhận rỗng hoặc đúng định dạng (`[abc]` → lỗi — harness có ca); seed
+`phone`/`email` rỗng, ô nhập có `placeholder` từ `vi.systemConfig`, chế độ chỉ đọc hiện "—"; 3 chuỗi `api.ts` chuyển sang `vi.systemConfig.errors.*` /
+`auditSummaryPrefix`. `tech-lead` chạy lại: 3 cổng sạch · tải đầu `/dashboard` **1.853.495 B** (≤ 1.870 kB) · SCC = target · `evalorder` OK · `TOTAL` 1.837.906
+· `verify` + `before-r4a.json` (đã cập nhật) → `errors: 0` · timeline `errors: 0` · `platform-r4a.mjs` ALL PASS · `permissions.ts` không đổi.
+
+**Nợ ghi nhận (không chặn):** **N12 —** thông báo lỗi trong schema zod (`model.ts`) vẫn là chuỗi tiếng Việt viết tại chỗ — cùng quy ước mọi schema hiện có
+(`CONVENTIONS.md` §7), gom ở R4b nếu làm chung. **N13 —** `EMPLOYEE_STATUSES` chưa có `ON_LEAVE` (`EA` §8 có; `WebappQuanTri.md` §8.2 chỉ liệt kê 3 trạng thái) —
+ngoài phạm vi Phase 6, báo BA đối chiếu.
+
+### 21.10. Round 4b — khung (brief chi tiết viết sau khi R4a `DONE`)
+
+1. **Phân trang** (`shared/ui/pagination.tsx` của R3) cho 5 màn: Danh sách lượt thuê (~323), Sổ giao dịch (~904), Danh sách quyết toán (~299), Lịch chi trả
+   hàng tháng (~145), Danh sách khách (57) — phía client, 25 dòng/trang, về trang 1 khi đổi bộ lọc, số tổng/đếm tính trên toàn bộ dữ liệu đã lọc (§10 mục 1).
+2. **Gom chuỗi** còn hardcode vào `vi.ts`: `shared/layout/nav.tsx` (19 nhãn), `app/routes.tsx` (tiêu đề còn lại), ~11 text JSX, 2 toast (gồm toast đổi vai
+   trò ở `Topbar.tsx`) — §0.1.
+3. **Rà responsive** bằng đọc code theo checklist §12.5 cho các màn chính + 6 màn Phase 6.
+4. **Viết lại `README.md`** (cách chạy, reset dữ liệu demo, thêm feature theo pattern, 3 cổng, harness).
+5. Trần: tổng JS tải đầu `/dashboard` ≤ 1.870 kB; seed không đổi (không bump `SEED_VERSION` trừ khi cần).
+
+---
+
+## 22. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 23/10/2026 | **R4a `DONE`** — review vòng 2 đạt (B1 email + Nên sửa chuỗi `api.ts` đã xong); nợ N12–N13. `SEED_VERSION` 26; không còn route `ComingSoon`. |
+| 23/10/2026 | R4a review vòng 1 — **Blocker B1** (schema email nới cho placeholder `[...]` — lỗi từ brief; sửa seed `phone`/`email` rỗng, cập nhật `before-r4a.json`); chấp nhận L2–L5 (§21.11). Trả `dev`. |
+| 23/10/2026 | R4 tách R4a/R4b (người dùng duyệt). R4a `APPROVED` — viết brief §21, **giao `dev`**; khung R4b §21.10. Dựng `phase6/expect-r4a.mjs` + `phase6/before-r4a.json`. |
 | 23/10/2026 | **R3 `DONE`** — review vòng 2 đạt (B1 đã sửa: `audit-seed-timeline.mjs` errors 0); chấp nhận L1–L7, L9; nợ N9–N11; trần D11 từ R4 = tổng JS tải đầu `/dashboard` ≤ 1.870 kB. `SEED_VERSION` 25. |
 | 23/10/2026 | R3 review vòng 1 — **Blocker B1** (nhật ký mẫu lệch dòng thời gian thật, 23 lỗi theo `phase6/audit-seed-timeline.mjs`); chấp nhận L1 (đổi trần sang tổng JS tải đầu ≤ 1.870 kB từ R4), L4 (§20.9). Trả `dev`. |
 | 23/10/2026 | R3 `APPROVED` (người dùng duyệt 7 mục gợi ý, gồm D11) — viết brief §20, **giao `dev`**; chốt D12 (nhãn hành động audit ở `shared/i18n/auditLabels.ts` cho chunk lười); dựng `phase6/before-r3.json`. |

@@ -1,4 +1,6 @@
 import { Pencil, RefreshCcw } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { paths } from '@/app/paths'
 import { ROLE_LABELS, vi } from '@/shared/i18n/vi'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -23,7 +25,9 @@ export function EmployeeCard({
       <CardContent className="flex flex-col gap-2 py-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate font-medium">{employee.fullName}</p>
+            <Link to={paths.employeeDetail(employee.id)} className="block truncate font-medium hover:underline">
+              {employee.fullName}
+            </Link>
             <p className="text-muted-foreground text-xs">{employee.employeeCode}</p>
           </div>
           <EmployeeStatusBadge status={employee.status} />

@@ -674,6 +674,8 @@ export const AUDIT_ACTIONS = [
   'LOGOUT',
   'VIEW_AUDIT_LOG',
   'VIEW_AUDIT_SENSITIVE_VALUE',
+  // System Administration (SA) — DASHBOARD-PLATFORM-PLAN.md §6: CONFIG_CHANGE (AL §6, SA-BR-09) — mọi thay đổi cấu hình hệ thống.
+  'CONFIG_CHANGE',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 

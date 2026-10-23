@@ -594,8 +594,11 @@ Kế hoạch: [`docs/DASHBOARD-PLATFORM-PLAN.md`](DASHBOARD-PLATFORM-PLAN.md) �
       thời gian thật, đã sửa — plan §20.9; tải đầu `/dashboard` 1.845,24 kB) (brief plan §20; trước tiên tải lười `NotificationCenterScreen` — D11;
       `SEED_VERSION` 24 → 25) (Audit Record mở rộng tương thích ngược, trần theo ký tự, lọc/phân trang/che dữ liệu/xuất CSV,
       seed nhật ký mẫu, `AUDIT.VIEW` theo `AL` §16; component phân trang; nợ tab Nhật ký ký gửi).
-- [ ] **R4 — Quản trị hệ thống + polish** (Vai trò & quyền, Cấu hình hệ thống, phân trang danh sách dài, màn Chi tiết nhân viên
-      `/employees/:id`, gom chuỗi `vi.ts`, rà responsive, `README.md`).
+- [x] **R4a — Quản trị hệ thống + Chi tiết nhân viên** — **DONE** (23/10/2026, review `tech-lead` đạt vòng 2 — vòng 1 có 1 Blocker: schema email,
+      đã sửa — plan §21.11; tải đầu `/dashboard` 1.853.495 B) (brief plan §21): Cấu hình hệ thống (thông tin
+      công ty `SA` §10, múi giờ/tiền tệ chỉ đọc, đồng hồ dung lượng + Reset), Vai trò & quyền (ma trận chỉ đọc, làm nổi `TBD`), Chi tiết nhân
+      viên `/employees/:id` (hồ sơ + tài khoản + phân công + nhật ký, dùng lại form sẵn có); 3 màn tải lười; `SEED_VERSION` 25 → 26.
+- [ ] **R4b — Polish** (khung plan §21.10): phân trang 5 danh sách dài, gom chuỗi hardcode vào `vi.ts`, rà responsive, viết lại `README.md`.
 
 Ngân sách seed giữ trần 1,85 triệu ký tự (dự kiến ≤ 1,84 tr). Các mục backlog gốc bên dưới giữ nguyên để đối chiếu — ánh xạ:
 Dashboard → R1 · Trung tâm thông báo → R1+R2 · Nhật ký thao tác → R3 · Cấu hình hệ thống, Vai trò & quyền, responsive, `vi.ts`,

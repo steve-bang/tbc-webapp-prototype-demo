@@ -1,5 +1,7 @@
 export type { Employee, UserAccount } from './model'
 export { EmployeeListScreen } from './screens/EmployeeListScreen'
+// DASHBOARD-PLATFORM-PLAN.md §21.2 mục 12 — bản lazy.
+export { EmployeeDetailScreen } from './screens/lazyScreens'
 
 // `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §9.3 — khác tiền lệ
 // `handover-return`/`contracts` (chỉ export type + Screen): feature này export
