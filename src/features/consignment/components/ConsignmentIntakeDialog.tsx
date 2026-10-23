@@ -12,7 +12,7 @@ import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Textarea } from '@/shared/ui/textarea'
-import { useRecordConsignmentIntake } from '../hooks'
+import { useConsignmentProposal, useRecordConsignmentIntake } from '../hooks'
 import {
   consignmentIntakeFormSchema,
   type ConsignmentContract,
@@ -25,7 +25,7 @@ const CHECKLIST_LABEL: Record<string, string> = {
   MECHANICAL: vi.consignment.checklistMechanical,
 }
 
-function defaultValues(repName: string): ConsignmentIntakeFormValues {
+function defaultValues(repName: string, appraisedValue?: number): ConsignmentIntakeFormValues {
   return {
     handoverAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
     odoKm: '',
@@ -40,7 +40,8 @@ function defaultValues(repName: string): ConsignmentIntakeFormValues {
     ],
     missingDocumentsNote: '',
     mediaNote: '',
-    appraisedValue: '',
+    // Điền sẵn từ kết quả thẩm định của đề nghị gốc (sửa được); giá trị dùng cho VC-BR-16 vẫn là của biên bản này.
+    appraisedValue: appraisedValue ? String(appraisedValue) : '',
     companyRepName: repName,
     ownerConfirmed: false,
     companyConfirmed: false,
@@ -59,6 +60,8 @@ export function ConsignmentIntakeDialog({
 }) {
   const record = useRecordConsignmentIntake()
   const repName = useSessionStore((s) => s.user?.fullName ?? '')
+  const { data: proposal } = useConsignmentProposal(contract.proposalId)
+  const proposalAppraisedValue = proposal?.appraisal?.appraisedValue
   const {
     control,
     register,
@@ -67,12 +70,12 @@ export function ConsignmentIntakeDialog({
     formState: { errors, isSubmitting },
   } = useForm<ConsignmentIntakeFormValues>({
     resolver: zodResolver(consignmentIntakeFormSchema),
-    defaultValues: defaultValues(repName),
+    defaultValues: defaultValues(repName, proposalAppraisedValue),
   })
 
   useEffect(() => {
-    if (open) reset(defaultValues(repName))
-  }, [open, repName, reset])
+    if (open) reset(defaultValues(repName, proposalAppraisedValue))
+  }, [open, repName, proposalAppraisedValue, reset])
 
   const checklist = useWatch({ control, name: 'checklist' })
   const documents = useWatch({ control, name: 'documents' })

@@ -405,6 +405,10 @@ export type ConsignmentProrationRule = (typeof CONSIGNMENT_PRORATION_RULES)[numb
 export const CONSIGNMENT_HANDOVER_TYPES = ['INTAKE', 'RETURN'] as const
 export type ConsignmentHandoverType = (typeof CONSIGNMENT_HANDOVER_TYPES)[number]
 
+/** Trạng thái đề nghị ký gửi & thẩm định — `VehicleConsignment-BRD.md` §7.1, `VehicleConsignment-UseCase.md` §4.1. */
+export const CONSIGNMENT_PROPOSAL_STATUSES = ['SUBMITTED', 'APPRAISING', 'APPROVED', 'REJECTED'] as const
+export type ConsignmentProposalStatus = (typeof CONSIGNMENT_PROPOSAL_STATUSES)[number]
+
 /**
  * Phạm vi áp dụng của một `MaintenanceRule` — `VehicleMaintenance-BRD.md` §6.1,
  * `MT-BR-01/02`. `SPECIFIC_VEHICLE` (một xe) ưu tiên hơn `VEHICLE_MODEL`
@@ -650,5 +654,13 @@ export const AUDIT_ACTIONS = [
   'TERMINATE_CONSIGNMENT_CONTRACT',
   'CLOSE_CONSIGNMENT_CONTRACT',
   'CREATE_OWNER_PAYOUT',
+  // Vehicle Consignment (VC) — Round 3: đề nghị ký gửi & thẩm định, phụ lục (VC-BR-17, UC-VC-14).
+  'CREATE_CONSIGNMENT_PROPOSAL',
+  'UPDATE_CONSIGNMENT_PROPOSAL',
+  'START_CONSIGNMENT_APPRAISAL',
+  'RECORD_CONSIGNMENT_APPRAISAL',
+  'APPROVE_CONSIGNMENT_PROPOSAL',
+  'REJECT_CONSIGNMENT_PROPOSAL',
+  'CREATE_CONSIGNMENT_ADDENDUM',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

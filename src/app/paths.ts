@@ -25,6 +25,8 @@ export const paths = {
   financeReports: '/finance/reports',
   consignmentOwners: '/consignment/owners',
   consignmentOwnerDetail: (id: string) => `/consignment/owners/${id}`,
+  consignmentProposals: '/consignment/proposals',
+  consignmentProposalDetail: (id: string) => `/consignment/proposals/${id}`,
   consignmentContracts: '/consignment/contracts',
   consignmentContractDetail: (id: string) => `/consignment/contracts/${id}`,
   consignmentPayouts: '/consignment/payouts',

@@ -5,6 +5,8 @@ import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
 import {
   ConsignmentContractDetailScreen,
   ConsignmentContractListScreen,
+  ConsignmentProposalDetailScreen,
+  ConsignmentProposalListScreen,
   OwnerPayoutScheduleScreen,
   VehicleOwnerDetailScreen,
   VehicleOwnerListScreen,
@@ -68,6 +70,8 @@ export function AppRoutes() {
 
         <Route path={paths.consignmentOwners} element={<VehicleOwnerListScreen />} />
         <Route path="/consignment/owners/:id" element={<VehicleOwnerDetailScreen />} />
+        <Route path={paths.consignmentProposals} element={<ConsignmentProposalListScreen />} />
+        <Route path="/consignment/proposals/:id" element={<ConsignmentProposalDetailScreen />} />
         <Route path={paths.consignmentContracts} element={<ConsignmentContractListScreen />} />
         <Route path="/consignment/contracts/:id" element={<ConsignmentContractDetailScreen />} />
         <Route path={paths.consignmentPayouts} element={<OwnerPayoutScheduleScreen />} />

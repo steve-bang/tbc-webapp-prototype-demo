@@ -15,8 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { VehicleOwnerCard } from '../components/VehicleOwnerCard'
 import { VehicleOwnerFormSheet } from '../components/VehicleOwnerFormSheet'
+import { getEffectiveTerm } from '../addendumModel'
 import { useConsignmentContracts, useVehicleOwners } from '../hooks'
-import { maskAccountNumber } from '../model'
+import { maskAccountNumber, toLocalDateKey } from '../model'
 
 /** Giá trị đại diện "Tất cả" trong Select — Radix Select không cho phép value rỗng. */
 const ALL = '__ALL__'
@@ -42,11 +43,13 @@ function VehicleOwnerListScreenContent() {
 
   // Số xe đang ký gửi + tổng chi trả cố định/tháng: chỉ tính hợp đồng ACTIVE/SUSPENDED (SUSPENDED mặc định vẫn trả đủ).
   const statsByOwner = useMemo(() => {
+    const todayKey = toLocalDateKey(new Date())
     const map = new Map<string, { count: number; total: number }>()
     for (const c of contracts ?? []) {
       if (c.status !== 'ACTIVE' && c.status !== 'SUSPENDED') continue
       const prev = map.get(c.ownerId) ?? { count: 0, total: 0 }
-      map.set(c.ownerId, { count: prev.count + 1, total: prev.total + c.paymentTerm.fixedMonthlyAmount })
+      // VC-BR-05 — mức đang áp dụng hôm nay (đã tính phụ lục), không phải điều khoản gốc.
+      map.set(c.ownerId, { count: prev.count + 1, total: prev.total + getEffectiveTerm(c, todayKey).term.fixedMonthlyAmount })
     }
     return map
   }, [contracts])

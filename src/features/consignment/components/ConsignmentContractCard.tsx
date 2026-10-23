@@ -2,7 +2,7 @@ import { vi } from '@/shared/i18n/vi'
 import { formatDate } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Card, CardContent } from '@/shared/ui/card'
-import type { ConsignmentContract } from '../model'
+import type { ConsignmentContract, ConsignmentPaymentTerm } from '../model'
 import { ConsignmentContractStatusBadge } from './ConsignmentContractStatusBadge'
 
 /** Card dùng thay bảng ở khổ điện thoại (<768px) — mirror `ContractCard`. */
@@ -11,12 +11,15 @@ export function ConsignmentContractCard({
   plate,
   ownerName,
   expiringSoon,
+  term,
   onOpen,
 }: {
   contract: ConsignmentContract
   plate: string
   ownerName: string
   expiringSoon: boolean
+  /** Điều khoản chi trả đang áp dụng (đã tính phụ lục) — không phải điều khoản gốc. */
+  term: ConsignmentPaymentTerm
   onOpen: () => void
 }) {
   return (
@@ -35,7 +38,7 @@ export function ConsignmentContractCard({
           {formatDate(contract.effectiveFrom)} – {formatDate(contract.effectiveTo)}
         </p>
         <p className="text-muted-foreground text-xs">
-          {formatVnd(contract.paymentTerm.fixedMonthlyAmount)} · {vi.consignment.paymentDayValue(contract.paymentTerm.paymentDay)}
+          {formatVnd(term.fixedMonthlyAmount)} · {vi.consignment.paymentDayValue(term.paymentDay)}
         </p>
       </CardContent>
     </Card>

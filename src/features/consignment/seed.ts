@@ -6,13 +6,17 @@ import { readJson, writeJson } from '@/shared/lib/storage'
 import {
   CONSIGNMENT_CONTRACTS_STORAGE_KEY,
   CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY,
+  CONSIGNMENT_PROPOSALS_STORAGE_KEY,
   OWNER_PAYOUT_RECORDS_STORAGE_KEY,
   VEHICLE_OWNERS_STORAGE_KEY,
 } from './storage'
+import { applyAddendum, buildAddendum, type ConsignmentAddendum } from './addendumModel'
 import {
   buildTermsSnapshot,
   dayDiff,
   EFFECTIVE_CONTRACT_STATUSES,
+  INTAKE_CHECKLIST_KEYS,
+  INTAKE_DOCUMENT_KEYS,
   nextSequenceCode,
   OPEN_CONTRACT_STATUSES,
   toLocalDateKey,
@@ -23,6 +27,13 @@ import {
   type VehicleOwner,
 } from './model'
 import {
+  getProposalCreateBlocker,
+  normalizePlate,
+  type ConsignmentAppraisal,
+  type ConsignmentProposal,
+  type ProposalOwnershipCheck,
+} from './proposalModel'
+import {
   buildExpectedPayouts,
   deriveAmountPayable,
   materializePayoutRecord,
@@ -32,8 +43,9 @@ import {
 } from './payoutModel'
 
 /**
- * Seed Xe ký gửi (`docs/CONSIGNMENT-PLAN.md` mục 10 + 19.9.1): 10 chủ xe · 19 hợp đồng · 18 biên bản (16 INTAKE + 2 RETURN)
- * · lịch chi trả lịch sử dựng bằng CHÍNH hàm runtime `buildExpectedPayouts` (không gõ tay số tiền / trạng thái).
+ * Seed Xe ký gửi (`docs/CONSIGNMENT-PLAN.md` mục 10 + 19.9.1 + 20.10): 10 chủ xe · 22 đề nghị ký gửi (18 backfill + 4 demo)
+ * · 19 hợp đồng · 2 phụ lục · 18 biên bản (16 INTAKE + 2 RETURN) · lịch chi trả lịch sử dựng bằng CHÍNH hàm runtime
+ * `buildExpectedPayouts` (không gõ tay số tiền / trạng thái); phụ lục dựng bằng `buildAddendum` + `applyAddendum`.
  * Mọi ngày tương đối hôm nay theo NGÀY ĐỊA PHƯƠNG. Snapshot điều khoản dựng bằng `buildTermsSnapshot` từ xe thật
  * (seed `vehicles` chạy trước). Không ghi audit khi seed. Cuối hàm có bước kiểm ràng buộc, vi phạm thì `throw`.
  */
@@ -281,8 +293,8 @@ function buildSpecs(): ContractSpec[] {
       vehicleId: 'veh_005', ownerId: 'own_002', phase: 'ACTIVE', from: dayKey(-250), to: dayKey(480), amount: 8_000_000, paymentDay: 10, rule: 'PRORATE_BY_DAY',
       insuranceCopyOnly: true, missingDocumentsNote: 'Thiếu bản gốc sổ bảo hiểm, chủ xe cam kết bổ sung.',
     },
-    // 6
-    { vehicleId: 'veh_006', ownerId: 'own_003', phase: 'ACTIVE', from: dayKey(-320), to: dayKey(410), amount: 15_000_000, paymentDay: 15, rule: 'PRORATE_BY_DAY', noticePeriodDays: 60, usageScopeNote: 'Xe thế chấp ngân hàng — không đưa ra khỏi địa bàn TP.HCM và lân cận.' },
+    // 6 — thời hạn gốc lúc ký đến dayKey(45); phụ lục gia hạn thuần nâng lên dayKey(410) (xem `seedAddenda`)
+    { vehicleId: 'veh_006', ownerId: 'own_003', phase: 'ACTIVE', from: dayKey(-320), to: dayKey(45), amount: 15_000_000, paymentDay: 15, rule: 'PRORATE_BY_DAY', noticePeriodDays: 60, usageScopeNote: 'Xe thế chấp ngân hàng — không đưa ra khỏi địa bàn TP.HCM và lân cận.' },
     // 7 — trả tròn tháng
     { vehicleId: 'veh_011', ownerId: 'own_003', phase: 'ACTIVE', from: dayKey(-200), to: dayKey(530), amount: 15_000_000, paymentDay: 15, rule: 'FULL_MONTH', noticePeriodDays: 60 },
     // 8
@@ -509,6 +521,8 @@ function seedContractsAndRecords(owners: VehicleOwner[], vehicles: Vehicle[]) {
       contractNo,
       ownerId: owner.id,
       vehicleId: vehicle.id,
+      // Khoá tạm của chuỗi hợp đồng — `seedConsignment` đổi sang id đề nghị thật sau khi dựng đề nghị (#18 + #19 dùng chung một).
+      proposalId: index === 18 ? 'cg_018' : id,
       status,
       ...base,
       terminationNotice,
@@ -516,6 +530,7 @@ function seedContractsAndRecords(owners: VehicleOwner[], vehicles: Vehicle[]) {
       endReason,
       termsSnapshot,
       termVersions,
+      addenda: [],
       signedCopy,
       intakeRecordId,
       activatedAt,
@@ -660,6 +675,312 @@ function buildPayoutRecords(owners: VehicleOwner[], contracts: ConsignmentContra
   return records
 }
 
+// ---- Phụ lục (kế hoạch mục 20.10 điểm 4–6) ----
+
+/**
+ * 2 phụ lục dựng bằng hàm runtime `buildAddendum` + `applyAddendum` (không gõ tay phiên bản / tổng):
+ * - `cg_004`: đổi mức 9.000.000 → 9.500.000 hiệu lực ngày 1 của THÁNG HIỆN TẠI, ký ngày 25 tháng trước (AC-VC-012);
+ * - `cg_006`: gia hạn thuần `dayKey(45)` → `dayKey(410)`, ký `dayKey(-10)`.
+ * Mã `PLKG-` theo thứ tự `signedDate`. Trả về hợp đồng đã áp phụ lục (thay thế cùng id).
+ */
+function seedAddenda(contracts: ConsignmentContract[]): ConsignmentContract[] {
+  const plans: Array<{
+    contractId: string
+    signedDate: string
+    build: (contract: ConsignmentContract, meta: { id: string; addendumNo: string; byName: string; now: string }) => ConsignmentAddendum
+  }> = [
+    {
+      contractId: 'cg_004',
+      signedDate: dayOfMonth(-1, 25),
+      build: (contract, meta) =>
+        buildAddendum(
+          contract,
+          {
+            origin: 'MANUAL',
+            signedDate: dayOfMonth(-1, 25),
+            termChange: {
+              effectiveFrom: dayOfMonth(0, 1),
+              to: { fixedMonthlyAmount: 9_500_000, paymentDay: contract.paymentTerm.paymentDay, prorationRule: contract.paymentTerm.prorationRule },
+            },
+            content: 'Điều chỉnh mức thuê theo thoả thuận khi chủ xe lắp thêm camera hành trình và phim cách nhiệt',
+            signedFileName: `${meta.addendumNo}-da-ky.pdf`,
+          },
+          meta,
+        ),
+    },
+    {
+      contractId: 'cg_006',
+      signedDate: dayKey(-10),
+      build: (contract, meta) =>
+        buildAddendum(
+          contract,
+          {
+            origin: 'MANUAL',
+            signedDate: dayKey(-10),
+            extension: { toEffectiveTo: dayKey(410) },
+            content: 'Gia hạn hợp đồng thêm một năm theo thoả thuận của hai bên, giữ nguyên điều khoản chi trả',
+            signedFileName: `${meta.addendumNo}-da-ky.pdf`,
+          },
+          meta,
+        ),
+    },
+  ]
+  plans.sort((a, b) => a.signedDate.localeCompare(b.signedDate))
+
+  let result = contracts
+  const codes: string[] = []
+  plans.forEach((plan, index) => {
+    const contract = result.find((c) => c.id === plan.contractId)
+    if (!contract) throw new Error(`[seed consignment] thiếu hợp đồng ${plan.contractId} để lập phụ lục`)
+    const addendumNo = nextSequenceCode('PLKG', codes)
+    codes.push(addendumNo)
+    const addendum = plan.build(contract, {
+      id: `cga_${String(index + 1).padStart(3, '0')}`,
+      addendumNo,
+      byName: SEED_ACTOR,
+      now: atTime(plan.signedDate, 14),
+    })
+    const applied = applyAddendum(contract, addendum)
+    result = result.map((c) => (c.id === contract.id ? applied : c))
+  })
+  return result
+}
+
+// ---- Đề nghị ký gửi (kế hoạch mục 20.10 điểm 1–3) ----
+
+interface ProposalDraft {
+  /** Khoá tạm (id hợp đồng đầu chuỗi hoặc `demo_*`) — đổi sang id thật sau khi sắp theo `createdAt`. */
+  key: string
+  proposal: Omit<ConsignmentProposal, 'id' | 'code'>
+}
+
+function shiftIso(iso: string, deltaMs: number): string {
+  return new Date(new Date(iso).getTime() + deltaMs).toISOString()
+}
+
+function buildAppraisal(args: {
+  ownershipCheck: ProposalOwnershipCheck
+  failedDocuments?: Array<(typeof INTAKE_DOCUMENT_KEYS)[number]>
+  odoKm: number
+  accessories: string[]
+  conditionNote: string
+  appraisedValue: number
+  pendingDocumentsNote?: string
+  appraisedAt: string
+}): ConsignmentAppraisal {
+  return {
+    ownershipCheck: args.ownershipCheck,
+    documents: INTAKE_DOCUMENT_KEYS.map((key) => ({ key, ok: !args.failedDocuments?.includes(key) })),
+    checklist: INTAKE_CHECKLIST_KEYS.map((item) => ({ item, ok: true })),
+    odoKm: Math.max(0, args.odoKm),
+    accessories: args.accessories,
+    mediaNote: 'Ảnh ngoại thất 4 góc và nội thất đã lưu (giả lập).',
+    conditionNote: args.conditionNote,
+    appraisedValue: args.appraisedValue,
+    pendingDocumentsNote: args.pendingDocumentsNote,
+    appraisedByName: SEED_ACTOR,
+    appraisedAt: args.appraisedAt,
+  }
+}
+
+/**
+ * 22 đề nghị: 18 backfill `APPROVED` đã dùng (mỗi chuỗi hợp đồng một đề nghị; #18 + #19 dùng chung) + 4 demo
+ * (`SUBMITTED` / `APPRAISING` có giấy tờ chưa đạt / `REJECTED` không chính chủ / `APPROVED` chưa dùng, xe chưa có ở Danh sách xe).
+ * Mốc backfill = ngày tạo hợp đồng đầu chuỗi: −10 tạo · −8 bắt đầu thẩm định · −7 ghi kết quả · −6 duyệt; nếu trước ngày tạo hồ
+ * sơ chủ xe thì dời cả chuỗi mốc về sau (giữ thứ tự). Mã `DNKG-` và id cấp theo thứ tự `createdAt`.
+ */
+function buildProposals(
+  owners: VehicleOwner[],
+  vehicles: Vehicle[],
+  contracts: ConsignmentContract[],
+  records: ConsignmentHandoverRecord[],
+): ProposalDraft[] {
+  const drafts: ProposalDraft[] = []
+  const chains = new Map<string, ConsignmentContract[]>()
+  for (const c of contracts) chains.set(c.proposalId, [...(chains.get(c.proposalId) ?? []), c])
+
+  let chainIndex = 0
+  for (const [key, chain] of chains) {
+    chainIndex += 1
+    const head = chain[0]
+    const last = chain[chain.length - 1]
+    const owner = owners.find((o) => o.id === head.ownerId)
+    const vehicle = vehicles.find((v) => v.id === head.vehicleId)
+    if (!owner || !vehicle) throw new Error(`[seed consignment] thiếu chủ xe hoặc xe cho đề nghị của hợp đồng ${head.contractNo}`)
+    const intake = records.find((r) => r.type === 'INTAKE' && chain.some((c) => c.id === r.contractId))
+
+    const anchor = toLocalDateKey(head.createdAt)
+    let times = [atTime(addDaysKey(anchor, -10), 9), atTime(addDaysKey(anchor, -8), 9), atTime(addDaysKey(anchor, -7), 10), atTime(addDaysKey(anchor, -6), 14)]
+    const earliest = shiftIso(owner.createdAt, 3_600_000)
+    if (times[0] < earliest) {
+      const delta = new Date(earliest).getTime() - new Date(times[0]).getTime()
+      times = times.map((t) => shiftIso(t, delta))
+    }
+    const [createdAt, startedAt, appraisedAt, decidedAt] = times
+
+    const cls = vehicle.vehicleClass
+    // Chuỗi không có biên bản nhận xe (#16, #18/#19): giá trị cố định trong khoảng hạng xe (plan mục 10.3).
+    const fixedValue = APPRAISAL_BASE[cls] + (key === 'cg_016' ? 2 : 1) * APPRAISAL_STEP[cls]
+    const appraisal = buildAppraisal({
+      ownershipCheck: 'REGISTERED_OWNER',
+      odoKm: (intake ? intake.odoKm : vehicle.currentKm) - 50,
+      accessories: intake ? intake.accessories : ACCESSORY_SETS[chainIndex % ACCESSORY_SETS.length],
+      conditionNote: intake ? intake.baselineCondition : 'Xe vận hành tốt, ngoại thất và nội thất còn đẹp, đủ giấy tờ theo khai báo.',
+      appraisedValue: intake?.appraisedValue ?? fixedValue,
+      appraisedAt,
+    })
+    drafts.push({
+      key,
+      proposal: {
+        ownerId: owner.id,
+        declaredVehicle: {
+          plate: vehicle.plate,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          manufacturingYear: vehicle.manufacturingYear,
+          color: vehicle.color,
+        },
+        vehicleId: vehicle.id,
+        declaredCondition: `Xe ${vehicle.brand} ${vehicle.model}${vehicle.manufacturingYear ? ` đời ${vehicle.manufacturingYear}` : ''}, đang sử dụng bình thường, máy móc vận hành tốt, chủ xe đủ giấy tờ.`,
+        expectedMonthlyAmount: last.paymentTerm.fixedMonthlyAmount,
+        status: 'APPROVED',
+        appraisal,
+        decidedByName: SEED_ACTOR,
+        decidedAt,
+        statusHistory: [
+          { to: 'SUBMITTED', at: createdAt, byName: SEED_ACTOR },
+          { from: 'SUBMITTED', to: 'APPRAISING', at: startedAt, byName: SEED_ACTOR },
+          { from: 'APPRAISING', to: 'APPROVED', at: decidedAt, byName: SEED_ACTOR },
+        ],
+        createdByName: SEED_ACTOR,
+        createdAt,
+        updatedAt: decidedAt,
+      },
+    })
+  }
+
+  // ---- 4 đề nghị demo (biển số không trùng xe ở Danh sách xe và không trùng nhau) ----
+  const at = (offset: number, hour: number): string => atTime(dayKey(offset), hour)
+  const base = (ownerId: string, plate: string, brand: string, model: string, year: number, color: string, condition: string, expected: number) => ({
+    ownerId,
+    declaredVehicle: { plate, brand, model, manufacturingYear: year, color },
+    declaredCondition: condition,
+    expectedMonthlyAmount: expected,
+    createdByName: SEED_ACTOR,
+  })
+
+  // SUBMITTED — vừa ghi nhận.
+  drafts.push({
+    key: 'demo_submitted',
+    proposal: {
+      ...base('own_005', '51C-135.79', 'Toyota', 'Vios', 2022, 'Trắng', 'Xe gia đình, ít sử dụng, nội thất sạch, chưa từng tai nạn.', 8_000_000),
+      status: 'SUBMITTED',
+      statusHistory: [{ to: 'SUBMITTED', at: at(-2, 15), byName: SEED_ACTOR }],
+      createdAt: at(-2, 15),
+      updatedAt: at(-2, 15),
+    },
+  })
+
+  // APPRAISING — đã ghi kết quả, đăng kiểm chưa đạt (UC-VC-02 A2).
+  drafts.push({
+    key: 'demo_appraising',
+    proposal: {
+      ...base('own_002', '51D-246.80', 'Mazda', 'CX-5', 2021, 'Đỏ', 'Xe SUV 5 chỗ, bảo dưỡng định kỳ đầy đủ tại hãng.', 9_500_000),
+      status: 'APPRAISING',
+      appraisal: buildAppraisal({
+        ownershipCheck: 'REGISTERED_OWNER',
+        failedDocuments: ['INSPECTION'],
+        odoKm: 42_300,
+        accessories: ['Lốp dự phòng', 'Thảm sàn', 'Camera hành trình'],
+        conditionNote: 'Ngoại thất có vài vết xước nhỏ ở cản trước, nội thất sạch, máy móc vận hành êm.',
+        appraisedValue: 720_000_000,
+        pendingDocumentsNote: 'Đăng kiểm đã hết hạn — chủ xe cam kết đăng kiểm lại trước khi bàn giao',
+        appraisedAt: at(-4, 11),
+      }),
+      statusHistory: [
+        { to: 'SUBMITTED', at: at(-6, 9), byName: SEED_ACTOR },
+        { from: 'SUBMITTED', to: 'APPRAISING', at: at(-5, 9), byName: SEED_ACTOR },
+      ],
+      createdAt: at(-6, 9),
+      updatedAt: at(-4, 11),
+    },
+  })
+
+  // REJECTED — không chính chủ (EX-01): xác minh chủ sở hữu không hợp lệ chỉ được từ chối.
+  drafts.push({
+    key: 'demo_rejected',
+    proposal: {
+      ...base('own_010', '51F-357.91', 'Hyundai', 'Accent', 2020, 'Bạc', 'Xe 5 chỗ chạy dịch vụ nhiều năm, ngoại thất xuống cấp.', 6_000_000),
+      status: 'REJECTED',
+      appraisal: buildAppraisal({
+        ownershipCheck: 'INVALID',
+        failedDocuments: ['REGISTRATION'],
+        odoKm: 98_500,
+        accessories: ['Lốp dự phòng'],
+        conditionNote: 'Xe đã sử dụng nhiều, nội thất mòn, giấy đăng ký đứng tên người khác.',
+        appraisedValue: 290_000_000,
+        appraisedAt: at(-13, 10),
+      }),
+      rejectReason: 'Người đề nghị không phải chủ đăng ký, giấy uỷ quyền chưa công chứng',
+      decidedByName: SEED_ACTOR,
+      decidedAt: at(-12, 14),
+      statusHistory: [
+        { to: 'SUBMITTED', at: at(-15, 9), byName: SEED_ACTOR },
+        { from: 'SUBMITTED', to: 'APPRAISING', at: at(-14, 9), byName: SEED_ACTOR },
+        {
+          from: 'APPRAISING',
+          to: 'REJECTED',
+          at: at(-12, 14),
+          byName: SEED_ACTOR,
+          reason: 'Người đề nghị không phải chủ đăng ký, giấy uỷ quyền chưa công chứng',
+        },
+      ],
+      createdAt: at(-15, 9),
+      updatedAt: at(-12, 14),
+    },
+  })
+
+  // APPROVED chưa dùng — xe CHƯA có ở Danh sách xe (demo luồng: tạo xe hình thức Ký gửi rồi mới soạn hợp đồng).
+  drafts.push({
+    key: 'demo_approved',
+    proposal: {
+      ...base('own_006', '51G-468.02', 'Kia', 'Morning', 2020, 'Vàng', 'Xe nhỏ đi phố, tiết kiệm nhiên liệu, nội thất còn mới.', 5_000_000),
+      status: 'APPROVED',
+      appraisal: buildAppraisal({
+        ownershipCheck: 'REGISTERED_OWNER',
+        odoKm: 36_800,
+        accessories: ['Thảm sàn', 'Cáp sạc điện thoại'],
+        conditionNote: 'Xe sạch, sơn zin, không hư hỏng; lốp còn khoảng 70%.',
+        appraisedValue: 310_000_000,
+        appraisedAt: at(-6, 10),
+      }),
+      decidedByName: SEED_ACTOR,
+      decidedAt: at(-3, 14),
+      statusHistory: [
+        { to: 'SUBMITTED', at: at(-9, 9), byName: SEED_ACTOR },
+        { from: 'SUBMITTED', to: 'APPRAISING', at: at(-8, 9), byName: SEED_ACTOR },
+        { from: 'APPRAISING', to: 'APPROVED', at: at(-3, 14), byName: SEED_ACTOR },
+      ],
+      createdAt: at(-9, 9),
+      updatedAt: at(-3, 14),
+    },
+  })
+
+  return drafts
+}
+
+/** Sắp theo `createdAt`, cấp id `cgp_001…` + mã `DNKG-000001…`; trả thêm bảng khoá tạm → id thật. */
+function finalizeProposals(drafts: ProposalDraft[]): { proposals: ConsignmentProposal[]; idByKey: Map<string, string> } {
+  const sorted = [...drafts].sort((a, b) => a.proposal.createdAt.localeCompare(b.proposal.createdAt))
+  const idByKey = new Map<string, string>()
+  const proposals = sorted.map((draft, index): ConsignmentProposal => {
+    const id = `cgp_${String(index + 1).padStart(3, '0')}`
+    idByKey.set(draft.key, id)
+    return { ...draft.proposal, id, code: `DNKG-${String(index + 1).padStart(6, '0')}` }
+  })
+  return { proposals, idByKey }
+}
+
 /** Kiểm ràng buộc trên chính dữ liệu seed (plan mục 10.2) — vi phạm thì `throw` để không sai âm thầm. */
 function assertSeedInvariants(
   owners: VehicleOwner[],
@@ -667,6 +988,7 @@ function assertSeedInvariants(
   records: ConsignmentHandoverRecord[],
   vehicles: Vehicle[],
   payouts: OwnerPayoutRecord[],
+  proposals: ConsignmentProposal[],
 ): void {
   const today = toLocalDateKey(new Date())
   const fail = (msg: string): never => {
@@ -697,14 +1019,81 @@ function assertSeedInvariants(
       prev = h.at
     }
     const passedSigned = ['ACTIVE', 'SUSPENDED', 'TERMINATED', 'CLOSED'].includes(c.status)
-    if (passedSigned && (!c.termsSnapshot || c.termVersions.length !== 1 || !c.signedCopy || !c.intakeRecordId)) {
-      fail(`hợp đồng ${c.contractNo} đã qua ký nhưng thiếu snapshot, phiên bản điều khoản, bản ký hoặc biên bản`)
+    if (passedSigned && (!c.termsSnapshot || !c.signedCopy || !c.intakeRecordId)) {
+      fail(`hợp đồng ${c.contractNo} đã qua ký nhưng thiếu snapshot, bản ký hoặc biên bản`)
     }
-    if (!passedSigned && (c.termsSnapshot || c.intakeRecordId)) fail(`hợp đồng ${c.contractNo} chưa ký nhưng đã có snapshot`)
+    if (passedSigned) {
+      // Phiên bản 1 là bản gốc; mỗi phiên bản ADDENDUM khớp đúng một phụ lục có đổi điều khoản (AC-VC-012).
+      const [first, ...rest] = [...c.termVersions].sort((a, b) => a.versionNo - b.versionNo)
+      if (!first || first.versionNo !== 1 || first.source !== 'ORIGINAL') fail(`hợp đồng ${c.contractNo} thiếu phiên bản điều khoản gốc`)
+      const termChanges = c.addenda.filter((a) => a.termChange)
+      const matched = rest.every((v) =>
+        termChanges.some((a) => a.id === v.addendumId && a.termChange?.versionNo === v.versionNo && a.termChange.effectiveFrom === v.effectiveFrom),
+      )
+      if (rest.length !== termChanges.length || !matched || rest.some((v) => v.source !== 'ADDENDUM')) {
+        fail(`hợp đồng ${c.contractNo} có phiên bản điều khoản không khớp phụ lục`)
+      }
+      // Hạn hợp đồng = hạn của phụ lục gia hạn mới nhất, hoặc hạn gốc lúc ký.
+      const lastExtension = [...c.addenda].filter((a) => a.extension).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      const expectedEnd = lastExtension?.extension?.toEffectiveTo ?? c.termsSnapshot?.effectiveTo
+      if (c.effectiveTo !== expectedEnd) fail(`hợp đồng ${c.contractNo} có hạn hiệu lực không khớp phụ lục gia hạn`)
+    }
+    if (!passedSigned && (c.termsSnapshot || c.intakeRecordId || c.termVersions.length > 0 || c.addenda.length > 0)) {
+      fail(`hợp đồng ${c.contractNo} chưa ký nhưng đã có snapshot, phiên bản điều khoản hoặc phụ lục`)
+    }
+    for (const a of c.addenda) {
+      if (a.createdAt > new Date().toISOString() || a.signedDate > today) fail(`phụ lục ${a.addendumNo} có mốc ở tương lai`)
+      if (a.signedDate < toLocalDateKey(c.activatedAt ?? c.createdAt)) fail(`phụ lục ${a.addendumNo} ký trước ngày kích hoạt hợp đồng`)
+    }
+    // Đề nghị gốc: APPROVED, cùng chủ xe, biển số khớp xe (plan mục 20.10 điểm 7).
+    const proposal = proposals.find((p) => p.id === c.proposalId)
+    const vehicleOfContract = vehicles.find((v) => v.id === c.vehicleId)
+    if (!proposal || proposal.status !== 'APPROVED') fail(`hợp đồng ${c.contractNo} không trỏ đề nghị đã duyệt`)
+    if (proposal && (proposal.ownerId !== c.ownerId || normalizePlate(proposal.declaredVehicle.plate) !== normalizePlate(vehicleOfContract?.plate ?? ''))) {
+      fail(`hợp đồng ${c.contractNo} không khớp chủ xe hoặc biển số với đề nghị ${proposal.code}`)
+    }
+    if (proposal && c.createdAt < (proposal.decidedAt ?? '')) fail(`hợp đồng ${c.contractNo} được tạo trước khi đề nghị ${proposal.code} được duyệt`)
     if (c.status === 'ACTIVE' || c.status === 'SUSPENDED') {
       if (dayDiff(today, c.effectiveTo) < 0) fail(`hợp đồng ${c.contractNo} đang hiệu lực nhưng đã quá hạn`)
       if (dayDiff(c.effectiveFrom, today) < 0) fail(`hợp đồng ${c.contractNo} đang hiệu lực nhưng chưa tới ngày bắt đầu`)
     }
+  }
+
+  // ---- Đề nghị ký gửi (kế hoạch mục 20.10) ----
+  const nowIsoForProposals = new Date().toISOString()
+  for (const p of proposals) {
+    const owner = owners.find((o) => o.id === p.ownerId)
+    if (!owner) fail(`đề nghị ${p.code} trỏ chủ xe không tồn tại`)
+    let prevAt = owner?.createdAt ?? ''
+    for (const h of p.statusHistory) {
+      if (h.at < prevAt || h.at > nowIsoForProposals) fail(`đề nghị ${p.code} có lịch sử trạng thái sai thứ tự hoặc ở tương lai`)
+      prevAt = h.at
+    }
+    if (p.statusHistory[p.statusHistory.length - 1]?.to !== p.status) fail(`đề nghị ${p.code} có lịch sử trạng thái không khớp trạng thái`)
+    if (p.status !== 'SUBMITTED' && !p.appraisal) fail(`đề nghị ${p.code} đã qua thẩm định nhưng thiếu kết quả`)
+    if (p.appraisal && (p.appraisal.appraisedValue <= 0 || p.appraisal.appraisedAt > nowIsoForProposals)) {
+      fail(`đề nghị ${p.code} có kết quả thẩm định không hợp lệ`)
+    }
+    if (p.status === 'REJECTED' && (!p.rejectReason || p.appraisal?.ownershipCheck !== 'INVALID')) fail(`đề nghị ${p.code} bị từ chối thiếu lý do hoặc kết quả xác minh`)
+    if (p.status === 'APPROVED' && (!p.decidedAt || p.appraisal?.ownershipCheck === 'INVALID')) fail(`đề nghị ${p.code} đã duyệt nhưng chủ sở hữu không hợp lệ`)
+    if (p.createdAt > p.updatedAt || p.updatedAt > nowIsoForProposals) fail(`đề nghị ${p.code} có mốc thời gian sai`)
+    const linked = contracts.filter((c) => c.proposalId === p.id && c.status !== 'SUPERSEDED')
+    if (linked.length > 1) fail(`đề nghị ${p.code} có hơn 1 hợp đồng (khác đã thay thế)`)
+    if (linked.length > 0 && p.status !== 'APPROVED') fail(`đề nghị ${p.code} chưa duyệt nhưng đã có hợp đồng`)
+  }
+  const plateOwnerCount = new Map<string, number>()
+  for (const p of proposals) {
+    if (p.vehicleId) continue
+    const plate = normalizePlate(p.declaredVehicle.plate)
+    plateOwnerCount.set(plate, (plateOwnerCount.get(plate) ?? 0) + 1)
+    if (vehicles.some((v) => normalizePlate(v.plate) === plate)) fail(`đề nghị ${p.code} dùng biển số đã có ở Danh sách xe nhưng không gắn xe`)
+  }
+  for (const [plate, count] of plateOwnerCount) if (count > 1) fail(`biển số ${plate} bị khai báo ở hơn 1 đề nghị chưa gắn xe`)
+  // Đề nghị đang thẩm định / mới ghi nhận không được vi phạm chính quy tắc chặn trùng lúc ghi nhận (dùng chung hàm runtime).
+  for (const p of proposals) {
+    if (p.status !== 'SUBMITTED' && p.status !== 'APPRAISING') continue
+    const blocker = getProposalCreateBlocker({ plate: p.declaredVehicle.plate, excludeProposalId: p.id }, { vehicles, contracts, proposals })
+    if (blocker) fail(`đề nghị ${p.code}: ${blocker}`)
   }
 
   for (const r of records) {
@@ -749,10 +1138,19 @@ function assertSeedInvariants(
 function seedConsignment(): void {
   const vehicles = readJson<Vehicle[]>(VEHICLES_STORAGE_KEY) ?? []
   const owners = buildOwners()
-  const { contracts, records } = seedContractsAndRecords(owners, vehicles)
+  const { contracts: baseContracts, records } = seedContractsAndRecords(owners, vehicles)
+  const { proposals, idByKey } = finalizeProposals(buildProposals(owners, vehicles, baseContracts, records))
+  // Đổi khoá tạm của chuỗi hợp đồng sang id đề nghị thật rồi lập 2 phụ lục.
+  const linked = baseContracts.map((c) => {
+    const proposalId = idByKey.get(c.proposalId)
+    if (!proposalId) throw new Error(`[seed consignment] hợp đồng ${c.contractNo} không có đề nghị`)
+    return { ...c, proposalId }
+  })
+  const contracts = seedAddenda(linked)
   const payouts = buildPayoutRecords(owners, contracts)
-  assertSeedInvariants(owners, contracts, records, vehicles, payouts)
+  assertSeedInvariants(owners, contracts, records, vehicles, payouts, proposals)
   writeJson(VEHICLE_OWNERS_STORAGE_KEY, owners)
+  writeJson(CONSIGNMENT_PROPOSALS_STORAGE_KEY, proposals)
   writeJson(CONSIGNMENT_CONTRACTS_STORAGE_KEY, contracts)
   writeJson(CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY, records)
   writeJson(OWNER_PAYOUT_RECORDS_STORAGE_KEY, payouts)

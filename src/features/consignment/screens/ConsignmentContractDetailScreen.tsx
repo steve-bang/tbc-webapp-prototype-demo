@@ -11,6 +11,8 @@ import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
+import { ConsignmentAddendaTab } from '../components/ConsignmentAddendaTab'
+import { ConsignmentAddendumDialog } from '../components/ConsignmentAddendumDialog'
 import { ConsignmentAuditTab } from '../components/ConsignmentAuditTab'
 import { ConsignmentContractFormSheet } from '../components/ConsignmentContractFormSheet'
 import { ConsignmentContractOverviewTab } from '../components/ConsignmentContractOverviewTab'
@@ -36,6 +38,7 @@ import {
   useSuspendConsignmentContract,
   useVehicleOwner,
 } from '../hooks'
+import { getAutoRenewSuggestion, type ConsignmentAddendumOrigin } from '../addendumModel'
 import { isExpiringSoon, toLocalDateKey } from '../model'
 
 type ReasonDialogKind = 'return' | 'suspend' | 'resume' | 'supersede'
@@ -82,6 +85,7 @@ function ConsignmentContractDetailScreenContent() {
   const [lossOpen, setLossOpen] = useState(false)
   const [endKind, setEndKind] = useState<ConsignmentEndKind | undefined>(undefined)
   const [reasonKind, setReasonKind] = useState<ReasonDialogKind | undefined>(undefined)
+  const [addendumOrigin, setAddendumOrigin] = useState<ConsignmentAddendumOrigin | undefined>(undefined)
 
   if (isLoading) {
     return (
@@ -159,6 +163,7 @@ function ConsignmentContractDetailScreenContent() {
   const running = status === 'ACTIVE' || status === 'SUSPENDED'
   const notice = current.terminationNotice
   const expired = current.effectiveTo <= todayKey
+  const autoRenewSuggestion = getAutoRenewSuggestion(current, todayKey)
 
   return (
     <div className="flex flex-col gap-5">
@@ -224,6 +229,11 @@ function ConsignmentContractDetailScreenContent() {
           )}
 
           {running && canApprove && !notice && (
+            <Button size="sm" variant="outline" onClick={() => setAddendumOrigin('MANUAL')}>
+              {vi.consignment.addenda.actionCreate}
+            </Button>
+          )}
+          {running && canApprove && !notice && (
             <Button size="sm" variant="outline" onClick={() => setNoticeOpen(true)}>
               {vi.consignment.termination.actionNotify}
             </Button>
@@ -277,6 +287,22 @@ function ConsignmentContractDetailScreenContent() {
       {status === 'SUSPENDED' && (
         <div className="border-status-pending/40 bg-status-pending/10 text-status-pending rounded-lg border p-3 text-sm">
           {vi.consignment.suspendedBanner}
+        </div>
+      )}
+
+      {autoRenewSuggestion && (
+        <div className="border-status-info/40 bg-status-info/10 text-status-info flex flex-col gap-2 rounded-lg border p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">{vi.consignment.addenda.autoRenewBannerTitle}</p>
+            <p>
+              {vi.consignment.addenda.autoRenewBannerBody(formatDate(current.effectiveTo), formatDate(autoRenewSuggestion.suggestedEffectiveTo))}
+            </p>
+          </div>
+          {canApprove && (
+            <Button size="sm" onClick={() => setAddendumOrigin('AUTO_RENEW')}>
+              {vi.consignment.addenda.actionAutoRenew}
+            </Button>
+          )}
         </div>
       )}
 
@@ -346,12 +372,16 @@ function ConsignmentContractDetailScreenContent() {
       <Tabs defaultValue="overview">
         <TabsList className="max-w-full">
           <TabsTrigger value="overview">{vi.consignment.contractTabOverview}</TabsTrigger>
+          <TabsTrigger value="addenda">{vi.consignment.addenda.tab}</TabsTrigger>
           <TabsTrigger value="payouts">{vi.consignment.contractTabPayouts}</TabsTrigger>
           <TabsTrigger value="handover">{vi.consignment.contractTabHandover}</TabsTrigger>
           <TabsTrigger value="audit">{vi.consignment.contractTabAudit}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
-          <ConsignmentContractOverviewTab contract={current} />
+          <ConsignmentContractOverviewTab contract={current} todayKey={todayKey} />
+        </TabsContent>
+        <TabsContent value="addenda">
+          <ConsignmentAddendaTab contract={current} todayKey={todayKey} owner={owner} vehicle={vehicle} />
         </TabsContent>
         <TabsContent value="payouts">
           <OwnerPayoutRecordsPanel filter={{ contractId: current.id }} hideColumns={['owner', 'vehicle', 'contract']} />
@@ -379,6 +409,16 @@ function ConsignmentContractDetailScreenContent() {
           open
           onOpenChange={(open) => {
             if (!open) setEndKind(undefined)
+          }}
+        />
+      )}
+      {canApprove && running && !notice && addendumOrigin && (
+        <ConsignmentAddendumDialog
+          contract={current}
+          origin={addendumOrigin}
+          open
+          onOpenChange={(open) => {
+            if (!open) setAddendumOrigin(undefined)
           }}
         />
       )}

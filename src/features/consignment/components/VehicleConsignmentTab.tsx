@@ -6,6 +6,7 @@ import { formatDate, formatDateTime } from '@/shared/lib/datetime'
 import { formatNumber, formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
+import { getEffectiveTerm } from '../addendumModel'
 import { useConsignmentContracts, useConsignmentHandoverRecords, useOwnerPayoutRecords, useVehicleOwner } from '../hooks'
 import { getCurrentContractForVehicle, isExpiringSoon, maskAccountNumber, toLocalDateKey } from '../model'
 import { ConsignmentContractStatusBadge } from './ConsignmentContractStatusBadge'
@@ -26,6 +27,8 @@ export function VehicleConsignmentTab({ vehicle }: { vehicle: Vehicle }) {
   const { data: payouts } = useOwnerPayoutRecords(current ? { contractId: current.id } : undefined)
   const recentPayouts = (payouts ?? []).filter((r) => r.status !== 'CANCELLED').slice(0, 3)
   const todayKey = toLocalDateKey(new Date())
+  // VC-BR-05 — mức / ngày chi trả hiển thị theo phiên bản điều khoản đang áp dụng hôm nay.
+  const currentTerm = current ? getEffectiveTerm(current, todayKey).term : undefined
 
   if (isLoading) return <p className="text-muted-foreground text-sm">{vi.common.loading}</p>
 
@@ -89,10 +92,10 @@ export function VehicleConsignmentTab({ vehicle }: { vehicle: Vehicle }) {
             {formatDate(current.effectiveFrom)} – {formatDate(current.effectiveTo)}
           </ConsignmentField>
           <ConsignmentField label={vi.consignment.contractColumnAmount}>
-            {formatVnd(current.paymentTerm.fixedMonthlyAmount)} ({CONSIGNMENT_PRORATION_RULE_LABELS[current.paymentTerm.prorationRule]})
+            {currentTerm && `${formatVnd(currentTerm.fixedMonthlyAmount)} (${CONSIGNMENT_PRORATION_RULE_LABELS[currentTerm.prorationRule]})`}
           </ConsignmentField>
           <ConsignmentField label={vi.consignment.contractColumnPaymentDay}>
-            {vi.consignment.paymentDayValue(current.paymentTerm.paymentDay)}
+            {currentTerm && vi.consignment.paymentDayValue(currentTerm.paymentDay)}
           </ConsignmentField>
           <div className="sm:col-span-3">
             <ConsignmentField label={vi.consignment.sectionResponsibility}>
@@ -188,7 +191,7 @@ export function VehicleConsignmentTab({ vehicle }: { vehicle: Vehicle }) {
                   <TableCell>
                     {formatDate(c.effectiveFrom)} – {formatDate(c.effectiveTo)}
                   </TableCell>
-                  <TableCell className="text-right">{formatVnd(c.paymentTerm.fixedMonthlyAmount)}</TableCell>
+                  <TableCell className="text-right">{formatVnd(getEffectiveTerm(c, todayKey).term.fixedMonthlyAmount)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

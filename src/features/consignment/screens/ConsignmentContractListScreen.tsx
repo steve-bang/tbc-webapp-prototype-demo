@@ -18,6 +18,7 @@ import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { ConsignmentContractCard } from '../components/ConsignmentContractCard'
 import { ConsignmentContractFormSheet } from '../components/ConsignmentContractFormSheet'
 import { ConsignmentContractStatusBadge } from '../components/ConsignmentContractStatusBadge'
+import { getEffectiveTerm } from '../addendumModel'
 import { useConsignmentContracts, useVehicleOwners } from '../hooks'
 import { isExpiringSoon, summarizeContracts, toLocalDateKey } from '../model'
 
@@ -139,7 +140,9 @@ function ConsignmentContractListScreenContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contracts.map((c) => (
+                  {contracts.map((c) => {
+                    const term = getEffectiveTerm(c, todayKey).term
+                    return (
                     <TableRow key={c.id} className="cursor-pointer" onClick={() => openDetail(c.id)}>
                       <TableCell className="font-medium">{c.contractNo}</TableCell>
                       <TableCell>{plateOf.get(c.vehicleId) ?? c.vehicleId}</TableCell>
@@ -150,10 +153,11 @@ function ConsignmentContractListScreenContent() {
                       <TableCell>
                         {formatDate(c.effectiveFrom)} – {formatDate(c.effectiveTo)}
                       </TableCell>
-                      <TableCell className="text-right">{formatVnd(c.paymentTerm.fixedMonthlyAmount)}</TableCell>
-                      <TableCell>{vi.consignment.paymentDayValue(c.paymentTerm.paymentDay)}</TableCell>
+                      <TableCell className="text-right">{formatVnd(term.fixedMonthlyAmount)}</TableCell>
+                      <TableCell>{vi.consignment.paymentDayValue(term.paymentDay)}</TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -167,6 +171,7 @@ function ConsignmentContractListScreenContent() {
                 plate={plateOf.get(c.vehicleId) ?? c.vehicleId}
                 ownerName={ownerName.get(c.ownerId) ?? c.ownerId}
                 expiringSoon={isExpiringSoon(c, todayKey)}
+                term={getEffectiveTerm(c, todayKey).term}
                 onOpen={() => openDetail(c.id)}
               />
             ))}

@@ -15,10 +15,10 @@ import {
   dayDiff,
   isFutureDateTime,
   nextSequenceCode,
+  resolveTermVersion,
   toLocalDateKey,
   type ConsignmentContract,
   type ConsignmentHandoverRecord,
-  type ConsignmentTermVersion,
   type VehicleOwner,
 } from './model'
 
@@ -172,20 +172,8 @@ export function calcDueDate(period: string, paymentDay: number): string {
 
 // ---- Tính tiền ----
 
-/** Bản điều khoản mới nhất có `effectiveFrom ≤ dateKey`; không có → bản đầu; chưa có bản nào → điều khoản hợp đồng. */
-export function resolveTermVersion(contract: ConsignmentContract, dateKey: string): ConsignmentTermVersion {
-  const sorted = [...contract.termVersions].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
-  const effective = sorted.filter((v) => v.effectiveFrom <= dateKey)
-  const picked = effective.length > 0 ? effective[effective.length - 1] : sorted[0]
-  if (picked) return picked
-  return {
-    versionNo: 1,
-    effectiveFrom: contract.effectiveFrom,
-    paymentTerm: contract.paymentTerm,
-    source: 'ORIGINAL',
-    createdAt: contract.createdAt,
-  }
-}
+// `resolveTermVersion` nằm ở `model.ts` (dùng chung với `summarizeContracts`); re-export để giữ API cũ.
+export { resolveTermVersion }
 
 /**
  * Cửa sổ tính chi trả: `start = max(effectiveFrom, ngày địa phương của activatedAt)`,
@@ -355,6 +343,52 @@ export interface ContractEndPlan {
   create: OwnerPayoutDraft[]
 }
 
+export interface PayoutReconcileMessages {
+  affectedPaid: (code: string, period: string) => string
+  amountNotPositive: (code: string) => string
+}
+
+/**
+ * Phần chung của "kết thúc hợp đồng" và "tính lại theo phụ lục": so Record không huỷ (`own`) với kỳ kỳ vọng (`expected`).
+ * Record không có kỳ kỳ vọng → huỷ; Record khác kỳ vọng (theo `isUnchanged`) → huỷ + bản thay thế kế thừa tạm giữ và điều chỉnh
+ * (UC-VC-06 A1); kỳ kỳ vọng chưa có Record → tạo bù. Record bị ảnh hưởng đã `PAID` / đang có lệnh chi → `{ error }`.
+ */
+export function reconcilePayoutRecords(
+  own: OwnerPayoutRecord[],
+  expected: OwnerPayoutDraft[],
+  isUnchanged: (draft: OwnerPayoutDraft, record: OwnerPayoutRecord) => boolean,
+  messages: PayoutReconcileMessages,
+): ContractEndPlan | { error: string } {
+  const expectedByPeriod = new Map(expected.map((d) => [d.period, d]))
+
+  const cancel: OwnerPayoutRecord[] = []
+  const create: OwnerPayoutDraft[] = []
+  for (const record of own) {
+    const draft = expectedByPeriod.get(record.period)
+    if (draft && isUnchanged(draft, record)) continue
+    if (record.status === 'PAID' || record.payout) return { error: messages.affectedPaid(record.code, formatPeriod(record.period)) }
+    cancel.push(record)
+    if (draft) {
+      const replacement: OwnerPayoutDraft = {
+        ...draft,
+        replacesRecordId: record.id,
+        adjustments: record.adjustments.map((a) => ({ ...a })),
+        holdReason: record.status === 'ON_HOLD' ? record.holdReason : undefined,
+      }
+      if (deriveAmountPayable({ baseAmount: replacement.baseAmount, adjustments: replacement.adjustments }) <= 0) {
+        return { error: messages.amountNotPositive(record.code) }
+      }
+      create.push(replacement)
+    }
+  }
+  const have = new Set(own.map((r) => r.period))
+  for (const draft of expected) {
+    if (!have.has(draft.period)) create.push(draft)
+  }
+  create.sort((a, b) => a.period.localeCompare(b.period))
+  return { cancel, create }
+}
+
 /**
  * Kết thúc giữa tháng (UC-VC-06 A1, AC-VC-015): Record kỳ sau kỳ của `endedDate` → huỷ; Record kỳ của `endedDate` → huỷ +
  * bản thay thế nếu số tiền / ngày bao phủ đổi (kế thừa tạm giữ + điều chỉnh); bù kỳ còn thiếu tới kỳ của `endedDate`.
@@ -366,41 +400,14 @@ export function planContractEnd(
   endedDate: string,
 ): ContractEndPlan | { error: string } {
   const own = activeRecords(records).filter((r) => r.contractId === contract.id)
-  const endPeriod = periodOf(endedDate)
-  const expected = buildExpectedPayouts({ ...contract, endedDate }, endPeriod)
-  const expectedByPeriod = new Map(expected.map((d) => [d.period, d]))
-
-  const cancel: OwnerPayoutRecord[] = []
-  const create: OwnerPayoutDraft[] = []
-  for (const record of own) {
-    const draft = expectedByPeriod.get(record.period)
-    const unchanged =
-      !!draft &&
-      draft.baseAmount === record.baseAmount &&
-      draft.coverageFrom === record.coverageFrom &&
-      draft.coverageTo === record.coverageTo
-    if (unchanged) continue
-    if (record.status === 'PAID' || record.payout) return { error: p.endErrorAffectedPaid(record.code, formatPeriod(record.period)) }
-    cancel.push(record)
-    if (draft) {
-      const replacement: OwnerPayoutDraft = {
-        ...draft,
-        replacesRecordId: record.id,
-        adjustments: record.adjustments.map((a) => ({ ...a })),
-        holdReason: record.status === 'ON_HOLD' ? record.holdReason : undefined,
-      }
-      if (deriveAmountPayable({ baseAmount: replacement.baseAmount, adjustments: replacement.adjustments }) <= 0) {
-        return { error: p.endErrorAmountNotPositive(record.code) }
-      }
-      create.push(replacement)
-    }
-  }
-  const have = new Set(own.map((r) => r.period))
-  for (const draft of expected) {
-    if (!have.has(draft.period)) create.push(draft)
-  }
-  create.sort((a, b) => a.period.localeCompare(b.period))
-  return { cancel, create }
+  const expected = buildExpectedPayouts({ ...contract, endedDate }, periodOf(endedDate))
+  return reconcilePayoutRecords(
+    own,
+    expected,
+    (draft, record) =>
+      draft.baseAmount === record.baseAmount && draft.coverageFrom === record.coverageFrom && draft.coverageTo === record.coverageTo,
+    { affectedPaid: p.endErrorAffectedPaid, amountNotPositive: p.endErrorAmountNotPositive },
+  )
 }
 
 /**

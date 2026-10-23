@@ -93,6 +93,11 @@ export function OwnerPayoutRecordSheet({
   const [adjustOpen, setAdjustOpen] = useState(false)
 
   const todayKey = toLocalDateKey(new Date())
+  // Phiên bản điều khoản đến từ phụ lục → hiện kèm mã phụ lục (tra `contract.termVersions`).
+  const termVersionAddendumNo = (() => {
+    const version = contract?.termVersions.find((v) => v.versionNo === record?.termVersionNo)
+    return version?.addendumId ? contract?.addenda.find((a) => a.id === version.addendumId)?.addendumNo : undefined
+  })()
 
   async function handleApprove(adjustment: OwnerPayoutAdjustment) {
     if (!record) return
@@ -170,7 +175,10 @@ export function OwnerPayoutRecordSheet({
                 <ConsignmentField label={t.coverageLabel}>
                   {formatDate(record.coverageFrom)} – {formatDate(record.coverageTo)} ({record.daysCovered}/{record.daysInMonth})
                 </ConsignmentField>
-                <ConsignmentField label={t.termVersionLabel}>{t.termVersionValue(record.termVersionNo)}</ConsignmentField>
+                <ConsignmentField label={t.termVersionLabel}>
+                  {t.termVersionValue(record.termVersionNo)}
+                  {termVersionAddendumNo ? ` — ${vi.consignment.addenda.fromAddendum(termVersionAddendumNo)}` : ''}
+                </ConsignmentField>
                 <ConsignmentField label={t.dueDateLabel}>{formatDate(record.dueDate)}</ConsignmentField>
               </div>
 

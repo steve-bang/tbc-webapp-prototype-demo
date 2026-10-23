@@ -15,6 +15,16 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 5 Round 3 — Xe ký gửi: đề nghị ký gửi & thẩm định + phụ lục/gia hạn — Phase 5 hoàn tất** (theo
+  [`docs/CONSIGNMENT-PLAN.md`](docs/CONSIGNMENT-PLAN.md) §20). Đề nghị ký gửi (ghi nhận → thẩm định → duyệt/từ chối; chặn đề nghị
+  trùng biển số hoặc xe đang có hợp đồng mở; không chính chủ chỉ được từ chối; giấy tờ chưa đạt chỉ cảnh báo) với 2 màn mới + mục
+  nav cho cả Operation Staff; hợp đồng mới chỉ soạn từ đề nghị đã duyệt chưa dùng (kế thừa chủ xe, xe theo biển số, mức kỳ vọng).
+  Phụ lục hợp đồng: gia hạn và/hoặc đổi điều khoản chi trả hiệu lực ngày 1 của tháng (không hồi tố), nối phiên bản điều khoản, tự
+  huỷ + thay khoản chi trả bị ảnh hưởng (chặn khi đã chi/đang có lệnh chi), xem trước trước khi lưu, bảng trường trộn phụ lục; gợi
+  ý "Tạo phụ lục gia hạn" cho hợp đồng bật tự động gia hạn sắp hết hạn; "điều khoản hiện hành" thay điều khoản gốc ở mọi chỗ hiển
+  thị. Gỡ vòng import runtime do R2 tạo (`incidents/storageKeys.ts`), tab Nhật ký hợp đồng gộp nhật ký khoản chi trả, đồng bộ chi
+  trả xử lý giao dịch đảo tường minh. `SEED_VERSION` 22 (22 đề nghị, 2 phụ lục) — số liệu chỉ đổi đúng +500.000 chi phí kỳ 10/2026
+  do phụ lục seed. Review `tech-lead` **đạt vòng 1**, không Blocker; 1 nợ "Nên sửa" nhỏ (tab Nhật ký tải thừa khoản chi trả).
 - **Phase 5 Round 2 — Xe ký gửi: lịch chi trả chủ xe + chấm dứt/đóng/mất xe + nối tài chính** (theo
   [`docs/CONSIGNMENT-PLAN.md`](docs/CONSIGNMENT-PLAN.md) §19). Owner Payout Record hàng tháng (prorate tháng đầu/cuối, hạn chi
   theo ngày chi trả của tháng sau, tạm giữ/bỏ tạm giữ, điều chỉnh có duyệt — Admin/Manager tự duyệt, Kế toán chờ duyệt; sinh

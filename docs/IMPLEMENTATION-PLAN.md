@@ -515,7 +515,7 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       không đổi storage key/`SEED_VERSION`. Có thể gộp dọn nợ treo: `postSettlementChargeFormSchema` chưa nối
       vào `PostSettlementChargeDialog` (`REVENUE-COST-PLAN.md` §10).
 
-## Phase 5 — Xe ký gửi — `[~]`
+## Phase 5 — Xe ký gửi — `[x]`
 
 Kế hoạch chi tiết: [`docs/CONSIGNMENT-PLAN.md`](CONSIGNMENT-PLAN.md) (`APPROVED` 23/10/2026 — `tech-lead` tự duyệt). Chia
 **3 round**: R1 = hồ sơ chủ xe + hợp đồng ký gửi `FIXED_MONTHLY` (`DRAFT → PENDING_APPROVAL → SIGNED → ACTIVE`, tạm ngưng/
@@ -541,7 +541,18 @@ vi (roadmap plan §13): tự đặt/gỡ `Ownership Type` (VC-BR-03) và chặn 
       (Σ chi trả 12 tháng 1.269.283.178; lợi nhuận 09/2026 −138.930.000; doanh thu Phase 4 giữ nguyên). Nợ "Nên sửa" mang
       sang R3 (plan §18): gỡ vòng import runtime mới qua `incidents/api` (lỗi chỉ định ở plan §19.5.3) + gộp audit
       `OwnerPayoutRecord` vào tab Nhật ký hợp đồng.
-- [ ] **Round 3** — đề nghị ký gửi & thẩm định + phụ lục/gia hạn (plan §1.4) + 2 nợ R2 ở trên.
+- [x] **Round 3** — xong 23/10/2026, review `tech-lead` đạt vòng 1 (plan **§20**): đề nghị ký gửi & thẩm định
+      (`ConsignmentProposal` `SUBMITTED → APPRAISING → APPROVED/REJECTED`, 2 màn `/consignment/proposals[/:id]`, mục nav gate
+      `ASSESS`; hợp đồng mới **chỉ** soạn từ đề nghị `APPROVED` chưa dùng) · phụ lục gia hạn / đổi điều khoản chi trả (hiệu lực ngày 1
+      của tháng, nối `termVersions[]`, tính lại khoản chi trả bị ảnh hưởng — AC-VC-012) + gợi ý Auto Renew · "điều khoản hiện hành"
+      theo phiên bản ở mọi chỗ hiển thị · 2 nợ R2: gỡ vòng import qua `incidents/storageKeys.ts` (SCC toàn `src/` 123 → 98 file, 0 file
+      `consignment`) + gộp audit `OwnerPayoutRecord` vào tab Nhật ký hợp đồng · `REVERSED` tường minh ở `ledger.ts` · `SEED_VERSION` 22
+      (22 đề nghị, 2 phụ lục). Số liệu khớp §20.12 mục 4 (đúng +500.000 chi phí kỳ 10/2026). Nợ "Nên sửa" (plan §18): tab Nhật ký
+      tải toàn bộ khoản chi trả khi không phải tab hợp đồng.
+- [ ] **Nợ / roadmap còn lại sau Phase 5** (không chặn — plan §13, §18, §20.2): VC-BR-03 tự đặt/gỡ `Ownership Type` + VC-BR-04 chặn
+      lượt thuê mới (cần ngoại lệ ghi `vehicles`/`rentals` — người dùng duyệt); sự kiện ký gửi ở Trung tâm thông báo/Dashboard (Phase
+      6); mốc ký gửi trên Vehicle Condition Timeline; SCC 96 file có từ trước Phase 5 (task tái cấu trúc barrel riêng, cần duyệt); bổ
+      sung lịch sử lượt thuê cho demo (task riêng, chưa duyệt); nợ "Nên sửa" R3 ở tab Nhật ký.
 - [x] Nối tab Owner/Consignment ở Vehicle Detail vào dữ liệu thật — R1 + khối "Chi trả gần nhất" R2.
 - [x] Cập nhật `registerSeeds.ts` (`consignment/seed` chạy ngay trước `finance/seed`), xoá `ComingSoon` — R1 xoá
       `/consignment/owners` + `/consignment/contracts`; R2 xoá `/consignment/payouts`.

@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { CONSIGNMENT_PRORATION_RULES } from '@/shared/domain/enums'
@@ -15,6 +17,7 @@ import { Switch } from '@/shared/ui/switch'
 import { Textarea } from '@/shared/ui/textarea'
 import {
   useConsignmentContracts,
+  useConsignmentProposals,
   useCreateConsignmentContract,
   useUpdateConsignmentContract,
   useVehicleOwners,
@@ -22,15 +25,14 @@ import {
 import type { ConsignmentContractInput } from '../api'
 import {
   consignmentContractFormSchema,
-  OPEN_CONTRACT_STATUSES,
   type ConsignmentContract,
   type ConsignmentContractFormValues,
 } from '../model'
+import { isProposalConsumed, resolveProposalVehicle } from '../proposalModel'
 
-function toFormValues(contract?: ConsignmentContract | null): ConsignmentContractFormValues {
+function toFormValues(contract?: ConsignmentContract | null, initialProposalId?: string): ConsignmentContractFormValues {
   return {
-    ownerId: contract?.ownerId ?? '',
-    vehicleId: contract?.vehicleId ?? '',
+    proposalId: contract?.proposalId ?? initialProposalId ?? '',
     effectiveFrom: contract?.effectiveFrom ?? '',
     effectiveTo: contract?.effectiveTo ?? '',
     noticePeriodDays: contract ? String(contract.noticePeriodDays) : '',
@@ -66,16 +68,19 @@ function toInput(values: ConsignmentContractFormValues): ConsignmentContractInpu
 }
 
 /**
- * Tạo hợp đồng / sửa hợp đồng `DRAFT`. Chế độ tạo chỉ liệt kê xe ký gửi chưa có hợp đồng đang mở (UI lọc; API vẫn chặn).
+ * Tạo hợp đồng / sửa hợp đồng `DRAFT`. Chế độ tạo chọn một đề nghị `APPROVED` chưa dùng (UC-VC-03): chủ xe + xe suy ra từ đề
+ * nghị, `Fixed Monthly Amount` điền sẵn bằng mức kỳ vọng; thiếu xe ở Danh sách xe thì khoá Lưu (API vẫn chặn).
  * Nhóm "Mức chi trả hàng tháng" bị khoá khi thiếu quyền `CONSIGNMENT.CONFIG`.
  */
 export function ConsignmentContractFormSheet({
   contract,
+  initialProposalId,
   open,
   onOpenChange,
   onCreated,
 }: {
   contract?: ConsignmentContract | null
+  initialProposalId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated?: (created: ConsignmentContract) => void
@@ -89,27 +94,41 @@ export function ConsignmentContractFormSheet({
   const { data: owners } = useVehicleOwners()
   const { data: vehicles } = useVehicles()
   const { data: contracts } = useConsignmentContracts()
+  const { data: approvedProposals } = useConsignmentProposals({ status: 'APPROVED' })
 
   const {
     control,
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ConsignmentContractFormValues>({
     resolver: zodResolver(consignmentContractFormSchema),
-    defaultValues: toFormValues(contract),
+    defaultValues: toFormValues(contract, initialProposalId),
   })
 
   useEffect(() => {
-    if (open) reset(toFormValues(contract))
-  }, [contract, open, reset])
+    if (open) reset(toFormValues(contract, initialProposalId))
+  }, [contract, initialProposalId, open, reset])
 
-  // Xe ký gửi chưa có hợp đồng mở (kế hoạch mục 0.3 điểm 3).
-  const availableVehicles = useMemo(() => {
-    const busy = new Set((contracts ?? []).filter((c) => OPEN_CONTRACT_STATUSES.includes(c.status)).map((c) => c.vehicleId))
-    return (vehicles ?? []).filter((v) => v.ownershipType === 'CONSIGNED' && !busy.has(v.id))
-  }, [vehicles, contracts])
+  // Đề nghị đã duyệt và chưa dùng cho hợp đồng nào (UC-VC-03).
+  const availableProposals = useMemo(
+    () => (approvedProposals ?? []).filter((p) => !isProposalConsumed(p, contracts ?? [])),
+    [approvedProposals, contracts],
+  )
+  const proposalId = useWatch({ control, name: 'proposalId' })
+  const selectedProposal = availableProposals.find((p) => p.id === proposalId)
+  const selectedOwner = owners?.find((o) => o.id === selectedProposal?.ownerId)
+  const resolvedVehicle = selectedProposal && vehicles ? resolveProposalVehicle(selectedProposal, vehicles) : undefined
+  const vehicleError = resolvedVehicle && 'error' in resolvedVehicle ? resolvedVehicle.error : undefined
+
+  // Chọn đề nghị → điền sẵn mức chi trả bằng mức chủ xe kỳ vọng (sửa được khi có quyền cấu hình).
+  const selectedProposalId = selectedProposal?.id
+  const expectedAmount = selectedProposal?.expectedMonthlyAmount
+  useEffect(() => {
+    if (!isEditing && open && selectedProposalId && expectedAmount) setValue('fixedMonthlyAmount', String(expectedAmount))
+  }, [isEditing, open, selectedProposalId, expectedAmount, setValue])
 
   const isBusy = createContract.isPending || updateContract.isPending || isSubmitting
   const editingOwner = owners?.find((o) => o.id === contract?.ownerId)
@@ -121,11 +140,7 @@ export function ConsignmentContractFormSheet({
         await updateContract.mutateAsync({ id: contract.id, input: toInput(values) })
         toast.success(vi.consignment.contractUpdateSuccess)
       } else {
-        const created = await createContract.mutateAsync({
-          ownerId: values.ownerId,
-          vehicleId: values.vehicleId,
-          ...toInput(values),
-        })
+        const created = await createContract.mutateAsync({ proposalId: values.proposalId, ...toInput(values) })
         toast.success(vi.consignment.contractCreateSuccess)
         onCreated?.(created)
       }
@@ -167,47 +182,27 @@ export function ConsignmentContractFormSheet({
           ) : (
             <>
               <div className="flex flex-col gap-1.5">
-                <Label>{vi.consignment.contractOwner} *</Label>
-                <Controller
-                  control={control}
-                  name="ownerId"
-                  render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={vi.consignment.contractOwnerPlaceholder} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(owners ?? []).map((o) => (
-                          <SelectItem key={o.id} value={o.id}>
-                            {o.code} — {o.fullName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.ownerId && <p className="text-destructive text-sm">{errors.ownerId.message}</p>}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label>{vi.consignment.contractVehicle} *</Label>
-                {availableVehicles.length === 0 ? (
+                <Label>{vi.consignment.proposals.contractProposal} *</Label>
+                {availableProposals.length === 0 ? (
                   <p className="border-border text-muted-foreground rounded-md border border-dashed p-3 text-sm">
-                    {vi.consignment.contractVehicleEmptyGuide}
+                    {vi.consignment.proposals.contractProposalEmptyGuide}{' '}
+                    <Link className="text-primary underline-offset-4 hover:underline" to={paths.consignmentProposals}>
+                      {vi.consignment.proposals.contractProposalGoList}
+                    </Link>
                   </p>
                 ) : (
                   <Controller
                     control={control}
-                    name="vehicleId"
+                    name="proposalId"
                     render={({ field }) => (
                       <Select value={field.value || undefined} onValueChange={field.onChange}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder={vi.consignment.contractVehiclePlaceholder} />
+                          <SelectValue placeholder={vi.consignment.proposals.contractProposalPlaceholder} />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableVehicles.map((v) => (
-                            <SelectItem key={v.id} value={v.id}>
-                              {v.plate} — {v.brand} {v.model}
+                          {availableProposals.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.code} — {p.declaredVehicle.plate} ({owners?.find((o) => o.id === p.ownerId)?.fullName ?? p.ownerId})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -215,8 +210,30 @@ export function ConsignmentContractFormSheet({
                     )}
                   />
                 )}
-                {errors.vehicleId && <p className="text-destructive text-sm">{errors.vehicleId.message}</p>}
+                {errors.proposalId && <p className="text-destructive text-sm">{errors.proposalId.message}</p>}
               </div>
+
+              {selectedProposal && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-muted-foreground text-xs">{vi.consignment.contractOwner}</span>
+                    <span className="text-sm">{selectedOwner ? `${selectedOwner.code} — ${selectedOwner.fullName}` : '—'}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-muted-foreground text-xs">{vi.consignment.contractVehicle}</span>
+                    <span className="text-sm">
+                      {resolvedVehicle && 'vehicle' in resolvedVehicle
+                        ? `${resolvedVehicle.vehicle.plate} — ${resolvedVehicle.vehicle.brand} ${resolvedVehicle.vehicle.model}`
+                        : selectedProposal.declaredVehicle.plate}
+                    </span>
+                  </div>
+                  {vehicleError && (
+                    <p className="border-status-pending/40 bg-status-pending/10 text-status-pending rounded-md border p-3 text-sm sm:col-span-2">
+                      {vehicleError}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -319,7 +336,7 @@ export function ConsignmentContractFormSheet({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             {vi.common.cancel}
           </Button>
-          <Button type="submit" form="consignment-contract-form" disabled={isBusy}>
+          <Button type="submit" form="consignment-contract-form" disabled={isBusy || (!isEditing && !!vehicleError)}>
             {vi.common.save}
           </Button>
         </SheetFooter>

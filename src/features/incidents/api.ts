@@ -31,9 +31,10 @@ import {
   validateCostAllocation,
   type Incident,
 } from './model'
+import { INCIDENTS_STORAGE_KEY } from './storageKeys'
 import type { MediaMeta } from '@/features/handover-return/model'
 
-export const INCIDENTS_STORAGE_KEY = 'incidents'
+export { INCIDENTS_STORAGE_KEY }
 
 /** Người thực hiện thao tác — dùng để ghi audit (DI-BR-17). */
 export interface ActorInfo {

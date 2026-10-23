@@ -3,8 +3,8 @@
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (23/10/2026 — `tech-lead` tự duyệt theo giao việc của người
 dùng "giao cho tech lead làm phase 5"; không có quyết định nghiệp vụ mới nào cần người dùng chốt — mọi điểm treo xử lý
 bằng giả định tạm + `TODO(OQ)` ở §12) · **Round 1 — `DONE` (23/10/2026, review `tech-lead` đạt vòng 1)** · **Round 2 —
-`DONE` (23/10/2026, chi tiết §19, review `tech-lead` đạt vòng 1 — nợ "Nên sửa" ghi §18)** · Round 3 — chưa giao (chi tiết hoá
-khi tới lượt).
+`DONE` (23/10/2026, chi tiết §19, review `tech-lead` đạt vòng 1 — nợ "Nên sửa" ghi §18)** · **Round 3 — `DONE`
+(23/10/2026, chi tiết §20, review `tech-lead` đạt vòng 1 — nợ còn lại ghi §18 + roadmap §13)** · **Phase 5 — `DONE`**.
 
 Kế hoạch chi tiết **Phase 5** (`features/consignment`, module `VC`). Chia **3 round**:
 
@@ -59,7 +59,7 @@ Vehicle Detail), `VM-RULE-015`. Phía nối finance (Round 2): `Payment-BRD.md` 
 | `features/vehicles/screens/VehicleDetailScreen.tsx` — **ngoại lệ có kiểm soát** (tiền lệ 4.3) | R1 | (1) 1 dòng import `VehicleConsignmentTab` từ `@/features/consignment`; (2) thay đúng `<VehicleDetailPlaceholder note={vi.vehicles.consignmentPlaceholder} />` bằng `<VehicleConsignmentTab vehicle={vehicle} />`; (3) thêm điều kiện `can('CONSIGNMENT','VIEW')` vào **cả** `TabsTrigger` lẫn `TabsContent` của tab `consignment` (ẩn hẳn, mirror gate 3 tab tài chính); (4) sửa docstring cho khớp | Đổi tab khác/thứ tự tab/gate khác; sửa `vehicles/{model,api,hooks,seed,index}.ts` hay component `vehicles/components/*` |
 | `features/vehicles/api.ts` | R1 | **Chỉ đọc** `VEHICLES_STORAGE_KEY` (deep import — tiền lệ `rentals`/`contracts` deep-import `@/features/vehicles/api`); UI dùng `useVehicles`/`useVehicle` deep-import `@/features/vehicles/hooks` | Ghi xe (đổi `ownershipType`/`status`) — roadmap §13 |
 | `features/rentals` | R2 | **Chỉ đọc** qua deep import `@/features/rentals/api` (`RENTALS_STORAGE_KEY`) + `import type { Rental }` từ `…/model` — **không** barrel (barrel → `RentalDetailScreen` → `finance` → `consignment` = vòng mới; §19.5.3) — để liệt kê lượt thuê đang chạy/đã đặt khi chấm dứt (VC-BR-14, AC-VC-011) | Sửa bất kỳ file nào (chặn lượt thuê mới VC-BR-04 → roadmap) |
-| `features/incidents` | R2 | Chỉ đọc qua deep import `@/features/incidents/api` (`INCIDENTS_STORAGE_KEY`) + `import type` từ `…/model` (liên kết sự cố khi mất xe — UC-VC-12, tuỳ chọn) | Sửa |
+| `features/incidents` | R2/R3 | Chỉ đọc storage key + `import type` từ `…/model` (liên kết sự cố khi mất xe — UC-VC-12, tuỳ chọn). **R3 sửa:** key đọc từ module lá `@/features/incidents/storageKeys` (không còn deep import `incidents/api` — nó kéo `handover-return/api` → barrel `rentals` → … → barrel `consignment` = vòng, §20.2); ngoại lệ có kiểm soát: tạo `incidents/storageKeys.ts` + `incidents/api.ts` đổi đúng 1 dòng khai hằng thành import + re-export | Sửa file `incidents` khác |
 | `features/finance/**` | R2 | Theo tầng `core ← payment ← settlement ← revenue-cost` (§9) — finance **import** `@/features/consignment` (barrel) | Phá chiều import giữa thư mục con; tạo barrel con |
 | `shared/domain/enums.ts` | R1/R2/R3 | Thêm enum mới + nối cuối mảng có sẵn (F2/F4) + nối audit action vào **cuối** `AUDIT_ACTIONS` | Sửa/sắp lại enum khác |
 | `shared/domain/permissions.ts` | R1 | Viết lại **đúng khối "Nhóm 7 — Xe ký gửi"** (F1, bảng §5) | Sửa khối khác |
@@ -213,7 +213,7 @@ round đầu vừa dựng feature mới vừa sửa `finance/payment` (kiểu `T
    (`RV-BR-19`); gỡ banner/`TODO(Phase 5)`.
 4. Seed lịch chi trả lịch sử + giao dịch chi tương ứng; `SEED_VERSION` 21.
 
-### 1.4. Trong phạm vi — Round 3 (phác thảo)
+### 1.4. Trong phạm vi — Round 3 (phác thảo — bản chi tiết đã duyệt ở **§20**, §20 thắng khi khác; mục 3 dưới đây **không** làm ở R3)
 
 1. **Đề nghị ký gửi & thẩm định** (`ConsignmentProposal` `SUBMITTED → APPRAISING → APPROVED/REJECTED` — UC-VC-01 bước 3–5,
    UC-VC-02, EX-01) — siết điều kiện tạo hợp đồng: phải từ đề nghị `APPROVED` (UC-VC-03 §7.3); hợp đồng kế thừa xe + mức kỳ
@@ -842,6 +842,9 @@ CR-2026-049 (merge-field, `TODO(OQ)` mẫu `.docx`) · BRD §21 (che số tài k
 | 23/10/2026 | Round 1 `DONE` — review `tech-lead` đạt vòng 1, không Blocker. Lệch nhỏ được chấp nhận: thêm `ConsignmentField.tsx` (ngoài §14); `index.ts` chưa export hook/hàm thuần (R2 bổ sung khi `finance` cần); đối chiếu lượt thuê ↔ `effectiveFrom` làm ở harness (seed không đọc `rentals` — §0.2). Nợ "Nên sửa" mang sang R2: gate trang `VIEW` ở 4 màn (hiện chỉ gate qua nav), chuyển sang bản mới sau "Thay bằng bản mới", chặn `handoverAt` ở tương lai trong biên bản nhận xe. |
 | 23/10/2026 | Round 2 chi tiết hoá ở §19 (người dùng đồng ý đề xuất, gộp 4 nợ "Nên sửa" R1), `tech-lead` tự duyệt; giao `dev`. |
 | 23/10/2026 | Round 2 `DONE` — review `tech-lead` đạt vòng 1, không Blocker. Số liệu khớp 100% §19.11 (Σ chi trả 12 tháng 1.269.283.178; chi phí trực tiếp 09/2026 145.980.000 / 10/2026 154.080.000; 145 khoản 126 `PAID`/14 `SCHEDULED`/5 `ON_HOLD`; 129 giao dịch / 128 lệnh chi `OWNER_PAYOUT`; doanh thu Phase 4 giữ nguyên). Lệch được chấp nhận: 3 file `finance` sửa thêm vì `tsc` (`CashDrawerScreen`, `TransactionLedgerScreen` — cột "Đối tượng", `reportModel` guard Report 03); `materializeDrafts` sinh id trong `payoutModel.ts` (tiền lệ `buildReversalPair`); thêm `previewConsignmentContractEnd`/`formatPeriod`/`sumApprovedAdjustments`, schema factory `make…Schema`; nút Chấm dứt chỉ hiện khi trả trước hạn. **Nợ "Nên sửa" mang sang R3:** (1) **vòng import runtime mới** `consignment/api.ts` → `incidents/api.ts` → `handover-return/api.ts` → barrel `rentals` → `RentalDetailScreen` → barrel `finance` → `TransactionLedgerScreen` → barrel `consignment` (SCC 123 file; HEAD trước R2 = 0 vòng) — **lỗi ở chính §19.5.3** (chỉ định deep import `incidents/api` mà không soát `incidents/api` kéo `rentals` barrel); app build + chạy dev/preview không lỗi khởi tạo, nhưng phải gỡ: đọc `INCIDENTS_STORAGE_KEY` từ một module lá (vd. `incidents/storageKeys.ts`, ngoại lệ có kiểm soát) và mở rộng `import-graph.mjs` ra toàn `src/`; (2) tab Nhật ký hợp đồng (`ConsignmentAuditTab`) chưa gộp audit entity `OwnerPayoutRecord` của hợp đồng (vẫn ghi đủ, xem được ở nhật ký hệ thống). |
+| 23/10/2026 | **Đính chính số liệu vòng import** (ghi khi chi tiết hoá R3): câu "HEAD trước R2 = 0 vòng" ở dòng trên **sai với phạm vi toàn `src/`** — `cycles.mjs` toàn `src/` cho thấy từ **trước Phase 5** (`787e70e`, `19d78d6`) đã có **1 SCC 96 file** (vòng cấp barrel `rentals`/`finance`/`vehicles`/`handover-return`/`incidents`/`calendar`/`contracts`/`employees`/`customers`…; chạy được vì không dùng import ở top-level); "0 vòng" chỉ đúng trong phạm vi `finance` (`import-graph.mjs`). R2 làm SCC phình lên 123 file do kéo `consignment` vào. R3 gỡ phần `consignment` (về 98 file = 96 cũ + 2 file `finance` mới của R2 vốn nằm trong cụm `finance` — §20.2); xoá hẳn SCC toàn app là việc tái cấu trúc barrel nhiều feature, **ngoài phạm vi R3**, cần người dùng duyệt thành task riêng. |
+| 23/10/2026 | Round 3 chi tiết hoá ở **§20** (đề nghị ký gửi & thẩm định + phụ lục/gia hạn + gỡ vòng import + 2 nợ R2 + tuỳ chọn `REVERSED` tường minh); `tech-lead` tự duyệt; giao `dev`. |
+| 23/10/2026 | Round 3 `DONE` — review `tech-lead` đạt vòng 1, không Blocker. Kiểm độc lập: 3 cổng sạch; `sccfiles.mjs` = `scc-target.txt` (98 file, 0 `consignment`); `evalorder` OK; harness trước (`af99a0f`)/sau khớp 100% §20.12 mục 4 (Σ chi trả 12 tháng 1.269.783.178; kỳ 10/2026 Σ 136.500.000, chi phí trực tiếp 154.580.000, lợi nhuận −142.430.000 / sau gián tiếp −160.930.000; `veh_004` −80.532.258; chỉ 1 Record đổi — CTCX-000043); A1–A8 + 9 ca §19.8 + ca đề nghị qua API đúng; smoke trình duyệt 3 vai trò (Manager/Operation Staff/Accountant) đúng §20.12 mục 6. Lệch được chấp nhận: `resolveTermVersion` chuyển sang `model.ts` (payoutModel re-export); helper chung `reconcilePayoutRecords`; `buildAddendum`/`planAddendum` dùng chung API + "Xem trước"; `useConsignmentProposals(filter, enabled)`; audit `UPDATE_CONSIGNMENT_PROPOSAL` khi gắn xe vào đề nghị lúc soạn hợp đồng. **Bảng trường trộn hợp đồng gốc (R1) hiện CCCD/MST đầy đủ — chấp nhận, không phải lỗi:** §6/§15 mục 6 chỉ bắt che số tài khoản trong bảng trường trộn; CCCD/MST hiện đầy đủ ở hồ sơ chủ xe cho cùng nhóm quyền `VIEW` (§8 mục 1) và bản hợp đồng in ký tay cần số giấy tờ đầy đủ; bảng trường trộn phụ lục che CCCD (chặt hơn) — lệch nhỏ giữa 2 bảng, gom về một quy ước khi có mẫu `.docx` thật (CR-2026-049). **Nợ "Nên sửa" (không chặn):** `ConsignmentAuditTab` gọi `useOwnerPayoutRecords(undefined)` cả khi không phải tab hợp đồng → tải toàn bộ khoản chi trả (kể cả Operation Staff ở tab Nhật ký đề nghị; không hiển thị) — thêm tham số `enabled` / chỉ gọi khi có `contractId`. Còn mở ngoài Phase 5: roadmap §13 (VC-BR-03/04, Notification Phase 6), SCC 96 file có từ trước Phase 5 (§20.2), bổ sung lịch sử lượt thuê cho demo. |
 
 ---
 
@@ -1272,3 +1275,415 @@ type) · mọi feature khác · `shared/domain/permissions.ts` · `shared/ui/**`
    kết thúc/mất xe → khối tab xe → 4 nợ R1 còn lại.
 6. UI finance: `OwnerPayoutScreen` + dialog → sổ giao dịch/sheet/biên lai → `paths`/`routes`/`nav`.
 7. 3 cổng + các `grep` §19.11 + bảng số trước/sau trong báo cáo bàn giao.
+
+---
+
+## 20. Round 3 — chi tiết (`APPROVED` 23/10/2026)
+
+Đề nghị ký gửi & thẩm định (`ConsignmentProposal`) + phụ lục / gia hạn hợp đồng (nối `termVersions[]` — AC-VC-012) + gợi ý
+Auto Renew + gỡ vòng import do R2 tạo + 2 nợ "Nên sửa" R2 + (tuỳ chọn) `REVERSED` tường minh ở `syncOwnerPayoutAfterPaymentChange`.
+`SEED_VERSION` 21 → 22. **Số liệu tài chính đổi đúng 500.000đ** do seed 1 phụ lục đổi mức chi trả (bảng trước/sau §20.12 mục 4).
+
+**Nguồn nghiệp vụ R3:** `VehicleConsignment-BRD.md` §6.2 (`Version / Addendum`), §6.3, §7.1, §8, §15 (dòng Gia hạn), §17
+(VC-BR-01/05/16/17/18), §18 (dòng "Ghi nhận đề nghị", "Thẩm định", "Duyệt / từ chối xe", "Cấu hình mức chi trả"), §19
+(AC-VC-012), §20 EX-01. `VehicleConsignment-UseCase.md` §4.1, §5 (UC-VC-01 bước 3–6, A1/A2), §6 (UC-VC-02 + A1/A2), §7.3–§7.4
+(UC-VC-03 — tiền điều kiện "Intake `APPROVED`"), §9.4 (UC-VC-05 A1), §14.4 (UC-VC-10 gia hạn/phụ lục), §20 (dòng "Tạm dừng / gia
+hạn / chấm dứt"). `WebappQuanTri.md` §12.2 (màn "Đề nghị ký gửi & thẩm định xe"), §12.4.
+
+### 20.1. Diễn giải / giả định mới (nối tiếp §0.4 và §19.1 — ghi cho BA, không tự sửa tài liệu)
+
+| # | Điểm | Cách làm trong demo | Nguồn / lý do |
+| --- | --- | --- | --- |
+| 26 | Đề nghị ký gửi gắn xe nào? UC-VC-01 bước 3 nhập biển số/hãng/model/năm/màu (xe có thể **chưa** có trong Danh sách xe) | Đề nghị lưu **thông tin xe khai báo**; `vehicleId` chỉ là liên kết khi biển số (chuẩn hoá `trim().toUpperCase()`, mirror `isPlateTaken`) khớp xe ở VM. Khi **soạn hợp đồng** hệ thống tìm lại xe theo biển số và bắt buộc xe đó đã có ở VM với `ownershipType = CONSIGNED` — vì VC không ghi `vehicles` (roadmap §13). Luồng demo xe mới: ghi nhận đề nghị → thẩm định → duyệt → tạo xe (hình thức Ký gửi) ở Danh sách xe → Soạn hợp đồng | §0.2, §0.3 điểm 3 |
+| 27 | Chặn đề nghị trùng | Từ chối ghi nhận khi biển số thuộc xe đang có hợp đồng **mở** (`OPEN_CONTRACT_STATUSES` — chặt hơn VC-BR-01 như §0.3 điểm 3; thông điệp nêu số HĐ — UC-VC-01 A1) **hoặc** đã có một đề nghị "đang xử lý" cho cùng biển số (`SUBMITTED`/`APPRAISING`, hoặc `APPROVED` chưa dùng) — BA đề xuất | UC-VC-01 bước 4, A1 |
+| 28 | Điều kiện duyệt | `APPRAISING` + đã ghi kết quả thẩm định + `appraisedValue > 0` + xác minh chủ sở hữu ≠ `INVALID` (EX-01: chỉ được **từ chối**). Giấy tờ có mục chưa đạt → chỉ **cảnh báo** trong hộp thoại duyệt (UC-VC-02 A2: Manager tự quyết duyệt / giữ chờ / từ chối). Từ chối chỉ từ `APPRAISING` (BRD §7.1), lý do ≥ 3 ký tự. Đề nghị `REJECTED` là trạng thái cuối — "mở lại" = ghi nhận đề nghị mới | BRD §7.1/§8, UC-VC-02 |
+| 29 | Đề nghị "đã dùng" | Đề nghị `APPROVED` được coi là **đã dùng** khi có hợp đồng mang `proposalId` đó ở trạng thái khác `SUPERSEDED`. "Thay bằng bản mới" chép `proposalId` sang bản mới. Hợp đồng đã kết thúc (`CLOSED`/`TERMINATED`) vẫn giữ đề nghị → ký gửi lại cần đề nghị mới | UC-VC-03 §7.3, A2 |
+| 30 | Ai xem màn Đề nghị | Gate trang + mục nav = `CONSIGNMENT.ASSESS` (SA/Manager/Sales/**Operation Staff**; Accountant ✗). Lý do: mọi vai trò có ít nhất một thao tác trên đề nghị (ghi nhận `CREATE`, thẩm định `ASSESS`, duyệt `APPROVE`) đều có `ASSESS`; dòng `VIEW` của BRD §18 chỉ nói "Xem hợp đồng ký gửi / lịch chi trả". Operation Staff ✓ "phần hiện trạng" nhưng ma trận không tách quyền theo phần → OPS nhập được **toàn bộ** biểu mẫu thẩm định + `TODO(OQ: VehicleConsignment-BRD.md mục 18 — Operation Staff chỉ "phần hiện trạng"; chưa có quyền tách)`. Ở màn đề nghị, tên chủ xe / số HĐ chỉ là **link** khi người xem có `VIEW` (OPS thấy chữ thường) | BRD §18, §0.4 điểm 2b |
+| 31 | `Appraised Value` ở thẩm định (BRD §8) và ở biên bản `INTAKE` (§6.3) | Biên bản nhận xe **điền sẵn** giá trị từ kết quả thẩm định của đề nghị (sửa được); giá trị dùng cho VC-BR-16 vẫn là của biên bản `INTAKE` (như R2) | BRD §6.3/§8 |
+| 32 | Vòng đời phụ lục | **Không** dựng nháp/duyệt cho phụ lục (tài liệu không có máy trạng thái phụ lục): một thao tác "Lập phụ lục (đã ký)" có tên file bản scan bắt buộc → hiệu lực ngay — mirror §0.3 điểm 5. Gate `APPROVE` (UseCase §20 dòng "Tạm dừng / gia hạn / chấm dứt"; BRD §18 không có dòng riêng cho gia hạn) + phần đổi điều khoản chi trả thêm `CONFIG` (fieldset `disabled` khi thiếu) | UC-VC-10 §14.4, BRD §18 |
+| 33 | Ngày hiệu lực đổi điều khoản chi trả | Phải là **ngày 1 của tháng** (AC-VC-012 "hiệu lực từ 01/10"; công thức §4 lấy phiên bản tại `coverageFrom` nên giữa tháng sẽ phải tách kỳ — tài liệu không mô tả), **≥ ngày 1 của tháng hiện tại** (VC-BR-05 không hồi tố), **> `effectiveFrom` của phiên bản mới nhất**, **≤ `effectiveTo`** (sau gia hạn nếu cùng phụ lục), và điều khoản mới phải khác điều khoản đang áp tại ngày đó — BA đề xuất + `TODO(OQ: VehicleConsignment-BRD.md mục 15 — phụ lục hiệu lực giữa tháng)` | AC-VC-012, VC-BR-05 |
+| 34 | Khoản chi trả đã sinh bị ảnh hưởng bởi phụ lục | Record kỳ ≥ kỳ hiệu lực (đổi điều khoản) hoặc kỳ chứa `effectiveTo` cũ (gia hạn) mà số tiền / ngày bao phủ / hạn chi / phiên bản đổi → `CANCELLED` + bản thay thế (kế thừa `ON_HOLD` + lý do + điều chỉnh — y §19.1 điểm 19); bù kỳ còn thiếu tới kỳ hiện tại (gia hạn sau khi đã quá `effectiveTo`). Record bị ảnh hưởng đã `PAID` / đang có lệnh chi → **từ chối** cả phụ lục | §19.1 điểm 19 |
+| 35 | Gia hạn | `toEffectiveTo > effectiveTo` hiện tại; chỉ khi `ACTIVE`/`SUSPENDED` và **chưa** có thông báo chấm dứt. Gia hạn thuần **không** tạo phiên bản điều khoản mới. `termsSnapshot` giữ nguyên (bản gốc lúc ký); `contract.effectiveTo` cập nhật; `contract.paymentTerm` **giữ bản gốc** — điều khoản hiện hành luôn lấy qua `resolveTermVersion(contract, hôm nay)` | BRD §15, VC-BR-05 |
+| 36 | Auto Renew | Không có tác vụ nền (§1.4): khi `autoRenew` + `ACTIVE`/`SUSPENDED` + chưa có thông báo chấm dứt + `effectiveTo − hôm nay ≤ 30` (kể cả đã quá hạn) → banner "Hợp đồng bật tự động gia hạn" + nút **"Tạo phụ lục gia hạn"** mở dialog phụ lục điền sẵn `origin = AUTO_RENEW`, ngày hết hạn mới = `effectiveTo` + (`termsSnapshot.effectiveTo − termsSnapshot.effectiveFrom`) ngày, điều khoản chi trả giữ nguyên; người dùng sửa được + `TODO(OQ: VehicleConsignment-BRD.md mục 15 — thời hạn gia hạn tự động và việc giữ nguyên điều khoản chưa nêu)` | BRD §15, UC-VC-10 §14.4 bước 1 |
+| 37 | Đổi Responsibility Matrix qua phụ lục (UC-VC-10 bước 2) | **Không** dựng — ma trận cố định "Công ty chịu toàn bộ" (CR-2026-050, VC-BR-22), không có dữ liệu biến đổi | CR-2026-050 |
+| 38 | Mã phụ lục | `PLKG-000001` tuần tự **toàn hệ thống** (mirror `HDKG-`) — mã BA đề xuất | — |
+
+### 20.2. Gỡ vòng import (nợ R2 #1) — cụ thể từng file
+
+**Hiện trạng đo được** (`scratchpad/tl-verify/cycles.mjs` toàn `src/`, chỉ cạnh runtime — `import type` bị loại): HEAD `af99a0f`
+có **1 SCC 123 file**, gồm 25 file `features/consignment/*`. Cạnh gây vòng **duy nhất** từ `consignment` ra ngoài:
+`consignment/api.ts` → `incidents/api.ts` → `handover-return/api.ts` → barrel `rentals` → `RentalDetailScreen` → barrel `finance` →
+`TransactionLedgerScreen` → barrel `consignment`. Đã kiểm mọi cạnh runtime khác của `consignment` ra ngoài:
+`@/features/auth` (lá với `consignment`), `@/features/vehicles/{api,hooks}` (`vehicles/api` chỉ import `shared` + `./model`;
+`vehicles/hooks` chỉ `auth` + `./api`), `@/features/rentals/api` (chỉ import `customers/api`, `vehicles/api`, `shared` — **lá**, giữ
+nguyên), `import type` từ `vehicles`/`rentals/model`/`incidents/model` (không phải cạnh runtime). **Không cần** tách key `rentals`.
+
+**Sửa (ngoại lệ có kiểm soát ở `incidents` — chỉ tách hằng):**
+
+1. Tạo `src/features/incidents/storageKeys.ts`: `export const INCIDENTS_STORAGE_KEY = 'incidents'` + docstring 2 dòng ("module lá —
+   feature khác đọc key mà không kéo `incidents/api` → `handover-return` → `rentals`; xem `docs/CONSIGNMENT-PLAN.md` §20.2").
+2. `src/features/incidents/api.ts`: thay dòng `export const INCIDENTS_STORAGE_KEY = 'incidents'` bằng
+   `import { INCIDENTS_STORAGE_KEY } from './storageKeys'` (khối import đầu file) + `export { INCIDENTS_STORAGE_KEY }` (giữ API cũ — barrel
+   `incidents/index.ts`, `incidents/seed.ts`, `finance/*` **không** phải sửa). Không đổi gì khác trong file.
+3. `src/features/consignment/api.ts` dòng 1: `import { INCIDENTS_STORAGE_KEY } from '@/features/incidents/storageKeys'`.
+
+**Kết quả mô phỏng** (`tech-lead` đã chạy trên bản sao `src/` áp 3 sửa trên): còn **1 SCC 98 file**, **0 file `consignment`** — đúng
+bằng SCC có sẵn từ trước Phase 5 (96 file ở `19d78d6`) + 2 file `finance` mới của R2 (`OwnerPayoutCreateDialog.tsx`,
+`OwnerPayoutScreen.tsx` — nằm trong cụm `finance ↔ rentals` có sẵn). SCC 96 file này là vòng cấp barrel giữa nhiều feature từ
+trước Phase 5 (đính chính §18) — **ngoài phạm vi R3**; xoá hẳn là task tái cấu trúc riêng (cần người dùng duyệt).
+
+**Ràng buộc import cho code R3** (mọi file mới/sửa trong `features/consignment`): chỉ import `./*`, `@/features/auth`,
+`@/features/vehicles/api`, `@/features/vehicles/hooks`, `import type` từ `@/features/vehicles` / `…/rentals/model` /
+`…/incidents/model`, `@/features/rentals/api`, `@/features/incidents/storageKeys`, `@/app/paths`, `@/shared/*`. **Cấm**
+`@/features/finance`, barrel `@/features/rentals` / `@/features/incidents`, `@/features/incidents/api`, `@/features/handover-return*`.
+
+**Kiểm (DoD):** `node <scratchpad>/consignment-r3/sccfiles.mjs <repo>` (in danh sách file thuộc mọi SCC, đã sắp) phải **trùng khớp**
+`<scratchpad>/consignment-r3/scc-target.txt` (98 dòng, `diff` rỗng) — tức 0 file `consignment` trong vòng và không vòng mới nào ở
+bất kỳ đâu; `cycles.mjs` in "consignment files in SCC:" rỗng; `node <scratchpad>/tl-verify/evalorder.mjs <repo> /src/app/routes.tsx` và
+`… /src/features/consignment/index.ts` in `OK`. (`<scratchpad>` = `/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`.)
+
+### 20.3. Phạm vi R3
+
+**Trong phạm vi**
+
+| # | Hạng mục | Nguồn |
+| --- | --- | --- |
+| R3-1 | Gỡ vòng import (§20.2) | Nợ R2 #1 |
+| R3-2 | Enum / nhãn / audit action R3 (§20.4) + storage key `consignmentProposals` | BRD §7.1, VC-BR-17 |
+| R3-3 | Entity `ConsignmentProposal` + hàm thuần + API ghi nhận / sửa / bắt đầu thẩm định / ghi kết quả thẩm định / duyệt / từ chối | UC-VC-01 bước 3–6, UC-VC-02, EX-01 |
+| R3-4 | Siết tạo hợp đồng: **chỉ từ đề nghị `APPROVED` chưa dùng**; hợp đồng kế thừa chủ xe + xe (tìm theo biển số) + điền sẵn `Fixed Monthly Amount` = mức kỳ vọng | UC-VC-03 §7.3–§7.4 |
+| R3-5 | Phụ lục (`ConsignmentAddendum`): gia hạn và/hoặc đổi điều khoản chi trả có ngày hiệu lực → nối `termVersions[]`; tính lại khoản chi trả bị ảnh hưởng; xem phụ lục (bảng trường trộn giả lập); gợi ý Auto Renew | UC-VC-10 §14.4, UC-VC-05 A1, AC-VC-012, VC-BR-05 |
+| R3-6 | Hiển thị "điều khoản hiện hành" (theo phiên bản) thay cho `contract.paymentTerm` ở mọi chỗ **hiển thị** mức/ngày chi trả của hợp đồng đã ký | VC-BR-05 |
+| R3-7 | UI: 2 màn Đề nghị (danh sách + chi tiết), mục nav mới, tab "Phụ lục & phiên bản" + nút "Lập phụ lục" + banner Auto Renew ở chi tiết hợp đồng, khối đề nghị ở chi tiết chủ xe | WebappQuanTri §12.2 |
+| R3-8 | Nợ R2 #2: tab Nhật ký hợp đồng gộp audit `OwnerPayoutRecord` của hợp đồng | §18 |
+| R3-9 | (Tuỳ chọn, nên làm) `syncOwnerPayoutAfterPaymentChange` kiểm `REVERSED` tường minh | §18 |
+| R3-10 | Seed: 22 đề nghị (backfill cho 19 hợp đồng + 4 đề nghị demo), 2 phụ lục; `SEED_VERSION` 22 | §20.10 |
+
+**Ngoài phạm vi R3** (không làm dù tiện tay): bổ sung lịch sử lượt thuê cho demo (task riêng, chưa duyệt); đặt/gỡ `ownershipType`,
+đặt xe `INACTIVE`, chặn lượt thuê mới (VC-BR-03/04 — roadmap §13; **không** ghi `vehicles`/`rentals`); tự tạo xe ở VM từ đề nghị;
+Notification (Phase 6); mốc `CONSIGNMENT_INTAKE`/`CONSIGNMENT_RETURN` trên Vehicle Condition Timeline + nhãn chủ xe ở tab Tổng quan
+xe (§1.4 mục 3 — cần ngoại lệ `vehicles`); xoá SCC 96 file có sẵn (§20.2); đổi Responsibility Matrix qua phụ lục (§20.1 điểm 37);
+tác vụ nền tự gia hạn; huỷ / sửa / xoá phụ lục hay đề nghị (VC-BR-18 — chỉ đổi trạng thái); phụ lục cho hợp đồng chưa `ACTIVE`
+(trước `ACTIVE` dùng "Thay bằng bản mới"); sửa `permissions.ts`.
+
+### 20.4. Enum / nhãn / audit (`shared/domain/enums.ts`, `shared/i18n/vi.ts`)
+
+| Thay đổi | Giá trị | Nguồn |
+| --- | --- | --- |
+| Mới `CONSIGNMENT_PROPOSAL_STATUSES` (khối VC §2.6) | `['SUBMITTED','APPRAISING','APPROVED','REJECTED']` (nhãn: Mới ghi nhận · Đang thẩm định · Đã duyệt · Từ chối) | BRD §7.1, UseCase §4.1 |
+| `AUDIT_ACTIONS` nối cuối (khối `// Vehicle Consignment (VC) — Round 3`) | `CREATE_CONSIGNMENT_PROPOSAL`, `UPDATE_CONSIGNMENT_PROPOSAL`, `START_CONSIGNMENT_APPRAISAL`, `RECORD_CONSIGNMENT_APPRAISAL`, `APPROVE_CONSIGNMENT_PROPOSAL`, `REJECT_CONSIGNMENT_PROPOSAL`, `CREATE_CONSIGNMENT_ADDENDUM` (7) | VC-BR-17, UC-VC-14 |
+
+Kiểu cục bộ (không phải enum nghiệp vụ dùng chung — mã BA đề xuất, đặt trong `proposalModel.ts`/`addendumModel.ts`):
+`ProposalOwnershipCheck = 'REGISTERED_OWNER' | 'AUTHORIZED' | 'INVALID'` (Chính chủ · Uỷ quyền hợp lệ · Không chính chủ / uỷ quyền
+không đủ) · `ConsignmentAddendumOrigin = 'MANUAL' | 'AUTO_RENEW'` (Thủ công · Tự động gia hạn). Nhãn mới:
+`CONSIGNMENT_PROPOSAL_STATUS_LABELS` (map chung) + `vi.consignment.proposals.*` / `vi.consignment.addenda.*`.
+
+### 20.5. Data model
+
+#### 20.5.1. `ConsignmentProposal` (`proposalModel.ts`, storage `consignmentProposals` — key + `readProposals/writeProposals` ở `storage.ts`)
+
+| Field | Kiểu | Ghi chú |
+| --- | --- | --- |
+| `id` · `code` | `string` | `cgp_…` · `DNKG-000001` tuần tự |
+| `ownerId` | `string` | Bắt buộc (chủ xe phải có hồ sơ trước — UC-VC-01 bước 1–2, A2) |
+| `declaredVehicle` | `{ plate; brand; model; manufacturingYear?: number; color?: string }` | Thông tin xe khai báo (UC-VC-01 bước 3) |
+| `vehicleId?` | `string` | Xe VM khớp biển số (gán khi ghi nhận nếu đã có; cập nhật khi soạn hợp đồng) |
+| `declaredCondition` | `string` | Tình trạng khai báo — bắt buộc |
+| `expectedMonthlyAmount` | `number` | Mức thuê hàng tháng chủ xe kỳ vọng — nguyên > 0 |
+| `status` | `ConsignmentProposalStatus` | |
+| `appraisal?` | `ConsignmentAppraisal` (dưới) | Ghi khi `APPRAISING`, ghi lại được nhiều lần (bản sau ghi đè, audit đủ before/after) |
+| `rejectReason?` · `decidedByName?` · `decidedAt?` | | Khi `APPROVED`/`REJECTED` |
+| `statusHistory` | `{ from?; to; at; byName; reason? }[]` | Mọi chuyển trạng thái (cả lúc tạo) |
+| `note?` · `createdByName` · `createdAt` · `updatedAt` | | |
+
+`ConsignmentAppraisal`: `ownershipCheck: ProposalOwnershipCheck` · `documents: { key: 'REGISTRATION' \| 'INSPECTION' \| 'INSURANCE'; ok:
+boolean; note?: string }[]` (dùng lại `INTAKE_DOCUMENT_KEYS`) · `checklist: ConsignmentChecklistItem[]` (dùng lại `INTAKE_CHECKLIST_KEYS`)
+· `odoKm` (nguyên ≥ 0) · `accessories: string[]` · `mediaNote?` · `conditionNote` (bắt buộc) · `appraisedValue` (nguyên > 0,
+VC-BR-16) · `pendingDocumentsNote?` (UC-VC-02 A2) · `appraisedByName` · `appraisedAt`.
+
+#### 20.5.2. `ConsignmentContract` / `ConsignmentTermVersion` — thêm field
+
+- `ConsignmentContract.proposalId: string` (bắt buộc — seed backfill mọi hợp đồng) · `addenda: ConsignmentAddendum[]` (`[]` khi tạo /
+  thay bản mới).
+- `ConsignmentTermVersion.addendumId?: string` (có khi `source = 'ADDENDUM'`).
+
+#### 20.5.3. `ConsignmentAddendum` (`addendumModel.ts`; lưu **trong** `contract.addenda`)
+
+| Field | Kiểu | Ghi chú |
+| --- | --- | --- |
+| `id` · `addendumNo` | `string` | `cga_…` · `PLKG-000001` (§20.1 điểm 38) |
+| `origin` | `ConsignmentAddendumOrigin` | |
+| `signedDate` | `YYYY-MM-DD` | `≥ ngày địa phương của activatedAt`, `≤ hôm nay` |
+| `extension?` | `{ fromEffectiveTo; toEffectiveTo }` | Gia hạn |
+| `termChange?` | `{ effectiveFrom; from: ConsignmentPaymentTerm; to: ConsignmentPaymentTerm; versionNo }` | Đổi điều khoản chi trả (§20.1 điểm 33); `from` = điều khoản đang áp tại `effectiveFrom` |
+| `content` | `string` | Nội dung / lý do phụ lục — ≥ 3 ký tự |
+| `signedCopy` | `{ fileName; uploadedByName; uploadedAt }` | Bắt buộc (upload giả lập) |
+| `createdByName` · `createdAt` | | Append-only |
+
+Ít nhất một trong `extension` / `termChange`. Áp phụ lục: `effectiveTo = extension.toEffectiveTo` (nếu có); `termVersions.push({ versionNo:
+max+1, effectiveFrom, paymentTerm: to, source: 'ADDENDUM', addendumId, createdAt })` (nếu có `termChange`); `addenda.push(addendum)`;
+`updatedAt`. **Không** đổi `termsSnapshot`, `paymentTerm`, `status`, `statusHistory`.
+
+### 20.6. Hàm thuần (mọi hàm nhận `todayKey`/`currentPeriod` làm tham số, không tự gọi `new Date()`)
+
+**`proposalModel.ts`** (chỉ import `./model`, `@/shared/*`, `import type` từ `vehicles`):
+
+| Hàm | Mục đích |
+| --- | --- |
+| `normalizePlate(plate)` | `trim().toUpperCase()` (mirror `vehicles/model.ts` `isPlateTaken`) |
+| `findVehicleByPlate(vehicles, plate)` | |
+| `isProposalConsumed(proposal, contracts)` · `listProposalContracts(proposal, contracts)` | §20.1 điểm 29 |
+| `getProposalCreateBlocker({ plate, excludeProposalId? }, { vehicles, contracts, proposals })` → `string \| undefined` | §20.1 điểm 27 — dùng chung API tạo / sửa / duyệt + UI |
+| `getProposalApprovalBlocker(proposal)` → `string \| undefined` · `listAppraisalIssues(appraisal)` → nhãn mục giấy tờ / hiện trạng chưa đạt | §20.1 điểm 28 |
+| `resolveProposalVehicle(proposal, vehicles)` → `{ vehicle } \| { error }` | Xe theo biển số, phải `CONSIGNED` (§20.1 điểm 26) |
+| `PROPOSAL_TRANSITIONS` + `canTransitionProposal(from, to)` | `SUBMITTED→APPRAISING` · `APPRAISING→APPROVED/REJECTED` |
+| Schema zod: `consignmentProposalFormSchema`, `consignmentAppraisalFormSchema` (RHF + `zodResolver`); từ chối dùng lại `consignmentReasonSchema` | |
+
+**`addendumModel.ts`** (import `./model`, `./payoutModel`, `@/shared/*`):
+
+| Hàm | Mục đích |
+| --- | --- |
+| `getEffectiveTerm(contract, todayKey)` → `{ version: ConsignmentTermVersion; term: ConsignmentPaymentTerm }` | = `resolveTermVersion(contract, todayKey)` — dùng cho **mọi chỗ hiển thị** mức/ngày chi trả của hợp đồng đã ký (R3-6); hợp đồng chưa ký (`termVersions` rỗng) rơi về `contract.paymentTerm` sẵn trong `resolveTermVersion` |
+| `listTermVersionStates(contract, todayKey)` → `{ version; state: 'PAST' \| 'CURRENT' \| 'UPCOMING'; addendumNo? }[]` | Bảng phiên bản ở tab Phụ lục |
+| `getAddendumBlocker(contract, input, todayKey)` → `string \| undefined` | §20.1 điểm 33/35 + `ACTIVE`/`SUSPENDED` + chưa có `terminationNotice`/`endedDate` + có ít nhất một thay đổi + `signedDate` hợp lệ |
+| `applyAddendum(contract, addendum)` → `ConsignmentContract` | §20.5.3 |
+| `planTermsRecalc(contractAfter, records, fromPeriod, currentPeriod)` → `ContractEndPlan \| { error }` | §20.1 điểm 34: so Record không huỷ kỳ ≥ `fromPeriod` với `buildExpectedPayouts(contractAfter, currentPeriod)`; **giữ nguyên** khi `baseAmount`, `coverageFrom`, `coverageTo`, `dueDate`, `termVersionNo` đều trùng; khác → huỷ + bản thay thế (kế thừa hold/điều chỉnh; kết quả phải > 0); bù kỳ thiếu trong `[fromPeriod, currentPeriod]` (không đụng kỳ trước `fromPeriod`); Record bị ảnh hưởng `PAID`/có `payout` → `{ error }`. `fromPeriod` = min(kỳ của `termChange.effectiveFrom`, kỳ của `extension.fromEffectiveTo`). Áp kết quả bằng `applyContractEndPlan` sẵn có (tham số `cancelReason` = "Tính lại theo phụ lục PLKG-…"). Được tách phần chung với `planContractEnd` thành helper nội bộ, **nhưng** hành vi `planContractEnd` + 9 ca §19.8 phải giữ nguyên |
+| `getAutoRenewSuggestion(contract, todayKey)` → `{ suggestedEffectiveTo } \| undefined` | §20.1 điểm 36 |
+| `buildAddendumMergeFields(contract, addendum, owner, vehicle)` | Bảng trường trộn giả lập (số PL, số HĐ gốc, các bên, ngày ký, nội dung, thời hạn cũ → mới, điều khoản cũ → mới + ngày hiệu lực) — số tài khoản **đã che**; không viết điều khoản pháp lý |
+| `makeConsignmentAddendumSchema(ctx)` | Factory zod (mirror `makeTerminationNoticeSchema`): ctx = `{ currentEffectiveTo; monthStartKey; latestVersionEffectiveFrom; activatedKey; todayKey; canConfig }` |
+
+### 20.7. API
+
+#### 20.7.1. `proposalApi.ts` (mới) — mọi hàm `fakeRequest`, đọc/guard/ghi **trong** callback, `appendAudit` entity `'ConsignmentProposal'`
+
+| Hàm | Guard | Audit |
+| --- | --- | --- |
+| `listConsignmentProposals(filter?: { status?; ownerId?; search? })` | search mã / biển số / tên chủ xe; sắp `updatedAt` giảm dần | — |
+| `getConsignmentProposal(id)` | | — |
+| `createConsignmentProposal(input, actor)` | chủ xe tồn tại; schema; `getProposalCreateBlocker`; gán `vehicleId` nếu khớp | `CREATE_CONSIGNMENT_PROPOSAL` |
+| `updateConsignmentProposal(id, input, actor)` | chỉ `SUBMITTED`; đổi biển số → kiểm lại blocker (loại trừ chính nó) | `UPDATE_CONSIGNMENT_PROPOSAL` (before/after field đổi) |
+| `startConsignmentAppraisal(id, actor)` | `SUBMITTED` | `START_CONSIGNMENT_APPRAISAL` |
+| `recordConsignmentAppraisal(id, input, actor)` | `APPRAISING`; schema | `RECORD_CONSIGNMENT_APPRAISAL` (before/after `appraisal`) |
+| `approveConsignmentProposal(id, actor)` | `APPRAISING`; `getProposalApprovalBlocker`; kiểm lại `getProposalCreateBlocker` (xe có thể vừa có hợp đồng mở) | `APPROVE_CONSIGNMENT_PROPOSAL` |
+| `rejectConsignmentProposal(id, reason, actor)` | `APPRAISING`; lý do ≥ 3 | `REJECT_CONSIGNMENT_PROPOSAL` |
+
+#### 20.7.2. `addendumApi.ts` (mới)
+
+`createConsignmentAddendum(contractId, input, actor)` → `{ contract; addendum; cancelledCount; createdCount }` — trong callback: đọc hợp
+đồng + Record; `getAddendumBlocker`; dựng addendum (mã `PLKG-` từ mọi `addenda` của mọi hợp đồng); `applyAddendum`; `planTermsRecalc`
+(lỗi → `throw`, không ghi gì); ghi hợp đồng + Record (`applyContractEndPlan`); audit `CREATE_CONSIGNMENT_ADDENDUM` (entity
+`ConsignmentContract`, before/after = `{ effectiveTo, termVersionNo, fixedMonthlyAmount, paymentDay, prorationRule }`, summary vd "Lập phụ
+lục PLKG-000003 cho HĐ HDKG-000004: mức chi trả 9.000.000 → 9.500.000 từ 01/11/2026") + `CANCEL_OWNER_PAYOUT_RECORD` từng bản huỷ +
+`GENERATE_OWNER_PAYOUT_RECORDS` (entityId `contract:<id>`) nếu có bản tạo — mirror `terminateConsignmentContract`.
+
+#### 20.7.3. `api.ts` (sửa)
+
+- Dòng import `INCIDENTS_STORAGE_KEY` (§20.2).
+- `createConsignmentContract(input, actor)`: input **bỏ** `ownerId`/`vehicleId`, **thêm** `proposalId`. Guard trong callback: đề nghị tồn
+  tại + `APPROVED` + chưa dùng (§20.1 điểm 29); chủ xe tồn tại; `resolveProposalVehicle` (thông điệp lỗi hướng dẫn tạo xe hình thức Ký
+  gửi ở Danh sách xe); guard hợp đồng mở / VC-BR-01 như cũ; ghi `proposalId`, `addenda: []`; cập nhật `proposal.vehicleId` nếu đổi;
+  summary audit có mã đề nghị.
+- `supersedeConsignmentContract`: bản mới chép `proposalId`, `addenda: []`.
+- `audit()` nội bộ: union `entity` thêm `'ConsignmentProposal'` (hoặc `proposalApi.ts` có hàm `audit` riêng — tuỳ dev, không nhân
+  bản logic che dữ liệu).
+
+#### 20.7.4. `finance/payment/ledger.ts` — chỉ hàm `syncOwnerPayoutAfterPaymentChange` (R3-9)
+
+Sau nhánh `CONFIRMED`: `if (txn.status !== 'FAILED' && txn.status !== 'VOIDED' && txn.status !== 'REVERSED') return` (giao dịch
+`PENDING`/trạng thái lạ không được huỷ yêu cầu) — rồi 3 nhánh tường minh (`FAILED`/`VOIDED` → `unlink…`, `REVERSED` → `revert…`), lý do
+huỷ yêu cầu chọn theo đúng nhánh. Không đổi hành vi với 4 trạng thái hiện có.
+
+### 20.8. Hooks / barrel / app
+
+- `hooks.ts`: query key con `'proposals'`, `'proposal'`; `useConsignmentProposals`, `useConsignmentProposal`, 6 mutation đề nghị,
+  `useCreateConsignmentAddendum`; mọi mutation invalidate `['consignment']` (đã gồm `'audit'`).
+- `index.ts`: + `ConsignmentProposalListScreen`, `ConsignmentProposalDetailScreen` (cho `routes.tsx`). Không export thêm cho `finance`.
+- `app/paths.ts`: `consignmentProposals: '/consignment/proposals'`, `consignmentProposalDetail: (id) => …`.
+- `app/routes.tsx`: mount 2 route.
+- `shared/layout/nav.tsx`: mục **"Đề nghị ký gửi"** (đứng thứ 2, sau "Hồ sơ chủ xe"; icon lucide phù hợp, vd `ClipboardCheck`),
+  `resource: 'CONSIGNMENT', action: 'ASSESS'` + comment 1 dòng trỏ `WebappQuanTri.md §12.2` + plan §20.1 điểm 30.
+
+### 20.9. UI (`react-hook-form` + `zodResolver`; chuỗi ở `vi.consignment.*`; responsive 375/768; gate trang mirror `ConsignmentNoPermission`)
+
+1. **`ConsignmentProposalListScreen`** `/consignment/proposals` (gate `ASSESS`): lọc trạng thái + tìm (mã / biển số / chủ xe); bảng/card:
+   Mã · Chủ xe · Biển số · Xe (hãng model năm) · Mức kỳ vọng/tháng · Trạng thái · Ngày ghi nhận · Hợp đồng (số HĐ nếu đã dùng). Nút "Ghi
+   nhận đề nghị" (`CREATE`) → `ConsignmentProposalFormSheet`.
+2. **`ConsignmentProposalDetailScreen`** `/consignment/proposals/:id` (gate `ASSESS`): header mã + `ConsignmentProposalStatusBadge` + chủ xe
+   (link khi `VIEW`) + biển số. Thanh nút: `SUBMITTED` — Sửa (`CREATE`), Bắt đầu thẩm định (`ASSESS`); `APPRAISING` — Ghi kết quả thẩm
+   định (`ASSESS`), Duyệt (`APPROVE` — dialog xác nhận hiện `listAppraisalIssues` dạng cảnh báo; khi `getProposalApprovalBlocker` có lý do
+   thì nút khoá + hiện lý do), Từ chối (`APPROVE`, `ConsignmentReasonDialog`); `APPROVED` chưa dùng — **Soạn hợp đồng** (`CREATE`) → mở
+   `ConsignmentContractFormSheet` chế độ tạo với đề nghị chọn sẵn → tạo xong `navigate(paths.consignmentContractDetail(id))`. Tab: **Đề nghị
+   & thẩm định** (xe khai báo, tình trạng khai báo, mức kỳ vọng; kết quả thẩm định: xác minh chủ sở hữu, giấy tờ, checklist, odo, phụ kiện,
+   ảnh/video giả lập, định giá, ghi chú chờ bổ sung; quyết định + lý do từ chối; lịch sử trạng thái) · **Hợp đồng** (`listProposalContracts`,
+   số HĐ link khi `VIEW`) · **Nhật ký** (`ConsignmentAuditTab proposalId`).
+3. **`ConsignmentProposalFormSheet`** (tạo/sửa): chọn chủ xe (Select danh sách chủ xe; prop `initialOwnerId`) + gợi ý "chưa có hồ sơ → thêm ở
+   Hồ sơ chủ xe" (link), thông tin xe khai báo, tình trạng khai báo, mức kỳ vọng, ghi chú. **`ConsignmentAppraisalDialog`**: xác minh chủ sở
+   hữu (3 lựa chọn), 3 mục giấy tờ (đạt/chưa + ghi chú), checklist 3 mục, odo, phụ kiện (mỗi dòng một mục), ảnh/video giả lập, mô tả hiện
+   trạng, định giá, ghi chú chờ bổ sung giấy tờ — điền sẵn khi đã có kết quả. `ConsignmentProposalStatusBadge`.
+4. **Chi tiết chủ xe** — tab "Xe & hợp đồng" thêm khối **"Đề nghị ký gửi"** (hiện khi `ASSESS`; mã link, biển số, trạng thái, mức kỳ vọng) +
+   nút header **"Ghi nhận đề nghị"** (`CREATE`, mở sheet với chủ xe chọn sẵn).
+5. **`ConsignmentContractFormSheet`** chế độ tạo: **thay** chọn chủ xe + xe bằng chọn **đề nghị `APPROVED` chưa dùng** (prop
+   `initialProposalId`); hiện chủ xe + xe đã khớp ở VM, hoặc cảnh báo "Chưa có xe biển số … hình thức Ký gửi ở Danh sách xe — tạo xe
+   trước" (nút Lưu khoá); điền sẵn `Fixed Monthly Amount` = mức kỳ vọng (sửa được khi có `CONFIG`). Danh sách rỗng → hướng dẫn tới màn Đề
+   nghị ký gửi. Chế độ sửa `DRAFT` không đổi.
+6. **Chi tiết hợp đồng**: Tổng quan hiện link đề nghị gốc; khối **"Điều khoản hiện hành"** (`getEffectiveTerm` — phiên bản N, mức, ngày chi
+   trả, quy tắc) + "Thời hạn đến …" (+ "đã gia hạn từ …" khi khác snapshot); khối snapshot giữ nhãn "Điều khoản gốc lúc ký". Thanh nút thêm
+   **"Lập phụ lục"** (`APPROVE`; `ACTIVE`/`SUSPENDED`, chưa có thông báo chấm dứt) → `ConsignmentAddendumDialog`. Banner Auto Renew (§20.1
+   điểm 36) + nút **"Tạo phụ lục gia hạn"** (`APPROVE`). Tab mới **"Phụ lục & phiên bản"** (`ConsignmentAddendaTab`): bảng phiên bản điều
+   khoản (`listTermVersionStates` — badge Đang áp dụng / Sắp hiệu lực) + danh sách phụ lục (mã, nguồn, ngày ký, nội dung, thay đổi cũ → mới,
+   bản ký) + "Xem phụ lục" → `ConsignmentAddendumPreviewDialog` (bảng trường trộn + "Xuất PDF" chỉ toast — mirror
+   `ConsignmentDraftPreviewDialog`).
+7. **`ConsignmentAddendumDialog`**: 2 công tắc "Gia hạn thời hạn" / "Đổi điều khoản chi trả" (công tắc thứ 2 + fieldset `disabled` khi thiếu
+   `CONFIG`); ngày hết hạn mới; ngày hiệu lực (gợi ý ngày 1 tháng sau, chỉ chọn được ngày 1); mức / ngày chi trả / quy tắc mới (điền sẵn điều
+   khoản đang áp); ngày ký; tên file bản scan; nội dung. **Xem trước** (hàm thuần trên dữ liệu đã tải, mirror `ConsignmentEndDialog`): các
+   khoản chi trả sẽ bị huỷ / thay thế / bù thêm, hoặc lỗi chặn. Prop `origin` + giá trị điền sẵn cho luồng Auto Renew.
+8. **Hiển thị điều khoản hiện hành (R3-6)**: thay đọc `contract.paymentTerm` ở các chỗ **hiển thị** của hợp đồng đã ký bằng
+   `getEffectiveTerm(contract, todayKey).term` — `ConsignmentContractListScreen` (cột mức/ngày chi trả), `ConsignmentContractCard`,
+   `summarizeContracts` (tổng chi trả cố định/tháng), `VehicleOwnerListScreen` + `VehicleOwnerDetailScreen` (Σ/tháng, bảng hợp đồng),
+   `VehicleConsignmentTab`. **Giữ** `contract.paymentTerm` ở: form `DRAFT`, `buildTermsSnapshot`, `buildMergeFields` (bản hợp đồng gốc),
+   công thức chi trả (đã đọc `termVersions`).
+9. **`ConsignmentIntakeDialog`**: điền sẵn `appraisedValue` từ `appraisal.appraisedValue` của đề nghị gốc (sửa được) — §20.1 điểm 31.
+10. **`ConsignmentAuditTab`** (nợ R2 #2): prop thêm `proposalId?`; với `contractId` gộp thêm `{ entity: 'OwnerPayoutRecord', entityIds: [id
+    các Record của hợp đồng (`useOwnerPayoutRecords({ contractId })`), 'contract:<contractId>'] }`; với `proposalId` → `{ entity:
+    'ConsignmentProposal', entityIds: [proposalId] }`. Audit sinh lịch theo lô (`batch:<kỳ>`) không gắn hợp đồng — không gộp (ghi trong
+    docstring).
+11. `OwnerPayoutRecordSheet`: dòng phiên bản điều khoản hiện kèm mã phụ lục khi phiên bản đến từ phụ lục (tra `contract.termVersions`).
+
+### 20.10. Seed (`SEED_VERSION` 21 → 22 — dựng bằng hàm thuần, không gõ tay số tổng / trạng thái suy ra, không audit)
+
+**Đề nghị (22)** — dựng **trước** hợp đồng trong `consignment/seed.ts`; mã `DNKG-` theo thứ tự `createdAt`:
+
+1. **Backfill 18 đề nghị `APPROVED` đã dùng** — một cho mỗi "chuỗi" hợp đồng: #1–#15 (15), #16, #17, và **#18 + #19 dùng chung một**
+   (#19 thay #18). `declaredVehicle` lấy từ xe VM (biển số, hãng, model, năm, màu); `vehicleId` = xe; `expectedMonthlyAmount` = mức của hợp
+   đồng (riêng chuỗi #18/#19 = 5.000.000); `declaredCondition` ngắn theo xe. Mốc: `createdAt` = `createdAt` hợp đồng đầu chuỗi − 10 ngày
+   09:00 → bắt đầu thẩm định −8 → ghi kết quả −7 → duyệt −6 (mọi mốc ≥ `createdAt` của chủ xe; nếu vi phạm, dời cả chuỗi mốc về sau `createdAt`
+   chủ xe + 1 giờ, giữ thứ tự). Kết quả thẩm định: `REGISTERED_OWNER`, 3 giấy tờ đạt, checklist đạt, `odoKm` = odo biên bản `INTAKE` − 50
+   (không âm; chuỗi không có `INTAKE` → `currentKm` xe − 50), `appraisedValue` = `appraisedValue` của `INTAKE` hợp đồng (chuỗi #16, #18/#19:
+   giá trị cố định trong khoảng hạng xe §10.3), `appraisedByName`/`decidedByName` = người seed.
+2. **4 đề nghị demo** (biển số **không** trùng xe VM và không trùng nhau — dev tự kiểm với seed `vehicles`):
+   - `SUBMITTED` — `own_005`, Toyota Vios 2022 trắng, kỳ vọng 8.000.000, tạo −2.
+   - `APPRAISING` — `own_002`, Mazda CX-5 2021, kỳ vọng 9.500.000, tạo −6, bắt đầu thẩm định −5, đã ghi kết quả −4 với mục giấy tờ
+     `INSPECTION` chưa đạt + `pendingDocumentsNote` "Đăng kiểm đã hết hạn — chủ xe cam kết đăng kiểm lại trước khi bàn giao" (UC-VC-02 A2).
+   - `REJECTED` — `own_010`, xe 5 chỗ bất kỳ, `ownershipCheck = INVALID`, lý do "Người đề nghị không phải chủ đăng ký, giấy uỷ quyền chưa
+     công chứng" (EX-01), tạo −15 → từ chối −12.
+   - `APPROVED` **chưa dùng** — `own_006`, Kia Morning 2020, kỳ vọng 5.000.000, tạo −9 → duyệt −3 (xe **chưa** có ở VM — demo luồng §20.1
+     điểm 26).
+3. Tổng: **22** = 19 `APPROVED` (18 đã dùng + 1 chưa dùng) · 1 `SUBMITTED` · 1 `APPRAISING` · 1 `REJECTED`.
+
+**Hợp đồng** — thêm `proposalId` (theo 1.) + `addenda`:
+
+4. **#4 (`veh_004`, 9.000.000, Payment Day 10) — phụ lục đổi mức (demo AC-VC-012):** `termChange` 9.000.000 → **9.500.000** (Payment Day
+   + quy tắc giữ nguyên), `effectiveFrom` = **ngày 1 của tháng hiện tại**, `signedDate` = ngày 25 của tháng trước, `origin = MANUAL`, nội dung
+   "Điều chỉnh mức thuê theo thoả thuận khi chủ xe lắp thêm camera hành trình và phim cách nhiệt", bản ký giả lập; `termVersions` thêm
+   phiên bản 2 (`ADDENDUM`). Record kỳ hiện tại của #4 do `buildExpectedPayouts` sinh **tự động** theo phiên bản 2 (không gõ tay).
+5. **#6 (`veh_006`) — phụ lục gia hạn thuần:** spec đổi `to` thành **`dayKey(45)`** (thời hạn gốc lúc ký → vào `termsSnapshot`), phụ lục
+   `extension` `dayKey(45)` → **`dayKey(410)`** ký `dayKey(-10)`, `origin = MANUAL`; `contract.effectiveTo` cuối = `dayKey(410)` như R2 → lịch
+   chi trả không đổi (cửa sổ chi trả vẫn vượt kỳ hiện tại).
+6. Mã phụ lục theo thứ tự `signedDate`: #4 → `PLKG-000001`, #6 → `PLKG-000002`. #2 (`veh_002`, `autoRenew` bật, còn +20 ngày) **giữ nguyên**
+   — tự hiện banner Auto Renew.
+7. Bước kiểm (`throw`) — sửa kiểm cũ `termVersions.length !== 1` (seed.ts ~dòng 700) thành: phiên bản 1 là `ORIGINAL`, mỗi phiên bản
+   `ADDENDUM` khớp đúng một `addenda[].termChange`; thêm: mọi hợp đồng có `proposalId` trỏ đề nghị `APPROVED` cùng chủ xe + biển số khớp xe; mỗi
+   đề nghị có ≤ 1 hợp đồng khác `SUPERSEDED`; `effectiveTo` = `toEffectiveTo` của phụ lục gia hạn mới nhất (nếu có) hoặc
+   `termsSnapshot.effectiveTo`; mọi mốc đề nghị/phụ lục ≤ now, đúng thứ tự; kiểm cũ §19.9.1 mục 4 vẫn chạy.
+
+### 20.11. File tạo / sửa / cấm
+
+**Tạo:** `src/features/incidents/storageKeys.ts` · `src/features/consignment/{proposalModel,proposalApi,addendumModel,addendumApi}.ts` ·
+`consignment/components/`: `ConsignmentProposalStatusBadge.tsx`, `ConsignmentProposalFormSheet.tsx`, `ConsignmentAppraisalDialog.tsx`,
+`ConsignmentProposalOverviewTab.tsx`, `ConsignmentAddendumDialog.tsx`, `ConsignmentAddendaTab.tsx`, `ConsignmentAddendumPreviewDialog.tsx`
+(+ `ConsignmentProposalCard.tsx` / dialog duyệt riêng nếu cần) · `consignment/screens/ConsignmentProposalListScreen.tsx`,
+`ConsignmentProposalDetailScreen.tsx`.
+
+**Sửa:** `consignment/{model,api,payoutModel,storage,hooks,seed,index}.ts`; `consignment/components/{ConsignmentContractFormSheet,
+ConsignmentContractOverviewTab,ConsignmentContractCard,ConsignmentAuditTab,ConsignmentIntakeDialog,VehicleConsignmentTab,
+OwnerPayoutRecordSheet}.tsx`; `consignment/screens/{ConsignmentContractDetailScreen,ConsignmentContractListScreen,VehicleOwnerDetailScreen,
+VehicleOwnerListScreen}.tsx`; `src/features/incidents/api.ts` (**đúng** thay đổi §20.2 mục 2); `src/features/finance/payment/ledger.ts`
+(**chỉ** hàm `syncOwnerPayoutAfterPaymentChange`); `shared/domain/enums.ts`; `shared/i18n/vi.ts`; `app/paths.ts`; `app/routes.tsx`;
+`shared/layout/nav.tsx`; `shared/fixtures/seedAll.ts` (22).
+
+**Cấm:** `features/vehicles/**` · `features/rentals/**` · `features/incidents/**` ngoài 2 file trên · `features/handover-return/**` ·
+`features/finance/**` ngoài `ledger.ts` · mọi feature khác · `shared/domain/permissions.ts` · `shared/ui/**` ·
+`shared/fixtures/registerSeeds.ts` · `docs/**` · `CHANGELOG.md`.
+
+### 20.12. Definition of Done — Round 3
+
+1. `npx tsc -b`, `npx oxlint`, `npm run build` sạch; `grep -rn '\*/[a-zA-Z]' src/` không có kết quả mới; `git diff --stat` ⊆ §20.11;
+   `git diff src/features/incidents` chỉ gồm `storageKeys.ts` mới + đúng 2 dòng ở `api.ts`; `git diff src/features/finance` chỉ trong
+   `syncOwnerPayoutAfterPaymentChange`.
+2. **Vòng import** (§20.2): `sccfiles.mjs` ra **đúng** `scc-target.txt` (`diff` rỗng — 98 file, 0 file `consignment`); `evalorder.mjs` `OK` với
+   `/src/app/routes.tsx` và `/src/features/consignment/index.ts`; `grep -rn "@/features/finance\|@/features/rentals'\|@/features/incidents'\|@/features/incidents/api\|@/features/handover-return" src/features/consignment` rỗng.
+3. **Harness** (copy `scratchpad/consignment-r2/seed-harness.mjs` sang `scratchpad/consignment-r3/`, giữ `FIXED_NOW = 2026-10-22T10:00+07:00`
+   + reset RNG; chạy **trước** — `HEAD af99a0f` qua `git worktree` trong scratchpad, **không** `git stash` — và **sau**): (a) 9 ca §19.8 vẫn
+   đúng; (b) ca phụ lục: **A1** (AC-VC-012) hợp đồng 8.000.000 từ 01/06/2026, Record 06–09 `PAID`, 10 `SCHEDULED`; phụ lục 8.500.000 hiệu lực
+   01/10/2026 → Record 10 huỷ + bản thay thế 8.500.000 `termVersionNo` 2, Record 09 giữ 8.000.000 · **A2** hiệu lực 01/09/2026 → từ chối (không
+   hồi tố) · **A3** hiệu lực 15/10/2026 → từ chối (không phải ngày 1) · **A4** Record 10 đã `PAID` / có lệnh chi → từ chối, không ghi gì · **A5**
+   `effectiveTo` 15/10/2026, Record 10 = 15/31; gia hạn tới 14/10/2027 → huỷ + bản thay thế 31/31 · **A6** Payment Day 5 → 20 hiệu lực 01/10/2026
+   → bản thay thế `dueDate` 20/11/2026 · **A7** Record `ON_HOLD` có điều chỉnh `−1.000.000` `APPROVED` → bản thay thế giữ `ON_HOLD` + lý do +
+   điều chỉnh · **A8** `getAutoRenewSuggestion`: bật + còn 20 ngày → gợi ý `effectiveTo + thời hạn gốc`; tắt → không; có thông báo chấm dứt →
+   không; (c) ca đề nghị: ghi nhận biển số xe `veh_001` (HĐ `ACTIVE`) → từ chối nêu số HĐ; biển số `veh_007` (HĐ #16 `DRAFT`) → từ chối; trùng
+   biển số đề nghị `SUBMITTED` demo → từ chối; duyệt khi `INVALID` → từ chối; soạn hợp đồng từ đề nghị đã dùng → từ chối; từ đề nghị `APPROVED`
+   chưa dùng khi xe chưa có ở VM → từ chối kèm hướng dẫn, tạo xe `CONSIGNED` (gọi `vehicles` API trong harness) rồi soạn → `DRAFT` có
+   `proposalId`, `Fixed Monthly Amount` = 5.000.000.
+4. **Số liệu** (trước = HEAD `af99a0f` / sau R3, today 22/10/2026):
+
+   | Chỉ số | Trước | Sau | Ghi chú |
+   | --- | --- | --- | --- |
+   | Σ Cost `CONSIGNMENT_PAYOUT` 12 tháng (11/2025–10/2026) | 1.269.283.178 | **1.269.783.178** | +500.000 = Record 10/2026 của #4 (9.000.000 → 9.500.000) |
+   | Σ chi trả kỳ 09/2026 | 140.100.000 | 140.100.000 | kỳ trước ngày hiệu lực phụ lục — AC-VC-012 |
+   | Σ chi trả kỳ 10/2026 | 136.000.000 | **136.500.000** | |
+   | Chi phí trực tiếp / lợi nhuận vận hành 09/2026 | 145.980.000 / −138.930.000 | **không đổi** | |
+   | Chi phí trực tiếp / lợi nhuận vận hành / sau gián tiếp 10/2026 | 154.080.000 / −141.930.000 / −160.430.000 | **154.580.000 / −142.430.000 / −160.930.000** | |
+   | `costPaid` đối chiếu 12 tháng | 1.106.541.243 | 1.106.541.243 | Record 10/2026 của #4 hạn 10/11/2026 — chưa chi |
+   | Record (tổng / `PAID` / `SCHEDULED` / `ON_HOLD` / `CANCELLED`) | 145 / 126 / 14 / 5 / 0 | **không đổi** | Record #4 kỳ 10 `termVersionNo` 2 |
+   | Giao dịch / yêu cầu `OWNER_PAYOUT` | 129 / 128 | không đổi | mã `GD-…` không đổi |
+   | Cost Entry / Cash Entry / Revenue Line | 215 / 190 / 27 | không đổi | |
+   | Doanh thu 12 tháng · thực thu · chênh · `rt_026` · doanh thu tháng trước | 63.750.000 · 109.510.000 · −45.760.000 · 975.000 · 7.050.000 | không đổi | |
+   | Lợi nhuận 12 tháng `veh_004` | (số R2) | giảm thêm đúng **500.000** | |
+
+   Seed mới: 22 đề nghị (19/1/1/1 như §20.10 mục 3) · 2 phụ lục · 19 hợp đồng giữ nguyên trạng thái. Lệch số nào → dừng, giải thích trong báo
+   cáo, không tự chỉnh seed cho khớp.
+5. Luồng (đọc code + harness; người dùng tự bấm thử sau bàn giao): đề nghị `SUBMITTED` → bắt đầu thẩm định → ghi kết quả → duyệt → (tạo xe Ký gửi)
+   → Soạn hợp đồng → `DRAFT` mang `proposalId`, đề nghị chuyển "đã dùng"; Thay bằng bản mới → bản mới giữ `proposalId`; phụ lục trên #1 đổi mức
+   hiệu lực ngày 1 tháng sau → không Record nào bị huỷ, bảng phiên bản hiện "Sắp hiệu lực"; phụ lục hiệu lực ngày 1 tháng này trên một hợp đồng
+   có Record kỳ hiện tại `SCHEDULED` → huỷ + thay thế, xem trước trong dialog khớp kết quả; #2 hiện banner Auto Renew, "Tạo phụ lục gia hạn" →
+   `effectiveTo` mới, badge "Sắp hết hạn" biến mất; hợp đồng có thông báo chấm dứt → không lập được phụ lục (API chặn). Guard có mặt ở **API**.
+6. Phân quyền: `OPERATION_STAFF` thấy mục nav "Đề nghị ký gửi" (chỉ mục này trong nhóm 7), vào được 2 màn đề nghị, có nút Bắt đầu / Ghi kết quả
+   thẩm định, **không** có Ghi nhận / Sửa / Duyệt / Từ chối / Soạn hợp đồng, tên chủ xe không phải link; `ACCOUNTANT` không thấy mục đề nghị (gõ URL →
+   màn không có quyền, không tải dữ liệu), không có "Lập phụ lục"; `SALES` = `MANAGER` ở mọi nút R3; người thiếu `CONFIG` thấy fieldset đổi điều
+   khoản bị khoá. Không có `if (role === …)`.
+7. Tab Nhật ký hợp đồng hiện cả audit Record chi trả của hợp đồng (vd `HOLD_…`, `CANCEL_…`, `MARK_…_PAID`) + `GENERATE_…` theo `contract:<id>`.
+8. Mọi hàm ghi có `appendAudit`; mọi đọc/guard trong callback `fakeRequest`; schema dùng thật qua `zodResolver`; chuỗi UI/lỗi/audit không chứa
+   `§`, `UC-`, `AC-`, `.md`, `Phase`, `Round` (grep `features/consignment` + khối `vi.consignment`); ngày nghiệp vụ `YYYY-MM-DD` địa phương;
+   `TODO(OQ)` đúng 3 chỗ mới (§20.1 điểm 30, 33, 36).
+
+### 20.13. Danh sách file `dev` đọc trước — Round 3 (đúng danh sách, không scan rộng)
+
+**Nghiệp vụ:** (1) `docs/CONSIGNMENT-PLAN.md` §0.2–§0.4, §2.2, §4, §19.1, §19.4.3, §19.5.2, **§20 toàn bộ**; (2)
+`../thien-bao-car-docs/modules/VehicleConsignment-BRD.md` §6.2, §6.3, §7.1, §8, §15, §17 (VC-BR-01/05/16), §18, §19 (AC-VC-012), §20
+(EX-01); (3) `../thien-bao-car-docs/modules/VehicleConsignment-UseCase.md` §4.1, §5, §6, §7.3–§7.4, §9.4, §14.4; (4)
+`../thien-bao-car-docs/WebappQuanTri.md` §12.2, §12.4.
+
+**Code:** (5) `src/features/consignment/model.ts` (kiểu + hằng `INTAKE_*_KEYS` + schema), `payoutModel.ts` (dòng 140–440: tính tiền,
+`planContractEnd`, `applyContractEndPlan`), `storage.ts`, `api.ts` (dòng 1–130 khung + `createConsignmentContract` ~342 +
+`supersedeConsignmentContract` + `terminateConsignmentContract` mẫu huỷ/tạo Record + audit), `hooks.ts`, `index.ts`, `seed.ts` (toàn bộ);
+(6) `consignment/components/{ConsignmentContractFormSheet,ConsignmentEndDialog,ConsignmentIntakeDialog,ConsignmentReasonDialog,
+ConsignmentDraftPreviewDialog,ConsignmentAuditTab,ConsignmentContractOverviewTab,ConsignmentNoPermission}.tsx`; (7)
+`consignment/screens/{ConsignmentContractDetailScreen,ConsignmentContractListScreen,VehicleOwnerDetailScreen}.tsx`; (8)
+`src/features/incidents/api.ts` dòng 1–50; (9) `src/features/finance/payment/ledger.ts` hàm `syncOwnerPayoutAfterPaymentChange` (~dòng
+180–226); (10) `src/features/vehicles/model.ts` hàm `isPlateTaken` (~dòng 72) — chỉ để mirror; (11) `shared/domain/enums.ts` khối VC (~dòng
+360–410) + cuối `AUDIT_ACTIONS`; `shared/domain/permissions.ts` khối Nhóm 7 (~dòng 466–520, chỉ đọc); (12) `app/paths.ts`, `app/routes.tsx`,
+`shared/layout/nav.tsx`, `shared/fixtures/seedAll.ts`; (13) scratchpad `consignment-r2/seed-harness.mjs`, `tl-verify/{cycles,evalorder}.mjs`,
+`consignment-r3/{sccfiles.mjs,scc-target.txt}`.
+
+### 20.14. Thứ tự làm đề xuất
+
+1. **Gỡ vòng import trước** (§20.2, 3 sửa) → chạy `sccfiles.mjs` + `evalorder.mjs` ngay.
+2. `enums.ts` + nhãn `vi.ts` → `storage.ts` (key đề nghị) → kiểu mới ở `model.ts` → `proposalModel.ts` → `addendumModel.ts` (+ `planTermsRecalc`;
+   chạy harness ca A1–A8 + 9 ca §19.8 ngay) → `proposalApi.ts` → `addendumApi.ts` → sửa `api.ts` (tạo hợp đồng từ đề nghị, supersede) → `hooks.ts`
+   → `index.ts`.
+3. `seed.ts` (đề nghị → hợp đồng + phụ lục → Record) + `SEED_VERSION` 22 → harness "sau", đối chiếu bảng §20.12 mục 4 **trước** khi làm UI.
+4. UI đề nghị (list → detail → sheet/dialog) → `paths`/`routes`/`nav` → form hợp đồng chế độ tạo → chi tiết hợp đồng (điều khoản hiện hành,
+   tab Phụ lục, dialog phụ lục + xem trước, banner Auto Renew) → R3-6 các chỗ hiển thị → `ConsignmentIntakeDialog` → `ConsignmentAuditTab` →
+   khối đề nghị ở chi tiết chủ xe → `OwnerPayoutRecordSheet`.
+5. `ledger.ts` (R3-9).
+6. 3 cổng + các kiểm §20.12 + bảng số trước/sau trong báo cáo bàn giao.

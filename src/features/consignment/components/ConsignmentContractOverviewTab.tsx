@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { paths } from '@/app/paths'
+import { usePermission } from '@/features/auth'
 import { CONSIGNMENT_CONTRACT_STATUS_LABELS, CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
 import { formatDate, formatDateTime } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
-import { useConsignmentContract } from '../hooks'
+import { getEffectiveTerm } from '../addendumModel'
+import { useConsignmentContract, useConsignmentProposal } from '../hooks'
 import { RESPONSIBILITY_ITEM_KEYS, type ConsignmentContract } from '../model'
 import { ConsignmentField } from './ConsignmentField'
 
@@ -19,11 +21,17 @@ function ContractLink({ id }: { id: string }) {
 }
 
 /**
- * Tab "Tổng quan & điều khoản" (plan mục 8.4). Sau khi ký, mọi điều khoản hiển thị TỪ `termsSnapshot` (VC-BR-05) chứ không
- * từ field sống của hợp đồng.
+ * Tab "Tổng quan & điều khoản" (plan mục 8.4). Sau khi ký, các khối điều khoản gốc hiển thị TỪ `termsSnapshot` (VC-BR-05) chứ
+ * không từ field sống của hợp đồng; khối "Điều khoản hiện hành" lấy phiên bản chi trả đang áp dụng hôm nay (đã tính phụ lục).
  */
-export function ConsignmentContractOverviewTab({ contract }: { contract: ConsignmentContract }) {
+export function ConsignmentContractOverviewTab({ contract, todayKey }: { contract: ConsignmentContract; todayKey: string }) {
+  const t = vi.consignment.addenda
+  const { can } = usePermission()
+  const canAssess = can('CONSIGNMENT', 'ASSESS')
+  const { data: proposal } = useConsignmentProposal(contract.proposalId)
   const snapshot = contract.termsSnapshot
+  const effective = snapshot ? getEffectiveTerm(contract, todayKey) : undefined
+  const extended = !!snapshot && contract.effectiveTo !== snapshot.effectiveTo
   const effectiveFrom = snapshot?.effectiveFrom ?? contract.effectiveFrom
   const effectiveTo = snapshot?.effectiveTo ?? contract.effectiveTo
   const noticePeriodDays = snapshot?.noticePeriodDays ?? contract.noticePeriodDays
@@ -41,6 +49,41 @@ export function ConsignmentContractOverviewTab({ contract }: { contract: Consign
           <p className="text-muted-foreground text-xs">{vi.consignment.snapshotNote}</p>
         </div>
       )}
+
+      {proposal && (
+        <p className="text-sm">
+          <span className="text-muted-foreground">{vi.consignment.proposals.sourceProposal}: </span>
+          {canAssess ? (
+            <Link className="text-primary underline-offset-4 hover:underline" to={paths.consignmentProposalDetail(proposal.id)}>
+              {proposal.code}
+            </Link>
+          ) : (
+            proposal.code
+          )}
+        </p>
+      )}
+
+      {snapshot && effective && (
+        <section className="border-border flex flex-col gap-3 rounded-lg border p-3">
+          <h3 className="text-sm font-semibold">{t.effectiveTermTitle}</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <ConsignmentField label={t.columnVersion}>{vi.consignment.payouts.termVersionValue(effective.version.versionNo)}</ConsignmentField>
+            <ConsignmentField label={vi.consignment.termFieldAmount}>{formatVnd(effective.term.fixedMonthlyAmount)}</ConsignmentField>
+            <ConsignmentField label={vi.consignment.termFieldPaymentDay}>
+              {vi.consignment.paymentDayValue(effective.term.paymentDay)}
+            </ConsignmentField>
+            <ConsignmentField label={vi.consignment.termFieldProration}>
+              {CONSIGNMENT_PRORATION_RULE_LABELS[effective.term.prorationRule]}
+            </ConsignmentField>
+          </div>
+          <p className="text-sm">
+            {t.effectiveUntil(formatDate(contract.effectiveTo))}
+            {extended && <span className="text-muted-foreground"> — {t.extendedFrom(formatDate(snapshot.effectiveTo))}</span>}
+          </p>
+        </section>
+      )}
+
+      {snapshot && <h2 className="text-base font-semibold">{t.originalTermsTitle}</h2>}
 
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold">{vi.consignment.sectionTerm}</h3>

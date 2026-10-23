@@ -15,11 +15,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { ConsignmentAuditTab } from '../components/ConsignmentAuditTab'
 import { ConsignmentContractStatusBadge } from '../components/ConsignmentContractStatusBadge'
+import { ConsignmentProposalFormSheet } from '../components/ConsignmentProposalFormSheet'
+import { ConsignmentProposalStatusBadge } from '../components/ConsignmentProposalStatusBadge'
 import { ConsignmentField } from '../components/ConsignmentField'
 import { OwnerBankAccountField } from '../components/OwnerBankAccountField'
 import { OwnerPayoutRecordsPanel } from '../components/OwnerPayoutRecordTable'
 import { VehicleOwnerFormSheet } from '../components/VehicleOwnerFormSheet'
-import { useConsignmentContracts, useOwnerPayoutRecords, useVehicleOwner } from '../hooks'
+import { getEffectiveTerm } from '../addendumModel'
+import { useConsignmentContracts, useConsignmentProposals, useOwnerPayoutRecords, useVehicleOwner } from '../hooks'
 import { calcAge, isExpiringSoon, toLocalDateKey } from '../model'
 import { summarizeOwnerPayables } from '../payoutModel'
 
@@ -40,6 +43,7 @@ function VehicleOwnerDetailScreenContent() {
   const { id } = useParams<{ id: string }>()
   const { can } = usePermission()
   const canEdit = can('CONSIGNMENT', 'CREATE')
+  const canAssess = can('CONSIGNMENT', 'ASSESS')
   // TODO(OQ: VehicleConsignment-BRD.md mục 21 — vai trò xem đầy đủ số tài khoản chưa nêu rõ; BA đề xuất CREATE hoặc CONFIRM)
   const canReveal = canEdit || can('CONSIGNMENT', 'CONFIRM')
 
@@ -47,7 +51,9 @@ function VehicleOwnerDetailScreenContent() {
   const { data: contracts } = useConsignmentContracts({ ownerId: id })
   const { data: vehicles } = useVehicles()
   const { data: payoutRecords } = useOwnerPayoutRecords({ ownerId: id })
+  const { data: proposals } = useConsignmentProposals({ ownerId: id }, canAssess)
   const [formOpen, setFormOpen] = useState(false)
+  const [proposalFormOpen, setProposalFormOpen] = useState(false)
 
   const todayKey = toLocalDateKey(new Date())
   const plateById = useMemo(() => new Map((vehicles ?? []).map((v) => [v.id, v.plate])), [vehicles])
@@ -56,8 +62,8 @@ function VehicleOwnerDetailScreenContent() {
     () =>
       (contracts ?? [])
         .filter((c) => c.status === 'ACTIVE' || c.status === 'SUSPENDED')
-        .reduce((sum, c) => sum + c.paymentTerm.fixedMonthlyAmount, 0),
-    [contracts],
+        .reduce((sum, c) => sum + getEffectiveTerm(c, todayKey).term.fixedMonthlyAmount, 0),
+    [contracts, todayKey],
   )
 
   if (isLoading) {
@@ -89,6 +95,11 @@ function VehicleOwnerDetailScreenContent() {
           <p className="text-muted-foreground text-sm">{owner.code}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canEdit && (
+            <Button size="sm" variant="outline" onClick={() => setProposalFormOpen(true)}>
+              {vi.consignment.proposals.addButton}
+            </Button>
+          )}
           {canEdit && (
             <Button size="sm" variant="outline" onClick={() => setFormOpen(true)}>
               <Pencil className="size-3.5" />
@@ -142,6 +153,7 @@ function VehicleOwnerDetailScreenContent() {
         </TabsContent>
 
         <TabsContent value="contracts">
+          <div className="flex flex-col gap-6">
           {(contracts?.length ?? 0) === 0 ? (
             <div className="border-border text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-12 text-center">
               <p className="font-medium">{vi.consignment.ownerContractsEmpty}</p>
@@ -165,7 +177,9 @@ function VehicleOwnerDetailScreenContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(contracts ?? []).map((c) => (
+                    {(contracts ?? []).map((c) => {
+                      const term = getEffectiveTerm(c, todayKey).term
+                      return (
                       <TableRow key={c.id}>
                         <TableCell className="font-medium">
                           <Link className="text-primary underline-offset-4 hover:underline" to={paths.consignmentContractDetail(c.id)}>
@@ -184,18 +198,58 @@ function VehicleOwnerDetailScreenContent() {
                           {formatDate(c.effectiveFrom)} – {formatDate(c.effectiveTo)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <span title={CONSIGNMENT_PRORATION_RULE_LABELS[c.paymentTerm.prorationRule]}>
-                            {formatVnd(c.paymentTerm.fixedMonthlyAmount)}
+                          <span title={CONSIGNMENT_PRORATION_RULE_LABELS[term.prorationRule]}>
+                            {formatVnd(term.fixedMonthlyAmount)}
                           </span>
                         </TableCell>
-                        <TableCell>{vi.consignment.paymentDayValue(c.paymentTerm.paymentDay)}</TableCell>
+                        <TableCell>{vi.consignment.paymentDayValue(term.paymentDay)}</TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
             </div>
           )}
+
+            {canAssess && (
+              <section className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold">{vi.consignment.proposals.ownerBlockTitle}</h3>
+                {(proposals?.length ?? 0) === 0 ? (
+                  <p className="text-muted-foreground text-sm">{vi.consignment.proposals.ownerBlockEmpty}</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{vi.consignment.proposals.columnCode}</TableHead>
+                          <TableHead>{vi.consignment.proposals.columnPlate}</TableHead>
+                          <TableHead>{vi.common.status}</TableHead>
+                          <TableHead className="text-right">{vi.consignment.proposals.columnExpected}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(proposals ?? []).map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-medium">
+                              <Link className="text-primary underline-offset-4 hover:underline" to={paths.consignmentProposalDetail(p.id)}>
+                                {p.code}
+                              </Link>
+                            </TableCell>
+                            <TableCell>{p.declaredVehicle.plate}</TableCell>
+                            <TableCell>
+                              <ConsignmentProposalStatusBadge status={p.status} />
+                            </TableCell>
+                            <TableCell className="text-right">{formatVnd(p.expectedMonthlyAmount)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="payouts">
@@ -220,6 +274,7 @@ function VehicleOwnerDetailScreenContent() {
       </Tabs>
 
       {canEdit && <VehicleOwnerFormSheet owner={owner} open={formOpen} onOpenChange={setFormOpen} />}
+      {canEdit && <ConsignmentProposalFormSheet initialOwnerId={owner.id} open={proposalFormOpen} onOpenChange={setProposalFormOpen} />}
     </div>
   )
 }

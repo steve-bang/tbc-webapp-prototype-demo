@@ -15,8 +15,12 @@ import type {
   VehicleOwnerFilter,
   VehicleOwnerInput,
 } from './api'
+import * as addendumApi from './addendumApi'
+import type { ConsignmentAddendumDraftInput } from './addendumModel'
 import * as payoutApi from './payoutApi'
 import type { OwnerPayoutAdjustmentDecision, OwnerPayoutAdjustmentInput, OwnerPayoutRecordFilter } from './payoutApi'
+import * as proposalApi from './proposalApi'
+import type { ConsignmentAppraisalInput, ConsignmentProposalFilter, ConsignmentProposalInput } from './proposalApi'
 
 /** Mirror `contracts/hooks.ts` — fallback khi mất session là `OPERATION_STAFF` (quyền thấp nhất). */
 function useActor(): ActorInfo {
@@ -344,6 +348,92 @@ export function useRecordConsignmentVehicleLoss() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: ConsignmentVehicleLossInput }) =>
       api.recordConsignmentVehicleLoss(id, input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+// ---- Đề nghị ký gửi & thẩm định ----
+
+export function useConsignmentProposals(filter?: ConsignmentProposalFilter, enabled = true) {
+  return useQuery({
+    queryKey: [...ROOT, 'proposals', filter ?? {}],
+    queryFn: () => proposalApi.listConsignmentProposals(filter),
+    enabled,
+  })
+}
+
+export function useConsignmentProposal(id?: string) {
+  return useQuery({
+    queryKey: [...ROOT, 'proposal', id],
+    queryFn: () => proposalApi.getConsignmentProposal(id as string),
+    enabled: !!id,
+  })
+}
+
+export function useCreateConsignmentProposal() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: (input: ConsignmentProposalInput) => proposalApi.createConsignmentProposal(input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateConsignmentProposal() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConsignmentProposalInput }) =>
+      proposalApi.updateConsignmentProposal(id, input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useStartConsignmentAppraisal() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: (id: string) => proposalApi.startConsignmentAppraisal(id, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRecordConsignmentAppraisal() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConsignmentAppraisalInput }) =>
+      proposalApi.recordConsignmentAppraisal(id, input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useApproveConsignmentProposal() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: (id: string) => proposalApi.approveConsignmentProposal(id, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRejectConsignmentProposal() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => proposalApi.rejectConsignmentProposal(id, reason, actor),
+    onSuccess: invalidate,
+  })
+}
+
+// ---- Phụ lục hợp đồng ----
+
+export function useCreateConsignmentAddendum() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ contractId, input }: { contractId: string; input: ConsignmentAddendumDraftInput }) =>
+      addendumApi.createConsignmentAddendum(contractId, input, actor),
     onSuccess: invalidate,
   })
 }

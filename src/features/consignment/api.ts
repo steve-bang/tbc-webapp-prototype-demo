@@ -1,4 +1,4 @@
-import { INCIDENTS_STORAGE_KEY } from '@/features/incidents/api'
+import { INCIDENTS_STORAGE_KEY } from '@/features/incidents/storageKeys'
 import type { Incident } from '@/features/incidents/model'
 import { RENTALS_STORAGE_KEY } from '@/features/rentals/api'
 import type { Rental } from '@/features/rentals/model'
@@ -51,15 +51,18 @@ import {
   planContractEnd,
   planPayoutGeneration,
 } from './payoutModel'
+import { isProposalConsumed, resolveProposalVehicle } from './proposalModel'
 import {
   readContracts,
   readOwners,
   readPayoutRecords,
+  readProposals,
   readRecords,
   readVehicles,
   writeContracts,
   writeOwners,
   writePayoutRecords,
+  writeProposals,
   writeRecords,
 } from './storage'
 
@@ -80,6 +83,7 @@ import {
 export type ActorInfo = ConsignmentActor
 
 const t = vi.consignment.termination
+const pt = vi.consignment.proposals
 
 function findOwnerOrThrow(items: VehicleOwner[], id: string): VehicleOwner {
   const found = items.find((o) => o.id === id)
@@ -95,7 +99,7 @@ function findContractOrThrow(items: ConsignmentContract[], id: string): Consignm
 function audit(
   actor: ActorInfo,
   action: AuditAction,
-  entity: 'VehicleOwner' | 'ConsignmentContract' | 'ConsignmentHandoverRecord' | 'OwnerPayoutRecord',
+  entity: 'VehicleOwner' | 'ConsignmentContract' | 'ConsignmentHandoverRecord' | 'OwnerPayoutRecord' | 'ConsignmentProposal',
   entityId: string,
   summary: string,
   before?: unknown,
@@ -314,8 +318,8 @@ export interface ConsignmentContractInput {
 }
 
 export interface ConsignmentContractCreateInput extends ConsignmentContractInput {
-  ownerId: string
-  vehicleId: string
+  /** Đề nghị ký gửi `APPROVED` chưa dùng — chủ xe và xe suy ra từ đề nghị (UC-VC-03 tiền điều kiện). */
+  proposalId: string
 }
 
 function assertContractInput(input: ConsignmentContractInput): void {
@@ -346,12 +350,16 @@ export async function createConsignmentContract(
   return fakeRequest(() => {
     const owners = readOwners()
     const all = readContracts()
-    const owner = findOwnerOrThrow(owners, input.ownerId)
-    const vehicle = readVehicles().find((v) => v.id === input.vehicleId)
-    if (!vehicle) throw new Error('Không tìm thấy xe')
-    if (vehicle.ownershipType !== 'CONSIGNED') {
-      throw new Error('Chỉ lập hợp đồng cho xe có hình thức sở hữu "Ký gửi"')
-    }
+    const proposals = readProposals()
+    // UC-VC-03 — chỉ soạn hợp đồng từ đề nghị đã duyệt và chưa dùng.
+    const proposal = proposals.find((p) => p.id === input.proposalId)
+    if (!proposal) throw new Error(pt.notFound)
+    if (proposal.status !== 'APPROVED') throw new Error(pt.contractNeedsApproved)
+    if (isProposalConsumed(proposal, all)) throw new Error(pt.contractProposalConsumed)
+    const owner = findOwnerOrThrow(owners, proposal.ownerId)
+    const resolved = resolveProposalVehicle(proposal, readVehicles())
+    if ('error' in resolved) throw new Error(resolved.error)
+    const vehicle = resolved.vehicle
     // BA đề xuất — chặn hợp đồng mở thứ hai cho cùng xe (kế hoạch mục 0.3 điểm 3); muốn đổi thì dùng "Thay bằng bản mới".
     // VC-BR-01 — một xe chỉ thuộc một hợp đồng ở trạng thái hiệu lực tại một thời điểm.
     const open = findOpenContractForVehicle(all, vehicle.id)
@@ -369,6 +377,7 @@ export async function createConsignmentContract(
       ),
       ownerId: owner.id,
       vehicleId: vehicle.id,
+      proposalId: proposal.id,
       status: 'DRAFT',
       effectiveFrom: input.effectiveFrom,
       effectiveTo: input.effectiveTo,
@@ -377,6 +386,7 @@ export async function createConsignmentContract(
       paymentTerm: buildPaymentTerm(input),
       exploitationRights: input.exploitationRights,
       termVersions: [],
+      addenda: [],
       statusHistory: [{ to: 'DRAFT', at: now, byName: actor.fullName }],
       note: input.note || undefined,
       createdByName: actor.fullName,
@@ -389,10 +399,23 @@ export async function createConsignmentContract(
       'CREATE_CONSIGNMENT_CONTRACT',
       'ConsignmentContract',
       created.id,
-      `Tạo hợp đồng ký gửi ${created.contractNo} cho xe ${vehicle.plate} (chủ xe ${owner.code})`,
+      `Tạo hợp đồng ký gửi ${created.contractNo} cho xe ${vehicle.plate} (chủ xe ${owner.code}) từ đề nghị ${proposal.code}`,
       undefined,
       created,
     )
+    // Gắn lại xe ở Danh sách xe vào đề nghị khi xe mới được tạo sau lúc ghi nhận đề nghị (UC-VC-03 A1).
+    if (proposal.vehicleId !== vehicle.id) {
+      writeProposals(proposals.map((p) => (p.id === proposal.id ? { ...p, vehicleId: vehicle.id, updatedAt: now } : p)))
+      audit(
+        actor,
+        'UPDATE_CONSIGNMENT_PROPOSAL',
+        'ConsignmentProposal',
+        proposal.id,
+        pt.auditLinkVehicle(proposal.code, vehicle.plate),
+        { vehicleId: proposal.vehicleId },
+        { vehicleId: vehicle.id },
+      )
+    }
     return created
   })
 }
@@ -790,6 +813,7 @@ export async function supersedeConsignmentContract(
       ),
       ownerId: before.ownerId,
       vehicleId: before.vehicleId,
+      proposalId: before.proposalId,
       status: 'DRAFT',
       effectiveFrom: before.effectiveFrom,
       effectiveTo: before.effectiveTo,
@@ -798,6 +822,7 @@ export async function supersedeConsignmentContract(
       paymentTerm: { ...before.paymentTerm },
       exploitationRights: { ...before.exploitationRights },
       termVersions: [],
+      addenda: [],
       supersedesContractId: before.id,
       statusHistory: [{ to: 'DRAFT', at: now, byName: actor.fullName, reason: trimmed }],
       note: before.note,

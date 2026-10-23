@@ -203,6 +203,9 @@ export function syncOwnerPayoutAfterPaymentChange(transactionId: string, actor: 
     return
   }
 
+  // Giao dịch `PENDING` hoặc trạng thái lạ không được huỷ lệnh chi / đổi khoản chi trả.
+  if (txn.status !== 'FAILED' && txn.status !== 'VOIDED' && txn.status !== 'REVERSED') return
+
   const reason =
     txn.status === 'FAILED'
       ? vi.finance.ownerPayout.cancelReasonFailed(txn.code, txn.failReason ?? '')

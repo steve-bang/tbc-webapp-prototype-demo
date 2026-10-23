@@ -14,6 +14,7 @@ import {
 import { CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
 import { formatDate } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
+import type { ConsignmentAddendum } from './addendumModel'
 
 /**
  * Xe ký gửi (module `VC`) — `VehicleConsignment-BRD.md` v1.7, mô hình chốt theo CR-2026-050:
@@ -106,6 +107,8 @@ export interface ConsignmentTermVersion {
   effectiveFrom: string
   paymentTerm: ConsignmentPaymentTerm
   source: 'ORIGINAL' | 'ADDENDUM'
+  /** Có khi `source = 'ADDENDUM'` — phụ lục tạo ra phiên bản này. */
+  addendumId?: string
   createdAt: string
 }
 
@@ -124,6 +127,8 @@ export interface ConsignmentContract {
   contractNo: string
   ownerId: string
   vehicleId: string
+  /** Đề nghị ký gửi `APPROVED` mà hợp đồng được soạn từ đó (UC-VC-03); "Thay bằng bản mới" chép sang bản mới. */
+  proposalId: string
   status: ConsignmentContractStatus
   effectiveFrom: string
   effectiveTo: string
@@ -133,6 +138,8 @@ export interface ConsignmentContract {
   exploitationRights: ConsignmentExploitationRights
   termsSnapshot?: ConsignmentTermsSnapshot
   termVersions: ConsignmentTermVersion[]
+  /** Phụ lục đã lập (append-only, hiệu lực ngay khi lập) — gia hạn và/hoặc đổi điều khoản chi trả (AC-VC-012). */
+  addenda: ConsignmentAddendum[]
   signedCopy?: { fileName: string; uploadedByName: string; uploadedAt: string }
   intakeRecordId?: string
   activatedAt?: string
@@ -256,6 +263,12 @@ export function dayDiff(fromKey: string, toKey: string): number {
   const [fy, fm, fd] = fromKey.split('-').map(Number)
   const [ty, tm, td] = toKey.split('-').map(Number)
   return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000)
+}
+
+/** Cộng/trừ `offset` ngày vào một khoá ngày `YYYY-MM-DD` (theo lịch, giờ địa phương). */
+export function addDaysKey(key: string, offset: number): string {
+  const [y, m, d] = key.split('-').map(Number)
+  return toLocalDateKey(new Date(y, m - 1, d + offset))
 }
 
 /** Mã tuần tự 6 chữ số: lấy số lớn nhất đang có trong `codes` (cùng `prefix`) cộng 1. */
@@ -560,6 +573,24 @@ export function buildMergeFields(
   ]
 }
 
+/**
+ * Bản điều khoản mới nhất có `effectiveFrom ≤ dateKey`; không có → bản đầu; chưa có bản nào (chưa ký) → điều khoản hợp
+ * đồng. Đặt ở `model.ts` (payoutModel re-export) để `summarizeContracts` dùng được mà không tạo vòng import.
+ */
+export function resolveTermVersion(contract: ConsignmentContract, dateKey: string): ConsignmentTermVersion {
+  const sorted = [...contract.termVersions].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
+  const effective = sorted.filter((v) => v.effectiveFrom <= dateKey)
+  const picked = effective.length > 0 ? effective[effective.length - 1] : sorted[0]
+  if (picked) return picked
+  return {
+    versionNo: 1,
+    effectiveFrom: contract.effectiveFrom,
+    paymentTerm: contract.paymentTerm,
+    source: 'ORIGINAL',
+    createdAt: contract.createdAt,
+  }
+}
+
 export interface ContractSummary {
   effectiveCount: number
   monthlyTotal: number
@@ -571,7 +602,8 @@ export function summarizeContracts(contracts: ConsignmentContract[], todayKey: s
   const running = contracts.filter((c) => c.status === 'ACTIVE' || c.status === 'SUSPENDED')
   return {
     effectiveCount: running.length,
-    monthlyTotal: running.reduce((sum, c) => sum + c.paymentTerm.fixedMonthlyAmount, 0),
+    // VC-BR-05 — tổng theo điều khoản đang áp dụng hôm nay (đã tính phụ lục), không phải điều khoản gốc.
+    monthlyTotal: running.reduce((sum, c) => sum + resolveTermVersion(c, todayKey).paymentTerm.fixedMonthlyAmount, 0),
     expiringSoonCount: running.filter((c) => isExpiringSoon(c, todayKey)).length,
   }
 }
@@ -642,8 +674,8 @@ export type VehicleOwnerFormValues = z.infer<typeof vehicleOwnerFormSchema>
 /** Tạo/sửa hợp đồng `DRAFT`. Field số khai dạng chuỗi trong form (mirror `vehicleFormSchema`) rồi đổi sang số ở `toInput`. */
 export const consignmentContractFormSchema = z
   .object({
-    ownerId: z.string().min(1, 'Chọn chủ xe'),
-    vehicleId: z.string().min(1, 'Chọn xe ký gửi'),
+    /** Đề nghị ký gửi `APPROVED` chưa dùng — chủ xe + xe suy ra từ đề nghị (UC-VC-03). */
+    proposalId: z.string().min(1, 'Chọn đề nghị ký gửi đã duyệt'),
     effectiveFrom: z.string().min(1, 'Ngày bắt đầu hiệu lực là bắt buộc'),
     effectiveTo: z.string().min(1, 'Ngày kết thúc hiệu lực là bắt buộc'),
     noticePeriodDays: z

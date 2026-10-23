@@ -3,6 +3,7 @@ import {
   Bell,
   Building2,
   CalendarDays,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   Gauge,
@@ -133,6 +134,14 @@ export const NAV_ENTRIES: NavEntry[] = [
     icon: Building2,
     items: [
       { label: 'Hồ sơ chủ xe', path: paths.consignmentOwners, icon: Building2, resource: 'CONSIGNMENT', action: 'VIEW' },
+      // Đề nghị ký gửi & thẩm định (WebappQuanTri.md §12.2) — gate ASSESS để Operation Staff vào được (plan CONSIGNMENT-PLAN.md §20.1 điểm 30).
+      {
+        label: 'Đề nghị ký gửi',
+        path: paths.consignmentProposals,
+        icon: ClipboardCheck,
+        resource: 'CONSIGNMENT',
+        action: 'ASSESS',
+      },
       {
         label: 'Hợp đồng ký gửi',
         path: paths.consignmentContracts,
