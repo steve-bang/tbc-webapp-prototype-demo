@@ -62,9 +62,9 @@ function SnapshotTable({ title, snapshot }: { title: string; snapshot: unknown }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-3 gap-2 text-sm">
+    <div className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-3 sm:gap-2">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="col-span-2 break-words">{children}</dd>
+      <dd className="break-words sm:col-span-2">{children}</dd>
     </div>
   )
 }

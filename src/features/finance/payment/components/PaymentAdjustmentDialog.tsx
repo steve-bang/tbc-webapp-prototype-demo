@@ -104,7 +104,7 @@ export function PaymentAdjustmentDialog({ open, onOpenChange }: { open: boolean;
             <Label>{vi.finance.payment.adjustmentRentalLabel}</Label>
             <Select value={rentalId} onValueChange={setRentalId}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="—" />
+                <SelectValue placeholder={vi.common.emptyValue} />
               </SelectTrigger>
               <SelectContent>
                 {rentals.map((r) => (

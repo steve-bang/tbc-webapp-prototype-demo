@@ -76,7 +76,7 @@ export function SettlementWaiverDialog({
       return
     }
     if (type === 'PARTIAL_DISCOUNT' && Number(result.data.amount) > remainingForPartialDiscount) {
-      setError(`Tổng giảm một phần vượt số thực tế của dòng (còn được giảm tối đa ${remainingForPartialDiscount.toLocaleString('vi-VN')}đ)`)
+      setError(vi.finance.waiverPartialExceeded(remainingForPartialDiscount.toLocaleString('vi-VN')))
       return
     }
     try {

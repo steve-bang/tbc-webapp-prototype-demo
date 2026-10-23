@@ -69,7 +69,7 @@ export function Topbar({ onOpenMobileNav, topbarSlot }: { onOpenMobileNav: () =>
                 key={role}
                 onSelect={() => {
                   switchRole(role)
-                  toast.info(`Đã chuyển sang vai trò ${ROLE_LABELS[role]}`)
+                  toast.info(vi.common.roleSwitched(ROLE_LABELS[role]))
                   navigate('/dashboard')
                 }}
               >

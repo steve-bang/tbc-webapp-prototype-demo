@@ -8,9 +8,11 @@ import { PAYOUT_STATUSES, type PayoutStatus } from '@/shared/domain/enums'
 import { PAYOUT_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { formatVnd } from '@/shared/lib/money'
+import { DEFAULT_PAGE_SIZE, paginate } from '@/shared/lib/pagination'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
+import { Pagination } from '@/shared/ui/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
@@ -55,6 +57,7 @@ function OwnerPayoutScheduleContent() {
   const [status, setStatus] = useState<PayoutStatus | undefined>(undefined)
   const [ownerId, setOwnerId] = useState<string | undefined>(undefined)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const { data: allRecords, isLoading } = useOwnerPayoutRecords()
   const { data: owners } = useVehicleOwners()
@@ -118,6 +121,8 @@ function OwnerPayoutScheduleContent() {
     return [...map.values()].sort((a, b) => b.total - a.total)
   }, [filtered])
 
+  const pageResult = paginate(filtered, page, DEFAULT_PAGE_SIZE)
+
   async function handleGenerate() {
     try {
       const result = await generate.mutateAsync()
@@ -163,8 +168,14 @@ function OwnerPayoutScheduleContent() {
       </div>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <Input className="sm:w-72" placeholder={t.searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)} />
-        <Select value={period} onValueChange={setPeriod}>
+        <Input className="sm:w-72" placeholder={t.searchPlaceholder} value={search} onChange={(e) => {
+            setSearch(e.target.value)
+            setPage(1)
+          }} />
+        <Select value={period} onValueChange={(v) => {
+            setPeriod(v)
+            setPage(1)
+          }}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue />
           </SelectTrigger>
@@ -177,7 +188,10 @@ function OwnerPayoutScheduleContent() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={status ?? ALL} onValueChange={(v) => setStatus(v === ALL ? undefined : (v as PayoutStatus))}>
+        <Select value={status ?? ALL} onValueChange={(v) => {
+            setStatus(v === ALL ? undefined : (v as PayoutStatus))
+            setPage(1)
+          }}>
           <SelectTrigger className="w-full sm:w-44">
             <SelectValue />
           </SelectTrigger>
@@ -190,7 +204,10 @@ function OwnerPayoutScheduleContent() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={ownerId ?? ALL} onValueChange={(v) => setOwnerId(v === ALL ? undefined : v)}>
+        <Select value={ownerId ?? ALL} onValueChange={(v) => {
+            setOwnerId(v === ALL ? undefined : v)
+            setPage(1)
+          }}>
           <SelectTrigger className="w-full sm:w-56">
             <SelectValue />
           </SelectTrigger>
@@ -242,12 +259,13 @@ function OwnerPayoutScheduleContent() {
           )}
 
           <OwnerPayoutRecordTable
-            records={filtered}
+            records={pageResult.items}
             ownerNameOf={(id) => ownerNames.get(id) ?? id}
             plateOf={(id) => plates.get(id) ?? id}
             contractNoOf={(id) => contractNos.get(id) ?? id}
             onSelect={(r) => openRecord(r.id)}
           />
+          <Pagination page={pageResult.page} pageSize={DEFAULT_PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
         </div>
       )}
 

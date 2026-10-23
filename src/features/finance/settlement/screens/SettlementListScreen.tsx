@@ -11,7 +11,9 @@ import { SETTLEMENT_PAYMENT_STATUS_LABELS, SETTLEMENT_STATUS_LABELS, vi } from '
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
+import { DEFAULT_PAGE_SIZE, paginate } from '@/shared/lib/pagination'
 import { Input } from '@/shared/ui/input'
+import { Pagination } from '@/shared/ui/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { SettlementStatusBadge } from '../components/SettlementStatusBadge'
@@ -37,6 +39,7 @@ export function SettlementListScreen() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>(ALL)
+  const [page, setPage] = useState(1)
 
   const { data: settlements, isLoading: loadingSettlements } = useSettlements()
   const { data: rentals, isLoading: loadingRentals } = useRentals()
@@ -95,6 +98,8 @@ export function SettlementListScreen() {
       .sort((a, b) => (b.openedAt ?? '').localeCompare(a.openedAt ?? ''))
   }, [rows, search, status])
 
+  const pageResult = paginate(filteredRows, page, DEFAULT_PAGE_SIZE)
+
   const isLoading = loadingSettlements || loadingRentals
 
   function openWorksheet(rentalId: string) {
@@ -106,8 +111,14 @@ export function SettlementListScreen() {
       <PageHeader title={vi.finance.settlementTitle} description={vi.finance.settlementDescription} />
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={vi.finance.searchPlaceholder} className="max-w-sm flex-1" />
-        <Select value={status} onValueChange={setStatus}>
+        <Input value={search} onChange={(e) => {
+            setSearch(e.target.value)
+            setPage(1)
+          }} placeholder={vi.finance.searchPlaceholder} className="max-w-sm flex-1" />
+        <Select value={status} onValueChange={(value) => {
+            setStatus(value)
+            setPage(1)
+          }}>
           <SelectTrigger className="w-full sm:w-52">
             <SelectValue placeholder={vi.finance.filterStatus} />
           </SelectTrigger>
@@ -126,55 +137,58 @@ export function SettlementListScreen() {
       {isLoading ? (
         <p className="text-muted-foreground text-sm">{vi.common.loading}</p>
       ) : filteredRows.length > 0 ? (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{vi.finance.columnRental}</TableHead>
-                <TableHead>{vi.finance.columnCustomer}</TableHead>
-                <TableHead>{vi.finance.columnVehicle}</TableHead>
-                <TableHead>{vi.finance.columnStatus}</TableHead>
-                <TableHead>{vi.finance.columnFinalAmount}</TableHead>
-                <TableHead>{vi.finance.columnBalanceDue}</TableHead>
-                <TableHead>{vi.finance.columnPaymentStatus}</TableHead>
-                <TableHead>{vi.finance.columnOpenedAt}</TableHead>
-                <TableHead>{vi.finance.columnPostSettlement}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRows.map((row) => {
-                const totals = row.settlement ? row.settlement.completedTotals ?? calcSettlementTotals(row.settlement.lines, row.settlement.waivers) : undefined
-                const reconciliation = row.settlement?.completedTotals ?? row.settlement?.depositReconciliation
-                const rowPscs = row.settlement ? pscsBySettlementId.get(row.settlement.id) ?? [] : []
-                const pscSummary = summarizePscs(rowPscs)
-                const pscNet = pscSummary.openReceivable - pscSummary.openRefund
-                return (
-                  <TableRow key={row.rentalId} className="cursor-pointer" onClick={() => openWorksheet(row.rentalId)}>
-                    <TableCell className="font-medium">{row.rentalId}</TableCell>
-                    <TableCell>{row.customerName}</TableCell>
-                    <TableCell>{row.vehiclePlate}</TableCell>
-                    <TableCell>
-                      {row.settlement ? <SettlementStatusBadge status={row.settlement.status} /> : <span className="text-muted-foreground text-xs">{vi.finance.pendingOpenBadge}</span>}
-                    </TableCell>
-                    <TableCell>{totals ? formatVnd(totals.finalAmount) : '—'}</TableCell>
-                    <TableCell>{reconciliation ? formatVnd(reconciliation.balanceDue) : '—'}</TableCell>
-                    <TableCell>{row.settlement?.paymentStatus ? SETTLEMENT_PAYMENT_STATUS_LABELS[row.settlement.paymentStatus] : '—'}</TableCell>
-                    <TableCell>{row.settlement ? formatDateTime(row.settlement.openedAt) : '—'}</TableCell>
-                    <TableCell>
-                      {pscSummary.openCount > 0 ? (
-                        <span className={pscNet > 0 ? 'text-status-pending' : pscNet < 0 ? 'text-status-info' : 'text-muted-foreground'}>
-                          {pscSummary.openCount} {vi.finance.pscSummaryOpenLabel.toLowerCase()} · {formatVnd(pscNet)}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{vi.finance.columnRental}</TableHead>
+                  <TableHead>{vi.finance.columnCustomer}</TableHead>
+                  <TableHead>{vi.finance.columnVehicle}</TableHead>
+                  <TableHead>{vi.finance.columnStatus}</TableHead>
+                  <TableHead>{vi.finance.columnFinalAmount}</TableHead>
+                  <TableHead>{vi.finance.columnBalanceDue}</TableHead>
+                  <TableHead>{vi.finance.columnPaymentStatus}</TableHead>
+                  <TableHead>{vi.finance.columnOpenedAt}</TableHead>
+                  <TableHead>{vi.finance.columnPostSettlement}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageResult.items.map((row) => {
+                  const totals = row.settlement ? row.settlement.completedTotals ?? calcSettlementTotals(row.settlement.lines, row.settlement.waivers) : undefined
+                  const reconciliation = row.settlement?.completedTotals ?? row.settlement?.depositReconciliation
+                  const rowPscs = row.settlement ? pscsBySettlementId.get(row.settlement.id) ?? [] : []
+                  const pscSummary = summarizePscs(rowPscs)
+                  const pscNet = pscSummary.openReceivable - pscSummary.openRefund
+                  return (
+                    <TableRow key={row.rentalId} className="cursor-pointer" onClick={() => openWorksheet(row.rentalId)}>
+                      <TableCell className="font-medium">{row.rentalId}</TableCell>
+                      <TableCell>{row.customerName}</TableCell>
+                      <TableCell>{row.vehiclePlate}</TableCell>
+                      <TableCell>
+                        {row.settlement ? <SettlementStatusBadge status={row.settlement.status} /> : <span className="text-muted-foreground text-xs">{vi.finance.pendingOpenBadge}</span>}
+                      </TableCell>
+                      <TableCell>{totals ? formatVnd(totals.finalAmount) : '—'}</TableCell>
+                      <TableCell>{reconciliation ? formatVnd(reconciliation.balanceDue) : '—'}</TableCell>
+                      <TableCell>{row.settlement?.paymentStatus ? SETTLEMENT_PAYMENT_STATUS_LABELS[row.settlement.paymentStatus] : '—'}</TableCell>
+                      <TableCell>{row.settlement ? formatDateTime(row.settlement.openedAt) : '—'}</TableCell>
+                      <TableCell>
+                        {pscSummary.openCount > 0 ? (
+                          <span className={pscNet > 0 ? 'text-status-pending' : pscNet < 0 ? 'text-status-info' : 'text-muted-foreground'}>
+                            {pscSummary.openCount} {vi.finance.pscSummaryOpenLabel.toLowerCase()} · {formatVnd(pscNet)}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <Pagination className="mt-4" page={pageResult.page} pageSize={DEFAULT_PAGE_SIZE} total={filteredRows.length} onPageChange={setPage} />
+        </>
       ) : (
         <div className="border-border text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-12 text-center">
           <p className="font-medium">{rows.length > 0 ? vi.finance.emptyFiltered : vi.finance.emptyAll}</p>

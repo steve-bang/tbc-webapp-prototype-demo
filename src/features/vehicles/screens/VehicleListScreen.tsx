@@ -157,7 +157,7 @@ export function VehicleListScreen() {
                               {attentionCount}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">{vi.common.emptyValue}</span>
                           )}
                         </TableCell>
                         {canEdit && (

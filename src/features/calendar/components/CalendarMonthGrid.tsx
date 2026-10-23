@@ -123,7 +123,7 @@ export function CalendarMonthGrid({
                           highlighted && 'ring-primary ring-2 ring-inset',
                         )}
                         onClick={() => onDayCellClick(vehicle, dateStr, rentalsForCell)}
-                        aria-label={`${vehicle.plate} — ${dateStr} — ${rentalsForCell.length} lượt`}
+                        aria-label={`${vehicle.plate} — ${dateStr} — ${vi.calendar.rentalCount(rentalsForCell.length)}`}
                       >
                         {rentalsForCell.length === 1 ? (
                           <span className="bg-primary size-2 rounded-full" />

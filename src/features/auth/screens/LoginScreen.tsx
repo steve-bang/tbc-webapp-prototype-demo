@@ -35,7 +35,7 @@ export function LoginScreen() {
       fullName: account.fullName,
       role: account.role,
     })
-    toast.success(`Xin chào ${account.fullName}`)
+    toast.success(vi.auth.welcome(account.fullName))
     navigate('/dashboard', { replace: true })
   }
 
@@ -81,7 +81,7 @@ export function LoginScreen() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{vi.auth.demoAccountsTitle}</CardTitle>
-            <CardDescription>Mỗi vai trò một tài khoản — dùng để demo phân quyền khác nhau.</CardDescription>
+            <CardDescription>{vi.auth.demoAccountsDescription}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {DEMO_ACCOUNTS.map((account) => (

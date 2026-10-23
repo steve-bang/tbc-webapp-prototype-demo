@@ -24,7 +24,7 @@ export function RentalPricingTab({ rental }: { rental: Rental }) {
         <h3 className="text-sm font-semibold">{vi.rentals.sectionPricing}</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={vi.rentals.rentalRate} value={formatVnd(rental.rentalRate)} />
-          <Field label={vi.rentals.rentalDurationDays} value={`${rental.rentalDurationDays} ngày`} />
+          <Field label={vi.rentals.rentalDurationDays} value={vi.rentals.durationDaysValue(rental.rentalDurationDays)} />
           <Field label={vi.rentals.baseAmount} value={formatVnd(rental.baseAmount)} />
           <Field label={vi.rentals.discountAmount} value={formatVnd(rental.discountAmount)} />
           <Field label={vi.rentals.discountNote} value={rental.discountNote} />

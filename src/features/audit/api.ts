@@ -4,6 +4,7 @@ import { vi } from '@/shared/i18n/vi'
 import { appendAudit, listAuditRecords, type AuditRecord } from '@/shared/lib/audit'
 import { toCsv } from '@/shared/lib/csv'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
+import { paginate, type PageResult } from '@/shared/lib/pagination'
 import {
   AUDIT_EXPORT_MAX_ROWS,
   buildAuditCsvRows,
@@ -11,11 +12,9 @@ import {
   filterAuditRecords,
   isInScope,
   maskSnapshot,
-  paginate,
   scopeForRole,
   type AuditFilter,
   type AuditScope,
-  type PageResult,
 } from './model'
 
 /** Người đang xem/xuất nhật ký (lấy từ session ở hooks). */

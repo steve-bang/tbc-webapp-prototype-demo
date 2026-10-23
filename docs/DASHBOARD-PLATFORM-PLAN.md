@@ -1,7 +1,7 @@
 # Kế hoạch triển khai — Dashboard & Nền tảng (Thông báo · Nhật ký thao tác · Quản trị hệ thống) (Phase 6)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (23/10/2026 — người dùng duyệt cả 7 điểm §16 theo đề xuất,
-ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9) · **Round 2 — `DONE`** (23/10/2026, brief §19, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết §19.9; quyết định bundle D11 áp cho R3/R4) · **Round 3 — `APPROVED`, đã giao `dev`** (23/10/2026, brief §20; người dùng duyệt 7 mục gợi ý gồm tải lười D11) — **`DONE`** (23/10/2026, review `tech-lead` đạt vòng 2 sau 1 Blocker — §20.9) · **Round 4 tách 2 lượt** (người dùng duyệt 23/10/2026): **R4a — `DONE`** (brief §21: Cấu hình hệ thống, Vai trò & quyền, Chi tiết nhân viên; review đạt vòng 2 sau 1 Blocker — §21.11) · **R4b** (khung §21.10: phân trang, i18n, responsive, README) — brief viết sau khi R4a `DONE`. Các Open Question nghiệp vụ
+ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9) · **Round 2 — `DONE`** (23/10/2026, brief §19, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết §19.9; quyết định bundle D11 áp cho R3/R4) · **Round 3 — `APPROVED`, đã giao `dev`** (23/10/2026, brief §20; người dùng duyệt 7 mục gợi ý gồm tải lười D11) — **`DONE`** (23/10/2026, review `tech-lead` đạt vòng 2 sau 1 Blocker — §20.9) · **Round 4 tách 2 lượt** (người dùng duyệt 23/10/2026): **R4a — `DONE`** (brief §21: Cấu hình hệ thống, Vai trò & quyền, Chi tiết nhân viên; review đạt vòng 2 sau 1 Blocker — §21.11) · **R4b — `DONE`** (23/10/2026, brief §22, review đạt vòng 1 — §22.9) · **PHASE 6 — `DONE`** (23/10/2026). Các Open Question nghiệp vụ
 xử lý bằng giả định tạm + `TODO(OQ)` ở §11 (không tự chốt).
 
 Kế hoạch chi tiết **Phase 6** (`docs/IMPLEMENTATION-PLAN.md` mục "Phase 6 — Hoàn thiện nền tảng & polish"). Chia **4 round**:
@@ -704,7 +704,7 @@ render bảng).
 4. `buildDashboardFinanceSummary` + `DashboardFinanceWidget` (đối chiếu số 5.1).
 5. `dashboard/*` + route; 3 cổng + SCC + evalorder + kích thước chunk.
 
-Brief giao việc R1 đầy đủ: **§18**. Brief R2: **§19**. Brief R3: **§20**. Brief R4a: **§21** (khung R4b §21.10 — brief chi tiết chèn trước mục Lịch sử khi R4a `DONE`) khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
+Brief giao việc R1 đầy đủ: **§18**. Brief R2: **§19**. Brief R3: **§20**. Brief R4a: **§21** · Brief R4b: **§22** khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
 
 ---
 
@@ -1622,10 +1622,178 @@ ngoài phạm vi Phase 6, báo BA đối chiếu.
 
 ---
 
-## 22. Lịch sử
+## 22. Round 4b — brief giao việc cho `dev` (`APPROVED` 23/10/2026)
+
+### 22.1. Bối cảnh
+
+Round cuối của Phase 6 — **polish, không thêm tính năng nghiệp vụ**. Gồm 4 mục backlog Phase 6 còn lại (`docs/IMPLEMENTATION-PLAN.md`): (1) phân trang các
+danh sách dài (nợ 5.1 — `DEMO-DATA-PLAN.md` §6/§10: lượt thuê ~323, giao dịch ~904, quyết toán ~299 dòng render một lần), (2) gom chuỗi UI còn viết cứng
+vào `vi.ts` (`CONVENTIONS.md` §1), (3) rà responsive bằng **đọc code** (quyết định 14/09/2026 — không chạy trình duyệt; `CONVENTIONS.md` §8, `WebappQuanTri.md`
+§15.3 / CR-2026-033), (4) viết lại `README.md` (vẫn là README mặc định của Vite). Không đổi dữ liệu seed, không đổi quyền, không đổi logic nghiệp vụ.
+
+### 22.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §22.6)
+
+**A. Phân trang (client-side, 25 dòng/trang)**
+
+1. **`shared/lib/pagination.ts`** (mới): chuyển hàm thuần `paginate<T>(items, page, pageSize)` + type `PageResult<T>` từ `features/audit/model.ts` sang đây
+   (giữ nguyên hành vi: kẹp trang về biên); `features/audit/model.ts` import lại từ `@/shared/lib/pagination` (xoá bản cũ, không re-export trùng). Thêm
+   hằng `DEFAULT_PAGE_SIZE = 25`; `AUDIT_PAGE_SIZE` của `audit/hooks.ts` dùng hằng này.
+2. Áp `Pagination` (`shared/ui/pagination.tsx`) + `paginate` cho **5 màn** — chỉ cắt **danh sách hiển thị**; mọi số đếm/tổng/thẻ tóm tắt của màn vẫn tính trên
+   **toàn bộ** dữ liệu đã lọc (không đổi giá trị nào đang hiển thị):
+   - `features/rentals/screens/RentalListScreen.tsx` (cả dạng thẻ màn hẹp lẫn bảng — cắt cùng một mảng).
+   - `features/finance/payment/screens/TransactionLedgerScreen.tsx`.
+   - `features/finance/settlement/screens/SettlementListScreen.tsx`.
+   - `features/consignment/screens/OwnerPayoutScheduleScreen.tsx` (thẻ tổng kỳ giữ nguyên trên dữ liệu lọc).
+   - `features/customers/screens/CustomerListScreen.tsx` (cả thẻ lẫn bảng).
+   Mỗi màn: `const [page, setPage] = useState(1)`; **về trang 1** khi đổi tìm kiếm/bộ lọc/tab (đặt `setPage(1)` trong handler đổi bộ lọc — không dùng
+   `useEffect` đồng bộ state nếu tránh được); thanh `Pagination` dưới danh sách. Không đổi thứ tự sắp xếp hiện có.
+3. Không áp phân trang cho màn khác (danh sách ngắn hoặc đã có dạng riêng) — ghi tên màn đã cân nhắc nhưng bỏ qua trong báo cáo nếu có.
+
+**B. Gom chuỗi UI viết cứng vào `vi.ts`**
+
+4. **`shared/layout/nav.tsx`** — 19 nhãn mục con (dòng 54–161) → khoá `vi.nav.*` (nhãn nhóm đã dùng `vi.nav`; giữ nguyên câu chữ hiện tại).
+5. **Chuỗi hiển thị trong component** (giữ nguyên câu chữ, chỉ chuyển chỗ):
+   - `shared/ui/dialog.tsx:45`, `shared/ui/sheet.tsx:60` (`sr-only` "Đóng") → `vi.common.close` (dùng khoá có sẵn nếu đã có).
+   - `features/auth/screens/LoginScreen.tsx:38` (toast) và `:84` (text) · `shared/layout/Topbar.tsx:72` (toast "Đã chuyển sang vai trò …").
+   - `features/incidents/components/IncidentCreateDialog.tsx:143` · `features/finance/payment/components/OwnerPayoutCreateDialog.tsx:99` ·
+     `features/finance/payment/components/PaymentAdjustmentDialog.tsx:107` · `features/finance/payment/components/CustomerBalanceSheet.tsx:40, :83` ·
+     `features/finance/payment/screens/OwnerPayoutScreen.tsx:141` · `features/finance/revenue-cost/components/VehicleCostTab.tsx:73` ·
+     `features/finance/revenue-cost/components/ReconciliationPanel.tsx:13` · `features/vehicles/screens/VehicleListScreen.tsx:160`.
+   - Chuỗi tiếng Việt trong **template literal hiển thị trên UI** ở file `.tsx` (không phải comment, không phải summary audit/dữ liệu seed): `dev` chạy lệnh
+     DoD 3c, chuyển các chuỗi hiển thị; chuỗi còn lại phải có lý do trong báo cáo.
+6. **Ngoài phạm vi gom chuỗi**: thông báo lỗi trong schema zod (`CONVENTIONS.md` §7 cho phép tại chỗ — nợ N12), chuỗi `throw new Error(...)` trong `api.ts` của
+   feature cũ, `summary` audit, dữ liệu seed, comment.
+7. **Xoá code chết**: `shared/layout/ComingSoon.tsx` (không còn nơi dùng sau R4a — `grep -rn ComingSoon src/` chỉ còn chính file) + khoá `vi` chỉ file này
+   dùng (nếu có). `docs/ARCHITECTURE.md` còn nhắc `ComingSoon` — **không** sửa docs (việc của `tech-lead`).
+
+**C. Rà responsive (đọc code)**
+
+8. Rà theo checklist dưới đây cho **Topbar + 6 màn Phase 6** (`DashboardScreen`, `NotificationCenterScreen`, `AuditLogScreen`, `SystemConfigScreen`,
+   `PermissionMatrixScreen`, `EmployeeDetailScreen`) **và 5 màn của mục 2**; sửa chỗ vi phạm bằng class Tailwind (không đổi bố cục desktop):
+   - (R1) Bảng dùng `Table` của `shared/ui` (đã có `overflow-x-auto`) — không bọc thêm `overflow-hidden` làm mất cuộn ngang.
+   - (R2) Hàng `flex` chứa văn bản dài: phần tử văn bản có `min-w-0` + `truncate` (hoặc `break-words`), nút/badge có `shrink-0`.
+   - (R3) Lưới/bộ lọc bắt đầu bằng `grid-cols-1` (hoặc `flex-wrap`) ở màn hẹp; không có `grid-cols-N` (N ≥ 2) không kèm breakpoint.
+   - (R4) Không có độ rộng cố định > 343px không kèm breakpoint (`w-[…]`, `min-w-[…]`, `w-96`…) — `grep` liệt kê và xử lý.
+   - (R5) `PageHeader` có nút: nhóm nút `flex-wrap`; Topbar ở 375px: tổng bề rộng phần tử cố định (menu 36 + chuông 32 + Reset (icon) 36 + vai trò (icon) 36 +
+     avatar 32 + khoảng cách) ≤ 375 − 24 (padding) — tính và ghi trong báo cáo.
+   Báo cáo: bảng màn × R1–R5 (đạt / đã sửa file:dòng / không áp dụng).
+
+**D. README**
+
+9. **Viết lại `README.md`** (tiếng Việt, ngắn gọn, ≤ ~150 dòng): giới thiệu (prototype Webapp quản trị Thiên Bảo Car, không backend — dữ liệu `localStorage`,
+   trỏ `CLAUDE.md` §1) · yêu cầu môi trường + cài đặt (`npm install`) · lệnh `npm run dev`, `npx tsc -b`, `npx oxlint`, `npm run build` (3 cổng bắt buộc) · tài
+   khoản demo (đọc `features/auth/model.ts`, mật khẩu demo nhận mọi giá trị) + đổi vai trò nhanh ở Topbar · reset dữ liệu demo (Topbar hoặc Cấu hình hệ thống;
+   `SEED_VERSION` đổi thì tự seed lại) · cấu trúc thư mục rút gọn (trỏ `docs/ARCHITECTURE.md` §2) · cách thêm một feature theo pattern (model/api/hooks/
+   components/screens/seed/index, đăng ký seed, route, nav, quyền — trỏ `CONVENTIONS.md` §3–§6) · tài liệu liên quan (`CLAUDE.md`, `CONVENTIONS.md`,
+   `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION-PLAN.md`, `CHANGELOG.md`, kho `../thien-bao-car-docs`). Không chép lại nội dung các file đó.
+
+### 22.3. Ngoài phạm vi R4b (không làm dù "tiện tay")
+
+Phân trang phía api/server · đổi thứ tự sắp xếp/bộ lọc của màn cũ · chuyển chuỗi lỗi zod / `api.ts` cũ (N12) · đổi seed (`SEED_VERSION` giữ **26**) · đổi
+`permissions.ts` · sửa N4/N5/N8 (đồng bộ trạng thái xe khi huỷ giao/nhận, prune thông báo, múi giờ) · thêm `ON_LEAVE` (N13) · gỡ SCC · chạy trình duyệt ·
+sửa `docs/` · commit/push.
+
+### 22.4. Quy tắc bắt buộc
+
+1. Không thêm import feature → feature mới; màn sửa ở mục 2/5/8 chỉ thêm import `@/shared/*` (SCC phải giữ nguyên).
+2. Câu chữ chuỗi giữ **nguyên văn** khi chuyển vào `vi.ts` (trừ khi chuỗi đó sai chính tả — ghi trong báo cáo); khoá đặt theo nhóm sẵn có (`vi.nav`, `vi.common`,
+   `vi.<feature>`).
+3. Phân trang không đổi bất kỳ số liệu tổng nào trên màn (DoD 6).
+4. Không `console.log`/`any`/`enum`/`*/` kẹt; token theme; không thêm thư viện.
+
+### 22.5. Definition of Done R4b — chạy đủ và dán kết quả vào báo cáo
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+1. `npx tsc -b` · `npx oxlint` (không cảnh báo mới ngoài 2 cảnh báo cũ) · `npm run build` — sạch. `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. Tổng JS tải đầu `/dashboard` (entry + mọi `modulepreload` trong `dist/index.html`) **≤ 1.870 kB** (R4a: 1.853.495 B) — báo từng file + tổng.
+3. Chuỗi viết cứng (chạy trong `src/`, báo output):
+   - (a) `grep -rnP "(label|title|placeholder|aria-label)[:=] ?['\"][^'\"]*[À-ỹ]" --include=*.tsx . | grep -v i18n` → **rỗng**.
+   - (b) `grep -rnP ">[^<>{}]*[À-ỹ][^<>{}]*<" --include=*.tsx . | grep -v "{/\*"` → **rỗng**.
+   - (c) `grep -rnP "toast\.\w+\([\`'][^\`']*[À-ỹ]" --include=*.ts* .` → **rỗng**; `grep -rnP "\`[^\`]*[À-ỹ][^\`]*\`" --include=*.tsx . | grep -v i18n` →
+     mỗi dòng còn lại là comment hoặc có lý do trong báo cáo.
+   - (d) `grep -rn ComingSoon src/` → **rỗng**.
+4. `node $SP/consignment-r3/sccfiles.mjs $REPO | diff - $SP/consignment-r3/scc-target.txt` → rỗng · `node $SP/tl-verify/evalorder.mjs $REPO /src/app/routes.tsx` → `OK`.
+5. `TZ=Asia/Ho_Chi_Minh node $SP/phase6/sizes.mjs $REPO` → `TOTAL` = **1.837.906** (không đổi seed) · `TZ=Asia/Ho_Chi_Minh node $SP/demo-data/verify.mjs $REPO $SP/phase6/before-r4a.json`
+   → `errors: 0` · `TZ=Asia/Ho_Chi_Minh node $SP/phase6/audit-seed-timeline.mjs $REPO` → `errors: 0`. `SEED_VERSION` = 26.
+6. Harness `$SP/phase6/polish-r4b.mjs` (`dev` tự viết; `boot()`; gọi **code thật**):
+   - `paginate` (từ `@/shared/lib/pagination`): 323 phần tử, trang 1 → 25, trang 13 → 23, trang 99 → kẹp về 13 (`pageCount` 13); 904 → 37 trang, trang cuối 4;
+     0 phần tử → `pageCount` 1, `items` rỗng. `audit-r3.mjs` vẫn ALL PASS (audit dùng `paginate` mới).
+   - Mọi khoá `vi` mới tồn tại và khác rỗng (harness duyệt danh sách khoá mới — liệt kê trong báo cáo).
+7. Đọc code (báo trong báo cáo): 5 màn — số tổng/đếm tính trên mảng đã lọc **trước** khi cắt trang (trích dòng); mỗi màn về trang 1 khi đổi bộ lọc; bảng
+   responsive R1–R5 (mục 8) đủ 12 màn + Topbar.
+8. `git status` chỉ gồm file thuộc §22.2 (+ `README.md`); không file `docs/`.
+
+**Không yêu cầu** test trình duyệt (quyết định 14/09/2026).
+
+### 22.6. Thứ tự làm
+
+1. Mục 1 (`shared/lib/pagination.ts`, sửa `audit`) → `npx tsc -b` + chạy `audit-r3.mjs`.
+2. Mục 2 (5 màn) → harness DoD 6.
+3. Mục 4–7 (chuỗi, xoá `ComingSoon`) → DoD 3.
+4. Mục 8 (responsive).
+5. Mục 9 (README).
+6. Chạy lại toàn bộ DoD 1–8.
+
+### 22.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §0.1 (dòng "Chuỗi UI hardcode"), §10 (mục 1, 6), §12.5 (checklist responsive gốc), §20.9 (L1 — cách đo tải đầu), §21.11 (N12), §22.
+2. `CONVENTIONS.md` §1, §3, §8 · `docs/ARCHITECTURE.md` §2, §6 (gotcha `min-w-0`, `--spacing-*`) · `CLAUDE.md` §1, §5–§7 (cho README).
+3. `src/shared/ui/pagination.tsx` · `src/features/audit/{model,hooks}.ts` (hàm `paginate`, `AUDIT_PAGE_SIZE`) · `src/features/audit/screens/AuditLogScreen.tsx` (mẫu dùng `Pagination`).
+4. 5 màn mục 2 (toàn file) · `src/shared/layout/{nav.tsx,Topbar.tsx,ComingSoon.tsx}` · các file/dòng liệt kê ở mục 5 (chỉ quanh dòng đó).
+5. 6 màn Phase 6 ở mục 8 (đọc để rà, sửa class khi cần).
+6. `src/shared/i18n/vi.ts` (khối `common`, `nav` + khối của feature có chuỗi được chuyển).
+7. Harness: `$SP/demo-data/lib.mjs`, `$SP/phase6/{audit-r3,sizes,audit-seed-timeline}.mjs`.
+
+### 22.8. Báo cáo bàn giao `dev` phải có
+
+Danh sách file đổi (khớp `git status`) · output rút gọn DoD 1–7 (tải đầu từng file + tổng, 4 lệnh grep, SCC, `evalorder`, `TOTAL`, `verify`, timeline, harness có
+số) · bảng responsive màn × R1–R5 · danh sách khoá `vi` mới · màn đã cân nhắc nhưng không phân trang (nếu có) · mọi chỗ lệch plan + lý do.
+
+---
+
+### 22.9. Kết quả review & phán quyết (23/10/2026 — đạt vòng 1, không Blocker)
+
+`tech-lead` chạy lại: 3 cổng sạch (2 cảnh báo `oxlint` cũ) · không `*/` kẹt · tải đầu `/dashboard` **1.857.015 B** (≤ 1.870 kB) · 4 lệnh grep DoD 3 (chạy
+với `LC_ALL=C.UTF-8`): (a) rỗng, (b) chỉ 1 dòng doc comment `ReconciliationPanel.tsx:13`, (c) toast rỗng — template literal còn 1 dòng là công thức số
+(`OwnerPayoutRecordSheet.tsx:58`, ký tự `×`), (d) `ComingSoon` rỗng · SCC = target · `evalorder` OK · `TOTAL` 1.837.906 · `verify` (`before-r4a`) / timeline
+`errors: 0` · `SEED_VERSION` 26 · `polish-r4b.mjs`, `audit-r3.mjs`, `platform-r4a.mjs`, `notif-r2.mjs` ALL PASS. Đọc diff: 5 màn tính `total` trên mảng đã lọc,
+chỉ cắt `pageResult.items`; `setPage(1)` trong handler đổi bộ lọc; `shared/lib/pagination.ts` thay bản trong `audit/model.ts`.
+
+**Phán quyết 6 chỗ lệch (chấp nhận cả 6):**
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L1 | Grep `[À-ỹ]` ở locale byte khớp nhầm "— · → ×" → chạy `LC_ALL=C.UTF-8` | **Chấp nhận** — lỗi lệnh trong brief; `tech-lead` chạy lại với `LC_ALL=C.UTF-8`, khớp. |
+| L2 | Nav thực tế 18 khoá mới + dùng lại `vi.nav.calendar` | **Chấp nhận.** |
+| L3 | Sửa import `audit-r3.mjs` (harness scratchpad) | **Chấp nhận** — ngoài repo. |
+| L4 | Sửa class `PageHeader.tsx` (`min-w-0`, `flex-wrap`), `PermissionMatrixScreen.tsx`, `AuditRecordDetailSheet.tsx` | **Chấp nhận** — đúng R2/R3/R5. |
+| L5 | Chuyển chuỗi template literal ở `RentalPricingTab`, `SettlementWaiverDialog`, `CalendarMonthGrid`, `VehicleConditionTimelineTab` | **Chấp nhận** — đúng §22.2 mục 5 gạch cuối. |
+| L6 | `SettlementListScreen.tsx` thêm fragment chưa thụt lề | **Chấp nhận** — `tech-lead` tự sửa thụt lề (chỉ whitespace, `git diff -w` không đổi), không cần vòng 2. |
+
+---
+
+## 22.10. Tổng kết Phase 6
+
+| Round | Commit | Nội dung |
+| --- | --- | --- |
+| R1 | `639e2c9` | Tín hiệu cảnh báo (8 collector ở module nguồn) + Dashboard; `SEED_VERSION` 24 |
+| R2 | `65d8dcf` | Trung tâm thông báo `IN_APP_WEBAPP` + chuông Topbar |
+| R3 | `e9e4b9d` | Nhật ký thao tác (1 Blocker vòng 1); `SEED_VERSION` 25 |
+| R4a | `a151fbd` | Cấu hình hệ thống, Vai trò & quyền, Chi tiết nhân viên (1 Blocker vòng 1); `SEED_VERSION` 26 |
+| R4b | (commit này) | Phân trang 5 màn, gom chuỗi, xoá `ComingSoon`, responsive, README |
+
+Số cuối: seed **1.837.906** ký tự (≤ 1.850.000) · tải đầu `/dashboard` **1.857.015 B** (≤ 1.870 kB) · SCC giữ **98** file (không lớn thêm qua 5 round) ·
+0 route `ComingSoon`. Nợ mở còn lại của Phase 6: N4, N5, N6, N8, N9–N13; OQ cần BA: §11 Q1–Q20 (trọng tâm Q2, Q12–Q14, Q18, Q19, Q20).
+
+---
+
+## 23. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 23/10/2026 | **R4b `DONE` — Phase 6 `DONE`** — review đạt vòng 1, chấp nhận L1–L6 (L6 `tech-lead` tự sửa thụt lề); tổng kết §22.10. |
+| 23/10/2026 | R4b `APPROVED` — viết brief §22, **giao `dev`** (phân trang 5 màn + `shared/lib/pagination.ts`, gom chuỗi, xoá `ComingSoon`, rà responsive đọc code, README). |
 | 23/10/2026 | **R4a `DONE`** — review vòng 2 đạt (B1 email + Nên sửa chuỗi `api.ts` đã xong); nợ N12–N13. `SEED_VERSION` 26; không còn route `ComingSoon`. |
 | 23/10/2026 | R4a review vòng 1 — **Blocker B1** (schema email nới cho placeholder `[...]` — lỗi từ brief; sửa seed `phone`/`email` rỗng, cập nhật `before-r4a.json`); chấp nhận L2–L5 (§21.11). Trả `dev`. |
 | 23/10/2026 | R4 tách R4a/R4b (người dùng duyệt). R4a `APPROVED` — viết brief §21, **giao `dev`**; khung R4b §21.10. Dựng `phase6/expect-r4a.mjs` + `phase6/before-r4a.json`. |

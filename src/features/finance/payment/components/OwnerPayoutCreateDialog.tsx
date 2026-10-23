@@ -96,7 +96,7 @@ export function OwnerPayoutCreateDialog({
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-muted-foreground">{t.recipientLabel}</span>
-              {owner ? <OwnerBankAccountField owner={owner} canReveal={canReveal} /> : <span>—</span>}
+              {owner ? <OwnerBankAccountField owner={owner} canReveal={canReveal} /> : <span>{vi.common.emptyValue}</span>}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="owner-payout-reference">{t.referenceLabel}</Label>

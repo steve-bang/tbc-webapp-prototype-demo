@@ -135,21 +135,6 @@ export function filterAuditRecords(records: AuditRecord[], filter: AuditFilter):
   })
 }
 
-export interface PageResult<T> {
-  items: T[]
-  total: number
-  page: number
-  pageCount: number
-}
-
-/** Trang ngoài biên được kẹp về biên (trang 1 .. trang cuối). */
-export function paginate<T>(items: T[], page: number, pageSize: number): PageResult<T> {
-  const total = items.length
-  const pageCount = Math.max(1, Math.ceil(total / pageSize))
-  const current = Math.min(Math.max(1, Math.floor(page) || 1), pageCount)
-  return { items: items.slice((current - 1) * pageSize, current * pageSize), total, page: current, pageCount }
-}
-
 // ---------------------------------------------------------------------------
 // Che dữ liệu nhạy cảm — CHỈ ở tầng hiển thị/CSV, bản lưu giữ đầy đủ (AL-BR-07; AL §11)
 // ---------------------------------------------------------------------------

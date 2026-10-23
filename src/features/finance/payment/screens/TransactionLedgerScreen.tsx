@@ -24,9 +24,11 @@ import {
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
+import { DEFAULT_PAGE_SIZE, paginate } from '@/shared/lib/pagination'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { Pagination } from '@/shared/ui/pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { PaymentAdjustmentDialog } from '../components/PaymentAdjustmentDialog'
@@ -63,6 +65,15 @@ export function TransactionLedgerScreen() {
   const [direction, setDirection] = useState<string>(ALL)
   // Round 2 (§10.9) — bộ lọc "Chờ duyệt hoàn".
   const [approvalPendingOnly, setApprovalPendingOnly] = useState(false)
+  const [page, setPage] = useState(1)
+
+  /** Bọc setter bộ lọc: đổi bộ lọc thì về trang 1. */
+  function resetPageOn<T>(set: (value: T) => void): (value: T) => void {
+    return (value) => {
+      set(value)
+      setPage(1)
+    }
+  }
 
   const [recordOpen, setRecordOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
@@ -91,6 +102,8 @@ export function TransactionLedgerScreen() {
   // §10.9 góp ý R1-#1 — giữ nguyên cách sheet resolve theo id; chỉ thêm chú thích khi giao dịch
   // đang mở không còn khớp bộ lọc hiện tại (không sửa lại cơ chế resolve).
   const outsideFilter = !!detailTxnId && !filtered.some((t) => t.id === detailTxnId)
+
+  const pageResult = paginate(filtered, page, DEFAULT_PAGE_SIZE)
 
   const totals = useMemo(() => {
     const effective = filtered.filter(isEffectiveTransaction)
@@ -139,8 +152,8 @@ export function TransactionLedgerScreen() {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={vi.finance.payment.ledgerSearchPlaceholder} className="max-w-sm flex-1" />
-        <Select value={status} onValueChange={setStatus}>
+        <Input value={search} onChange={(e) => resetPageOn(setSearch)(e.target.value)} placeholder={vi.finance.payment.ledgerSearchPlaceholder} className="max-w-sm flex-1" />
+        <Select value={status} onValueChange={resetPageOn(setStatus)}>
           <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder={vi.finance.payment.ledgerFilterStatus} />
           </SelectTrigger>
@@ -153,7 +166,7 @@ export function TransactionLedgerScreen() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={type} onValueChange={setType}>
+        <Select value={type} onValueChange={resetPageOn(setType)}>
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder={vi.finance.payment.ledgerFilterType} />
           </SelectTrigger>
@@ -166,7 +179,7 @@ export function TransactionLedgerScreen() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={method} onValueChange={setMethod}>
+        <Select value={method} onValueChange={resetPageOn(setMethod)}>
           <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder={vi.finance.payment.ledgerFilterMethod} />
           </SelectTrigger>
@@ -179,7 +192,7 @@ export function TransactionLedgerScreen() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={direction} onValueChange={setDirection}>
+        <Select value={direction} onValueChange={resetPageOn(setDirection)}>
           <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder={vi.finance.payment.ledgerFilterDirection} />
           </SelectTrigger>
@@ -192,7 +205,7 @@ export function TransactionLedgerScreen() {
             ))}
           </SelectContent>
         </Select>
-        <Button type="button" size="sm" variant={approvalPendingOnly ? 'default' : 'outline'} onClick={() => setApprovalPendingOnly((v) => !v)}>
+        <Button type="button" size="sm" variant={approvalPendingOnly ? 'default' : 'outline'} onClick={() => resetPageOn(setApprovalPendingOnly)(!approvalPendingOnly)}>
           {vi.finance.payment.ledgerFilterApprovalPending}
         </Button>
       </div>
@@ -223,7 +236,7 @@ export function TransactionLedgerScreen() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((t) => {
+                {pageResult.items.map((t) => {
                   const reversalOf = t.reversalOfId ? txns.find((x) => x.id === t.reversalOfId) : undefined
                   return (
                     <TableRow key={t.id} className="cursor-pointer" onClick={() => setDetailTxnId(t.id)}>
@@ -252,19 +265,19 @@ export function TransactionLedgerScreen() {
             </Table>
           </div>
           <div className="flex flex-col gap-3 md:hidden">
-            {filtered.map((t) => (
+            {pageResult.items.map((t) => (
               <div key={t.id} className="border-border flex flex-col gap-2 rounded-md border p-3 text-sm cursor-pointer" onClick={() => setDetailTxnId(t.id)}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-xs">{t.code}</span>
                   <TransactionStatusBadge status={t.status} />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span>{TRANSACTION_TYPE_LABELS[t.type]}</span>
-                  <span className="font-medium">{formatVnd(t.amount)}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate">{TRANSACTION_TYPE_LABELS[t.type]}</span>
+                  <span className="shrink-0 font-medium">{formatVnd(t.amount)}</span>
                 </div>
-                <div className="text-muted-foreground flex items-center justify-between text-xs">
-                  <span>{PAYMENT_METHOD_LABELS[t.method]}</span>
-                  <span>{formatDateTime(t.performedAt)}</span>
+                <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs">
+                  <span className="min-w-0 truncate">{PAYMENT_METHOD_LABELS[t.method]}</span>
+                  <span className="shrink-0">{formatDateTime(t.performedAt)}</span>
                 </div>
                 <div className="text-muted-foreground min-w-0 truncate text-xs">
                   {partyName(t)} · {t.rentalId ?? '—'}
@@ -272,6 +285,13 @@ export function TransactionLedgerScreen() {
               </div>
             ))}
           </div>
+          <Pagination
+            className="mt-4"
+            page={pageResult.page}
+            pageSize={DEFAULT_PAGE_SIZE}
+            total={filtered.length}
+            onPageChange={setPage}
+          />
         </>
       )}
 

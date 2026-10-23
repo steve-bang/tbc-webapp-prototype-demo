@@ -70,7 +70,7 @@ export function VehicleCostTab({ vehicle, initialSelection }: { vehicle: Vehicle
         <div className="border-border rounded-md border p-3 text-sm">
           <p className="text-muted-foreground mb-1 text-xs">{vi.finance.revenueCost.costBreakdownTitle}</p>
           {breakdown.length === 0 ? (
-            <p className="text-muted-foreground">—</p>
+            <p className="text-muted-foreground">{vi.common.emptyValue}</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {breakdown.map((row) => (

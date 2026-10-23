@@ -140,7 +140,7 @@ export function IncidentCreateDialog({
         <form id="incident-create-form" className="flex flex-1 flex-col gap-4 overflow-y-auto p-5" onSubmit={handleSubmit(onSubmit)}>
           {fromReturn ? (
             <div className="bg-muted/50 flex flex-col gap-2 rounded-md p-3 text-sm">
-              <p className="text-muted-foreground text-xs">DI-BR-14 — kế thừa từ biên bản trả xe, không nhập lại:</p>
+              <p className="text-muted-foreground text-xs">{vi.incidents.createInheritedNote}</p>
               <p>
                 <span className="text-muted-foreground">{vi.incidents.typeLabel}: </span>
                 {fromReturn.typeLabel}

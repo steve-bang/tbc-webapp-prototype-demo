@@ -88,7 +88,6 @@ export const vi = {
     filter: 'Bộ lọc',
     today: 'Hôm nay',
     noData: 'Chưa có dữ liệu',
-    comingSoon: 'Sắp ra mắt',
     resetDemoData: 'Reset dữ liệu demo',
     resetDemoDataConfirm: 'Toàn bộ dữ liệu demo hiện tại sẽ bị xoá và khôi phục về dữ liệu mẫu ban đầu. Tiếp tục?',
     resetDemoDataSuccess: 'Đã reset dữ liệu demo.',
@@ -97,6 +96,8 @@ export const vi = {
     actions: 'Thao tác',
     status: 'Trạng thái',
     close: 'Đóng',
+    emptyValue: '—',
+    roleSwitched: (roleLabel: string) => `Đã chuyển sang vai trò ${roleLabel}`,
     confirm: 'Xác nhận',
     back: 'Quay lại',
     export: 'Xuất',
@@ -120,6 +121,24 @@ export const vi = {
     permissions: 'Vai trò & quyền',
     audit: 'Nhật ký thao tác',
     notifications: 'Trung tâm thông báo',
+    vehicleList: 'Danh sách xe',
+    maintenance: 'Bảo dưỡng & phụ tùng',
+    dispatchBoard: 'Bảng điều phối trong ngày',
+    employees: 'Hồ sơ nhân viên',
+    rentalList: 'Danh sách lượt thuê',
+    contracts: 'Hợp đồng',
+    handoverTracking: 'Theo dõi giao / nhận',
+    incidents: 'Hồ sơ sự cố',
+    settlement: 'Quyết toán',
+    transactions: 'Sổ giao dịch',
+    cashDrawer: 'Quỹ tiền mặt',
+    receivables: 'Công nợ khách hàng',
+    financeReports: 'Báo cáo tài chính',
+    consignmentOwners: 'Hồ sơ chủ xe',
+    consignmentProposals: 'Đề nghị ký gửi',
+    consignmentContracts: 'Hợp đồng ký gửi',
+    consignmentPayouts: 'Lịch chi trả hàng tháng',
+    consignmentOwnerPayouts: 'Chi trả chủ xe',
   },
   auth: {
     loginTitle: 'Đăng nhập Webapp quản trị',
@@ -131,6 +150,8 @@ export const vi = {
     loginError: 'Sai tên đăng nhập hoặc mật khẩu.',
     demoAccountsTitle: 'Tài khoản demo (bấm để điền nhanh)',
     logoutAuditSummary: '{{name}} ({{role}}) đăng xuất',
+    welcome: (fullName: string) => `Xin chào ${fullName}`,
+    demoAccountsDescription: 'Mỗi vai trò một tài khoản — dùng để demo phân quyền khác nhau.',
     noOtpNote: 'Đăng nhập bằng tên đăng nhập + mật khẩu do Admin cấp — không dùng OTP (CR-2026-034).',
   },
   employees: {
@@ -339,6 +360,9 @@ export const vi = {
     documentRemoveError: 'Không thể xoá giấy tờ, vui lòng thử lại.',
   },
   vehicles: {
+    conditionHandoverSummary: (odo: string, fuel: string | number, existingCount: number) => `Odo ${odo} km · Fuel ${fuel} · ${existingCount} hư hỏng có sẵn`,
+    conditionReturnSummary: (odo: string, fuel: string | number, incidentCount: number) => `Odo ${odo} km · Fuel ${fuel} · ${incidentCount} sự cố mới`,
+    conditionCustomerCharge: (amount: string) => ` · Khách chịu ${amount}`,
     title: 'Xe & vòng đời',
     description: 'Quản lý hồ sơ xe, giấy tờ và trạng thái vận hành.',
     addButton: 'Thêm xe',
@@ -519,6 +543,7 @@ export const vi = {
     saveError: 'Không thể lưu, vui lòng thử lại.',
   },
   rentals: {
+    durationDaysValue: (days: number) => `${days} ngày`,
     title: 'Lượt thuê',
     description: 'Tạo, xác nhận và theo dõi vòng đời lượt thuê xe.',
     addButton: 'Tạo lượt thuê',
@@ -1505,6 +1530,7 @@ export const vi = {
     auditColumnActor: 'Người thực hiện',
   },
   calendar: {
+    rentalCount: (count: number) => `${count} lượt`,
     title: 'Lịch cho thuê',
     description: 'Xem lịch xe theo tuần/tháng, tạo nhanh lượt thuê và khoá lịch xe khi cần.',
     viewWeek: 'Tuần',
@@ -1784,6 +1810,7 @@ export const vi = {
     fieldInsuranceClaimStatus: 'Trạng thái claim',
     fieldInsuranceClaimAmount: 'Số tiền claim',
     // Dialog "Báo sự cố mới" / "Tạo hồ sơ sự cố từ Return" (§5.5 kế hoạch).
+    createInheritedNote: 'DI-BR-14 — kế thừa từ biên bản trả xe, không nhập lại:',
     createDialogTitle: 'Báo sự cố mới',
     createFromReturnDialogTitle: 'Tạo hồ sơ sự cố từ Return',
     createSuccess: 'Đã tạo hồ sơ sự cố.',
@@ -1849,6 +1876,7 @@ export const vi = {
   // Màn "Quyết toán" (`/finance/settlement`) + Worksheet trong tab "Quyết
   // toán" của Rental Detail — `docs/RENTAL-SETTLEMENT-PLAN.md` §5 (module `RS`).
   finance: {
+    waiverPartialExceeded: (maxAmount: string) => `Tổng giảm một phần vượt số thực tế của dòng (còn được giảm tối đa ${maxAmount}đ)`,
     settlementTitle: 'Quyết toán',
     settlementDescription:
       'Chốt số tiền thực tế mỗi lượt thuê sau khi trả xe — Settlement quyết định bao nhiêu, Payment (Phase 4.2) ghi nhận đã thu/chi thực tế.',

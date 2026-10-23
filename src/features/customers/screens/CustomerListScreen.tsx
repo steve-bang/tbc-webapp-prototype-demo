@@ -6,8 +6,10 @@ import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { vi } from '@/shared/i18n/vi'
+import { DEFAULT_PAGE_SIZE, paginate } from '@/shared/lib/pagination'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { Pagination } from '@/shared/ui/pagination'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { CustomerCard } from '../components/CustomerCard'
@@ -30,6 +32,7 @@ export function CustomerListScreen() {
 
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<CustomerFilterValue>({})
+  const [page, setPage] = useState(1)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
@@ -39,6 +42,18 @@ export function CustomerListScreen() {
   const { data: customers, isLoading } = useCustomers({ ...filter, search: search.trim() || undefined })
   const blockCustomer = useBlockCustomer()
   const unblockCustomer = useUnblockCustomer()
+
+  const pageResult = paginate(customers ?? [], page, DEFAULT_PAGE_SIZE)
+
+  function changeSearch(value: string) {
+    setSearch(value)
+    setPage(1)
+  }
+
+  function changeFilter(value: CustomerFilterValue) {
+    setFilter(value)
+    setPage(1)
+  }
 
   const hasAnyCustomer = (allCustomers?.length ?? 0) > 0
   const hasActiveFilter = !!(search.trim() || filter.status)
@@ -99,7 +114,7 @@ export function CustomerListScreen() {
         <div className="flex gap-2">
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => changeSearch(e.target.value)}
             placeholder={vi.customers.searchPlaceholder}
             className="flex-1"
           />
@@ -108,7 +123,7 @@ export function CustomerListScreen() {
             {vi.common.filter}
           </Button>
         </div>
-        <CustomerFilters value={filter} onChange={setFilter} className="hidden md:flex" />
+        <CustomerFilters value={filter} onChange={changeFilter} className="hidden md:flex" />
       </div>
 
       <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
@@ -117,7 +132,7 @@ export function CustomerListScreen() {
             <SheetTitle>{vi.common.filter}</SheetTitle>
           </SheetHeader>
           <div className="px-5 pb-5">
-            <CustomerFilters value={filter} onChange={setFilter} className="flex-col gap-3" />
+            <CustomerFilters value={filter} onChange={changeFilter} className="flex-col gap-3" />
           </div>
         </SheetContent>
       </Sheet>
@@ -141,7 +156,7 @@ export function CustomerListScreen() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map((customer) => (
+                {pageResult.items.map((customer) => (
                   <TableRow key={customer.id} className="cursor-pointer" onClick={() => openDetail(customer)}>
                     <TableCell className="font-medium">{customer.fullName}</TableCell>
                     <TableCell>{customer.phone}</TableCell>
@@ -187,7 +202,7 @@ export function CustomerListScreen() {
           </div>
 
           <div className="flex flex-col gap-3 md:hidden">
-            {customers.map((customer) => (
+            {pageResult.items.map((customer) => (
               <CustomerCard
                 key={customer.id}
                 customer={customer}
@@ -200,6 +215,14 @@ export function CustomerListScreen() {
               />
             ))}
           </div>
+
+          <Pagination
+            className="mt-4"
+            page={pageResult.page}
+            pageSize={DEFAULT_PAGE_SIZE}
+            total={customers.length}
+            onPageChange={setPage}
+          />
         </>
       ) : (
         <div className="border-border text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-12 text-center">

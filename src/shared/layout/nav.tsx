@@ -51,8 +51,8 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: vi.nav.vehicles,
     icon: Truck,
     items: [
-      { label: 'Danh sách xe', path: paths.vehicles, icon: Truck, resource: 'VEHICLE', action: 'VIEW' },
-      { label: 'Bảo dưỡng & phụ tùng', path: paths.maintenance, icon: Wrench, resource: 'MAINTENANCE', action: 'VIEW' },
+      { label: vi.nav.vehicleList, path: paths.vehicles, icon: Truck, resource: 'VEHICLE', action: 'VIEW' },
+      { label: vi.nav.maintenance, path: paths.maintenance, icon: Wrench, resource: 'MAINTENANCE', action: 'VIEW' },
     ],
   },
   { label: vi.nav.customers, path: paths.customers, icon: Users, resource: 'CUSTOMER', action: 'VIEW' },
@@ -60,23 +60,23 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: vi.nav.schedule,
     icon: ClipboardList,
     items: [
-      { label: 'Lịch cho thuê', path: paths.calendar, icon: CalendarDays, resource: 'CALENDAR', action: 'VIEW' },
+      { label: vi.nav.calendar, path: paths.calendar, icon: CalendarDays, resource: 'CALENDAR', action: 'VIEW' },
       {
-        label: 'Bảng điều phối trong ngày',
+        label: vi.nav.dispatchBoard,
         path: paths.dispatchBoard,
         icon: ClipboardList,
         resource: 'ASSIGNMENT',
         action: 'VIEW',
       },
-      { label: 'Hồ sơ nhân viên', path: paths.employees, icon: Users, resource: 'EMPLOYEE', action: 'VIEW' },
+      { label: vi.nav.employees, path: paths.employees, icon: Users, resource: 'EMPLOYEE', action: 'VIEW' },
     ],
   },
   {
     label: vi.nav.rentals,
     icon: FileText,
     items: [
-      { label: 'Danh sách lượt thuê', path: paths.rentals, icon: FileText, resource: 'RENTAL', action: 'VIEW' },
-      { label: 'Hợp đồng', path: paths.contracts, icon: ScrollText, resource: 'CONTRACT', action: 'VIEW' },
+      { label: vi.nav.rentalList, path: paths.rentals, icon: FileText, resource: 'RENTAL', action: 'VIEW' },
+      { label: vi.nav.contracts, path: paths.contracts, icon: ScrollText, resource: 'CONTRACT', action: 'VIEW' },
     ],
   },
   {
@@ -84,13 +84,13 @@ export const NAV_ENTRIES: NavEntry[] = [
     icon: History,
     items: [
       {
-        label: 'Theo dõi giao / nhận',
+        label: vi.nav.handoverTracking,
         path: paths.handoverReturnTracking,
         icon: History,
         resource: 'HANDOVER_RETURN',
         action: 'VIEW',
       },
-      { label: 'Hồ sơ sự cố', path: paths.incidents, icon: ShieldCheck, resource: 'INCIDENT', action: 'VIEW' },
+      { label: vi.nav.incidents, path: paths.incidents, icon: ShieldCheck, resource: 'INCIDENT', action: 'VIEW' },
     ],
   },
   {
@@ -98,16 +98,16 @@ export const NAV_ENTRIES: NavEntry[] = [
     icon: Wallet,
     items: [
       {
-        label: 'Quyết toán',
+        label: vi.nav.settlement,
         path: paths.financeSettlement,
         icon: Wallet,
         resource: 'SETTLEMENT',
         action: 'VIEW',
       },
-      { label: 'Sổ giao dịch', path: paths.financeTransactions, icon: FileText, resource: 'PAYMENT', action: 'VIEW' },
-      { label: 'Quỹ tiền mặt', path: paths.financeCashDrawer, icon: Wallet, resource: 'PAYMENT', action: 'VIEW' },
+      { label: vi.nav.transactions, path: paths.financeTransactions, icon: FileText, resource: 'PAYMENT', action: 'VIEW' },
+      { label: vi.nav.cashDrawer, path: paths.financeCashDrawer, icon: Wallet, resource: 'PAYMENT', action: 'VIEW' },
       {
-        label: 'Công nợ khách hàng',
+        label: vi.nav.receivables,
         path: paths.financeReceivables,
         icon: Users,
         resource: 'PAYMENT',
@@ -121,7 +121,7 @@ export const NAV_ENTRIES: NavEntry[] = [
         action: 'VIEW',
       },
       {
-        label: 'Báo cáo tài chính',
+        label: vi.nav.financeReports,
         path: paths.financeReports,
         icon: Gauge,
         resource: 'FINANCE_REPORT',
@@ -133,24 +133,24 @@ export const NAV_ENTRIES: NavEntry[] = [
     label: vi.nav.consignment,
     icon: Building2,
     items: [
-      { label: 'Hồ sơ chủ xe', path: paths.consignmentOwners, icon: Building2, resource: 'CONSIGNMENT', action: 'VIEW' },
+      { label: vi.nav.consignmentOwners, path: paths.consignmentOwners, icon: Building2, resource: 'CONSIGNMENT', action: 'VIEW' },
       // Đề nghị ký gửi & thẩm định (WebappQuanTri.md §12.2) — gate ASSESS để Operation Staff vào được (plan CONSIGNMENT-PLAN.md §20.1 điểm 30).
       {
-        label: 'Đề nghị ký gửi',
+        label: vi.nav.consignmentProposals,
         path: paths.consignmentProposals,
         icon: ClipboardCheck,
         resource: 'CONSIGNMENT',
         action: 'ASSESS',
       },
       {
-        label: 'Hợp đồng ký gửi',
+        label: vi.nav.consignmentContracts,
         path: paths.consignmentContracts,
         icon: ScrollText,
         resource: 'CONSIGNMENT',
         action: 'VIEW',
       },
       {
-        label: 'Lịch chi trả hàng tháng',
+        label: vi.nav.consignmentPayouts,
         path: paths.consignmentPayouts,
         icon: Wallet,
         resource: 'CONSIGNMENT',
@@ -158,7 +158,7 @@ export const NAV_ENTRIES: NavEntry[] = [
       },
       // Màn của `finance/payment` (WebappQuanTri.md §5.4 — mục thứ 4 của nhóm Xe ký gửi).
       {
-        label: 'Chi trả chủ xe',
+        label: vi.nav.consignmentOwnerPayouts,
         path: paths.consignmentOwnerPayouts,
         icon: Banknote,
         resource: 'CONSIGNMENT',

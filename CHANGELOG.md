@@ -15,6 +15,13 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6 Round 4b — Polish · Phase 6 hoàn tất** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §22). Phân trang
+  25 dòng/trang cho Danh sách lượt thuê, Sổ giao dịch, Danh sách quyết toán, Lịch chi trả hàng tháng, Danh sách khách (số tổng vẫn tính trên toàn bộ dữ
+  liệu đã lọc; đổi bộ lọc về trang 1) — dùng chung `shared/lib/pagination.ts`. Gom chuỗi giao diện còn viết cứng (nhãn menu, toast đổi vai trò/đăng
+  nhập, nhãn và văn bản rải rác) vào `vi.ts`; xoá `ComingSoon` (không còn dùng). Rà responsive bằng đọc code cho Topbar, 6 màn Phase 6 và 5 màn danh sách
+  (sửa `PageHeader`, chi tiết Nhật ký, ma trận quyền, thẻ giao dịch trên điện thoại). Viết lại `README.md` (cách chạy, 3 cổng kiểm tra, tài khoản demo,
+  reset dữ liệu, thêm feature theo pattern). `SEED_VERSION` giữ 26. Review `tech-lead` **đạt vòng 1**, không Blocker. **Phase 6 (Dashboard & nền tảng)
+  DONE**: 5 round, seed 1,838 triệu ký tự, tải đầu Dashboard 1.857 kB JS, vòng import giữ 98 file.
 - **Phase 6 Round 4a — Quản trị hệ thống + Chi tiết nhân viên** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §21).
   3 màn mới (tải lười), **không còn route nào hiển thị `ComingSoon`**: **Cấu hình hệ thống** (`/platform/system-config` — thông tin công ty theo
   SystemAdministration-BRD §10, chỉ `SYSTEM_ADMIN` sửa, mỗi lần lưu ghi nhật ký `CONFIG_CHANGE` chỉ các trường đổi; múi giờ UTC+7/VND chỉ đọc kèm cảnh

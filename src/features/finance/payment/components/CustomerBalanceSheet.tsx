@@ -37,7 +37,7 @@ export function CustomerBalanceSheet({
           <div>
             <h4 className="mb-2 text-sm font-semibold">{vi.finance.receivables.sheetRentalsTitle}</h4>
             {balance.rentalItems.length === 0 ? (
-              <p className="text-muted-foreground text-sm">—</p>
+              <p className="text-muted-foreground text-sm">{vi.common.emptyValue}</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {balance.rentalItems.map((r) => (
@@ -80,7 +80,7 @@ export function CustomerBalanceSheet({
           <div>
             <h4 className="mb-2 text-sm font-semibold">{vi.finance.receivables.sheetRecentTxnsTitle}</h4>
             {recentTxns.length === 0 ? (
-              <p className="text-muted-foreground text-sm">—</p>
+              <p className="text-muted-foreground text-sm">{vi.common.emptyValue}</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {recentTxns.slice(0, 10).map((t) => (

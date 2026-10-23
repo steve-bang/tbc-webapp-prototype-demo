@@ -70,7 +70,11 @@ export function VehicleConditionTimelineTab({ vehicle }: { vehicle: Vehicle }) {
         type: 'HANDOVER_BASELINE',
         at: h.actualPickupDateTime,
         rentalId: h.rentalId,
-        summary: `Odo ${h.odometerHandover?.toLocaleString('vi-VN') ?? '—'} km · Fuel ${h.fuelLevelHandover ?? '—'} · ${h.preExistingConditionItems.length} hư hỏng có sẵn`,
+        summary: vi.vehicles.conditionHandoverSummary(
+          h.odometerHandover?.toLocaleString('vi-VN') ?? vi.common.emptyValue,
+          h.fuelLevelHandover ?? vi.common.emptyValue,
+          h.preExistingConditionItems.length,
+        ),
       })
     }
     for (const r of returns) {
@@ -80,14 +84,18 @@ export function VehicleConditionTimelineTab({ vehicle }: { vehicle: Vehicle }) {
         type: 'RETURN',
         at: r.actualReturnDateTime,
         rentalId: r.rentalId,
-        summary: `Odo ${r.odometerReturn?.toLocaleString('vi-VN') ?? '—'} km · Fuel ${r.fuelLevelReturn ?? '—'} · ${r.incidentItems.length} sự cố mới`,
+        summary: vi.vehicles.conditionReturnSummary(
+          r.odometerReturn?.toLocaleString('vi-VN') ?? vi.common.emptyValue,
+          r.fuelLevelReturn ?? vi.common.emptyValue,
+          r.incidentItems.length,
+        ),
       })
     }
     for (const incident of incidents) {
       const summary = isOperationStaff
         ? `${incident.incidentCode} — ${INCIDENT_STATUS_REDUCED_LABELS[incident.status]}` // DI-BR-22 — ẩn Liability/chi phí
         : `${incident.incidentCode} — ${LIABILITY_LABELS[incident.liability]}${
-            incident.customerCharge !== undefined ? ` · Khách chịu ${formatVnd(incident.customerCharge)}` : ''
+            incident.customerCharge !== undefined ? vi.vehicles.conditionCustomerCharge(formatVnd(incident.customerCharge)) : ''
           }`
       result.push({
         id: `inc_${incident.id}`,

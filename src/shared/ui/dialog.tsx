@@ -1,6 +1,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 import type * as React from 'react'
+import { vi } from '@/shared/i18n/vi'
 import { cn } from '@/shared/lib/cn'
 
 const Dialog = DialogPrimitive.Root
@@ -42,7 +43,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:pointer-events-none">
             <XIcon className="size-4" />
-            <span className="sr-only">Đóng</span>
+            <span className="sr-only">{vi.common.close}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

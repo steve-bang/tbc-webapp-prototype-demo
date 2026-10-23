@@ -138,7 +138,7 @@ function OwnerPayoutContent() {
         </Button>
       )
     }
-    if (!canCreatePayout) return <span className="text-muted-foreground text-xs">—</span>
+    if (!canCreatePayout) return <span className="text-muted-foreground text-xs">{vi.common.emptyValue}</span>
     const blocker = getOwnerPayoutBlocker(record, ownerById.get(record.ownerId))
     return (
       <div className="flex flex-col items-start gap-1">

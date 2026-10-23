@@ -12,8 +12,10 @@ import { PageHeader } from '@/shared/layout/PageHeader'
 import { vi } from '@/shared/i18n/vi'
 import { formatDateTime } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
+import { DEFAULT_PAGE_SIZE, paginate } from '@/shared/lib/pagination'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
+import { Pagination } from '@/shared/ui/pagination'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { RentalCancelDialog } from '../components/RentalCancelDialog'
@@ -34,6 +36,7 @@ export function RentalListScreen() {
 
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<RentalFilterValue>({})
+  const [page, setPage] = useState(1)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [confirmRentalId, setConfirmRentalId] = useState<string | null>(null)
@@ -64,6 +67,18 @@ export function RentalListScreen() {
       return true
     })
   }, [allRentals, filter, search, customerById, vehicleById])
+
+  const pageResult = paginate(filteredRentals, page, DEFAULT_PAGE_SIZE)
+
+  function changeSearch(value: string) {
+    setSearch(value)
+    setPage(1)
+  }
+
+  function changeFilter(value: RentalFilterValue) {
+    setFilter(value)
+    setPage(1)
+  }
 
   const hasAnyRental = (allRentals?.length ?? 0) > 0
   const hasActiveFilter = !!(
@@ -101,7 +116,7 @@ export function RentalListScreen() {
         <div className="flex gap-2">
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => changeSearch(e.target.value)}
             placeholder={vi.rentals.searchPlaceholder}
             className="flex-1"
           />
@@ -112,7 +127,7 @@ export function RentalListScreen() {
         </div>
         <RentalFilters
           value={filter}
-          onChange={setFilter}
+          onChange={changeFilter}
           customers={customers}
           vehicles={vehicles}
           className="hidden md:flex"
@@ -125,7 +140,7 @@ export function RentalListScreen() {
             <SheetTitle>{vi.common.filter}</SheetTitle>
           </SheetHeader>
           <div className="px-5 pb-5">
-            <RentalFilters value={filter} onChange={setFilter} customers={customers} vehicles={vehicles} className="flex-col" />
+            <RentalFilters value={filter} onChange={changeFilter} customers={customers} vehicles={vehicles} className="flex-col" />
           </div>
         </SheetContent>
       </Sheet>
@@ -148,7 +163,7 @@ export function RentalListScreen() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRentals.map((rental) => {
+                  {pageResult.items.map((rental) => {
                     const customer = customerById.get(rental.customerId)
                     const vehicle = vehicleById.get(rental.vehicleId)
                     return (
@@ -188,7 +203,7 @@ export function RentalListScreen() {
           </div>
 
           <div className="flex flex-col gap-3 md:hidden">
-            {filteredRentals.map((rental) => (
+            {pageResult.items.map((rental) => (
               <RentalCard
                 key={rental.id}
                 rental={rental}
@@ -201,6 +216,14 @@ export function RentalListScreen() {
               />
             ))}
           </div>
+
+          <Pagination
+            className="mt-4"
+            page={pageResult.page}
+            pageSize={DEFAULT_PAGE_SIZE}
+            total={filteredRentals.length}
+            onPageChange={setPage}
+          />
         </>
       ) : (
         <div className="border-border text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-12 text-center">

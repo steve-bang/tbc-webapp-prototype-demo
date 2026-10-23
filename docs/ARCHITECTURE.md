@@ -21,8 +21,9 @@ src/
 │   ├── paths.ts               hằng số path, tránh chuỗi rải rác
 │   └── routes.tsx             khai toàn bộ <Route>, bọc AppShell
 ├── features/
-│   ├── auth                  đăng nhập demo theo vai trò, session (Zustand persist), usePermission()
-│   ├── dashboard              (Phase 6)
+│   ├── auth                  SA — đăng nhập demo theo vai trò, session (Zustand persist), usePermission(),
+│   │                           Cấu hình hệ thống + Vai trò & quyền (Phase 6, màn tải lười)
+│   ├── dashboard              KPI vận hành + widget KPI tài chính (finance) + bảng cảnh báo (Phase 6)
 │   ├── calendar               RC — Day/Week/Month/Agenda + Vehicle Block (Phase 2)
 │   ├── vehicles                VM — danh sách + Vehicle Detail nhiều tab (Phase 1)
 │   ├── maintenance             MT — bảo dưỡng + phụ tùng toàn đội xe (Phase 1)
@@ -36,15 +37,20 @@ src/
 │   │                                    core ← payment (PM) ← settlement (RS) ← revenue-cost (RV),
 │   │                                    gốc chỉ index.ts + seed.ts (docs/FINANCE-REFACTOR-PLAN.md)
 │   ├── consignment                     VC (Phase 5)
-│   ├── audit                            AL — đọc `shared/lib/audit.ts` (Phase 6)
-│   └── notifications                     NT (Phase 6)
+│   ├── audit                            AL — màn Nhật ký thao tác, đọc `shared/lib/audit.ts` (Phase 6)
+│   └── notifications                     NT — gom tín hiệu cảnh báo từ module nguồn (mô hình quét) +
+│                                           Trung tâm thông báo IN_APP_WEBAPP (Phase 6)
 │       # mỗi thư mục: model.ts · api.ts · hooks.ts · components/ · screens/ · seed.ts · index.ts
 └── shared/
     ├── ui/           shadcn/Radix primitives (button, input, table, dialog, sheet, tabs…)
-    ├── layout/       AppShell, Sidebar (lọc theo quyền), Topbar, PageHeader, ComingSoon, nav.tsx
-    ├── lib/          cn · storage · fakeNetwork · id · money · datetime · audit
+    ├── layout/       AppShell (prop `topbarSlot` — app/routes ghép chuông thông báo), Sidebar (lọc theo quyền),
+    │                 Topbar, PageHeader, nav.tsx
+    ├── lib/          cn · storage (writeJson trả boolean, measureAppStorage) · fakeNetwork · id · money ·
+    │                 datetime · audit (trần theo ký tự) · csv · pagination (paginate, DEFAULT_PAGE_SIZE)
     ├── domain/       enums.ts (toàn bộ enum nghiệp vụ) · permissions.ts (ma trận Role×Resource×Action)
-    ├── i18n/         vi.ts — toàn bộ chuỗi UI + label map theo enum
+    ├── i18n/         vi.ts — chuỗi UI + label map theo enum · auditLabels.ts / platformLabels.ts — nhãn chỉ
+    │                 màn tải lười dùng (giữ ngoài JS tải đầu)
+    ├── domain/alerts.ts — type OperationalSignal (tín hiệu cảnh báo dùng chung, Phase 6)
     └── fixtures/     seedAll.ts (registry + version) · registerSeeds.ts (thứ tự import) · resetDemoData.ts
 ```
 
@@ -94,7 +100,7 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   `can(resource, action)`.
 - `shared/layout/Sidebar.tsx` lọc mục điều hướng theo `resource`/`action` khai trong
   `shared/layout/nav.tsx`. **Đây mới chỉ là ẩn/hiện ở tầng UI (menu + nút hành động)** — chưa có
-  chặn ở tầng route (một người dùng gõ thẳng URL vẫn vào được `ComingSoon`/screen). Với một
+  chặn ở tầng route (một người dùng gõ thẳng URL vẫn mở được screen; các màn có kiểm quyền tự hiện trạng thái "không có quyền"). Với một
   prototype demo cục bộ, rủi ro này chấp nhận được; nếu cần chặn chặt hơn ở phase sau, thêm một
   route guard đọc `usePermission()` tương tự `AppShell`'s auth guard hiện tại.
 - Topbar có dropdown **đổi vai trò nhanh** (`switchRole`) để demo khác biệt phân quyền giữa các
@@ -116,8 +122,8 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   **`--spacing-<tên>` trước `--container-<tên>`**, nên `max-w-lg` biên dịch thành
   `max-width: var(--spacing-lg)` = **16px** thay vì 32rem (kiểm chứng: `npm run build` →
   `dist/assets/*.css` có `.max-w-lg{max-width:var(--spacing-lg)}`). Hệ quả: `shared/ui/dialog.tsx`
-  (`max-w-lg`), `shared/ui/sheet.tsx` (`sm:max-w-xl`), `shared/layout/ComingSoon.tsx` (`max-w-md`)
-  đều bị thu nhỏ sai. **Cách sửa gốc đã chốt**: bỏ hẳn 6 khoá `--spacing-<tên>` trong `@theme`
+  (`max-w-lg`), `shared/ui/sheet.tsx` (`sm:max-w-xl`), `shared/layout/ComingSoon.tsx` (`max-w-md` — file đã xoá ở Phase 6
+  R4b) đều bị thu nhỏ sai. **Cách sửa gốc đã chốt**: bỏ hẳn 6 khoá `--spacing-<tên>` trong `@theme`
   (không có component nào dùng `p-md`/`gap-lg`/… — đã grep toàn `src/`), để Tailwind trả về thang
   `--container-*` mặc định; `--spacing: 0.25rem` (thang số `p-4`, `gap-3`…) không bị ảnh hưởng.
   **Quy tắc từ nay**: mọi token khoảng cách tự đặt phải dùng tên riêng (ví dụ `--tbc-gap-lg`),
@@ -136,7 +142,15 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   `/login` nếu chưa có session (`useSessionStore`).
 - Điều hướng cấp menu (7 nhóm + nền tảng) khai ở `shared/layout/nav.tsx`, đúng cấu trúc
   `WebappQuanTri.md` §5.4 — thêm màn hình mới ở đúng nhóm, không tự tạo nhóm mới trừ khi tài liệu
-  đổi.
+  đổi. Nhãn menu lấy từ `vi.nav`.
+- **Tải lười màn ít dùng** (`docs/DASHBOARD-PLATFORM-PLAN.md` D11): feature có `screens/lazyScreens.ts`
+  (`React.lazy(() => import('./XxxScreen').then(...))`), barrel `index.ts` export **bản lazy** (giữ nguyên tên),
+  `app/routes.tsx` bọc `<Suspense fallback=…>`. Đang áp cho Báo cáo tài chính, Trung tâm thông báo, Nhật ký thao tác,
+  Cấu hình hệ thống, Vai trò & quyền, Chi tiết nhân viên, widget tài chính Dashboard. Trần: **tổng JS tải đầu
+  `/dashboard` (entry + mọi `modulepreload`) ≤ 1.870 kB**. Barrel được `shared/layout` import (vd. `auth`) tuyệt đối không
+  export tĩnh màn mới.
+- **Danh sách dài phân trang phía client** (`shared/lib/pagination.ts` + `shared/ui/pagination.tsx`, 25 dòng/trang): số
+  tổng/đếm tính trên toàn bộ dữ liệu đã lọc, chỉ cắt mảng hiển thị; đổi bộ lọc → về trang 1.
 
 ## 8. Nạp backend thật (khi tới giai đoạn đó)
 

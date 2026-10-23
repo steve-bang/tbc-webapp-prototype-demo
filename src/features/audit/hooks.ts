@@ -1,10 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSessionStore } from '@/features/auth'
+import { DEFAULT_PAGE_SIZE } from '@/shared/lib/pagination'
 import * as api from './api'
 import type { AuditFilter } from './model'
 
 /** Số dòng mỗi trang của bảng Nhật ký (DASHBOARD-PLATFORM-PLAN.md §8.3). */
-export const AUDIT_PAGE_SIZE = 25
+export const AUDIT_PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 function useViewer(): api.AuditViewer | undefined {
   const user = useSessionStore((s) => s.user)

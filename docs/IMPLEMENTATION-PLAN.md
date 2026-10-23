@@ -576,7 +576,7 @@ không phải số thật): lợi nhuận vận hành 12 tháng từ −1,24 t�
       Chấp nhận 3 lệch plan (`HISTORY_TO` −4 · `SCALE` 0,6 + `FILL_FROM` −35 · thêm ngày loại trừ). Nợ: dung lượng sát ngân sách
       (dư ~1,5%); giao dịch hoàn cọc lịch sử không có biên lai `BL-` — chi tiết plan §10.
 
-## Phase 6 — Hoàn thiện nền tảng & polish — `[~]`
+## Phase 6 — Hoàn thiện nền tảng & polish — `[x]` DONE (23/10/2026)
 
 Kế hoạch: [`docs/DASHBOARD-PLATFORM-PLAN.md`](DASHBOARD-PLATFORM-PLAN.md) — **`APPROVED`** (23/10/2026, người dùng duyệt cả 7
 điểm plan §16). Chia 4 round:
@@ -598,23 +598,24 @@ Kế hoạch: [`docs/DASHBOARD-PLATFORM-PLAN.md`](DASHBOARD-PLATFORM-PLAN.md) �
       đã sửa — plan §21.11; tải đầu `/dashboard` 1.853.495 B) (brief plan §21): Cấu hình hệ thống (thông tin
       công ty `SA` §10, múi giờ/tiền tệ chỉ đọc, đồng hồ dung lượng + Reset), Vai trò & quyền (ma trận chỉ đọc, làm nổi `TBD`), Chi tiết nhân
       viên `/employees/:id` (hồ sơ + tài khoản + phân công + nhật ký, dùng lại form sẵn có); 3 màn tải lười; `SEED_VERSION` 25 → 26.
-- [ ] **R4b — Polish** (khung plan §21.10): phân trang 5 danh sách dài, gom chuỗi hardcode vào `vi.ts`, rà responsive, viết lại `README.md`.
+- [x] **R4b — Polish** — **DONE** (23/10/2026, review `tech-lead` đạt vòng 1 — plan §22.9; tải đầu `/dashboard` 1.857.015 B): phân trang 5 danh sách dài, gom chuỗi hardcode vào `vi.ts`, xoá
+      `ComingSoon`, rà responsive (đọc code), viết lại `README.md`.
 
 Ngân sách seed giữ trần 1,85 triệu ký tự (dự kiến ≤ 1,84 tr). Các mục backlog gốc bên dưới giữ nguyên để đối chiếu — ánh xạ:
 Dashboard → R1 · Trung tâm thông báo → R1+R2 · Nhật ký thao tác → R3 · Cấu hình hệ thống, Vai trò & quyền, responsive, `vi.ts`,
 `README.md` → R4.
 
-- [ ] **Dashboard** thật: KPI vận hành + tài chính, cảnh báo (đăng kiểm/bảo hiểm sắp hết hạn, lượt sắp
+- [x] **Dashboard** thật: KPI vận hành + tài chính, cảnh báo (đăng kiểm/bảo hiểm sắp hết hạn, lượt sắp
       giao/nhận, quá hạn trả, payment quá hạn, sự cố chưa xử lý, bảo dưỡng đến hạn, ký gửi sắp đến hạn) —
       tính từ dữ liệu các feature đã seed, không phải số tĩnh.
-- [ ] **Cấu hình hệ thống**: thông tin công ty (placeholder), nút Reset dữ liệu demo (đã có ở Topbar,
+- [x] **Cấu hình hệ thống**: thông tin công ty (placeholder), nút Reset dữ liệu demo (đã có ở Topbar,
       thêm bản sao ở đây cho rõ ràng theo `WebappQuanTri.md` §5.4).
-- [ ] **Vai trò & quyền**: hiển thị bảng từ `listPermissionMatrix()` — bao gồm cả ô `TBD` với chú thích
+- [x] **Vai trò & quyền**: hiển thị bảng từ `listPermissionMatrix()` — bao gồm cả ô `TBD` với chú thích
       nguồn, để BA/khách thấy rõ đâu là quyết định đã chốt, đâu là Open Question.
-- [ ] **Nhật ký thao tác**: đọc `listAuditRecords()`, lọc theo entity/action/người thực hiện.
-- [ ] **Trung tâm thông báo**: sinh `NotificationEvent` từ các cảnh báo ở Dashboard (không cần kênh gửi
+- [x] **Nhật ký thao tác**: đọc `listAuditRecords()`, lọc theo entity/action/người thực hiện.
+- [x] **Trung tâm thông báo**: sinh `NotificationEvent` từ các cảnh báo ở Dashboard (không cần kênh gửi
       thật — Phase 1 tài liệu cũng chỉ yêu cầu `IN_APP_WEBAPP`).
-- [ ] Rà responsive toàn bộ màn hình chính ở ~375px và ~768px.
-- [ ] Rà lại `shared/i18n/vi.ts` — không còn chuỗi tiếng Việt hardcode rải rác trong component.
-- [ ] Viết lại `README.md` (hiện vẫn là README mặc định của Vite) — cách chạy, cách reset dữ liệu demo,
+- [x] Rà responsive toàn bộ màn hình chính ở ~375px và ~768px.
+- [x] Rà lại `shared/i18n/vi.ts` — không còn chuỗi tiếng Việt hardcode rải rác trong component.
+- [x] Viết lại `README.md` (hiện vẫn là README mặc định của Vite) — cách chạy, cách reset dữ liệu demo,
       cách thêm một feature mới theo pattern.
