@@ -2,7 +2,7 @@
 // Hàm seed của từng module chỉ `export`, không tự `registerSeedStep`.
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import { seedOwnerPayouts, seedPaymentRound1, seedPaymentRound2 } from './payment/seed'
-import { seedRevenueCost, seedRevenueHistory } from './revenue-cost/seed'
+import { seedDemoRentalHistory, seedRevenueCost, seedRevenueHistory } from './revenue-cost/seed'
 import { seedFinance } from './settlement/seed'
 
 // PAYMENT-PLAN.md §8.1 — chạy TRƯỚC khối Settlement (seedFinance đọc Rental/HandoverRecord, không phụ thuộc Payment ở Round 1).
@@ -16,3 +16,5 @@ registerSeedStep(seedRevenueHistory)
 registerSeedStep(seedRevenueCost)
 // docs/CONSIGNMENT-PLAN.md §19.9.2 — chạy CUỐI: giao dịch chi trả chủ xe khớp lịch chi trả của features/consignment (đã seed trước finance).
 registerSeedStep(seedOwnerPayouts)
+// docs/DEMO-DATA-PLAN.md §3.3 — chạy SAU CÙNG (sau seedOwnerPayouts): lịch thu/giao dịch/quyết toán cho lượt thuê demo rt_040… (giữ nguyên mã GD-/CK- cũ).
+registerSeedStep(seedDemoRentalHistory)

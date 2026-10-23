@@ -15,6 +15,14 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 5.1 — Dữ liệu demo: lịch sử lượt thuê 12 tháng** (theo [`docs/DEMO-DATA-PLAN.md`](docs/DEMO-DATA-PLAN.md)). Chỉ dữ
+  liệu seed, không đổi logic/UI: +284 lượt thuê đã hoàn tất trải 12 tháng (sinh tất định, giá theo hạng xe, 2–14 ngày, không trùng
+  lịch/khoá lịch/bảo dưỡng/sự cố, xe ký gửi chỉ trong thời gian hợp đồng hiệu lực) + 48 khách mới + lịch thu, giao dịch chuyển
+  khoản, quyết toán và hoàn cọc tương ứng (dựng bằng hàm nghiệp vụ có sẵn, bản ghi cũ giữ nguyên). Báo cáo tài chính giờ trình
+  khách được: doanh thu 12 tháng 1,78 tỷ, lợi nhuận vận hành +481,8 triệu (dương 11/12 tháng), Utilization 12 tháng 25,3%, có xe
+  lỗ/xe lãi rõ. **`SEED_VERSION` 23 — demo đang mở sẽ tự reset dữ liệu ở lần tải kế tiếp.** Review `tech-lead` **đạt vòng 1**,
+  không Blocker; chấp nhận 3 lệch tham số so với plan; nợ: dung lượng `localStorage` sát ngân sách (1,82/1,85 triệu ký tự), giao
+  dịch hoàn cọc lịch sử không có biên lai.
 - **Phase 5 Round 3 — Xe ký gửi: đề nghị ký gửi & thẩm định + phụ lục/gia hạn — Phase 5 hoàn tất** (theo
   [`docs/CONSIGNMENT-PLAN.md`](docs/CONSIGNMENT-PLAN.md) §20). Đề nghị ký gửi (ghi nhận → thẩm định → duyệt/từ chối; chặn đề nghị
   trùng biển số hoặc xe đang có hợp đồng mở; không chính chủ chỉ được từ chối; giấy tờ chưa đạt chỉ cảnh báo) với 2 màn mới + mục

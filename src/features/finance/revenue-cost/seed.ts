@@ -1,4 +1,17 @@
 // Revenue & Cost (RV) — seed lịch sử doanh thu + Cost Record (export, đăng ký ở `finance/seed.ts`) — docs/FINANCE-REFACTOR-PLAN.md §3.4.
+import {
+  CONSIGNMENT_CONTRACTS_STORAGE_KEY,
+  CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY,
+  type ConsignmentContract,
+  type ConsignmentHandoverRecord,
+} from '@/features/consignment'
+import { INCIDENTS_STORAGE_KEY, type Incident } from '@/features/incidents'
+import {
+  MAINTENANCE_RECORDS_STORAGE_KEY,
+  SPARE_PART_RECORDS_STORAGE_KEY,
+  type MaintenanceRecord,
+  type SparePartRecord,
+} from '@/features/maintenance'
 import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
@@ -21,6 +34,7 @@ import {
   deriveRentalPaymentSummary,
   deriveRequestStatus,
   nextSequenceCode,
+  refundNeedsApproval,
 } from '../payment/model.ts'
 import { COST_RECORDS_STORAGE_KEY } from './api.ts'
 import { type CostRecord, toLocalDateKey } from './model.ts'
@@ -349,4 +363,262 @@ export function seedRevenueCost(): void {
   add({ category: 'OTHER', amount: 600_000, dayOffset: -30, allocationType: 'DIRECT', vehicleId: 'veh_005', reversed: { reason: 'Nhập trùng hoá đơn', daysAfter: 1 } })
 
   writeJson(COST_RECORDS_STORAGE_KEY, records)
+}
+
+// ==== Lịch sử lượt thuê 12 tháng — docs/DEMO-DATA-PLAN.md §3.3 (Phase 5.1) ====
+
+/** Lượt thuê demo = Rental `COMPLETED` có số thứ tự ≥ giá trị này (`rt_040`…, sinh ở `rentals/seed.ts` `buildDemoHistoryInputs`). */
+const DEMO_HISTORY_FIRST_SEQ = 40
+
+/** Tỉ lệ ~8% lượt cọc xe máy có 1 dòng `MANUAL_OTHER` (vệ sinh/khử mùi/rửa xe) — suy tất định từ số thứ tự lượt. */
+const DEMO_EXTRA_LINE_AMOUNTS = [150_000, 200_000, 250_000, 300_000]
+const DEMO_EXTRA_LINE_REASONS = ['Phí vệ sinh nội thất sau khi trả xe', 'Phí khử mùi khoang xe', 'Phí rửa xe bên ngoài sau chuyến đi']
+
+function isDemoHistoryRental(rental: Rental): boolean {
+  return rental.status === 'COMPLETED' && /^rt_\d+$/.test(rental.id) && Number(rental.id.slice(3)) >= DEMO_HISTORY_FIRST_SEQ
+}
+
+function demoExtraLine(rental: Rental): { amount: number; reason: string } | undefined {
+  if (rental.securityDepositType !== 'MOTORBIKE') return undefined // D8 — không áp cho CASH_20M (tránh đối trừ cọc + hoàn phần còn lại).
+  const seq = Number(rental.id.slice(3))
+  if ((seq * 37 + 11) % 100 >= 8) return undefined
+  return { amount: DEMO_EXTRA_LINE_AMOUNTS[seq % DEMO_EXTRA_LINE_AMOUNTS.length], reason: DEMO_EXTRA_LINE_REASONS[seq % DEMO_EXTRA_LINE_REASONS.length] }
+}
+
+/**
+ * Bắt lệch giữa bảng cửa sổ/ngày loại trừ mirror ở `rentals/seed.ts` và các seed nguồn (ký gửi, bảo dưỡng/phụ tùng, sự cố)
+ * khi seed nguồn đổi sau này. Vehicle Block + khách được kiểm ở harness (barrel `calendar`/`customers` không export khoá storage).
+ */
+function assertDemoRentalsConsistent(demoRentals: Rental[]): void {
+  const fail = (message: string): never => {
+    throw new Error(`finance/seed.ts (Demo rental history): ${message}`)
+  }
+  const contracts = readJson<ConsignmentContract[]>(CONSIGNMENT_CONTRACTS_STORAGE_KEY) ?? []
+  const intakeRecords = readJson<ConsignmentHandoverRecord[]>(CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY) ?? []
+  const maintenance = readJson<MaintenanceRecord[]>(MAINTENANCE_RECORDS_STORAGE_KEY) ?? []
+  const spareParts = readJson<SparePartRecord[]>(SPARE_PART_RECORDS_STORAGE_KEY) ?? []
+  const incidents = readJson<Incident[]>(INCIDENTS_STORAGE_KEY) ?? []
+  const effectiveStatuses = ['ACTIVE', 'SUSPENDED', 'TERMINATED', 'CLOSED']
+
+  for (const rental of demoRentals) {
+    const d0 = toLocalDateKey(rental.pickupDateTime)
+    const d1 = toLocalDateKey(rental.expectedReturnDateTime)
+
+    const vehicleContracts = contracts.filter((c) => c.vehicleId === rental.vehicleId && effectiveStatuses.includes(c.status))
+    if (vehicleContracts.length > 0) {
+      const covered = vehicleContracts.some((c) => {
+        const intake = intakeRecords.find((h) => h.id === c.intakeRecordId)
+        const start = [c.effectiveFrom, intake ? toLocalDateKey(intake.handoverAt) : undefined].filter((v): v is string => !!v).sort().at(-1) ?? c.effectiveFrom
+        let end = c.endedDate ?? c.effectiveTo
+        const suspension = c.statusHistory.find((h) => h.to === 'SUSPENDED')
+        if (suspension) end = [end, toLocalDateKey(suspension.at)].sort()[0]
+        return start < d0 && d1 < end
+      })
+      if (!covered) fail(`${rental.id} (${rental.vehicleId}) nằm ngoài thời gian hợp đồng ký gửi hiệu lực / đang tạm ngưng`)
+    }
+    for (const m of [...maintenance, ...spareParts]) {
+      if (m.vehicleId === rental.vehicleId && m.date >= d0 && m.date <= d1) fail(`${rental.id} phủ ngày bảo dưỡng/phụ tùng ${m.id} (${m.date})`)
+    }
+    for (const i of incidents) {
+      if (i.vehicleId !== rental.vehicleId || i.rentalId === rental.id) continue
+      const key = toLocalDateKey(i.reportedAt)
+      if (key >= d0 && key <= d1) fail(`${rental.id} phủ ngày báo sự cố ${i.id} (${key})`)
+    }
+  }
+}
+
+/**
+ * Bước seed CUỐI CÙNG (đăng ký sau `seedOwnerPayouts`): dựng Payment Request + giao dịch + Settlement `COMPLETED` (+ hoàn cọc
+ * `CASH_20M`) cho các lượt thuê demo `rt_040`… của `rentals/seed.ts`. Chạy cuối để giữ nguyên mã `GD-`/`CK-` và chuỗi `generateId`
+ * của mọi bản ghi cũ (chỉ nối thêm vào cuối mảng). Dựng bằng chính các hàm thuần của app — không gõ tay số tổng/trạng thái. Chỉ
+ * `BANK_TRANSFER` (không tạo `CASH`, giữ số quỹ AC-PM-009). Không sinh Cost Record/hợp đồng/biên bản. Seed không gọi `appendAudit`.
+ * CR-2026-003 (cọc 2 phần) · CR-2026-060 (30% mốc đặt xe, 70% + cọc mốc giao xe).
+ */
+export function seedDemoRentalHistory(): void {
+  const rentals = readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? []
+  const demoRentals = rentals.filter(isDemoHistoryRental)
+  if (demoRentals.length === 0) return
+  assertDemoRentalsConsistent(demoRentals)
+
+  const requests = readJson<PaymentRequest[]>(PAYMENT_REQUESTS_STORAGE_KEY) ?? []
+  const transactions = readJson<Transaction[]>(TRANSACTIONS_STORAGE_KEY) ?? []
+  const settlements = readJson<Settlement[]>(SETTLEMENTS_STORAGE_KEY) ?? []
+
+  const newRequests: PaymentRequest[] = []
+  const newTxns: Transaction[] = []
+  const newSettlements: Settlement[] = []
+  // Danh sách mã tăng dần theo từng giao dịch mới — nextSequenceCode vẫn là nguồn sinh mã (nối tiếp mã cũ, không trùng).
+  const txnCodes = transactions.map((t) => t.code)
+  const txnRefs = transactions.map((t) => t.reference).filter((v): v is string => !!v)
+
+  function allRequests(): PaymentRequest[] {
+    return [...requests, ...newRequests]
+  }
+  function allTxns(): Transaction[] {
+    return [...transactions, ...newTxns]
+  }
+
+  /** Giao dịch chuyển khoản đã xác nhận cho một yêu cầu (thu → `IN`; hoàn cọc → `OUT`, có duyệt nếu vượt ngưỡng). */
+  function recordTransfer(input: {
+    rental: Rental
+    request: PaymentRequest
+    direction: 'IN' | 'OUT'
+    performedAt: string
+    confirmedAt?: string
+    settlementId?: string
+    refundRecipient?: string
+    approval?: Transaction['approval']
+  }): void {
+    const code = nextSequenceCode('GD', txnCodes)
+    const reference = nextSequenceCode('CK', txnRefs)
+    txnCodes.push(code)
+    txnRefs.push(reference)
+    const confirmedAt = input.confirmedAt ?? input.performedAt
+    newTxns.push({
+      id: generateId('txn'),
+      code,
+      type: input.request.transactionType,
+      direction: input.direction,
+      amount: input.request.expectedAmount,
+      method: 'BANK_TRANSFER',
+      status: 'CONFIRMED',
+      customerId: input.rental.customerId,
+      rentalId: input.rental.id,
+      paymentRequestId: input.request.id,
+      settlementId: input.settlementId,
+      reference,
+      refundRecipient: input.refundRecipient,
+      approval: input.approval,
+      performedByUserId: PM_ACCOUNTANT_USER_ID,
+      performedByName: PM_ACCOUNTANT_NAME,
+      performedAt: input.performedAt,
+      confirmedByName: PM_ACCOUNTANT_NAME,
+      confirmedAt,
+      createdAt: input.performedAt,
+      updatedAt: confirmedAt,
+    })
+  }
+
+  function manualLine(input: { amount: number; reason: string }, confirmedAt: string): SettlementLine {
+    return {
+      id: generateId('sln'),
+      category: 'MANUAL_OTHER',
+      source: 'MANUAL',
+      direction: 'CHARGE',
+      actualAmount: input.amount,
+      status: 'CONFIRMED',
+      sourceReady: true,
+      reason: input.reason,
+      confirmedByName: ACCOUNTANT,
+      confirmedAt,
+    }
+  }
+
+  for (const rental of demoRentals) {
+    const rentalCode = rental.id.slice(3)
+    const settlementId = `stl_${rentalCode}`
+
+    // ---- Lịch thu: BOOKING 30% (createdAt + 3h) · HANDOVER 70% (+ cọc 20tr nếu CASH_20M) trước giờ giao 2h. ----
+    const schedule = buildScheduleRequests(rental, ACCOUNTANT, rental.createdAt)
+    newRequests.push(...schedule)
+    const booking = schedule.find((r) => r.source === 'BOOKING')
+    const handover = schedule.find((r) => r.source === 'HANDOVER' && r.transactionType === 'RENTAL_PAYMENT')
+    const deposit = schedule.find((r) => r.source === 'HANDOVER' && r.transactionType === 'DEPOSIT')
+    if (!booking || !handover) throw new Error(`finance/seed.ts (Demo rental history): thiếu yêu cầu BOOKING/HANDOVER của ${rental.id}`)
+    if ((rental.securityDepositType === 'CASH_20M') !== !!deposit) throw new Error(`finance/seed.ts (Demo rental history): yêu cầu cọc của ${rental.id} không khớp loại cọc`)
+    recordTransfer({ rental, request: booking, direction: 'IN', performedAt: hoursAfter(rental.createdAt, 3) })
+    const handoverPaidAt = hoursAfter(rental.pickupDateTime, -2)
+    recordTransfer({ rental, request: handover, direction: 'IN', performedAt: handoverPaidAt })
+    if (deposit) recordTransfer({ rental, request: deposit, direction: 'IN', performedAt: handoverPaidAt })
+
+    // ---- Quyết toán: createdAt < pickup < expectedReturn < openedAt < … < completedAt. ----
+    const openedAt = hoursAfter(rental.expectedReturnDateTime, 1)
+    const baseLines = buildSourceLines({ rental, returnRecord: undefined, incidents: [] })
+    const extra = demoExtraLine(rental)
+    const lines = extra ? [...baseLines, manualLine(extra, hoursAfter(openedAt, 1))] : baseLines
+
+    const reqs = allRequests()
+    const txns = allTxns()
+    const paidToDate = calcPaidToDate(rental, reqs, txns)
+    const depositHeld = calcDepositHeld(rental, reqs, txns)
+    const totals = calcSettlementTotals(lines, [])
+    const reconciliation: DepositReconciliation = {
+      ...calcDepositReconciliation(totals.finalAmount, paidToDate.prepayment + paidToDate.handoverPayment, depositHeld),
+      reconciledByName: ACCOUNTANT,
+      reconciledAt: hoursAfter(openedAt, 2),
+    }
+
+    const sprCreatedAt = hoursAfter(openedAt, 4)
+    const sprList: SettlementPaymentRequest[] = []
+    if (reconciliation.balanceDue > 0) {
+      sprList.push({ id: generateId('pyr'), type: 'COLLECT', amount: reconciliation.balanceDue, status: 'REQUESTED', createdByName: ACCOUNTANT, createdAt: sprCreatedAt })
+    }
+    if (reconciliation.depositRefundable > 0) {
+      sprList.push({ id: generateId('pyr'), type: 'DEPOSIT_REFUND', amount: reconciliation.depositRefundable, status: 'REQUESTED', createdByName: ACCOUNTANT, createdAt: sprCreatedAt })
+    }
+
+    const completedAt = hoursAfter(openedAt, 6)
+    const settlementBase: Settlement = {
+      id: settlementId,
+      rentalId: rental.id,
+      customerId: rental.customerId,
+      vehicleId: rental.vehicleId,
+      status: 'COMPLETED',
+      lines,
+      waivers: [],
+      securityDepositType: rental.securityDepositType,
+      paidToDate,
+      depositHeld,
+      depositReconciliation: reconciliation,
+      customerAck: { recordedByName: ACCOUNTANT, recordedAt: hoursAfter(openedAt, 3) },
+      paymentRequests: sprList,
+      completedTotals: { ...totals, ...reconciliation },
+      completedByName: MANAGER,
+      completedAt,
+      openedByName: ACCOUNTANT,
+      openedAt,
+      createdAt: openedAt,
+      updatedAt: completedAt,
+    }
+
+    // Yêu cầu thu (khoản phát sinh) thu đủ ở openedAt + 5h < completedAt; hoàn cọc sau khi đóng lượt: performedAt < decidedAt < confirmedAt (PM-BR-12).
+    for (const spr of sprList) {
+      const request = buildSettlementPaymentRequest(settlementBase, spr, ACCOUNTANT, spr.createdAt)
+      newRequests.push(request)
+      if (spr.type === 'COLLECT') {
+        recordTransfer({ rental, request, direction: 'IN', performedAt: hoursAfter(openedAt, 5), settlementId })
+      } else {
+        const performedAt = hoursAfter(completedAt, 2)
+        recordTransfer({
+          rental,
+          request,
+          direction: 'OUT',
+          performedAt,
+          confirmedAt: hoursAfter(performedAt, 1),
+          settlementId,
+          refundRecipient: `Hoàn cọc — chuyển khoản tới STK của khách (lượt thuê ${rental.id})`,
+          approval: refundNeedsApproval(request.expectedAmount)
+            ? { status: 'APPROVED', decidedByName: MANAGER, decidedAt: hoursAfter(performedAt, 0.5) }
+            : undefined,
+        })
+      }
+    }
+    newSettlements.push({ ...settlementBase, completedWithDebt: calcSettlementCollectOutstanding(settlementBase, allRequests(), allTxns(), completedAt) > 0 })
+  }
+
+  // ---- Đồng bộ cuối — chỉ các bản ghi MỚI, không gõ tay trạng thái; bản ghi cũ giữ nguyên. ----
+  const finalTxns = allTxns()
+  const syncedNewRequests = newRequests.map((r) => ({ ...r, status: deriveRequestStatus(r, finalTxns) }))
+  const finalRequests = [...requests, ...syncedNewRequests]
+  const rentalById = new Map(demoRentals.map((r) => [r.id, r]))
+  writeJson(PAYMENT_REQUESTS_STORAGE_KEY, finalRequests)
+  writeJson(TRANSACTIONS_STORAGE_KEY, finalTxns)
+  writeJson(SETTLEMENTS_STORAGE_KEY, [
+    ...settlements,
+    ...newSettlements.map((s) => {
+      const rental = rentalById.get(s.rentalId)
+      if (!rental) throw new Error(`finance/seed.ts (Demo rental history): không tìm thấy Rental ${s.rentalId}`)
+      return { ...s, paymentStatus: deriveRentalPaymentSummary(rental, finalRequests, finalTxns, s).paymentStatus }
+    }),
+  ])
 }

@@ -552,10 +552,29 @@ vi (roadmap plan §13): tự đặt/gỡ `Ownership Type` (VC-BR-03) và chặn 
 - [ ] **Nợ / roadmap còn lại sau Phase 5** (không chặn — plan §13, §18, §20.2): VC-BR-03 tự đặt/gỡ `Ownership Type` + VC-BR-04 chặn
       lượt thuê mới (cần ngoại lệ ghi `vehicles`/`rentals` — người dùng duyệt); sự kiện ký gửi ở Trung tâm thông báo/Dashboard (Phase
       6); mốc ký gửi trên Vehicle Condition Timeline; SCC 96 file có từ trước Phase 5 (task tái cấu trúc barrel riêng, cần duyệt); bổ
-      sung lịch sử lượt thuê cho demo (task riêng, chưa duyệt); nợ "Nên sửa" R3 ở tab Nhật ký.
+      sung lịch sử lượt thuê cho demo (**đã duyệt 23/10/2026 → Phase 5.1**); nợ "Nên sửa" R3 ở tab Nhật ký.
 - [x] Nối tab Owner/Consignment ở Vehicle Detail vào dữ liệu thật — R1 + khối "Chi trả gần nhất" R2.
 - [x] Cập nhật `registerSeeds.ts` (`consignment/seed` chạy ngay trước `finance/seed`), xoá `ComingSoon` — R1 xoá
       `/consignment/owners` + `/consignment/contracts`; R2 xoá `/consignment/payouts`.
+
+## Phase 5.1 — Dữ liệu demo: lịch sử lượt thuê 12 tháng — `[x]`
+
+Kế hoạch: [`docs/DEMO-DATA-PLAN.md`](DEMO-DATA-PLAN.md) (`APPROVED` 23/10/2026 — `tech-lead` tự duyệt; người dùng: "Giao
+tech-lead bổ sung lịch sử lượt thuê trước" Phase 6). **Chỉ dữ liệu seed** — không đổi logic/UI. Mục tiêu (giả định demo,
+không phải số thật): lợi nhuận vận hành 12 tháng từ −1,24 tỷ → ~+0,6…+0,8 tỷ, dương ≥ 11/12 tháng, Utilization 12 tháng
+1,3% → ~28–33% (trong thời gian hợp đồng ký gửi hiệu lực ~40–45%), vài xe lỗ/vài xe lãi.
+
+- [x] **DONE (23/10/2026 — review `tech-lead` đạt vòng 1, không Blocker).** 284 lượt `COMPLETED` `rt_040…rt_323` sinh tất định
+      (PRNG cục bộ `mulberry32`, không `Math.random`/`generateId`) nối cuối `rentals/seed.ts` (diff không có dòng `-`) — giá theo hạng
+      xe, 2–14 ngày (`TODO(OQ: BRD §51 Q53)`), không trùng lịch (buffer 90'), không đè Vehicle Block/bảo dưỡng/sự cố, xe ký gửi chỉ
+      trong hợp đồng hiệu lực; cọc 20% `CASH_20M`/80% `MOTORBIKE`; +48 khách `cus_010…cus_057`; 703 Payment Request + 703 giao
+      dịch chuyển khoản + 284 Settlement `COMPLETED` dựng bằng hàm thuần ở bước seed chạy **cuối cùng** (`seedDemoRentalHistory`,
+      có kiểm `throw` đối chiếu hợp đồng ký gửi/bảo dưỡng/sự cố). `SEED_VERSION` 22 → 23. `verify.mjs` `errors: 0`.
+      Số thực tế: doanh thu 12 tháng 63,75 tr → **1,78 tỷ**; LN vận hành 12 tháng −1,24 tỷ → **+481,8 tr**, dương **11/12** tháng
+      (04/2026 −18,1 tr); tháng 09 +122,9 tr, tháng 10 +76,6 tr; Utilization 12 tháng 1,3% → **25,3%** (tháng 09: 47,0%); `veh_006`
+      lỗ rõ, `veh_017`/`veh_018` lãi nhất; chi phí + `rt_026` không đổi; `localStorage` 1,82 tr ký tự; seed lần đầu < 0,9 s.
+      Chấp nhận 3 lệch plan (`HISTORY_TO` −4 · `SCALE` 0,6 + `FILL_FROM` −35 · thêm ngày loại trừ). Nợ: dung lượng sát ngân sách
+      (dư ~1,5%); giao dịch hoàn cọc lịch sử không có biên lai `BL-` — chi tiết plan §10.
 
 ## Phase 6 — Hoàn thiện nền tảng & polish — `[ ]`
 
