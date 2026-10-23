@@ -1,18 +1,16 @@
-import { addDays, format, isToday } from 'date-fns'
-import { vi as viLocale } from 'date-fns/locale'
 import { useMemo } from 'react'
 import type { Customer } from '@/features/customers'
 import type { Rental } from '@/features/rentals'
 import type { Vehicle } from '@/features/vehicles'
 import { RENTAL_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 import { cn } from '@/shared/lib/cn'
-import { formatTime } from '@/shared/lib/datetime'
+import { formatDate, formatTime, formatWeekdayShort, startOfDayIso, todayKey } from '@/shared/lib/datetime'
 import { RentalBlockPopover } from './RentalBlockPopover'
-import { isOccupyingLikeStatus, rentalsByVehicleInRange, turnaroundBufferWindow } from '../model'
+import { isOccupyingLikeStatus, rentalsByVehicleInRange, turnaroundBufferWindow, weekDayKeys } from '../model'
 
 /** Trục thời gian trong ngày cho mỗi ô — 24h đầy đủ (00:00 → 24:00 hôm sau). */
 function dayBoundsMs(dateStr: string): { start: number; end: number } {
-  const start = new Date(`${dateStr}T00:00:00`).getTime()
+  const start = Date.parse(startOfDayIso(dateStr)) // N8 — 00:00 +07 của ngày (trước đây 00:00 giờ trình duyệt)
   const end = start + 24 * 60 * 60 * 1000
   return { start, end }
 }
@@ -28,10 +26,6 @@ function positionInDay(startMs: number, endMs: number, dateStr: string): { topPc
   return { topPct, heightPct }
 }
 
-function toDateStr(d: Date): string {
-  return format(d, 'yyyy-MM-dd')
-}
-
 /**
  * `docs/CALENDAR-MANAGEMENT-PLAN.md` §5.2 — trục theo xe (mỗi xe 1 hàng), 7
  * cột ngày, Rental Block vẽ theo giờ thật trong ngày (RC-BR-12 lượt nhiều
@@ -42,7 +36,7 @@ function toDateStr(d: Date): string {
  * `CalendarMonthGrid.tsx`, không có layout mobile riêng.
  */
 export function CalendarWeekGrid({
-  weekStart,
+  anchorKey,
   vehicles,
   rentals,
   showInactiveVehicles,
@@ -50,7 +44,8 @@ export function CalendarWeekGrid({
   customerById,
   onEmptyCellClick,
 }: {
-  weekStart: Date
+  /** Date key (+07) bất kỳ trong tuần cần hiển thị. */
+  anchorKey: string
   vehicles: Vehicle[]
   rentals: Rental[]
   showInactiveVehicles: boolean
@@ -58,8 +53,8 @@ export function CalendarWeekGrid({
   customerById: Map<string, Customer>
   onEmptyCellClick: (vehicleId: string, pickupDateTime: string) => void
 }) {
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
-  const dayStrs = useMemo(() => days.map(toDateStr), [days])
+  const dayStrs = useMemo(() => weekDayKeys(anchorKey), [anchorKey])
+  const today = todayKey()
 
   const visibleVehicles = useMemo(
     () => (showInactiveVehicles ? vehicles : vehicles.filter((v) => v.status !== 'INACTIVE')),
@@ -78,12 +73,12 @@ export function CalendarWeekGrid({
       <div className="min-w-[900px]">
         <div className="grid grid-cols-[160px_repeat(7,1fr)] border-b">
           <div className="p-2 text-xs font-medium" />
-          {days.map((d, i) => (
+          {dayStrs.map((d) => (
             <div
-              key={dayStrs[i]}
-              className={cn('border-l p-2 text-center text-xs font-medium', isToday(d) && 'bg-primary/5 text-primary')}
+              key={d}
+              className={cn('border-l p-2 text-center text-xs font-medium', d === today && 'bg-primary/5 text-primary')}
             >
-              {format(d, 'EEEEEE dd/MM', { locale: viLocale })}
+              {formatWeekdayShort(d)} {formatDate(d).slice(0, 5)}
             </div>
           ))}
         </div>

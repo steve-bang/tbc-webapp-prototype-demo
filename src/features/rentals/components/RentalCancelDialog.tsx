@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { vi } from '@/shared/i18n/vi'
+import { toDateKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Label } from '@/shared/ui/label'
@@ -56,7 +57,7 @@ export function RentalCancelDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{vi.rentals.cancelDialogTitle}</DialogTitle>
-          {rental && <DialogDescription>{`${vi.rentals.columnPeriod}: ${rental.pickupDateTime.slice(0, 10)}`}</DialogDescription>}
+          {rental && <DialogDescription>{`${vi.rentals.columnPeriod}: ${toDateKey(rental.pickupDateTime)}`}</DialogDescription>}
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="rental-cancel-reason">{vi.rentals.cancelReasonLabel} *</Label>

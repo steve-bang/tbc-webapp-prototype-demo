@@ -1,4 +1,3 @@
-import { addDays, addMonths, format, isSameMonth, parseISO, startOfWeek, subMonths } from 'date-fns'
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { usePermission } from '@/features/auth'
@@ -12,7 +11,7 @@ import { useVehicles } from '@/features/vehicles/hooks'
 import type { Vehicle } from '@/features/vehicles'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey, toMonthKey, todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
@@ -25,9 +24,7 @@ import { canOpenRentalQuickCreate, type QuickCreateRequest } from '../components
 import { VehicleBlockDetailDialog } from '../components/VehicleBlockDetailDialog'
 import { VehicleBlockFormDialog } from '../components/VehicleBlockFormDialog'
 import { useVehicleBlocks } from '../hooks'
-import type { VehicleBlock } from '../model'
-
-type CalendarView = 'week' | 'month'
+import { shiftAnchor, weekDayKeys, type CalendarView, type VehicleBlock } from '../model'
 
 interface DayDetailState {
   vehicle: Vehicle
@@ -48,7 +45,8 @@ export function CalendarScreen() {
   const canBlockVehicle = can('VEHICLE', 'BLOCK')
 
   const [view, setView] = useState<CalendarView>('week') // RC-BR-16 — mặc định Week
-  const [currentDate, setCurrentDate] = useState(() => new Date())
+  // N8 — mốc điều hướng là date key +07 (không phải Date theo giờ trình duyệt)
+  const [anchorKey, setAnchorKey] = useState(() => todayKey())
   const [search, setSearch] = useState('')
   const [vehicleFilter, setVehicleFilter] = useState<string | undefined>(undefined)
   const [showCancelled, setShowCancelled] = useState(false) // RC-BR-08
@@ -102,8 +100,9 @@ export function CalendarScreen() {
   }, [search, filteredRentals, matchesQuery])
   const highlightRentalIds = useMemo(() => new Set(matchedRentals.map((r) => r.id)), [matchedRentals])
 
-  const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate])
-  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart])
+  const weekKeys = useMemo(() => weekDayKeys(anchorKey), [anchorKey])
+  const weekStartKey = weekKeys[0]
+  const weekEndKey = weekKeys[6]
 
   /**
    * Tìm kiếm → nhảy tới (§5.1) — chạy trực tiếp trong sự kiện `onChange` của ô
@@ -118,25 +117,24 @@ export function CalendarScreen() {
     const matches = filteredRentals.filter((r) => matchesQuery(r, q)).sort((a, b) => a.pickupDateTime.localeCompare(b.pickupDateTime))
     const earliest = matches[0]
     if (!earliest) return
-    const matchDate = parseISO(earliest.pickupDateTime)
-    setCurrentDate((prev) => {
+    const matchKey = toDateKey(earliest.pickupDateTime)
+    setAnchorKey((prev) => {
       if (view === 'week') {
-        const weekStartPrev = startOfWeek(prev, { weekStartsOn: 1 })
-        const weekEndPrev = addDays(weekStartPrev, 6)
-        return matchDate < weekStartPrev || matchDate > weekEndPrev ? matchDate : prev
+        const prevWeek = weekDayKeys(prev)
+        return matchKey < prevWeek[0] || matchKey > prevWeek[6] ? matchKey : prev
       }
-      return isSameMonth(matchDate, prev) ? prev : matchDate
+      return toMonthKey(matchKey) === toMonthKey(prev) ? prev : matchKey
     })
   }
 
   function goToday() {
-    setCurrentDate(new Date())
+    setAnchorKey(todayKey())
   }
   function goPrev() {
-    setCurrentDate((d) => (view === 'week' ? addDays(d, -7) : subMonths(d, 1)))
+    setAnchorKey((k) => shiftAnchor(k, view, -1))
   }
   function goNext() {
-    setCurrentDate((d) => (view === 'week' ? addDays(d, 7) : addMonths(d, 1)))
+    setAnchorKey((k) => shiftAnchor(k, view, 1))
   }
 
   function attemptOpenQuickCreate(vehicleId: string, pickupDateTime: string) {
@@ -183,15 +181,15 @@ export function CalendarScreen() {
 
           {view === 'week' ? (
             <span className="text-foreground text-sm font-medium">
-              {formatDate(weekStart.toISOString())} → {formatDate(weekEnd.toISOString())}
+              {formatDate(weekStartKey)} → {formatDate(weekEndKey)}
             </span>
           ) : (
             <Input
               type="month"
-              value={format(currentDate, 'yyyy-MM')}
+              value={toMonthKey(anchorKey)}
               onChange={(e) => {
                 if (!e.target.value) return
-                setCurrentDate(new Date(`${e.target.value}-01T00:00:00`))
+                setAnchorKey(`${e.target.value}-01`)
               }}
               className="w-36"
             />
@@ -236,7 +234,7 @@ export function CalendarScreen() {
 
       {view === 'week' ? (
         <CalendarWeekGrid
-          weekStart={weekStart}
+          anchorKey={anchorKey}
           vehicles={gridVehicles}
           rentals={filteredRentals}
           showInactiveVehicles={showInactiveVehicles}
@@ -246,7 +244,7 @@ export function CalendarScreen() {
         />
       ) : (
         <CalendarMonthGrid
-          monthDate={currentDate}
+          monthKey={toMonthKey(anchorKey)}
           vehicles={gridVehicles}
           rentals={filteredRentals}
           blocks={blocks}

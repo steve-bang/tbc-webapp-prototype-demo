@@ -74,7 +74,7 @@ export function CostRecordsScreen() {
   }, [filteredEntries])
 
   // Chú thích lát chi phí phân bổ có ngày sau hôm nay — chỉ hiển thị, không đổi số liệu (RV-BR-03).
-  const today = useMemo(() => new Date(), [])
+  const [today] = useState(() => new Date()) // mốc "bây giờ"; model quy về ngày +07 qua toDateKey
   const futureCost = useMemo(() => sumFutureDatedCost(filteredEntries, selection.period, today), [filteredEntries, selection.period, today])
 
   const hasAnyRow = filteredEntries.length > 0 || reversedRecords.length > 0

@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { format } from 'date-fns'
 import { useEffect, useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { useSessionStore } from '@/features/auth'
 import { vi } from '@/shared/i18n/vi'
+import { dateTimeInputToIso, isoToDateTimeInput } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
@@ -25,7 +25,8 @@ const CHECKLIST_LABEL: Record<string, string> = {
 
 function defaultValues(repName: string): ConsignmentReturnFormValues {
   return {
-    handoverAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+    // N8 — "bây giờ" theo +07 (SA-BR-14), không theo giờ trình duyệt
+    handoverAt: isoToDateTimeInput(new Date().toISOString()),
     odoKm: '',
     fuelLevel: '',
     baselineCondition: '',
@@ -92,7 +93,7 @@ export function ConsignmentReturnDialog({
       await record.mutateAsync({
         contractId: contract.id,
         input: {
-          handoverAt: new Date(values.handoverAt).toISOString(),
+          handoverAt: dateTimeInputToIso(values.handoverAt), // N8 — ô datetime-local hiểu theo +07
           odoKm: Number(values.odoKm),
           fuelLevel: Number(values.fuelLevel),
           baselineCondition: values.baselineCondition,

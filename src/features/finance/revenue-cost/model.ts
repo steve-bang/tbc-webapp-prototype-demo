@@ -168,16 +168,6 @@ export function isManualCostCategory(value: string): value is ManualCostCategory
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
 
-/** Quy mọi ISO datetime về ngày +07 `yyyy-MM-dd` trước khi so — giữ tên cho tương thích, gộp vào `toDateKey` ở R3b nếu không còn nơi dùng. */
-export function toLocalDateKey(value: string): string {
-  return toDateKey(value)
-}
-
-/** Ngày +07 của một `Date` → `yyyy-MM-dd` — giữ tên cho tương thích, gộp vào `toDateKey` ở R3b nếu không còn nơi dùng. */
-export function dateKeyOf(date: Date): string {
-  return toDateKey(date)
-}
-
 /** Ngày đầu / cuối quý chứa `key` (quý lịch: 1–3, 4–6, 7–9, 10–12). */
 export function quarterRange(key: string): { from: string; to: string } {
   const quarterFirstMonth = Math.floor((Number(key.slice(5, 7)) - 1) / 3) * 3 + 1 // date key — không phụ thuộc múi giờ
@@ -192,12 +182,12 @@ export function yearRange(key: string): { from: string; to: string } {
 
 /** RV-BR-03 — chỉ so theo `Recognition Date`/`Cost Date`, KHÔNG dùng `createdAt`. */
 export function isDateInPeriod(value: string, period: FinancePeriod): boolean {
-  const key = toLocalDateKey(value)
+  const key = toDateKey(value)
   return key >= period.from && key <= period.to
 }
 
 export function resolvePeriodPreset(preset: FinancePeriodPreset, today: Date = new Date()): FinancePeriod {
-  const t = dateKeyOf(today)
+  const t = toDateKey(today)
   switch (preset) {
     case 'LAST_MONTH': {
       const last = addMonthsToKey(t, -1)
@@ -231,7 +221,7 @@ export function previousPeriod(period: FinancePeriod): FinancePeriod {
 
 /** Khoá nhóm theo độ chi tiết: ngày `yyyy-MM-dd` · tuần ISO bắt đầu thứ Hai (khoá = ngày thứ Hai) · tháng `yyyy-MM`. */
 export function bucketKeyOf(value: string, granularity: ReportGranularity): string {
-  const key = toLocalDateKey(value)
+  const key = toDateKey(value)
   if (granularity === 'DAY') return key
   if (granularity === 'MONTH') return toMonthKey(key)
   return startOfWeekKey(key, 1)
@@ -426,7 +416,7 @@ export function deriveIncidentCostEntries(incidents: Incident[]): CostEntry[] {
         category: 'INCIDENT',
         allocationType: 'DIRECT',
         amount: i.companyCost ?? 0,
-        costDate: toLocalDateKey(i.reportedAt),
+        costDate: toDateKey(i.reportedAt),
         vehicleId: i.vehicleId,
         rentalId: i.rentalId,
         source: 'INCIDENT',
@@ -447,7 +437,7 @@ export function deriveMaintenanceCostEntries(records: MaintenanceRecord[], spare
         category: 'MAINTENANCE',
         allocationType: 'DIRECT',
         amount: r.cost,
-        costDate: toLocalDateKey(r.date),
+        costDate: toDateKey(r.date),
         vehicleId: r.vehicleId,
         source: 'SYSTEM',
         sourceRef: { maintenanceRecordId: r.id },
@@ -463,7 +453,7 @@ export function deriveMaintenanceCostEntries(records: MaintenanceRecord[], spare
         category: 'MAINTENANCE',
         allocationType: 'DIRECT',
         amount: r.cost,
-        costDate: toLocalDateKey(r.date),
+        costDate: toDateKey(r.date),
         vehicleId: r.vehicleId,
         source: 'SYSTEM',
         sourceRef: { sparePartRecordId: r.id },
@@ -571,10 +561,10 @@ const RENTAL_DAYS_STATUSES: Rental['status'][] = ['HANDED_OVER', 'IN_RENTAL', 'R
  */
 export function calcRentalDaysInPeriod(rental: Rental, period: FinancePeriod, today: Date): number {
   if (!RENTAL_DAYS_STATUSES.includes(rental.status)) return 0
-  const todayKey = dateKeyOf(today)
-  const start = toLocalDateKey(rental.actualPickupDateTime ?? rental.pickupDateTime)
-  const expectedEnd = toLocalDateKey(rental.expectedReturnDateTime)
-  const end = rental.actualReturnDateTime ? toLocalDateKey(rental.actualReturnDateTime) : expectedEnd < todayKey ? expectedEnd : todayKey
+  const todayKey = toDateKey(today)
+  const start = toDateKey(rental.actualPickupDateTime ?? rental.pickupDateTime)
+  const expectedEnd = toDateKey(rental.expectedReturnDateTime)
+  const end = rental.actualReturnDateTime ? toDateKey(rental.actualReturnDateTime) : expectedEnd < todayKey ? expectedEnd : todayKey
   return overlapDays(start, end, period.from, period.to)
 }
 
@@ -583,8 +573,8 @@ export function calcRentalDaysInPeriod(rental: Rental, period: FinancePeriod, to
  * TODO(OQ: RevenueCost-BRD.md §28 Q10 — "số ngày khả dụng" chưa chốt; demo trừ ngày khoá lịch, chưa trừ MAINTENANCE/INACTIVE)
  */
 export function calcAvailableDays(vehicle: Vehicle, blocks: VehicleBlock[], period: FinancePeriod, today: Date): number {
-  const todayKey = dateKeyOf(today)
-  const createdKey = toLocalDateKey(vehicle.createdAt)
+  const todayKey = toDateKey(today)
+  const createdKey = toDateKey(vehicle.createdAt)
   const from = period.from > createdKey ? period.from : createdKey
   const to = period.to < todayKey ? period.to : todayKey
   if (from > to) return 0
@@ -594,7 +584,7 @@ export function calcAvailableDays(vehicle: Vehicle, blocks: VehicleBlock[], peri
   const intervals = blocks
     .filter((b) => b.vehicleId === vehicle.id)
     .map((b) => {
-      const releasedKey = b.releasedAt ? toLocalDateKey(b.releasedAt) : undefined
+      const releasedKey = b.releasedAt ? toDateKey(b.releasedAt) : undefined
       const end = b.endDate ?? releasedKey ?? todayKey
       return { start: b.startDate, end: releasedKey && releasedKey < end ? releasedKey : end }
     })
@@ -708,8 +698,8 @@ export function breakdownCostByCategory(entries: CostEntry[]): { category: CostC
  * KHÔNG đổi quy tắc ghi nhận theo Cost Date (RV-BR-03, AC-RV-004).
  */
 export function sumFutureDatedCost(costEntries: CostEntry[], period: FinancePeriod, today: Date): number {
-  const todayKey = dateKeyOf(today)
-  return costEntries.filter((c) => isDateInPeriod(c.costDate, period) && toLocalDateKey(c.costDate) > todayKey).reduce((sum, c) => sum + c.amount, 0)
+  const todayKey = toDateKey(today)
+  return costEntries.filter((c) => isDateInPeriod(c.costDate, period) && toDateKey(c.costDate) > todayKey).reduce((sum, c) => sum + c.amount, 0)
 }
 
 /** Tỉ lệ 0..1 → "80%" / "73,3%" (1 chữ số thập phân); `null` → `none`. Helper chung cho các bảng/thẻ trên màn và dựng CSV. */
@@ -843,7 +833,7 @@ export function buildDashboardFinanceSummary(input: {
     current: summarizePeriod(revenueLines, costEntries, period),
     previous: summarizePeriod(revenueLines, costEntries, previous),
   })
-  const todayKey = dateKeyOf(today)
+  const todayKey = toDateKey(today)
   const yesterdayKey = addDaysToKey(todayKey, -1)
 
   const last30 = resolvePeriodPreset('LAST_30_DAYS', today)

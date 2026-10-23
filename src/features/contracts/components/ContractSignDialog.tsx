@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { vi } from '@/shared/i18n/vi'
+import { todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
@@ -12,7 +13,8 @@ import { contractSignFormSchema, type Contract, type ContractSignFormValues } fr
 function defaultValues(): ContractSignFormValues {
   return {
     signedCopyFileName: '',
-    signedDate: new Date().toISOString().slice(0, 10),
+    // N8 — "hôm nay" theo ngày lịch +07 (trước đây cắt chuỗi UTC: 00:00–06:59 +07 ra hôm qua)
+    signedDate: todayKey(),
     signedByCompany: '',
     signedByCustomer: '',
   }

@@ -12,7 +12,7 @@ import type {
 } from '@/shared/domain/enums'
 import { can } from '@/shared/domain/permissions'
 import { CONSIGNMENT_CONTRACT_STATUS_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
@@ -26,7 +26,6 @@ import {
   isFutureDateTime,
   maskAccountNumber,
   nextSequenceCode,
-  toLocalDateKey,
   toOwnerAuditSnapshot,
   vehicleOwnerFormSchema,
   type ConsignmentActor,
@@ -681,7 +680,7 @@ export async function activateConsignmentContract(id: string, actor: ActorInfo):
     // VC-BR-01 — không có hợp đồng hiệu lực khác cho xe.
     const other = findEffectiveContractForVehicle(all, before.vehicleId, id)
     if (other) throw new Error(`Xe đã có hợp đồng ${other.contractNo} đang hiệu lực (VC-BR-01)`)
-    if (toLocalDateKey(new Date()) > before.effectiveTo) {
+    if (toDateKey(new Date()) > before.effectiveTo) {
       throw new Error('Hợp đồng đã quá ngày hết hiệu lực — không thể kích hoạt')
     }
     const now = new Date().toISOString()
@@ -704,7 +703,7 @@ export async function activateConsignmentContract(id: string, actor: ActorInfo):
     )
     // UC-VC-06 §10.3 — kích hoạt bù các kỳ chi trả từ ngày bắt đầu tới tháng hiện tại (prorate tháng đầu lẻ).
     const records = readPayoutRecords()
-    const drafts = planPayoutGeneration([after], records, periodOf(toLocalDateKey(new Date())))
+    const drafts = planPayoutGeneration([after], records, periodOf(toDateKey(new Date())))
     if (drafts.length > 0) {
       const created = materializeDrafts(drafts, records, { createdAt: now, createdByName: actor.fullName })
       writePayoutRecords([...records, ...created])
@@ -917,7 +916,7 @@ export async function notifyConsignmentTermination(
       effectiveFrom: before.effectiveFrom,
       effectiveTo: before.effectiveTo,
       noticePeriodDays: before.noticePeriodDays,
-      todayKey: toLocalDateKey(new Date()),
+      todayKey: toDateKey(new Date()),
     }).safeParse(input)
     if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? t.noticeInvalid)
     const now = new Date().toISOString()
@@ -1005,7 +1004,7 @@ export async function recordConsignmentReturn(
 
     if (isFutureDateTime(input.handoverAt)) throw new Error(t.handoverFuture)
     if (new Date(input.handoverAt).getTime() < new Date(intake.handoverAt).getTime()) throw new Error(t.returnBeforeIntake)
-    const returnDate = toLocalDateKey(new Date(input.handoverAt))
+    const returnDate = toDateKey(new Date(input.handoverAt))
     const notice = contract.terminationNotice
     if (returnDate < contract.effectiveTo) {
       if (!notice) throw new Error(t.returnNeedsNotice)
@@ -1131,7 +1130,7 @@ export async function terminateConsignmentContract(id: string, actor: ActorInfo)
     if (!before.terminationNotice) throw new Error(t.terminateNeedsNotice)
     const returnRecord = readRecords().find((r) => r.id === before.returnRecordId && r.type === 'RETURN')
     if (!returnRecord) throw new Error(t.terminateNeedsReturn)
-    const endedDate = toLocalDateKey(returnRecord.handoverAt)
+    const endedDate = toDateKey(returnRecord.handoverAt)
     if (endedDate >= before.effectiveTo) throw new Error(t.terminateAlreadyExpired)
     const now = new Date().toISOString()
     const reason = before.terminationNotice.reason
@@ -1168,7 +1167,7 @@ export async function closeConsignmentContract(id: string, actor: ActorInfo): Pr
     const before = findContractOrThrow(all, id)
     assertEndable(before)
     const returnRecord = readRecords().find((r) => r.id === before.returnRecordId && r.type === 'RETURN')
-    const blocker = canCloseContract(before, readPayoutRecords(), returnRecord, toLocalDateKey(new Date()))
+    const blocker = canCloseContract(before, readPayoutRecords(), returnRecord, toDateKey(new Date()))
     if (blocker) throw new Error(blocker)
     const now = new Date().toISOString()
     const after: ConsignmentContract = {
@@ -1214,7 +1213,7 @@ export async function recordConsignmentVehicleLoss(
     assertEndable(before)
     const window = calcPayoutWindow(before)
     if (!window) throw new Error(t.lossNotActivated)
-    const parsed = makeVehicleLossSchema({ payoutStart: window.start, todayKey: toLocalDateKey(new Date()) }).safeParse(input)
+    const parsed = makeVehicleLossSchema({ payoutStart: window.start, todayKey: toDateKey(new Date()) }).safeParse(input)
     if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? t.lossInvalid)
     const { eventDate, note } = parsed.data
     const incidentId = parsed.data.incidentId || undefined

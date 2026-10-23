@@ -68,7 +68,7 @@ function DashboardFinanceContent() {
   const pscs = useMemo(() => pscQuery.data ?? [], [pscQuery.data])
   const requests = useMemo(() => requestQuery.data ?? [], [requestQuery.data])
   const txns = useMemo(() => txnQuery.data ?? [], [txnQuery.data])
-  const today = useMemo(() => new Date(), [])
+  const [today] = useState(() => new Date()) // mốc "bây giờ"; model quy về ngày +07 qua toDateKey
 
   // Số dư khách tính y như màn Công nợ (cùng tham số) để "Công nợ phải thu" khớp thẻ "Đang nợ".
   const balances = useMemo(() => {

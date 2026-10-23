@@ -4,6 +4,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import type { Vehicle } from '@/features/vehicles'
 import { vi } from '@/shared/i18n/vi'
+import { todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
@@ -16,7 +17,8 @@ import { isOdometerRegression, maintenanceRecordFormSchema, type MaintenanceReco
 function defaultValues(vehicleId?: string): MaintenanceRecordFormValues {
   return {
     vehicleId: vehicleId ?? '',
-    date: new Date().toISOString().slice(0, 10),
+    // N8 — "hôm nay" theo ngày lịch +07 (trước đây cắt chuỗi UTC: 00:00–06:59 +07 ra hôm qua)
+    date: todayKey(),
     odometerAtService: '',
     category: '',
     cost: '',

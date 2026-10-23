@@ -9,7 +9,7 @@ import { useIncidents } from '@/features/incidents/hooks'
 import { useRentals } from '@/features/rentals'
 import type { ConditionEventType } from '@/shared/domain/enums'
 import { CONDITION_EVENT_TYPE_LABELS, INCIDENT_STATUS_REDUCED_LABELS, LIABILITY_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDateTime } from '@/shared/lib/datetime'
+import { formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Input } from '@/shared/ui/input'
@@ -108,8 +108,9 @@ export function VehicleConditionTimelineTab({ vehicle }: { vehicle: Vehicle }) {
     }
     return result
       .filter((e) => !typeFilter || e.type === typeFilter)
-      .filter((e) => !dateFrom || e.at.slice(0, 10) >= dateFrom)
-      .filter((e) => !dateTo || e.at.slice(0, 10) <= dateTo)
+      // N8 — so theo ngày lịch +07 (trước đây cắt chuỗi UTC)
+      .filter((e) => !dateFrom || toDateKey(e.at) >= dateFrom)
+      .filter((e) => !dateTo || toDateKey(e.at) <= dateTo)
       .sort((a, b) => b.at.localeCompare(a.at))
   }, [handovers, returns, incidents, rentalIds, typeFilter, dateFrom, dateTo, isOperationStaff])
 

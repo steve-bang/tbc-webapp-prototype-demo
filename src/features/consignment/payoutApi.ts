@@ -4,7 +4,7 @@ import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
-import { toLocalDateKey, type ConsignmentActor } from './model'
+import { type ConsignmentActor } from './model'
 import {
   applyOwnerPayoutLinked,
   applyOwnerPayoutPaid,
@@ -23,6 +23,7 @@ import {
   type OwnerPayoutRecord,
 } from './payoutModel'
 import { readContracts, readPayoutRecords, writePayoutRecords } from './storage'
+import { toDateKey } from '@/shared/lib/datetime'
 
 /**
  * Lớp dữ liệu "fake API" của lịch chi trả chủ xe (`docs/CONSIGNMENT-PLAN.md` mục 19.5.1).
@@ -118,7 +119,7 @@ export async function getOwnerPayoutRecord(id: string): Promise<OwnerPayoutRecor
 export async function generateOwnerPayoutRecords(actor: ConsignmentActor): Promise<{ created: number; upToPeriod: string }> {
   return fakeRequest(() => {
     const now = new Date()
-    const upToPeriod = periodOf(toLocalDateKey(now))
+    const upToPeriod = periodOf(toDateKey(now))
     const records = readPayoutRecords()
     const drafts = planPayoutGeneration(readContracts(), records, upToPeriod)
     if (drafts.length === 0) return { created: 0, upToPeriod }

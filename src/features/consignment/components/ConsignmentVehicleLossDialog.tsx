@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { INCIDENT_STATUS_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate, formatDateTime } from '@/shared/lib/datetime'
+import { formatDate, formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
@@ -17,7 +17,7 @@ import {
   useRecordConsignmentVehicleLoss,
   useVehicleIncidentsForConsignment,
 } from '../hooks'
-import { toLocalDateKey, type ConsignmentContract } from '../model'
+import { type ConsignmentContract } from '../model'
 import { calcPayoutWindow, makeVehicleLossSchema, type VehicleLossFormValues } from '../payoutModel'
 
 const NO_INCIDENT = '__NONE__'
@@ -38,7 +38,7 @@ export function ConsignmentVehicleLossDialog({
 }) {
   const t = vi.consignment.termination
   const record = useRecordConsignmentVehicleLoss()
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   const window = calcPayoutWindow(contract)
   const schema = useMemo(() => makeVehicleLossSchema({ payoutStart: window?.start ?? contract.effectiveFrom, todayKey }), [window?.start, contract.effectiveFrom, todayKey])
   const { data: incidents } = useVehicleIncidentsForConsignment(contract.vehicleId)

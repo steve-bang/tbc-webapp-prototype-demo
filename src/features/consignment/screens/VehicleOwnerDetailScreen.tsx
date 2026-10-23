@@ -6,7 +6,7 @@ import { usePermission } from '@/features/auth'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { CONSIGNMENT_PRORATION_RULE_LABELS, OWNER_TYPE_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDate, formatDateTime } from '@/shared/lib/datetime'
+import { formatDate, formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -23,7 +23,7 @@ import { OwnerPayoutRecordsPanel } from '../components/OwnerPayoutRecordTable'
 import { VehicleOwnerFormSheet } from '../components/VehicleOwnerFormSheet'
 import { getEffectiveTerm } from '../addendumModel'
 import { useConsignmentContracts, useConsignmentProposals, useOwnerPayoutRecords, useVehicleOwner } from '../hooks'
-import { calcAge, isExpiringSoon, toLocalDateKey } from '../model'
+import { calcAge, isExpiringSoon } from '../model'
 import { summarizeOwnerPayables } from '../payoutModel'
 
 const GENDER_LABEL = {
@@ -55,7 +55,7 @@ function VehicleOwnerDetailScreenContent() {
   const [formOpen, setFormOpen] = useState(false)
   const [proposalFormOpen, setProposalFormOpen] = useState(false)
 
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   const plateById = useMemo(() => new Map((vehicles ?? []).map((v) => [v.id, v.plate])), [vehicles])
   const payable = useMemo(() => summarizeOwnerPayables(payoutRecords ?? [], todayKey)[0], [payoutRecords, todayKey])
   const monthlyTotal = useMemo(

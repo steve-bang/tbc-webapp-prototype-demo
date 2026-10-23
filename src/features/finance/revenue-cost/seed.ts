@@ -37,8 +37,9 @@ import {
   refundNeedsApproval,
 } from '../payment/model.ts'
 import { COST_RECORDS_STORAGE_KEY } from './api.ts'
-import { type CostRecord, toLocalDateKey } from './model.ts'
+import { type CostRecord } from './model.ts'
 import { buildReversalReset, buildSourceLines, calcDepositReconciliation, calcSettlementCollectOutstanding } from '../settlement/model.ts'
+import { toDateKey } from '@/shared/lib/datetime'
 
 // ==== Revenue & Cost (RV) — REVENUE-COST-PLAN.md §9 ====
 
@@ -316,7 +317,7 @@ export function seedRevenueCost(): void {
       code: nextSequenceCode('CP', records.map((r) => r.code)),
       category: spec.category,
       amount: spec.amount,
-      costDate: toLocalDateKey(dt(spec.dayOffset, 12)),
+      costDate: toDateKey(dt(spec.dayOffset, 12)),
       allocationType: spec.allocationType,
       vehicleId: spec.vehicleId,
       rentalId: spec.rentalId,
@@ -401,17 +402,17 @@ function assertDemoRentalsConsistent(demoRentals: Rental[]): void {
   const effectiveStatuses = ['ACTIVE', 'SUSPENDED', 'TERMINATED', 'CLOSED']
 
   for (const rental of demoRentals) {
-    const d0 = toLocalDateKey(rental.pickupDateTime)
-    const d1 = toLocalDateKey(rental.expectedReturnDateTime)
+    const d0 = toDateKey(rental.pickupDateTime)
+    const d1 = toDateKey(rental.expectedReturnDateTime)
 
     const vehicleContracts = contracts.filter((c) => c.vehicleId === rental.vehicleId && effectiveStatuses.includes(c.status))
     if (vehicleContracts.length > 0) {
       const covered = vehicleContracts.some((c) => {
         const intake = intakeRecords.find((h) => h.id === c.intakeRecordId)
-        const start = [c.effectiveFrom, intake ? toLocalDateKey(intake.handoverAt) : undefined].filter((v): v is string => !!v).sort().at(-1) ?? c.effectiveFrom
+        const start = [c.effectiveFrom, intake ? toDateKey(intake.handoverAt) : undefined].filter((v): v is string => !!v).sort().at(-1) ?? c.effectiveFrom
         let end = c.endedDate ?? c.effectiveTo
         const suspension = c.statusHistory.find((h) => h.to === 'SUSPENDED')
-        if (suspension) end = [end, toLocalDateKey(suspension.at)].sort()[0]
+        if (suspension) end = [end, toDateKey(suspension.at)].sort()[0]
         return start < d0 && d1 < end
       })
       if (!covered) fail(`${rental.id} (${rental.vehicleId}) nằm ngoài thời gian hợp đồng ký gửi hiệu lực / đang tạm ngưng`)
@@ -421,7 +422,7 @@ function assertDemoRentalsConsistent(demoRentals: Rental[]): void {
     }
     for (const i of incidents) {
       if (i.vehicleId !== rental.vehicleId || i.rentalId === rental.id) continue
-      const key = toLocalDateKey(i.reportedAt)
+      const key = toDateKey(i.reportedAt)
       if (key >= d0 && key <= d1) fail(`${rental.id} phủ ngày báo sự cố ${i.id} (${key})`)
     }
   }

@@ -620,10 +620,11 @@ Dashboard → R1 · Trung tâm thông báo → R1+R2 · Nhật ký thao tác →
 - [x] Viết lại `README.md` (hiện vẫn là README mặc định của Vite) — cách chạy, cách reset dữ liệu demo,
       cách thêm một feature mới theo pattern.
 
-## Phase 6.1 — Vòng kỹ thuật: route guard · N4 · gỡ vòng import · N8 múi giờ — `[~]`
+## Phase 6.1 — Vòng kỹ thuật: route guard · N4 · gỡ vòng import · N8 múi giờ — `[x]` DONE (23/10/2026)
 
 Kế hoạch: [`docs/TECH-HARDENING-PLAN.md`](TECH-HARDENING-PLAN.md) — **`APPROVED`** (23/10/2026, người dùng duyệt cả 6 điểm plan §10;
-Round chạy liên tục R1 → R2 → R3a → R3b).
+Round chạy liên tục R1 → R2 → R3a → R3b). **Tổng kết: plan §14.10** — 4 Round đạt vòng 1, không Blocker; SCC 0; seed/harness giống
+hệt dưới mọi múi giờ máy; tải đầu 1.854.198 B.
 Không thêm tính năng nghiệp vụ; trả nợ `docs/DASHBOARD-PLATFORM-PLAN.md` §22.10 (N4, N8), lỗ hổng route guard (Phase 2,
 `docs/ARCHITECTURE.md` §5) và SCC 98 file (Phase 5). Đo trên HEAD `ef42332`: 18 ô vai trò × nhóm route vào được bằng URL dù thiếu quyền;
 seed lệch 2.818 bản ghi giữa giờ máy HCM và UTC; 69 file phụ thuộc giờ trình duyệt; mô phỏng tách barrel → SCC 0.
@@ -638,5 +639,6 @@ seed lệch 2.818 bản ghi giữa giờ máy HCM và UTC; 69 file phụ thuộc
 - [x] **R3a — N8 nền + dữ liệu/logic** — **DONE** (23/10/2026, brief plan §13, review đạt vòng 1, không Blocker — plan §13.9; seed/harness
       giống hệt dưới mọi giờ máy; tải đầu 1.862.120 B; `SEED_VERSION` 27) (plan §4): `shared/lib/datetime.ts` offset cố định UTC+7 (`SA-BR-14`), 13 seed + 15 file logic → seed
       và harness giống hệt dưới mọi múi giờ máy.
-- [ ] **R3b — N8 giao diện** (plan §4): ~40 màn/dialog (lưới lịch, bộ lọc ngày, ô nhập ngày giờ) → `tz-scan` = 0 ngoài `datetime.ts`.
-- [ ] *(Tuỳ chọn)* **R2b** — gom 89 import sâu chéo feature vào barrel (plan §3.3).
+- [x] **R3b — N8 giao diện** — **DONE** (23/10/2026, brief plan §14, review đạt vòng 1, không Blocker — plan §14.9; tải đầu 1.854.198 B;
+      `date-fns` chỉ còn `formatRelative`) (plan §4): ~40 màn/dialog (lưới lịch, bộ lọc ngày, ô nhập ngày giờ) → `tz-scan` = 0 ngoài `datetime.ts`.
+- [ ] *(Tuỳ chọn — chỉ làm khi người dùng yêu cầu)* **R2b** — gom 89 import sâu chéo feature vào barrel (plan §3.3).

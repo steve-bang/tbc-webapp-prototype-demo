@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
 import { vi } from '@/shared/i18n/vi'
+import { dateTimeInputToIso, toDateKey } from '@/shared/lib/datetime'
 import { isVehicleBlockedForPeriod, type VehicleBlock } from '../model'
 
 export interface QuickCreateRequest {
@@ -21,7 +22,8 @@ export interface QuickCreateRequest {
  * để component gọi mở `RentalFormSheet` với `defaultValues` tương ứng.
  */
 export function canOpenRentalQuickCreate(blocks: VehicleBlock[], request: QuickCreateRequest): boolean {
-  const dateOnly = request.pickupDateTime.slice(0, 10)
+  // N8 — `pickupDateTime` là giá trị datetime-local (+07) → ngày lịch +07
+  const dateOnly = toDateKey(dateTimeInputToIso(request.pickupDateTime))
   if (!isVehicleBlockedForPeriod(blocks, request.vehicleId, dateOnly, dateOnly)) return true
   const activeBlock = blocks.find((b) => b.vehicleId === request.vehicleId && b.status === 'ACTIVE')
   toast.error(`${vi.calendar.vehicleBlockedNotice}${activeBlock ? `: ${activeBlock.reason}` : ''}`)

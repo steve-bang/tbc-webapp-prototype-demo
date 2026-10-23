@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { vi } from '@/shared/i18n/vi'
+import { todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
@@ -31,14 +32,15 @@ export function IncidentCompleteRepairDialog({
     formState: { errors, isSubmitting },
   } = useForm<IncidentCompleteRepairFormValues>({
     resolver: zodResolver(incidentCompleteRepairFormSchema),
-    defaultValues: { actualCostParts: '0', actualCostLabor: '0', actualCostOther: '0', repairEndDate: new Date().toISOString().slice(0, 10), invoiceNote: '' },
+    // N8 — "hôm nay" theo ngày lịch +07 (trước đây cắt chuỗi UTC: 00:00–06:59 +07 ra hôm qua)
+    defaultValues: { actualCostParts: '0', actualCostLabor: '0', actualCostOther: '0', repairEndDate: todayKey(), invoiceNote: '' },
   })
 
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) {
-      reset({ actualCostParts: '0', actualCostLabor: '0', actualCostOther: '0', repairEndDate: new Date().toISOString().slice(0, 10), invoiceNote: '' })
+      reset({ actualCostParts: '0', actualCostLabor: '0', actualCostOther: '0', repairEndDate: todayKey(), invoiceNote: '' })
     }
   }
 

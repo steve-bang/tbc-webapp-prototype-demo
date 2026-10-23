@@ -4,7 +4,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { CONSIGNMENT_TERMINATION_REQUESTERS } from '@/shared/domain/enums'
 import { CONSIGNMENT_TERMINATION_REQUESTER_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
@@ -12,7 +12,7 @@ import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Textarea } from '@/shared/ui/textarea'
 import { useNotifyConsignmentTermination } from '../hooks'
-import { toLocalDateKey, type ConsignmentContract } from '../model'
+import { type ConsignmentContract } from '../model'
 import { earliestPlannedEnd, makeTerminationNoticeSchema, type TerminationNoticeFormValues } from '../payoutModel'
 import { VehicleRentalImpactList } from './VehicleRentalImpactList'
 
@@ -31,7 +31,7 @@ export function ConsignmentTerminationNoticeDialog({
 }) {
   const t = vi.consignment.termination
   const notify = useNotifyConsignmentTermination()
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   const schema = useMemo(
     () =>
       makeTerminationNoticeSchema({

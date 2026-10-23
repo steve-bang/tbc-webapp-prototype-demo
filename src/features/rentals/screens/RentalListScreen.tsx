@@ -10,7 +10,7 @@ import { useVehicles } from '@/features/vehicles/hooks'
 import { usePermission } from '@/features/auth'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { vi } from '@/shared/i18n/vi'
-import { formatDateTime } from '@/shared/lib/datetime'
+import { formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { DEFAULT_PAGE_SIZE, paginate } from '@/shared/lib/pagination'
 import { Button } from '@/shared/ui/button'
@@ -55,7 +55,7 @@ export function RentalListScreen() {
       if (filter.status && r.status !== filter.status) return false
       if (filter.customerId && r.customerId !== filter.customerId) return false
       if (filter.vehicleId && r.vehicleId !== filter.vehicleId) return false
-      const pickupDate = r.pickupDateTime.slice(0, 10)
+      const pickupDate = toDateKey(r.pickupDateTime) // N8 — ngày lịch +07 (trước đây cắt chuỗi UTC)
       if (filter.dateFrom && pickupDate < filter.dateFrom) return false
       if (filter.dateTo && pickupDate > filter.dateTo) return false
       if (q.length > 0) {

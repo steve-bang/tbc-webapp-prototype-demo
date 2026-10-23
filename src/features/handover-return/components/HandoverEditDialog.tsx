@@ -4,6 +4,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { CONDITION_ITEM_TYPES } from '@/shared/domain/enums'
 import { CONDITION_ITEM_TYPE_LABELS, vi } from '@/shared/i18n/vi'
+import { dateTimeInputToIso, isoToDateTimeInput } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/checkbox'
@@ -25,7 +26,8 @@ import {
 
 function defaultValues(handover: HandoverRecord): HandoverEditFormValues {
   return {
-    actualPickupDateTime: handover.actualPickupDateTime?.slice(0, 16) ?? '',
+    // N8 — hiển thị theo +07 (trước đây cắt chuỗi ISO UTC → lệch 7 giờ ở ô datetime-local)
+    actualPickupDateTime: handover.actualPickupDateTime ? isoToDateTimeInput(handover.actualPickupDateTime) : '',
     odometerHandover: handover.odometerHandover !== undefined ? String(handover.odometerHandover) : '',
     fuelLevelHandover: handover.fuelLevelHandover !== undefined ? String(handover.fuelLevelHandover) : '',
     note: handover.note ?? '',
@@ -118,7 +120,8 @@ export function HandoverEditDialog({
         id: handover.id,
         reason: values.reason,
         patch: {
-          actualPickupDateTime: values.actualPickupDateTime,
+          // N8 — ô datetime-local (+07) → ISO `...Z`
+          actualPickupDateTime: dateTimeInputToIso(values.actualPickupDateTime),
           odometerHandover: Number(values.odometerHandover),
           fuelLevelHandover: Number(values.fuelLevelHandover),
           note: values.note?.trim() || undefined,

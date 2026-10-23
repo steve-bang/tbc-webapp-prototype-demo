@@ -16,19 +16,12 @@ import { useVehicles } from '@/features/vehicles/hooks'
 import type { AssignmentRole, RentalStatus } from '@/shared/domain/enums'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatTime } from '@/shared/lib/datetime'
+import { formatTime, todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 // Cùng feature — import trực tiếp `../model`, không phải cross-feature deep-import.
-import { isOccupyingLikeStatus } from '../model'
-
-interface DispatchRow {
-  key: string
-  rental: Rental
-  role: AssignmentRole
-  time: string
-}
+import { dispatchRowsForDay, isOccupyingLikeStatus } from '../model'
 
 /** Rental chưa tới lúc giao xe — dùng cho danh sách "sắp giao"/hàng Giao xe hôm nay. */
 const PRE_HANDOVER_STATUSES: RentalStatus[] = ['CONFIRMED', 'CONTRACT_CREATED', 'READY_FOR_HANDOVER']
@@ -78,20 +71,7 @@ export function DispatchBoardScreen() {
     return map
   }, [assignments])
 
-  const todayRows = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10)
-    const rows: DispatchRow[] = []
-    for (const r of rentals) {
-      if (r.status === 'CANCELLED' || r.status === 'NO_SHOW') continue
-      if (r.pickupDateTime.slice(0, 10) === todayStr) {
-        rows.push({ key: `${r.id}-DELIVERY`, rental: r, role: 'DELIVERY', time: r.pickupDateTime })
-      }
-      if (r.expectedReturnDateTime.slice(0, 10) === todayStr) {
-        rows.push({ key: `${r.id}-RECEIVING`, rental: r, role: 'RECEIVING', time: r.expectedReturnDateTime })
-      }
-    }
-    return rows.sort((a, b) => a.time.localeCompare(b.time))
-  }, [rentals])
+  const todayRows = useMemo(() => dispatchRowsForDay(rentals, todayKey()), [rentals])
 
   const widgets = useMemo(() => {
     const now = new Date().getTime()

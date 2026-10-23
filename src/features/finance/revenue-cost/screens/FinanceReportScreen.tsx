@@ -132,7 +132,7 @@ function FinanceReportContent() {
   const isLoading = queries.some((q) => q.isLoading)
   const isError = queries.some((q) => q.isError)
 
-  const today = useMemo(() => new Date(), [])
+  const [today] = useState(() => new Date()) // mốc "bây giờ"; model quy về ngày +07 qua toDateKey
   const [selection, setSelection] = useState<PeriodSelection>(() => initialPeriodSelection('THIS_MONTH'))
   const [granularity, setGranularity] = useState<ReportGranularity>(() => suggestGranularity(initialPeriodSelection('THIS_MONTH').period))
   const [excludeUnusual, setExcludeUnusual] = useState(false)

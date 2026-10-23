@@ -7,7 +7,7 @@ import { useVehicles } from '@/features/vehicles/hooks'
 import { CONSIGNMENT_CONTRACT_STATUSES, type ConsignmentContractStatus } from '@/shared/domain/enums'
 import { CONSIGNMENT_CONTRACT_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent } from '@/shared/ui/card'
@@ -20,7 +20,7 @@ import { ConsignmentContractFormSheet } from '../components/ConsignmentContractF
 import { ConsignmentContractStatusBadge } from '../components/ConsignmentContractStatusBadge'
 import { getEffectiveTerm } from '../addendumModel'
 import { useConsignmentContracts, useVehicleOwners } from '../hooks'
-import { isExpiringSoon, summarizeContracts, toLocalDateKey } from '../model'
+import { isExpiringSoon, summarizeContracts } from '../model'
 
 /** Giá trị đại diện "Tất cả" trong Select — Radix Select không cho phép value rỗng. */
 const ALL = '__ALL__'
@@ -56,7 +56,7 @@ function ConsignmentContractListScreenContent() {
   const { data: owners } = useVehicleOwners()
   const { data: vehicles } = useVehicles()
 
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   const ownerName = useMemo(() => new Map((owners ?? []).map((o) => [o.id, o.fullName])), [owners])
   const plateOf = useMemo(() => new Map((vehicles ?? []).map((v) => [v.id, v.plate])), [vehicles])
   const summary = useMemo(() => summarizeContracts(allContracts ?? [], todayKey), [allContracts, todayKey])

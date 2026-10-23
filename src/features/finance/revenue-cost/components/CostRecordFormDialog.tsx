@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useRentals } from '@/features/rentals'
@@ -6,7 +5,7 @@ import { useRentals } from '@/features/rentals'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { ALLOCATION_TYPES, type AllocationType } from '@/shared/domain/enums'
 import { ALLOCATION_TYPE_LABELS, COST_CATEGORY_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
@@ -39,7 +38,8 @@ function emptyState(lockedVehicleId?: string): FormState {
   return {
     category: '',
     amount: '',
-    costDate: format(new Date(), 'yyyy-MM-dd'),
+    // N8 — "hôm nay" theo ngày lịch +07 (SA-BR-14)
+    costDate: todayKey(),
     allocationType: 'DIRECT',
     vehicleId: lockedVehicleId ?? '',
     rentalId: '',
@@ -195,7 +195,7 @@ export function CostRecordFormDialog({
             </div>
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="cost-date">{vi.finance.revenueCost.costDateLabel} *</Label>
-              <Input id="cost-date" type="date" max={format(new Date(), 'yyyy-MM-dd')} value={form.costDate} onChange={(e) => patch({ costDate: e.target.value })} />
+              <Input id="cost-date" type="date" max={todayKey()} value={form.costDate} onChange={(e) => patch({ costDate: e.target.value })} />
               {errors.costDate && <p className="text-destructive text-sm">{errors.costDate}</p>}
             </div>
           </div>

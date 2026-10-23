@@ -17,7 +17,8 @@ import { VehicleOwnerCard } from '../components/VehicleOwnerCard'
 import { VehicleOwnerFormSheet } from '../components/VehicleOwnerFormSheet'
 import { getEffectiveTerm } from '../addendumModel'
 import { useConsignmentContracts, useVehicleOwners } from '../hooks'
-import { maskAccountNumber, toLocalDateKey } from '../model'
+import { maskAccountNumber } from '../model'
+import { toDateKey } from '@/shared/lib/datetime'
 
 /** Giá trị đại diện "Tất cả" trong Select — Radix Select không cho phép value rỗng. */
 const ALL = '__ALL__'
@@ -43,7 +44,7 @@ function VehicleOwnerListScreenContent() {
 
   // Số xe đang ký gửi + tổng chi trả cố định/tháng: chỉ tính hợp đồng ACTIVE/SUSPENDED (SUSPENDED mặc định vẫn trả đủ).
   const statsByOwner = useMemo(() => {
-    const todayKey = toLocalDateKey(new Date())
+    const todayKey = toDateKey(new Date())
     const map = new Map<string, { count: number; total: number }>()
     for (const c of contracts ?? []) {
       if (c.status !== 'ACTIVE' && c.status !== 'SUSPENDED') continue

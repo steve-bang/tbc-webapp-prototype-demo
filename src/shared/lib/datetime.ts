@@ -1,5 +1,6 @@
 import { formatDistanceToNow, parseISO } from 'date-fns'
-import { vi } from 'date-fns/locale'
+import { vi as viLocale } from 'date-fns/locale'
+import { vi } from '@/shared/i18n/vi'
 
 /**
  * Ngày giờ của hệ thống — MỘT múi giờ cố định, không phụ thuộc giờ trình duyệt.
@@ -178,6 +179,11 @@ export function formatDateTime(iso: string): string {
   return `${pad2(p.day)}/${pad2(p.month)}/${pad4(p.year)} ${pad2(p.hour)}:${pad2(p.minute)}`
 }
 
+/** Nhãn thứ viết tắt (`T2`…`T7`, `CN`) của một ngày lịch +07 — chuỗi lấy từ `vi.calendar.weekdayShort`. */
+export function formatWeekdayShort(value: string | Date | number): string {
+  return vi.calendar.weekdayShort[zonedParts(value).weekday]
+}
+
 export function formatTime(iso: string): string {
   const p = zonedParts(iso)
   return `${pad2(p.hour)}:${pad2(p.minute)}`
@@ -185,7 +191,7 @@ export function formatTime(iso: string): string {
 
 /** Khoảng cách tuyệt đối từ bây giờ — không phụ thuộc múi giờ nên giữ date-fns. */
 export function formatRelative(iso: string): string {
-  return formatDistanceToNow(parseISO(iso), { addSuffix: true, locale: vi })
+  return formatDistanceToNow(parseISO(iso), { addSuffix: true, locale: viLocale })
 }
 
 /** Hai mốc cùng một ngày lịch +07? */

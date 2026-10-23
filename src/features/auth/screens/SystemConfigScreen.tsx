@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { Info, RotateCcw } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { resetDemoData } from '@/shared/fixtures/resetDemoData'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDateTime } from '@/shared/lib/datetime'
+import { formatDateTime, SYSTEM_TIME_ZONE } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
@@ -14,8 +14,6 @@ import { Label } from '@/shared/ui/label'
 import { useAppStorageUsage, useSystemConfig, useUpdateSystemConfig } from '../hooks'
 import { DEMO_STORAGE_QUOTA_CHARS, storageUsageRatio, systemConfigSchema, type SystemConfig, type SystemConfigFormValues } from '../model'
 import { usePermission } from '../usePermission'
-
-const SYSTEM_TIMEZONE = 'Asia/Ho_Chi_Minh'
 
 function toFormValues(config?: SystemConfig): SystemConfigFormValues {
   return {
@@ -84,7 +82,6 @@ export function SystemConfigScreen() {
   }
 
   const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const timezoneMismatch = browserTimezone !== SYSTEM_TIMEZONE
   const ratio = usage ? storageUsageRatio(usage.totalChars) : 0
   const percent = Math.round(ratio * 1000) / 10
   const fields: { name: keyof SystemConfigFormValues; label: string; hint?: string; placeholder?: string }[] = [
@@ -165,12 +162,11 @@ export function SystemConfigScreen() {
               <dd className="truncate font-medium">{browserTimezone}</dd>
             </div>
           </dl>
-          {timezoneMismatch && (
-            <p className="text-status-pending flex items-start gap-2 text-sm">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              <span className="min-w-0 break-words">{t.timezoneWarning}</span>
-            </p>
-          )}
+          {/* SA-BR-14 — hệ thống luôn tính theo UTC+7; múi giờ trình duyệt chỉ để tham khảo (không còn cảnh báo lệch). */}
+          <p className="text-muted-foreground flex items-start gap-2 text-sm">
+            <Info className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0 break-words">{t.timezoneInfo.replace('{{tz}}', SYSTEM_TIME_ZONE).replace('{{browser}}', browserTimezone)}</span>
+          </p>
         </CardContent>
       </Card>
 

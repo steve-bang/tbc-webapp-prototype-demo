@@ -14,6 +14,7 @@ import {
   INCIDENT_TYPE_LABELS,
   vi,
 } from '@/shared/i18n/vi'
+import { toDateKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { Input } from '@/shared/ui/input'
@@ -201,7 +202,7 @@ export function IncidentCreateDialog({
                         <SelectItem value={NONE_RENTAL}>{vi.incidents.rentalPlaceholder}</SelectItem>
                         {rentals.map((r) => (
                           <SelectItem key={r.id} value={r.id}>
-                            {r.id} — {r.pickupDateTime.slice(0, 10)}
+                            {r.id} — {toDateKey(r.pickupDateTime)}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { usePermission } from '@/features/auth'
 import { CONSIGNMENT_PRORATION_RULES } from '@/shared/domain/enums'
 import { CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
@@ -25,7 +25,7 @@ import {
   type ConsignmentAddendumOrigin,
 } from '../addendumModel'
 import { useCreateConsignmentAddendum, useOwnerPayoutRecords } from '../hooks'
-import { resolveTermVersion, toLocalDateKey, type ConsignmentContract } from '../model'
+import { resolveTermVersion, type ConsignmentContract } from '../model'
 import { formatPeriod } from '../payoutModel'
 
 /** Số tháng tối đa liệt kê trong danh sách "ngày hiệu lực" (chỉ ngày 1 của tháng). */
@@ -83,7 +83,7 @@ export function ConsignmentAddendumDialog({
   const canConfig = can('CONSIGNMENT', 'CONFIG')
   const create = useCreateConsignmentAddendum()
   const { data: records } = useOwnerPayoutRecords({ contractId: contract.id })
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
 
   const schema = useMemo(
     () =>
@@ -91,7 +91,7 @@ export function ConsignmentAddendumDialog({
         currentEffectiveTo: contract.effectiveTo,
         monthStartKey: monthStartKey(todayKey),
         latestVersionEffectiveFrom: latestVersionEffectiveFrom(contract),
-        activatedKey: contract.activatedAt ? toLocalDateKey(contract.activatedAt) : contract.effectiveFrom,
+        activatedKey: contract.activatedAt ? toDateKey(contract.activatedAt) : contract.effectiveFrom,
         todayKey,
         canConfig,
       }),

@@ -15,6 +15,12 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6.1 Round 3b — Múi giờ cố định cho giao diện · Phase 6.1 hoàn tất** (theo [`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md) §14). Toàn bộ
+  màn hình nay tính ngày giờ theo UTC+7: ô nhập ngày giờ (sửa biên bản giao/nhận, tạo lượt thuê, nhận/trả xe ký gửi) hiển thị và lưu đúng giờ Việt Nam dù trình duyệt
+  ở múi giờ khác (trước đây sửa biên bản giao/nhận có thể lệch 7 giờ); lưới lịch Tuần/Tháng, Bảng điều phối, bộ lọc ngày và mặc định "hôm nay" của các hộp thoại đúng
+  ngày kể cả khi mở lúc 00:00–06:59 (vd. lượt giao 06:00 nay được Bảng điều phối đếm là "hôm nay"). Cấu hình hệ thống hiện múi giờ hệ thống + múi giờ trình duyệt (thay
+  cảnh báo). `date-fns` chỉ còn cho "x phút trước"; tải đầu Dashboard giảm còn 1.854.198 B. `SEED_VERSION` giữ 27. Review `tech-lead` **đạt vòng 1**, không Blocker.
+  **Phase 6.1 DONE**: route guard, đồng bộ trạng thái xe khi huỷ giao/nhận, vòng import 98 → 0, múi giờ cố định — 4 round đều đạt vòng 1.
 - **Phase 6.1 Round 3a — Múi giờ cố định `Asia/Ho_Chi_Minh` cho dữ liệu và logic** (theo [`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md) §4, §13 —
   `SA-BR-14`). `shared/lib/datetime.ts` có bộ hàm ngày giờ theo UTC+7 cố định (không thêm thư viện); 13 file seed và 17 file logic dùng bộ hàm này. Dữ liệu demo,
   Dashboard, cảnh báo, báo cáo nay **giống hệt nhau dù máy đặt múi giờ nào** (trước đây máy UTC/Mỹ sinh seed lệch ~2.800 bản ghi và số cảnh báo sai). **`SEED_VERSION`
@@ -39,7 +45,7 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 **Planned**
 
 - **Phase 6.1 — Vòng kỹ thuật** ([`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md), `APPROVED`): R1 route guard + N4 (xong) → R2 gỡ vòng
-  import (xong — SCC 98 → 0, tách `index.ts`/`ui.ts`) → R3a/R3b cố định múi giờ `Asia/Ho_Chi_Minh` (`SA-BR-14`).
+  import (xong — SCC 98 → 0, tách `index.ts`/`ui.ts`) → R3a/R3b cố định múi giờ `Asia/Ho_Chi_Minh` (`SA-BR-14`) — **tất cả đã xong**.
 
 **Added**
 

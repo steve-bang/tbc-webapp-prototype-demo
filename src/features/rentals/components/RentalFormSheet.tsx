@@ -9,6 +9,7 @@ import { useCustomers } from '@/features/customers/hooks'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { SECURITY_DEPOSIT_TYPES } from '@/shared/domain/enums'
 import { SECURITY_DEPOSIT_TYPE_LABELS, VEHICLE_CLASS_LABELS, VEHICLE_STATUS_LABELS, vi } from '@/shared/i18n/vi'
+import { dateTimeInputToIso } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
@@ -130,7 +131,8 @@ export function RentalFormSheet({
     !!watchedVehicleId &&
     !!watchedPickup &&
     !!watchedReturn &&
-    hasConflict(existingRentals, watchedVehicleId, watchedPickup, watchedReturn)
+    // N8 — ô datetime-local hiểu theo +07 (SA-BR-14), không theo giờ trình duyệt
+    hasConflict(existingRentals, watchedVehicleId, dateTimeInputToIso(watchedPickup), dateTimeInputToIso(watchedReturn))
 
   function handlePickupChange(value: string) {
     setValue('pickupDateTime', value)
@@ -147,8 +149,9 @@ export function RentalFormSheet({
       customerId: values.customerId,
       vehicleId: values.vehicleId,
       vehicleClass: selectedVehicle.vehicleClass,
-      pickupDateTime: values.pickupDateTime,
-      expectedReturnDateTime: values.expectedReturnDateTime,
+      // N8 — ô datetime-local (+07) → ISO `...Z` (trước đây lưu nguyên chuỗi không múi giờ)
+      pickupDateTime: dateTimeInputToIso(values.pickupDateTime),
+      expectedReturnDateTime: dateTimeInputToIso(values.expectedReturnDateTime),
       pickupLocation: values.pickupLocation,
       returnLocation: values.returnLocation,
       deliveryDistanceKm: values.deliveryDistanceKm ? Number(values.deliveryDistanceKm) : undefined,

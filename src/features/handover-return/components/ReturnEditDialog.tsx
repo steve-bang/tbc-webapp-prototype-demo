@@ -4,6 +4,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { ADDITIONAL_CHARGE_TYPES, INCIDENT_ITEM_TYPES } from '@/shared/domain/enums'
 import { ADDITIONAL_CHARGE_TYPE_LABELS, INCIDENT_ITEM_TYPE_LABELS, vi } from '@/shared/i18n/vi'
+import { dateTimeInputToIso, isoToDateTimeInput } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/checkbox'
@@ -25,7 +26,8 @@ import {
 
 function defaultValues(returnRecord: ReturnRecord): ReturnEditFormValues {
   return {
-    actualReturnDateTime: returnRecord.actualReturnDateTime?.slice(0, 16) ?? '',
+    // N8 — hiển thị theo +07 (trước đây cắt chuỗi ISO UTC → lệch 7 giờ ở ô datetime-local)
+    actualReturnDateTime: returnRecord.actualReturnDateTime ? isoToDateTimeInput(returnRecord.actualReturnDateTime) : '',
     odometerReturn: returnRecord.odometerReturn !== undefined ? String(returnRecord.odometerReturn) : '',
     fuelLevelReturn: returnRecord.fuelLevelReturn !== undefined ? String(returnRecord.fuelLevelReturn) : '',
     note: returnRecord.note ?? '',
@@ -125,7 +127,8 @@ export function ReturnEditDialog({
         id: returnRecord.id,
         reason: values.reason,
         patch: {
-          actualReturnDateTime: values.actualReturnDateTime,
+          // N8 — ô datetime-local (+07) → ISO `...Z`
+          actualReturnDateTime: dateTimeInputToIso(values.actualReturnDateTime),
           odometerReturn: Number(values.odometerReturn),
           fuelLevelReturn: Number(values.fuelLevelReturn),
           note: values.note?.trim() || undefined,

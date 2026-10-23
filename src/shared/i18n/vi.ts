@@ -1536,6 +1536,8 @@ export const vi = {
     auditColumnActor: 'Người thực hiện',
   },
   calendar: {
+    /** Nhãn thứ viết tắt, chỉ số theo `getUTCDay` (0 = Chủ nhật). */
+    weekdayShort: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'],
     rentalCount: (count: number) => `${count} lượt`,
     title: 'Lịch cho thuê',
     description: 'Xem lịch xe theo tuần/tháng, tạo nhanh lượt thuê và khoá lịch xe khi cần.',
@@ -3107,8 +3109,7 @@ export const vi = {
     currency: 'Tiền tệ',
     currencyValue: 'VND',
     browserTimezone: 'Múi giờ trình duyệt',
-    timezoneWarning:
-      'Múi giờ trình duyệt khác Asia/Ho_Chi_Minh — bản demo tính ngày theo giờ trình duyệt nên ngày/giờ hiển thị có thể lệch so với UTC+7 (SA-BR-14).',
+    timezoneInfo: 'Hệ thống luôn tính ngày giờ theo {{tz}} (UTC+7); trình duyệt của bạn: {{browser}}. (SA-BR-14)',
     demoCardTitle: 'Dữ liệu demo',
     storageUsed: 'Đã dùng',
     storageUsage: '{{used}} / {{quota}} ký tự ({{percent}}%)',

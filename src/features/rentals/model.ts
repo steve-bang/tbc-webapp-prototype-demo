@@ -189,8 +189,9 @@ export function hasConflict(
   excludeRentalId?: string,
 ): boolean {
   const bufferMs = TURNAROUND_BUFFER_MINUTES * 60 * 1000
-  const aStart = new Date(pickupDateTime).getTime()
-  const aEnd = new Date(expectedReturnDateTime).getTime()
+  // N8 — nhận cả ISO lẫn giá trị datetime-local (hiểu theo +07)
+  const aStart = dateTimeToMs(pickupDateTime)
+  const aEnd = dateTimeToMs(expectedReturnDateTime)
   return existingRentals.some((r) => {
     if (r.id === excludeRentalId) return false
     if (r.vehicleId !== vehicleId) return false

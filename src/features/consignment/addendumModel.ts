@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { CONSIGNMENT_PRORATION_RULES } from '@/shared/domain/enums'
 import { CONSIGNMENT_CONTRACT_STATUS_LABELS, CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
-import { addMonthsToKey, formatDate } from '@/shared/lib/datetime'
+import { addMonthsToKey, formatDate, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import {
   addDaysKey,
@@ -11,7 +11,6 @@ import {
   maskAccountNumber,
   maskIdNumber,
   resolveTermVersion,
-  toLocalDateKey,
   type ConsignmentContract,
   type ConsignmentPaymentTerm,
   type ConsignmentTermVersion,
@@ -141,7 +140,7 @@ export function getAddendumBlocker(
   if (contract.terminationNotice || contract.endedDate) return t.blockerNotice
   if (!input.extension && !input.termChange) return t.blockerNothing
   if (!DATE_KEY_RE.test(input.signedDate)) return t.signedDateInvalid
-  const activatedKey = contract.activatedAt ? toLocalDateKey(contract.activatedAt) : contract.effectiveFrom
+  const activatedKey = contract.activatedAt ? toDateKey(contract.activatedAt) : contract.effectiveFrom
   if (input.signedDate < activatedKey) return t.signedDateBeforeActivated
   if (input.signedDate > todayKey) return t.signedDateFuture
 

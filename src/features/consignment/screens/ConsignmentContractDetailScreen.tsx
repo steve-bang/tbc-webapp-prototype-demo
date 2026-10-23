@@ -5,7 +5,7 @@ import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { useVehicle } from '@/features/vehicles/hooks'
 import { CONSIGNMENT_END_REASON_LABELS, CONSIGNMENT_TERMINATION_REQUESTER_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
@@ -39,7 +39,7 @@ import {
   useVehicleOwner,
 } from '../hooks'
 import { getAutoRenewSuggestion, type ConsignmentAddendumOrigin } from '../addendumModel'
-import { isExpiringSoon, toLocalDateKey } from '../model'
+import { isExpiringSoon } from '../model'
 
 type ReasonDialogKind = 'return' | 'suspend' | 'resume' | 'supersede'
 
@@ -106,7 +106,7 @@ function ConsignmentContractDetailScreenContent() {
   }
 
   const current = contract
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
 
   async function handleSubmit() {
     try {

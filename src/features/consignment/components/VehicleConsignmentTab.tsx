@@ -2,13 +2,13 @@ import { Link } from 'react-router-dom'
 import { paths } from '@/app/paths'
 import type { Vehicle } from '@/features/vehicles'
 import { CONSIGNMENT_PRORATION_RULE_LABELS, OWNER_TYPE_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate, formatDateTime } from '@/shared/lib/datetime'
+import { formatDate, formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { formatNumber, formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { getEffectiveTerm } from '../addendumModel'
 import { useConsignmentContracts, useConsignmentHandoverRecords, useOwnerPayoutRecords, useVehicleOwner } from '../hooks'
-import { getCurrentContractForVehicle, isExpiringSoon, maskAccountNumber, toLocalDateKey } from '../model'
+import { getCurrentContractForVehicle, isExpiringSoon, maskAccountNumber } from '../model'
 import { ConsignmentContractStatusBadge } from './ConsignmentContractStatusBadge'
 import { formatPeriod, isPayoutDueSoon, isPayoutOverdue } from '../payoutModel'
 import { ConsignmentField } from './ConsignmentField'
@@ -26,7 +26,7 @@ export function VehicleConsignmentTab({ vehicle }: { vehicle: Vehicle }) {
   const intake = current ? records?.find((r) => r.type === 'INTAKE') : undefined
   const { data: payouts } = useOwnerPayoutRecords(current ? { contractId: current.id } : undefined)
   const recentPayouts = (payouts ?? []).filter((r) => r.status !== 'CANCELLED').slice(0, 3)
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   // VC-BR-05 — mức / ngày chi trả hiển thị theo phiên bản điều khoản đang áp dụng hôm nay.
   const currentTerm = current ? getEffectiveTerm(current, todayKey).term : undefined
 

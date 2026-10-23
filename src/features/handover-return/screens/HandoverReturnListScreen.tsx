@@ -17,7 +17,7 @@ import { useVehicles } from '@/features/vehicles/hooks'
 import { HANDOVER_RETURN_STATUSES, type HandoverReturnStatus } from '@/shared/domain/enums'
 import { HANDOVER_RETURN_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDateTime } from '@/shared/lib/datetime'
+import { formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { Input } from '@/shared/ui/input'
 import { Label } from '@/shared/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
@@ -83,10 +83,10 @@ export function HandoverReturnListScreen() {
       .filter(({ rental, customer, vehicle, handover, returnRecord }) => {
         if (filter.handoverStatus && handover.status !== filter.handoverStatus) return false
         if (filter.returnStatus && returnRecord?.status !== filter.returnStatus) return false
-        if (filter.dateFrom && (!handover.actualPickupDateTime || handover.actualPickupDateTime.slice(0, 10) < filter.dateFrom))
-          return false
-        if (filter.dateTo && (!handover.actualPickupDateTime || handover.actualPickupDateTime.slice(0, 10) > filter.dateTo))
-          return false
+        // N8 — so theo ngày lịch +07 (trước đây cắt chuỗi UTC)
+        const pickupKey = handover.actualPickupDateTime ? toDateKey(handover.actualPickupDateTime) : undefined
+        if (filter.dateFrom && (!pickupKey || pickupKey < filter.dateFrom)) return false
+        if (filter.dateTo && (!pickupKey || pickupKey > filter.dateTo)) return false
         if (q.length > 0) {
           const haystack = [customer?.fullName, customer?.phone, vehicle?.plate].filter(Boolean).join(' ').toLowerCase()
           if (!haystack.includes(q)) return false

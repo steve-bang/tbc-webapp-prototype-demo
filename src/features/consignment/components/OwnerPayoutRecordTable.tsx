@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { vi } from '@/shared/i18n/vi'
 import { cn } from '@/shared/lib/cn'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { useConsignmentContracts, useOwnerPayoutRecords, useVehicleOwners } from '../hooks'
-import { toLocalDateKey } from '../model'
+
 import {
   formatPeriod,
   isPayoutDueSoon,
@@ -68,7 +68,7 @@ function StatusCell({ record }: { record: OwnerPayoutRecord }) {
 /** Bảng khoản chi trả (desktop) + dạng card (dưới `md`). Khoản `CANCELLED` hiển thị mờ. */
 export function OwnerPayoutRecordTable({ records, ownerNameOf, plateOf, contractNoOf, hideColumns = [], onSelect }: TableProps) {
   const t = vi.consignment.payouts
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   const show = (c: PayoutColumn) => !hideColumns.includes(c)
 
   if (records.length === 0) {

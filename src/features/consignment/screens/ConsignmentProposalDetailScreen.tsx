@@ -5,7 +5,7 @@ import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Button } from '@/shared/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
@@ -28,7 +28,7 @@ import {
   useVehicleOwner,
 } from '../hooks'
 import { getEffectiveTerm } from '../addendumModel'
-import { isExpiringSoon, toLocalDateKey } from '../model'
+import { isExpiringSoon } from '../model'
 import { getProposalApprovalBlocker, isProposalConsumed, listProposalContracts } from '../proposalModel'
 
 /** Chi tiết đề nghị ký gửi (`/consignment/proposals/:id`) — gate `CONSIGNMENT.ASSESS`; thanh nút theo trạng thái × quyền. */
@@ -81,7 +81,7 @@ function ConsignmentProposalDetailScreenContent() {
   }
 
   const current = proposal
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   const consumed = isProposalConsumed(current, contracts ?? [])
   const approvalBlocker = current.status === 'APPRAISING' ? getProposalApprovalBlocker(current) : undefined
 

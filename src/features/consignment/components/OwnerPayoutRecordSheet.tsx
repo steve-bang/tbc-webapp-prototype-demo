@@ -5,12 +5,12 @@ import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { useVehicle } from '@/features/vehicles/hooks'
 import { CONSIGNMENT_PRORATION_RULE_LABELS, OWNER_PAYOUT_ADJUSTMENT_STATUS_LABELS, PAYOUT_STATUS_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate, formatDateTime } from '@/shared/lib/datetime'
+import { formatDate, formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/shared/ui/sheet'
-import { toLocalDateKey } from '../model'
+
 import {
   useConsignmentContract,
   useDecideOwnerPayoutAdjustment,
@@ -92,7 +92,7 @@ export function OwnerPayoutRecordSheet({
   const [rejectTarget, setRejectTarget] = useState<OwnerPayoutAdjustment | undefined>(undefined)
   const [adjustOpen, setAdjustOpen] = useState(false)
 
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   // Phiên bản điều khoản đến từ phụ lục → hiện kèm mã phụ lục (tra `contract.termVersions`).
   const termVersionAddendumNo = (() => {
     const version = contract?.termVersions.find((v) => v.versionNo === record?.termVersionNo)

@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 import { vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
@@ -11,7 +11,7 @@ import {
   useOwnerPayoutRecords,
   useTerminateConsignmentContract,
 } from '../hooks'
-import { toLocalDateKey, type ConsignmentContract } from '../model'
+import { type ConsignmentContract } from '../model'
 import { canCloseContract } from '../payoutModel'
 
 export type ConsignmentEndKind = 'terminate' | 'close'
@@ -38,10 +38,10 @@ export function ConsignmentEndDialog({
   const returnRecord = handovers?.find((r) => r.id === contract.returnRecordId && r.type === 'RETURN')
   const { data: payouts } = useOwnerPayoutRecords({ contractId: contract.id })
 
-  const endedDate = kind === 'terminate' && returnRecord ? toLocalDateKey(returnRecord.handoverAt) : undefined
+  const endedDate = kind === 'terminate' && returnRecord ? toDateKey(returnRecord.handoverAt) : undefined
   const { data: preview } = useConsignmentEndPreview(open && endedDate ? contract.id : undefined, endedDate)
 
-  const closeBlocker = kind === 'close' && payouts ? canCloseContract(contract, payouts, returnRecord, toLocalDateKey(new Date())) : undefined
+  const closeBlocker = kind === 'close' && payouts ? canCloseContract(contract, payouts, returnRecord, toDateKey(new Date())) : undefined
   const unpaid = (payouts ?? []).filter((r) => r.status === 'SCHEDULED' || r.status === 'ON_HOLD')
   const unpaidTotal = unpaid.reduce((sum, r) => sum + r.amountPayable, 0)
 

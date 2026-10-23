@@ -10,7 +10,7 @@ import {
   type Role,
 } from '@/shared/domain/enums'
 import { vi } from '@/shared/i18n/vi'
-import { addDaysToKey, dateTimeToMs, endOfMonthKey, formatDate } from '@/shared/lib/datetime'
+import { addDaysToKey, dateTimeToMs, endOfMonthKey, formatDate, toDateKey } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { formatVnd } from '@/shared/lib/money'
 import {
@@ -20,7 +20,6 @@ import {
   isFutureDateTime,
   nextSequenceCode,
   resolveTermVersion,
-  toLocalDateKey,
   type ConsignmentContract,
   type ConsignmentHandoverRecord,
   type VehicleOwner,
@@ -186,7 +185,7 @@ export function calcPayoutWindow(
   contract: Pick<ConsignmentContract, 'effectiveFrom' | 'effectiveTo' | 'activatedAt' | 'endedDate'>,
 ): { start: string; end: string } | undefined {
   if (!contract.activatedAt) return undefined
-  const activatedKey = toLocalDateKey(contract.activatedAt)
+  const activatedKey = toDateKey(contract.activatedAt)
   const start = activatedKey > contract.effectiveFrom ? activatedKey : contract.effectiveFrom
   const end = contract.endedDate && contract.endedDate < contract.effectiveTo ? contract.endedDate : contract.effectiveTo
   if (start > end) return undefined

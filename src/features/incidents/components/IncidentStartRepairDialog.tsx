@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { vi } from '@/shared/i18n/vi'
+import { todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
@@ -28,13 +29,14 @@ export function IncidentStartRepairDialog({
     formState: { errors, isSubmitting },
   } = useForm<IncidentStartRepairFormValues>({
     resolver: zodResolver(incidentStartRepairFormSchema),
-    defaultValues: { repairVendorName: '', repairStartDate: new Date().toISOString().slice(0, 10) },
+    // N8 — "hôm nay" theo ngày lịch +07 (trước đây cắt chuỗi UTC: 00:00–06:59 +07 ra hôm qua)
+    defaultValues: { repairVendorName: '', repairStartDate: todayKey() },
   })
 
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
     setWasOpen(open)
-    if (open) reset({ repairVendorName: '', repairStartDate: new Date().toISOString().slice(0, 10) })
+    if (open) reset({ repairVendorName: '', repairStartDate: todayKey() })
   }
 
   async function onSubmit(values: IncidentStartRepairFormValues) {

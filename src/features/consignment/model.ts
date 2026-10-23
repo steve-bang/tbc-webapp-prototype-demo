@@ -12,7 +12,7 @@ import {
   type Role,
 } from '@/shared/domain/enums'
 import { CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
-import { addDaysToKey, dateTimeToMs, dayDiff as dayDiffKey, formatDate, toDateKey } from '@/shared/lib/datetime'
+import { addDaysToKey, dateTimeToMs, dayDiff as dayDiffKey, formatDate } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import type { ConsignmentAddendum } from './addendumModel'
 
@@ -244,14 +244,6 @@ export const INTAKE_DOCUMENT_KEYS = ['REGISTRATION', 'INSPECTION', 'INSURANCE'] 
 // ---- Hàm thuần ----
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
-
-/**
- * `YYYY-MM-DD` theo ngày +07 (SA-BR-14) — giữ tên cho tương thích, gộp vào `toDateKey` ở R3b nếu không còn nơi dùng.
- * Mirror helper cùng tên của finance (consignment không được import finance — plan mục 0.3 điểm 1).
- */
-export function toLocalDateKey(value: string | Date): string {
-  return toDateKey(value)
-}
 
 /** Số ngày từ `fromKey` đến `toKey` (cả hai dạng `YYYY-MM-DD`), tính theo lịch — giữ tên cho tương thích, gộp ở R3b nếu không còn nơi dùng. */
 export function dayDiff(fromKey: string, toKey: string): number {

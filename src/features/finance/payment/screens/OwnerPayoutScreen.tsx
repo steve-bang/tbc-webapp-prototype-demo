@@ -16,7 +16,7 @@ import { useVehicles } from '@/features/vehicles/hooks'
 import { TRANSACTION_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { cn } from '@/shared/lib/cn'
-import { formatDate, formatDateTime } from '@/shared/lib/datetime'
+import { formatDate, formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
@@ -25,11 +25,6 @@ import { OwnerPayoutCreateDialog } from '../components/OwnerPayoutCreateDialog'
 import { TransactionDetailSheet } from '../components/TransactionDetailSheet'
 import { useTransactions } from '../hooks'
 import { isEffectiveTransaction } from '../model'
-
-function localTodayKey(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /**
  * Chi trả chủ xe (`/consignment/owner-payouts`) — kế hoạch mục 19.7.2, `Payment-BRD.md` mục 14. Thiếu quyền xem Xe ký gửi chỉ
@@ -61,7 +56,7 @@ function OwnerPayoutContent() {
   const { data: vehicles = [] } = useVehicles()
   const { data: txns = [] } = useTransactions({ type: 'OWNER_PAYOUT' })
 
-  const todayKey = localTodayKey()
+  const todayKey = toDateKey(new Date()) // N8 — ngày lịch +07 (trước đây theo giờ trình duyệt)
   const ownerById = useMemo(() => new Map(owners.map((o) => [o.id, o])), [owners])
   const contractNoById = useMemo(() => new Map(contracts.map((c) => [c.id, c.contractNo])), [contracts])
   const plateById = useMemo(() => new Map(vehicles.map((v) => [v.id, v.plate])), [vehicles])

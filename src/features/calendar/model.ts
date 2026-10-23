@@ -1,8 +1,16 @@
 import { z } from 'zod'
 import type { Rental } from '@/features/rentals'
 import { TURNAROUND_BUFFER_MINUTES } from '@/features/rentals'
-import type { RentalStatus, VehicleBlockStatus } from '@/shared/domain/enums'
-import { toDateKey } from '@/shared/lib/datetime'
+import type { AssignmentRole, RentalStatus, VehicleBlockStatus } from '@/shared/domain/enums'
+import {
+  addDaysToKey,
+  addMonthsToKey,
+  eachDayKey,
+  endOfMonthKey,
+  startOfMonthKey,
+  startOfWeekKey,
+  toDateKey,
+} from '@/shared/lib/datetime'
 
 /**
  * Vehicle Block — `RentalManagement-BRD.md` §57 (CR-2026-015) + `RentalCalendar-BRD.md`
@@ -131,6 +139,56 @@ export function rentalsByVehicleInRange(rentals: Rental[], startDate: string, en
     map.set(r.vehicleId, list)
   }
   return map
+}
+
+// ---- Lưới ngày (SA-BR-14 — mọi khoá ngày theo +07, không phụ thuộc giờ trình duyệt) ----
+
+export type CalendarView = 'week' | 'month'
+
+/** 7 date key của tuần chứa `anchorKey`, bắt đầu thứ Hai (RC-BR-16: Week là view mặc định). */
+export function weekDayKeys(anchorKey: string): string[] {
+  const start = startOfWeekKey(anchorKey, 1)
+  return Array.from({ length: 7 }, (_, i) => addDaysToKey(start, i))
+}
+
+/**
+ * Các cột ngày của lưới Tháng (xe × ngày): mọi ngày từ mùng 1 đến cuối tháng — lưới Tháng chỉ vẽ các ngày
+ * của chính tháng đó (không có ngày đệm đầu/cuối như lịch dạng tờ), đúng số cột đã hiển thị trước R3b.
+ */
+export function monthGridKeys(monthKey: string): string[] {
+  const first = startOfMonthKey(`${monthKey}-01`)
+  return eachDayKey(first, endOfMonthKey(first))
+}
+
+/** Chuyển kỳ: Tuần ± 7 ngày; Tháng ± `step` tháng (kẹp ngày về cuối tháng đích, 31/01 + 1 tháng = 28|29/02). */
+export function shiftAnchor(anchorKey: string, view: CalendarView, step: number): string {
+  return view === 'week' ? addDaysToKey(anchorKey, 7 * step) : addMonthsToKey(anchorKey, step)
+}
+
+export interface DispatchDayRow {
+  key: string
+  rental: Rental
+  role: AssignmentRole
+  time: string
+}
+
+/**
+ * Danh sách giao/nhận của một ngày lịch +07 (Bảng điều phối, "hôm nay" = `todayKey()`), sắp theo giờ.
+ * Bỏ lượt `CANCELLED`/`NO_SHOW`.
+ */
+export function dispatchRowsForDay(rentals: Rental[], dayKey: string): DispatchDayRow[] {
+  const rows: DispatchDayRow[] = []
+  for (const r of rentals) {
+    if (r.status === 'CANCELLED' || r.status === 'NO_SHOW') continue
+    // N8 — so ngày +07 (trước đây cắt chuỗi UTC: giao 06:00 +07 = 23:00Z hôm trước bị bỏ khỏi "hôm nay")
+    if (toDateKey(r.pickupDateTime) === dayKey) {
+      rows.push({ key: `${r.id}-DELIVERY`, rental: r, role: 'DELIVERY', time: r.pickupDateTime })
+    }
+    if (toDateKey(r.expectedReturnDateTime) === dayKey) {
+      rows.push({ key: `${r.id}-RECEIVING`, rental: r, role: 'RECEIVING', time: r.expectedReturnDateTime })
+    }
+  }
+  return rows.sort((a, b) => a.time.localeCompare(b.time))
 }
 
 // TODO(OQ: RentalCalendar-BRD.md §6/§9 `RC-BR-07` vs `RentalManagement-BRD.md`

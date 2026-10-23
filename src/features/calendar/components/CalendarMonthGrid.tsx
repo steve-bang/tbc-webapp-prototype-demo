@@ -1,15 +1,11 @@
-import { eachDayOfInterval, endOfMonth, format, isToday, startOfMonth } from 'date-fns'
 import { useMemo } from 'react'
 import { Lock } from 'lucide-react'
 import type { Rental } from '@/features/rentals'
 import type { Vehicle } from '@/features/vehicles'
 import { vi } from '@/shared/i18n/vi'
 import { cn } from '@/shared/lib/cn'
-import { rentalsByVehicleInRange, type VehicleBlock } from '../model'
-
-function toDateStr(d: Date): string {
-  return format(d, 'yyyy-MM-dd')
-}
+import { toDateKey, todayKey } from '@/shared/lib/datetime'
+import { monthGridKeys, rentalsByVehicleInRange, type VehicleBlock } from '../model'
 
 /** Block `ACTIVE` đang phủ `dateStr` (so sánh chuỗi ngày) cho 1 xe — `undefined` nếu không bị khoá. */
 function activeBlockForDate(blocks: VehicleBlock[], vehicleId: string, dateStr: string): VehicleBlock | undefined {
@@ -25,7 +21,7 @@ function activeBlockForDate(blocks: VehicleBlock[], vehicleId: string, dateStr: 
  * Block (§18 BRD).
  */
 export function CalendarMonthGrid({
-  monthDate,
+  monthKey,
   vehicles,
   rentals,
   blocks,
@@ -35,7 +31,8 @@ export function CalendarMonthGrid({
   onBlockedCellClick,
   onDayCellClick,
 }: {
-  monthDate: Date
+  /** Month key (`YYYY-MM`, +07). */
+  monthKey: string
   vehicles: Vehicle[]
   rentals: Rental[]
   blocks: VehicleBlock[]
@@ -45,8 +42,8 @@ export function CalendarMonthGrid({
   onBlockedCellClick: (block: VehicleBlock) => void
   onDayCellClick: (vehicle: Vehicle, dateStr: string, rentalsForCell: Rental[]) => void
 }) {
-  const days = useMemo(() => eachDayOfInterval({ start: startOfMonth(monthDate), end: endOfMonth(monthDate) }), [monthDate])
-  const dayStrs = useMemo(() => days.map(toDateStr), [days])
+  const dayStrs = useMemo(() => monthGridKeys(monthKey), [monthKey])
+  const today = todayKey()
 
   const visibleVehicles = useMemo(
     () => (showInactiveVehicles ? vehicles : vehicles.filter((v) => v.status !== 'INACTIVE')),
@@ -58,19 +55,19 @@ export function CalendarMonthGrid({
     [rentals, dayStrs],
   )
 
-  const gridTemplateColumns = `160px repeat(${days.length}, minmax(26px, 1fr))`
+  const gridTemplateColumns = `160px repeat(${dayStrs.length}, minmax(26px, 1fr))`
 
   return (
     <div className="overflow-x-auto rounded-md border">
-      <div style={{ minWidth: `${160 + days.length * 26}px` }}>
+      <div style={{ minWidth: `${160 + dayStrs.length * 26}px` }}>
         <div className="grid border-b" style={{ gridTemplateColumns }}>
           <div className="p-2 text-xs font-medium" />
-          {days.map((d, i) => (
+          {dayStrs.map((d) => (
             <div
-              key={dayStrs[i]}
-              className={cn('border-l p-1 text-center text-[10px] font-medium', isToday(d) && 'bg-primary/5 text-primary')}
+              key={d}
+              className={cn('border-l p-1 text-center text-[10px] font-medium', d === today && 'bg-primary/5 text-primary')}
             >
-              {format(d, 'd')}
+              {Number(d.slice(8, 10))}
             </div>
           ))}
         </div>
@@ -92,8 +89,9 @@ export function CalendarMonthGrid({
                 {dayStrs.map((dateStr) => {
                   const block = activeBlockForDate(blocks, vehicle.id, dateStr)
                   const rentalsForCell = vehicleRentals.filter((r) => {
-                    const rentalStart = r.pickupDateTime.slice(0, 10)
-                    const rentalEnd = r.expectedReturnDateTime.slice(0, 10)
+                    // N8 — ngày +07 (trước đây cắt chuỗi UTC)
+                    const rentalStart = toDateKey(r.pickupDateTime)
+                    const rentalEnd = toDateKey(r.expectedReturnDateTime)
                     return rentalStart <= dateStr && dateStr <= rentalEnd
                   })
                   const highlighted = rentalsForCell.some((r) => highlightRentalIds.has(r.id))

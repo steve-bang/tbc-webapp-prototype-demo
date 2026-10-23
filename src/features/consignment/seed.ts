@@ -2,7 +2,7 @@ import { VEHICLES_STORAGE_KEY } from '@/features/vehicles/api'
 import type { Vehicle } from '@/features/vehicles'
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import type { ConsignmentContractStatus, ConsignmentProrationRule, OwnerType } from '@/shared/domain/enums'
-import { addDaysToKey, addMonthsToKey, startOfMonthKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
+import { addDaysToKey, addMonthsToKey, startOfMonthKey, toDateKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
   CONSIGNMENT_CONTRACTS_STORAGE_KEY,
@@ -20,7 +20,6 @@ import {
   INTAKE_DOCUMENT_KEYS,
   nextSequenceCode,
   OPEN_CONTRACT_STATUSES,
-  toLocalDateKey,
   type ConsignmentContract,
   type ConsignmentHandoverRecord,
   type ConsignmentStatusChange,
@@ -495,7 +494,7 @@ function seedContractsAndRecords(owners: VehicleOwner[], vehicles: Vehicle[]) {
     let endReason: ConsignmentContract['endReason']
     let terminationNotice: ConsignmentContract['terminationNotice']
     if (status === 'TERMINATED' && endedAtIso) {
-      endedDate = toLocalDateKey(endedAtIso)
+      endedDate = toDateKey(endedAtIso)
       endReason = 'EARLY_TERMINATION'
       const noticeDate = addDaysKey(endedDate, -base.noticePeriodDays)
       terminationNotice = {
@@ -623,7 +622,7 @@ function buildPayoutRecords(owners: VehicleOwner[], contracts: ConsignmentContra
       )
 
       // (b) Hợp đồng tạm ngưng: khoản có hạn chi từ ngày tạm ngưng trở đi bị tạm giữ.
-      if (suspendedAt && record.status === 'SCHEDULED' && record.dueDate >= toLocalDateKey(suspendedAt)) {
+      if (suspendedAt && record.status === 'SCHEDULED' && record.dueDate >= toDateKey(suspendedAt)) {
         const holdAt = minIso(maxIso(createdAt, suspendedAt), nowIso)
         const reason = 'Tạm giữ do tranh chấp điều khoản, chờ làm rõ'
         record = {
@@ -805,7 +804,7 @@ function buildProposals(
     if (!owner || !vehicle) throw new Error(`[seed consignment] thiếu chủ xe hoặc xe cho đề nghị của hợp đồng ${head.contractNo}`)
     const intake = records.find((r) => r.type === 'INTAKE' && chain.some((c) => c.id === r.contractId))
 
-    const anchor = toLocalDateKey(head.createdAt)
+    const anchor = toDateKey(head.createdAt)
     let times = [atTime(addDaysKey(anchor, -10), 9), atTime(addDaysKey(anchor, -8), 9), atTime(addDaysKey(anchor, -7), 10), atTime(addDaysKey(anchor, -6), 14)]
     const earliest = shiftIso(owner.createdAt, 3_600_000)
     if (times[0] < earliest) {
@@ -1039,7 +1038,7 @@ function assertSeedInvariants(
     }
     for (const a of c.addenda) {
       if (a.createdAt > new Date().toISOString() || a.signedDate > today) fail(`phụ lục ${a.addendumNo} có mốc ở tương lai`)
-      if (a.signedDate < toLocalDateKey(c.activatedAt ?? c.createdAt)) fail(`phụ lục ${a.addendumNo} ký trước ngày kích hoạt hợp đồng`)
+      if (a.signedDate < toDateKey(c.activatedAt ?? c.createdAt)) fail(`phụ lục ${a.addendumNo} ký trước ngày kích hoạt hợp đồng`)
     }
     // Đề nghị gốc: APPROVED, cùng chủ xe, biển số khớp xe (plan mục 20.10 điểm 7).
     const proposal = proposals.find((p) => p.id === c.proposalId)

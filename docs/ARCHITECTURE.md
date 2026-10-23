@@ -139,6 +139,16 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   layout vỡ. Áp dụng quy tắc này cho mọi text dài nằm trong một hàng `flex` có nhiều phần tử cạnh
   nhau (Topbar, header của Card, breadcrumb…).
 
+## 6a. Ngày giờ & múi giờ (Phase 6.1 R3 — `SA-BR-14`)
+
+- Toàn app tính theo **một múi giờ cố định `Asia/Ho_Chi_Minh` (UTC+7)**, không theo giờ trình duyệt: mọi phép tính ngày/giờ đi qua
+  `shared/lib/datetime.ts` (offset cố định, không thêm thư viện; `date-fns` chỉ còn cho `formatRelative`). Mốc lưu là ISO `…Z`; ngày lịch là date key
+  `YYYY-MM-DD` theo +07.
+- Lịch Tuần/Tháng và Bảng điều phối lấy danh sách ngày / dòng trong ngày từ hàm thuần `weekDayKeys`, `monthGridKeys`, `shiftAnchor`,
+  `dispatchRowsForDay` (`features/calendar/model.ts`) — component chỉ hiển thị.
+- Kiểm chứng (scratchpad `hardening/`): seed + harness giống hệt nhau dưới `TZ=Asia/Ho_Chi_Minh`, `UTC`, `America/New_York`. Màn Cấu hình hệ thống hiện
+  múi giờ hệ thống + múi giờ trình duyệt (chỉ thông tin). TODO(OQ: `TECH-HARDENING-PLAN.md` §9 OQ-N8-1) — múi giờ có cấu hình được không.
+
 ## 7. Routing
 
 - React Router (`BrowserRouter` + `<Routes>`), khai tập trung ở `app/routes.tsx`, path constants ở

@@ -11,7 +11,7 @@ import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
 import type { AllocationType, CostCategory } from '@/shared/domain/enums'
 import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, toDateKey } from '@/shared/lib/datetime'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
@@ -33,7 +33,6 @@ import {
   isManualCostCategory,
   type ReportExportFilters,
   type RevenueLine,
-  toLocalDateKey,
 } from './model.ts'
 
 // ==== Revenue & Cost (RV) — REVENUE-COST-PLAN.md §6 ====
@@ -133,7 +132,7 @@ function assertCostRecordInput(input: CostRecordInput): void {
   }
   if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương')
   if (!COST_DATE_RE.test(input.costDate)) throw new Error('Ngày chi phí không hợp lệ')
-  if (input.costDate > toLocalDateKey(new Date().toISOString())) throw new Error('Ngày chi phí không được ở tương lai')
+  if (input.costDate > toDateKey(new Date().toISOString())) throw new Error('Ngày chi phí không được ở tương lai')
   if (!Number.isInteger(input.spreadMonths) || input.spreadMonths < 1 || input.spreadMonths > 36) {
     throw new Error('Số tháng rải phải là số nguyên từ 1 đến 36')
   }

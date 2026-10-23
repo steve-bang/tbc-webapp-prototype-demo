@@ -19,8 +19,9 @@ import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { OwnerPayoutRecordSheet } from '../components/OwnerPayoutRecordSheet'
 import { OwnerPayoutRecordTable } from '../components/OwnerPayoutRecordTable'
 import { useConsignmentContracts, useGenerateOwnerPayoutRecords, useOwnerPayoutRecords, useVehicleOwners } from '../hooks'
-import { toLocalDateKey } from '../model'
+
 import { formatPeriod, isPayoutDueSoon, isPayoutOverdue, periodOf, periodRange } from '../payoutModel'
+import { toDateKey } from '@/shared/lib/datetime'
 
 /** Giá trị đại diện "Tất cả" trong Select — Radix Select không cho value rỗng. */
 const ALL = '__ALL__'
@@ -51,7 +52,7 @@ function OwnerPayoutScheduleContent() {
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedRecordId = searchParams.get('record') ?? undefined
 
-  const todayKey = toLocalDateKey(new Date())
+  const todayKey = toDateKey(new Date())
   const currentPeriod = periodOf(todayKey)
   const [period, setPeriod] = useState<string>(currentPeriod)
   const [status, setStatus] = useState<PayoutStatus | undefined>(undefined)
