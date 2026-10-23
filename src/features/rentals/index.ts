@@ -1,6 +1,4 @@
 export type { Rental } from './model'
-export { RentalListScreen } from './screens/RentalListScreen'
-export { RentalDetailScreen } from './screens/RentalDetailScreen'
 // CALENDAR-MANAGEMENT-PLAN.md §9 — export thêm để `features/calendar` tái dùng qua barrel.
 export { TURNAROUND_BUFFER_MINUTES, hasConflict } from './model'
 export { useRentals } from './hooks'

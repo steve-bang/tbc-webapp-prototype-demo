@@ -7,7 +7,7 @@ import { useCustomers } from '@/features/customers/hooks'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { usePermission } from '@/features/auth'
 // RENTAL-SETTLEMENT-PLAN.md §5.3 — tab "Quyết toán"; PAYMENT-PLAN.md §7.2 — tab "Thanh toán". Qua barrel `@/features/finance`.
-import { RentalPaymentTab, SettlementWorksheet } from '@/features/finance'
+import { RentalPaymentTab, SettlementWorksheet } from '@/features/finance/ui'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'

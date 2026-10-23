@@ -4,7 +4,6 @@ export type { MaintenanceDueStatus, MaintenanceRecord, MaintenanceRule, SparePar
 // qua barrel, không import sâu vào `./model`/`./hooks`.
 export { applicableRule, latestOdometerForCategory, maintenanceDueStatus, nextDueKm } from './model'
 export { useMaintenanceRecords, useMaintenanceRules, useSparePartRecords } from './hooks'
-export { MaintenanceScreen } from './screens/MaintenanceScreen'
 // REVENUE-COST-PLAN.md §0.2 — re-export read-only cho features/finance (chi phí bảo dưỡng/phụ tùng suy ra).
 export { MAINTENANCE_RECORDS_STORAGE_KEY, SPARE_PART_RECORDS_STORAGE_KEY } from './api'
 // DASHBOARD-PLATFORM-PLAN.md §5.3

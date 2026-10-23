@@ -41,20 +41,23 @@ Mỗi `src/features/<feature>/` gồm:
 | `components/` | component nhỏ dùng lại trong feature (không phải màn hình đầy đủ) |
 | `screens/` | component màn hình đầy đủ (không phải route) |
 | `seed.ts` | seed data thật của feature, gọi `registerSeedStep()` (xem §4) |
-| `index.ts` | **barrel** — điểm import duy nhất mà feature khác/route được dùng |
+| `index.ts` | **barrel dữ liệu** — type, hàm `model`/`api`, hook, storage key; **không** export gì từ `screens/`/`components/` |
+| `ui.ts` | **barrel UI** — màn hình + component dùng ở feature khác/route (kể cả bản lazy). Code không phải UI không import file này |
 
-- **Không import sâu vào nội bộ feature khác** (`features/x/screens/Y`) — chỉ qua
-  `@/features/<x>` (barrel `index.ts`).
+- **Không import sâu vào nội bộ feature khác** (`features/x/screens/Y`) — chỉ qua 2 điểm nhập công khai:
+  `@/features/<x>` (dữ liệu) và `@/features/<x>/ui` (màn hình/component) — Phase 6.1 R2, `docs/TECH-HARDENING-PLAN.md` §3.
+  Lý do: barrel trộn dữ liệu với màn hình từng tạo vòng import 98 file. `api.ts`/`model.ts`/`hooks.ts`/`seed.ts`/`storage.ts` và
+  `shared/` **không bao giờ** import `@/features/<x>/ui`. Vòng import bị chặn ở cổng `npx oxlint` (`import/no-cycle`, bỏ qua `import type`).
 - **Feature gom nhiều module chia thư mục con theo module** (áp dụng từ Phase 4.4 cho `features/finance` —
   [`docs/FINANCE-REFACTOR-PLAN.md`](docs/FINANCE-REFACTOR-PLAN.md)): mỗi thư mục con (`payment/`, `settlement/`,
   `revenue-cost/`) có bộ file như bảng trên (trừ `index.ts`); thứ dùng chung bởi ≥ 2 module và phải nằm dưới các
   module đặt ở `core/`. Thư mục con xếp tầng **một chiều** (`core ← payment ← settlement ← revenue-cost`) — chỉ
   import thư mục tầng dưới, **trực tiếp file đích bằng đường dẫn tương đối**; không tạo barrel con, không re-export
-  trung gian, không import ngược barrel/gốc của chính feature. Gốc feature chỉ giữ `index.ts` (barrel công khai) +
+  trung gian, không import ngược barrel/gốc của chính feature. Gốc feature chỉ giữ `index.ts` + `ui.ts` (2 điểm nhập công khai) +
   `seed.ts` (đăng ký các bước seed của thư mục con theo đúng thứ tự). Luật nghiệp vụ riêng của một module không đặt ở
   `core/`.
 - `src/app/**` chỉ chứa route: khai path ở `app/paths.ts`, khai `<Route>` ở `app/routes.tsx` mount
-  thẳng `<XxxScreen>` từ `@/features/<x>`. Không đặt business logic ở `app/`.
+  thẳng `<XxxScreen>` từ `@/features/<x>/ui`. Không đặt business logic ở `app/`.
 - **Route mới phải thuộc một nhóm trong `app/routeAccess.ts` và nằm trong `<RequirePermission access={ROUTE_ACCESS.<nhóm>} />`**
   ở `app/routes.tsx` (trừ Dashboard) — `docs/TECH-HARDENING-PLAN.md` §11.
 - Route/menu cấp điều hướng khai thêm ở `shared/layout/nav.tsx` (kèm `resource`/`action` để

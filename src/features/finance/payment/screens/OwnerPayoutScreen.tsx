@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import {
-  OwnerPayoutStatusBadge,
   getOwnerPayoutBlocker,
   isPayoutOverdue,
   summarizeOwnerPayables,
@@ -12,6 +11,7 @@ import {
   useVehicleOwners,
   type OwnerPayoutRecord,
 } from '@/features/consignment'
+import { OwnerPayoutStatusBadge } from '@/features/consignment/ui'
 import { useVehicles } from '@/features/vehicles/hooks'
 import { TRANSACTION_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'

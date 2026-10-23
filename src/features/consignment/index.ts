@@ -7,16 +7,6 @@ export {
   OWNER_PAYOUT_RECORDS_STORAGE_KEY,
   VEHICLE_OWNERS_STORAGE_KEY,
 } from './storage'
-export { VehicleConsignmentTab } from './components/VehicleConsignmentTab'
-export { OwnerBankAccountField } from './components/OwnerBankAccountField'
-export { OwnerPayoutStatusBadge } from './components/OwnerPayoutStatusBadge'
-export { ConsignmentContractDetailScreen } from './screens/ConsignmentContractDetailScreen'
-export { ConsignmentContractListScreen } from './screens/ConsignmentContractListScreen'
-export { ConsignmentProposalDetailScreen } from './screens/ConsignmentProposalDetailScreen'
-export { ConsignmentProposalListScreen } from './screens/ConsignmentProposalListScreen'
-export { OwnerPayoutScheduleScreen } from './screens/OwnerPayoutScheduleScreen'
-export { VehicleOwnerDetailScreen } from './screens/VehicleOwnerDetailScreen'
-export { VehicleOwnerListScreen } from './screens/VehicleOwnerListScreen'
 export { CONSIGNMENT_QUERY_KEY, useConsignmentContracts, useOwnerPayoutRecords, useVehicleOwners } from './hooks'
 
 // ---- Chỉ `features/finance` dùng (chi trả chủ xe — xem docs/CONSIGNMENT-PLAN.md mục 19.5) ----

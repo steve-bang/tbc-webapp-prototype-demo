@@ -1,7 +1,7 @@
 # Kế hoạch — Vòng kỹ thuật sau Phase 6: Route guard · N4 · N8 (múi giờ) · Gỡ vòng import (Phase 6.1)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **`APPROVED`** (23/10/2026 — người dùng duyệt cả 6 điểm §10 theo đề xuất; các Round
-chạy liên tục R1 → R2 → R3a → R3b, không dừng chờ duyệt giữa chừng) · **R1 — `DONE`** (23/10/2026, brief §11, review `tech-lead` đạt vòng 1, không Blocker — §11.9) · R2, R3a, R3b — chờ
+chạy liên tục R1 → R2 → R3a → R3b, không dừng chờ duyệt giữa chừng) · **R1 — `DONE`** (23/10/2026, brief §11, review `tech-lead` đạt vòng 1, không Blocker — §11.9) · **R2 — `DONE`** (23/10/2026, brief §12, review đạt vòng 1, không Blocker — §12.9; SCC 98 → 0) · R3a, R3b — chờ
 (brief viết sau khi Round trước `DONE`) · R2b — tuỳ chọn, sau R3b.
 
 Vòng này **không thêm tính năng nghiệp vụ mới**. Nó trả 4 khoản nợ kỹ thuật ghi ở `docs/DASHBOARD-PLATFORM-PLAN.md` §18.9 (N4),
@@ -436,7 +436,9 @@ nạp module (TDZ). R1 không phụ thuộc R2/R3; N4 dùng import sâu `vehicle
 1. `npx tsc -b` · `npx oxlint` · `npm run build` sạch; `grep -rn '\*/[a-zA-Z]' src/` rỗng.
 2. `node $SP/hardening/initial-load.mjs $REPO` (sau `npm run build`) → `INITIAL_JS` ≤ **1.870.000**. Ngân sách ban đầu: R1 ≤ +3.000 B · R2 ±1.000 B ·
    R3a+R3b ≤ +4.000 B. **Phân bổ lại sau R1 (§11.9 L1 — R1 thực tế 1.863.679 B):** R2 ≤ **1.864.679** · R3a+R3b ≤ **1.870.000** (trần cứng, dư ~5,3 kB;
-   R3 thay các hàm lịch `date-fns` bằng helper date key nên kỳ vọng ±0). Vượt ngân sách Round nhưng còn dưới trần → báo lại, không tự tải lười thêm.
+   R3 thay các hàm lịch `date-fns` bằng helper date key nên kỳ vọng ±0).
+   **Sau R2 (§12.9 L1 — thực tế 1.869.188 B, dư 812 B):** R3a+R3b vẫn ≤ **1.870.000** (trần D11 không đổi — nâng trần là quyết định của người dùng).
+   R3 phải tự bù phần helper bằng cách bỏ hàm `date-fns` thay thế được; vượt trần → dừng, báo `tech-lead` (phương án ở §12.9). Vượt ngân sách Round nhưng còn dưới trần → báo lại, không tự tải lười thêm.
 3. SCC: R1 `sccfiles.mjs | diff - $SP/consignment-r3/scc-target.txt` **rỗng**; từ R2 trở đi `sccfiles.mjs` **rỗng** (0 file).
    `node $SP/tl-verify/evalorder.mjs $REPO /src/app/routes.tsx` → `OK`.
 4. `TZ=Asia/Ho_Chi_Minh node $SP/phase6/sizes.mjs $REPO` → `TOTAL` **1.837.906** (không Round nào đổi seed; R3a: giữ nguyên nếu dump trùng).
@@ -686,12 +688,147 @@ Danh sách file đổi (khớp `git status`) · output rút gọn DoD 1–8 (t�
 **Nợ ghi nhận (không chặn):** **H-N1 —** `applySystemStatusChange` ném lỗi `from === to` bằng chuỗi viết tại chỗ (cùng quy ước N12). **H-N2 —** thông báo đã lưu
 trước R1 không có `linkFallback` tới khi Reset dữ liệu demo (chỉ thông báo phân công của `DISPATCHER`; bấm vào → "Không có quyền").
 
+## 12. Round 2 — brief giao việc cho `dev` (`APPROVED` 23/10/2026)
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+### 12.1. Bối cảnh
+
+R1 đã `DONE` (commit `a897c94`). Cả `src/` hiện có **một vòng import lớn (SCC) gồm 98 file**. Nguyên nhân duy nhất (§3.1): barrel `features/<x>/index.ts`
+trộn **dữ liệu** (type, `api`, `model`, `hooks`, storage key) với **màn hình/component**. Ví dụ `finance/payment/ledger.ts` cần `RENTALS_STORAGE_KEY` →
+`rentals/index.ts` → `RentalDetailScreen` → `finance/index.ts` → … → `ledger.ts`. Mô phỏng ở mức symbol (§3.3): chỉ cần tách mỗi barrel thành 2 điểm nhập là
+**SCC = 0**.
+
+Round này là **refactor thuần cơ học, không đổi hành vi**. Diff chỉ gồm dòng `export`/`import`, file `ui.ts` mới và cấu hình lint. Thước đo "không đổi hành vi"
+là: dump seed và output toàn bộ harness **y hệt** baseline chụp ở commit R1 (`$SP/hardening/baseline-r1/`, `base-r1-{hcm,utc}.json`).
+
+Người dùng đã duyệt **E2** (2 điểm nhập), **E3** (`import/no-cycle`), **E4** (xoá `audit/index.ts`, `dashboard/index.ts`) — §10 câu 4.
+
+### 12.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §12.5)
+
+1. **Quy tắc tách** áp cho **cả 15 feature** (H6):
+   - `features/<x>/index.ts` — **chỉ** dữ liệu: `export type`, hàm/hằng từ `model`/`api`/`hooks`/`storage`/`*Model.ts`/`*Api.ts`. **Không** export gì từ
+     `screens/`, `components/`, `lazyScreens.ts`, `lazyWidgets.ts`.
+   - `features/<x>/ui.ts` (**mới**) — **chỉ** màn hình và component: mọi export hiện có trong `index.ts` trỏ tới `screens/`, `components/`, `lazyScreens.ts`,
+     `lazyWidgets.ts`. Giữ **nguyên tên**, giữ bản **lazy** ở đúng chỗ đang lazy (không chuyển sang import tĩnh, không thêm lazy mới).
+   - Mỗi `ui.ts` mở đầu bằng comment 1 dòng: `// Điểm nhập UI của feature (màn hình + component) — TECH-HARDENING-PLAN.md §3.2 (E2). Code không phải UI không import file này.`
+   - Mỗi export chuyển sang `ui.ts` **giữ nguyên comment nguồn** đi kèm (vd. `// CONSIGNMENT-PLAN.md §19.7 …`).
+   - `type` export kèm theo màn (nếu có) để lại `index.ts`.
+2. **Danh sách tách** (đếm từ `index.ts` hiện tại — `dev` đối chiếu lại):
+
+   | Feature | Chuyển sang `ui.ts` |
+   | --- | --- |
+   | `audit` | `AuditLogScreen` (lazy) → **xoá `index.ts`** (E4) |
+   | `auth` | `LoginScreen`, `SystemConfigScreen`/`PermissionMatrixScreen` (lazy), `RequirePermission` |
+   | `calendar` | `CalendarScreen`, `DispatchBoardScreen` |
+   | `consignment` | `VehicleConsignmentTab`, `OwnerBankAccountField`, `OwnerPayoutStatusBadge`, 7 screen |
+   | `contracts` | `ContractListScreen`, `ContractDetailScreen` |
+   | `customers` | `CustomerListScreen`, `CustomerDetailScreen` |
+   | `dashboard` | `DashboardScreen` → **xoá `index.ts`** (E4) |
+   | `employees` | `EmployeeListScreen`, `EmployeeDetailScreen` (lazy) |
+   | `finance` | `SettlementListScreen`, `SettlementWorksheet`, `TransactionLedgerScreen`, `CashDrawerScreen`, `RentalPaymentTab`, `CustomerReceivablesScreen`, `CostRecordsScreen`, `VehicleRevenueTab`, `VehicleCostTab`, `VehicleProfitTab`, `FinanceReportScreen` (lazy), `OwnerPayoutScreen`, `DashboardFinanceWidget` (lazy) |
+   | `handover-return` | `HandoverReturnListScreen` |
+   | `incidents` | `IncidentListScreen`, `IncidentDetailScreen` |
+   | `maintenance` | `MaintenanceScreen` |
+   | `notifications` | `NotificationBell`, `NotificationCenterScreen` (lazy) |
+   | `rentals` | `RentalListScreen`, `RentalDetailScreen` |
+   | `vehicles` | `VehicleListScreen`, `VehicleDetailScreen` |
+
+3. **Sửa importer — đúng 7 file** (danh sách đo bằng `$SP/hardening/sim-split.mjs`):
+   - `src/app/routes.tsx` — mọi màn + `NotificationBell` + `RequirePermission` lấy từ `@/features/<x>/ui` (15 feature).
+   - `src/features/dashboard/screens/DashboardScreen.tsx` — `DashboardFinanceWidget` từ `@/features/finance/ui`.
+   - `src/features/rentals/screens/RentalDetailScreen.tsx` — `RentalPaymentTab`, `SettlementWorksheet` từ `@/features/finance/ui`.
+   - `src/features/vehicles/screens/VehicleDetailScreen.tsx` — 3 tab tài chính từ `@/features/finance/ui`, `VehicleConsignmentTab` từ `@/features/consignment/ui`.
+   - `src/features/finance/payment/components/OwnerPayoutCreateDialog.tsx` — `OwnerBankAccountField` từ `@/features/consignment/ui`. Các `type` vẫn lấy từ `@/features/consignment`.
+   - `src/features/finance/payment/screens/OwnerPayoutScreen.tsx` — phần component (`OwnerPayoutStatusBadge`, `OwnerBankAccountField` nếu có) từ `@/features/consignment/ui`. Phần dữ liệu giữ `@/features/consignment`.
+   - Nếu `tsc -b` báo thêm importer ngoài danh sách → sửa theo cùng quy tắc và ghi vào "lệch plan".
+4. **`.oxlintrc.json`** (E3): `"plugins": ["react", "typescript", "oxc", "import"]`; thêm rule `"import/no-cycle": ["error", { "ignoreTypes": true }]`.
+   Đã thử trên HEAD R1: bật plugin `import` chỉ sinh lỗi `no-cycle` (196 lỗi), không sinh cảnh báo loại khác. Sau khi tách barrel mà `no-cycle` vẫn báo
+   (vd. vòng qua `import()` động của `lazyScreens`, hoặc vòng type-only mà `ignoreTypes` không bỏ được): **không** tắt rule, **không** sửa logic để né. Dừng lại,
+   báo danh sách file + chuỗi vòng cho `tech-lead` quyết.
+
+### 12.3. Ngoài phạm vi R2 (không làm dù "tiện tay")
+
+Gom 89 import sâu chéo feature vào barrel (R2b — tuỳ chọn, sau R3b) · đổi import E1 `handover-return/api.ts → @/features/vehicles/api` · đổi nội dung bất kỳ hàm,
+component, màn hình nào · thêm/bớt tải lười · đổi thứ tự `registerSeeds.ts` · đổi seed / `SEED_VERSION` (giữ 26) · đổi `permissions.ts`, `routeAccess.ts` · sửa ngày giờ (R3) ·
+sửa `CONVENTIONS.md` / `docs/` (`tech-lead` làm khi bàn giao) · chạy trình duyệt.
+
+### 12.4. Quy tắc bắt buộc
+
+- `CONVENTIONS.md` §3, §11; `docs/ARCHITECTURE.md` §2, §7 (quy tắc tải lười: bản lazy vẫn là bản được export).
+- Diff `src/` chỉ gồm: dòng `export … from` / `import … from`, comment đi kèm export, file `ui.ts` mới, 2 file `index.ts` bị xoá. Bất kỳ dòng nào khác → ghi lý do trong báo cáo.
+- Code không phải UI (`api.ts`, `model.ts`, `hooks.ts`, `seed.ts`, `storage.ts`, `*Model.ts`, `*Api.ts`, `ledger.ts`, `seedHelpers.ts`) **không** import `@/features/<x>/ui`.
+- `shared/` không import `@/features/<x>/ui`.
+- Gặp chỗ plan không khớp code → làm theo ý plan, ghi "lệch plan". Không có quyết định nghiệp vụ nào trong Round này.
+
+### 12.5. Thứ tự làm
+
+1. Tạo 15 `ui.ts` và chuyển export như mục 2 (`index.ts` bỏ dòng tương ứng; xoá `audit/index.ts`, `dashboard/index.ts`).
+2. Sửa 7 importer (mục 3), rồi chạy `npx tsc -b` cho tới khi sạch.
+3. Chạy DoD 3 + 4 (SCC phải = 0) **trước** khi bật lint.
+4. Bật `import/no-cycle` (mục 4), rồi chạy `npx oxlint`.
+5. Chạy toàn bộ DoD 1–9.
+
+### 12.6. Definition of Done R2 — chạy đủ và dán kết quả vào báo cáo
+
+1. `npx tsc -b` · `npx oxlint` (**có** `import/no-cycle`) · `npm run build` sạch (chỉ 2 cảnh báo `only-export-components` cũ). `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. `node $SP/hardening/initial-load.mjs $REPO` (sau build) → `INITIAL_JS` ≤ **1.864.679** (R1 1.863.679 + 1.000). Báo chênh lệch so với 1.863.679.
+3. `node $SP/consignment-r3/sccfiles.mjs $REPO` → **rỗng**. `node $SP/hardening/scc-edges.mjs $REPO | tail -1` → `SCC count 0 sizes []`.
+4. `evalorder` OK cho từng file: `/src/app/routes.tsx`, mọi `/src/features/<x>/index.ts` còn lại (13), mọi `/src/features/<x>/ui.ts` (15). Ví dụ:
+   `for f in $REPO/src/features/*/index.ts $REPO/src/features/*/ui.ts $REPO/src/app/routes.tsx; do node $SP/tl-verify/evalorder.mjs $REPO "${f#$REPO}"; done`
+   → 29 dòng `OK`.
+5. Kiểm tĩnh (cả 3 phải rỗng):
+   - `grep -nE "(screens|components)/|lazyScreens|lazyWidgets" $REPO/src/features/*/index.ts`
+   - `grep -rnE "from '@/features/[a-z-]+/ui'" $REPO/src/features $REPO/src/shared --include=api.ts --include=model.ts --include=hooks.ts --include=seed.ts --include=storage.ts --include='*Model.ts' --include='*Api.ts' --include=ledger.ts --include=seedHelpers.ts`
+   - `grep -rnE "from '@/features/[a-z-]+/ui'" $REPO/src/shared`
+6. **Hành vi y hệt — seed:** `TZ=Asia/Ho_Chi_Minh node $SP/hardening/dump-seed.mjs $REPO $SP/hardening/r2-hcm.json && node $SP/hardening/diff-seed.mjs $SP/hardening/base-r1-hcm.json $SP/hardening/r2-hcm.json`
+   → `TOTAL diff records 0`. Làm lại với `TZ=UTC` so với `base-r1-utc.json` → 0.
+7. **Hành vi y hệt — harness:** `bash $SP/hardening/run-harness.sh $REPO Asia/Ho_Chi_Minh $SP/hardening/r2-out $SP/hardening/baseline-r1` và cùng lệnh với `UTC`
+   → **16/16 dòng `diff=0`** (dưới UTC `notif-r2` FAILS 8 và `signals-r1` 28 là nợ N8 có sẵn trong baseline — phải giữ y hệt).
+8. Harness R1 vẫn ALL PASS: `TZ=Asia/Ho_Chi_Minh node $SP/hardening/guard-r1.mjs $REPO` và `TZ=Asia/Ho_Chi_Minh node $SP/hardening/n4-r1.mjs $REPO`. Nếu 2 harness này
+   import đường dẫn barrel cũ (vd. `@/features/auth` cho màn) thì sửa import trong harness (ngoài repo) và ghi lại.
+9. `git status`: 15 `ui.ts` mới · 13 `index.ts` sửa · 2 `index.ts` xoá (`audit`, `dashboard`) · 7 importer (mục 3) · `.oxlintrc.json`. Không file `docs/`. Báo số file (kỳ vọng 37 + 1).
+
+**Không yêu cầu** kiểm bằng trình duyệt (quyết định 14/09/2026).
+
+### 12.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §3 (toàn bộ), §6 (H6), §8, §10 câu 4, §11.9 (L1 — ngân sách tải đầu), §12.
+2. `CONVENTIONS.md` §3, §11 · `docs/ARCHITECTURE.md` §2, §7.
+3. 15 file `src/features/<x>/index.ts` (toàn file) · `src/features/*/screens/lazyScreens.ts` (4 file) · `src/features/finance/revenue-cost/{screens/lazyScreens.ts,components/lazyWidgets.ts}`.
+4. 7 importer ở mục 3 (chỉ khối `import` đầu file) · `.oxlintrc.json`.
+5. Script: `$SP/hardening/{sim-split.mjs,scc-edges.mjs,graph.mjs,run-harness.sh,dump-seed.mjs,diff-seed.mjs,initial-load.mjs}` · `$SP/tl-verify/evalorder.mjs`.
+
+Không cần đọc tài liệu nghiệp vụ ở `../thien-bao-car-docs/` — Round này không chạm nghiệp vụ.
+
+### 12.8. Báo cáo bàn giao `dev` phải có
+
+Danh sách file đổi (khớp `git status`, có số đếm) · output rút gọn DoD 1–8 (tải đầu + chênh lệch, SCC, 29 dòng `evalorder`, 3 lệnh grep, `diff-seed` HCM/UTC, bảng `run-harness` HCM + UTC,
+`guard-r1`/`n4-r1`) · bảng "feature → export đã chuyển sang `ui.ts`" (đối chiếu mục 2) · mọi dòng diff không phải `export`/`import` + lý do · mọi chỗ lệch plan.
+
+### 12.9. Kết quả review & phán quyết (23/10/2026 — đạt vòng 1, không Blocker)
+
+`tech-lead` chạy lại: `tsc -b`/`oxlint` (có `import/no-cycle`, 0 lỗi)/`build` sạch · `sccfiles.mjs` rỗng, `scc-edges` `SCC count 0` · `run-harness` HCM + UTC **16/16 `diff=0`** so
+`baseline-r1` · `diff-seed` HCM 0 · `guard-r1` ALL PASS · `n4-r1` ALL PASS (sau khi sửa C10). Đọc diff: chỉ dòng `export`/`import`/comment; `index.ts` không còn export UI; bản lazy giữ nguyên.
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L1 | Tải đầu **1.869.188 B** (+5.509 so với R1; vượt ngân sách R2 4.509 B; dư 812 B dưới trần) | **Chấp nhận (b).** Đo nguyên nhân (`$SP/hardening/initial-modules.mjs`, build `--sourcemap` R1 vs R2): **tập module nguồn trong tải đầu y hệt — 0 thêm, 0 bớt**; không module lazy nào bị kéo vào tải đầu. Phần tăng là chi phí ranh giới chunk: Rolldown chia tải đầu từ 10 thành 16 file (`hooks` 131 kB, `cn`, `button`, `model`×2, `sheet`, `x`, `auth` 25 B…) vì đồ thị phụ thuộc giữa chunk lười và chunk chính đổi khi barrel không còn trộn màn hình → thêm câu lệnh import/export giữa chunk và tên export không bị rút gọn. **gzip chỉ +660 B** (464.409 → 465.069). Không có sửa nhỏ nào trong phạm vi R2 trả về số cũ (lựa chọn (a) không áp dụng). Không nâng trần (c). Hệ quả cho R3: §8 mục 2. Đòn bẩy dự phòng nếu R3 vượt: tải lười thêm một phần ít dùng của chunk chính hoặc cấu hình `build.rolldownOptions.output.codeSplitting` gom chunk tải đầu — cả hai cần `tech-lead` duyệt trước; nâng trần D11 cần người dùng. |
+| L2 | `n4-r1` C10 FAIL (so target 98 file cũ) | **Chấp nhận** — harness lỗi thời. `tech-lead` sửa C10 thành "`sccfiles.mjs` rỗng" (bản cũ `n4-r1.mjs.bak-r2`) → ALL PASS. |
+| L3 | 6 importer thay vì 7 | **Chấp nhận** — `OwnerPayoutCreateDialog.tsx`/`OwnerPayoutScreen.tsx` đếm theo file; `tsc` không báo thêm. |
+| L4 | Xoá comment nguồn mồ côi trong `index.ts` của `calendar`, `employees`, `finance` | **Chấp nhận** — comment đi kèm export đã chuyển sang `ui.ts`. |
+
+`tech-lead` sửa `$SP/hardening/run-harness.sh` nhận đường dẫn tương đối. Cập nhật `CONVENTIONS.md` §3 (2 điểm nhập, `import/no-cycle`) và `docs/ARCHITECTURE.md`
+§2, §7. Baseline mới ở commit R2: `$SP/hardening/baseline-r2/`, `base-r2-{hcm,utc}.json`.
+
 ---
 
-## 12. Lịch sử
+## 13. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 23/10/2026 | **R2 `DONE`** — review vòng 1 đạt, không Blocker; SCC 98 → 0, bật `import/no-cycle`; chấp nhận L1–L4 (L1: tải đầu 1.869.188 B do chia chunk, tập module không đổi) — §12.9. |
+| 23/10/2026 | Brief R2 (§12) — **giao `dev`**; baseline mới ở commit R1 (`a897c94`): `$SP/hardening/baseline-r1/` + `base-r1-{hcm,utc}.json`. |
 | 23/10/2026 | **R1 `DONE`** — review vòng 1 đạt, không Blocker; chấp nhận L1–L4 (L1: phân bổ lại ngân sách tải đầu; L3: sửa harness `platform-r4a`, chụp baseline mới `baseline-r1/`) — §11.9. |
 | 23/10/2026 | **`APPROVED`** — người dùng duyệt cả 6 điểm §10. Điều chỉnh kỹ thuật phương án B (link theo người xem — `linkFallback`, vì người được giao `OPERATION_STAFF` thiếu `ASSIGNMENT.VIEW`). Viết brief R1 (§11), **giao `dev`**; dựng `hardening/{expect-guard-r1.json,asg-recipients.mjs}`. |
 | 23/10/2026 | Tạo kế hoạch (`DRAFT — CHỜ NGƯỜI DÙNG DUYỆT`). Đo HEAD `ef42332`: tải đầu 1.857.015 B, SCC 98 file (mô phỏng tách barrel → 0), 18 ô vai trò × nhóm route lọt quyền, seed lệch 2.818 bản ghi giữa HCM/UTC, 69 file phụ thuộc giờ trình duyệt. Dựng script + baseline ở `$SP/hardening/`. |

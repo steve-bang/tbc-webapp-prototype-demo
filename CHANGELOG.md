@@ -15,6 +15,11 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6.1 Round 2 — Gỡ vòng import** (theo [`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md) §3, §12). Mỗi feature nay có **2 điểm nhập**:
+  `index.ts` (dữ liệu: type, api, model, hook) và `ui.ts` (màn hình, component — kể cả bản tải lười); `audit`, `dashboard` chỉ còn `ui.ts`. Vòng import
+  lớn **98 file → 0**; bật `import/no-cycle` trong `oxlint` để chặn vòng mới. **Không đổi hành vi**: seed và toàn bộ harness y hệt trước (giờ Việt Nam + UTC).
+  Tải đầu Dashboard 1.869.188 B (≤ 1.870 kB; tập module tải đầu không đổi — tăng do Rolldown chia thêm chunk, gzip +0,7 kB). Cập nhật `CONVENTIONS.md` §3,
+  `docs/ARCHITECTURE.md` §2/§7. Review `tech-lead` **đạt vòng 1**, không Blocker.
 - **Phase 6.1 Round 1 — Chặn truy cập theo quyền ở tầng route + đồng bộ trạng thái xe khi huỷ giao/nhận** (theo
   [`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md) §1, §2, §11). **Hành vi mới:** gõ thẳng URL một màn mà vai trò hiện tại không có quyền
   (vd. `DISPATCHER` mở `/vehicles`, `OPERATION_STAFF` mở `/finance/settlement`) giờ hiện màn **"Không có quyền truy cập"** kèm nút về Tổng quan thay vì
@@ -28,7 +33,7 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 **Planned**
 
 - **Phase 6.1 — Vòng kỹ thuật** ([`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md), `APPROVED`): R1 route guard + N4 (xong) → R2 gỡ vòng
-  import (SCC 98 → 0, tách `index.ts`/`ui.ts`) → R3a/R3b cố định múi giờ `Asia/Ho_Chi_Minh` (`SA-BR-14`).
+  import (xong — SCC 98 → 0, tách `index.ts`/`ui.ts`) → R3a/R3b cố định múi giờ `Asia/Ho_Chi_Minh` (`SA-BR-14`).
 
 **Added**
 

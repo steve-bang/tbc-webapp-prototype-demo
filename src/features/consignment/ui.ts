@@ -1,0 +1,11 @@
+// Điểm nhập UI của feature (màn hình + component) — TECH-HARDENING-PLAN.md §3.2 (E2). Code không phải UI không import file này.
+export { VehicleConsignmentTab } from './components/VehicleConsignmentTab'
+export { OwnerBankAccountField } from './components/OwnerBankAccountField'
+export { OwnerPayoutStatusBadge } from './components/OwnerPayoutStatusBadge'
+export { ConsignmentContractDetailScreen } from './screens/ConsignmentContractDetailScreen'
+export { ConsignmentContractListScreen } from './screens/ConsignmentContractListScreen'
+export { ConsignmentProposalDetailScreen } from './screens/ConsignmentProposalDetailScreen'
+export { ConsignmentProposalListScreen } from './screens/ConsignmentProposalListScreen'
+export { OwnerPayoutScheduleScreen } from './screens/OwnerPayoutScheduleScreen'
+export { VehicleOwnerDetailScreen } from './screens/VehicleOwnerDetailScreen'
+export { VehicleOwnerListScreen } from './screens/VehicleOwnerListScreen'

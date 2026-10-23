@@ -1,8 +1,8 @@
 import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AuditLogScreen } from '@/features/audit'
-import { LoginScreen, PermissionMatrixScreen, RequirePermission, SystemConfigScreen } from '@/features/auth'
-import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
+import { AuditLogScreen } from '@/features/audit/ui'
+import { LoginScreen, PermissionMatrixScreen, RequirePermission, SystemConfigScreen } from '@/features/auth/ui'
+import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar/ui'
 import {
   ConsignmentContractDetailScreen,
   ConsignmentContractListScreen,
@@ -11,18 +11,18 @@ import {
   OwnerPayoutScheduleScreen,
   VehicleOwnerDetailScreen,
   VehicleOwnerListScreen,
-} from '@/features/consignment'
-import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
-import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
-import { DashboardScreen } from '@/features/dashboard'
-import { EmployeeDetailScreen, EmployeeListScreen } from '@/features/employees'
-import { CashDrawerScreen, CostRecordsScreen, CustomerReceivablesScreen, FinanceReportScreen, OwnerPayoutScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance'
-import { HandoverReturnListScreen } from '@/features/handover-return'
-import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents'
-import { MaintenanceScreen } from '@/features/maintenance'
-import { NotificationBell, NotificationCenterScreen } from '@/features/notifications'
-import { RentalDetailScreen, RentalListScreen } from '@/features/rentals'
-import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles'
+} from '@/features/consignment/ui'
+import { ContractDetailScreen, ContractListScreen } from '@/features/contracts/ui'
+import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers/ui'
+import { DashboardScreen } from '@/features/dashboard/ui'
+import { EmployeeDetailScreen, EmployeeListScreen } from '@/features/employees/ui'
+import { CashDrawerScreen, CostRecordsScreen, CustomerReceivablesScreen, FinanceReportScreen, OwnerPayoutScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance/ui'
+import { HandoverReturnListScreen } from '@/features/handover-return/ui'
+import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents/ui'
+import { MaintenanceScreen } from '@/features/maintenance/ui'
+import { NotificationBell, NotificationCenterScreen } from '@/features/notifications/ui'
+import { RentalDetailScreen, RentalListScreen } from '@/features/rentals/ui'
+import { VehicleDetailScreen, VehicleListScreen } from '@/features/vehicles/ui'
 import { vi } from '@/shared/i18n/vi'
 import { AppShell } from '@/shared/layout/AppShell'
 import { paths } from './paths'

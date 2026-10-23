@@ -35,12 +35,13 @@ src/
 │   ├── incidents                     DI (Phase 3)
 │   ├── finance                        RS + PM + RV (Phase 4) — chia thư mục con từ Phase 4.4:
 │   │                                    core ← payment (PM) ← settlement (RS) ← revenue-cost (RV),
-│   │                                    gốc chỉ index.ts + seed.ts (docs/FINANCE-REFACTOR-PLAN.md)
+│   │                                    gốc chỉ index.ts + ui.ts + seed.ts (docs/FINANCE-REFACTOR-PLAN.md)
 │   ├── consignment                     VC (Phase 5)
 │   ├── audit                            AL — màn Nhật ký thao tác, đọc `shared/lib/audit.ts` (Phase 6)
 │   └── notifications                     NT — gom tín hiệu cảnh báo từ module nguồn (mô hình quét) +
 │                                           Trung tâm thông báo IN_APP_WEBAPP (Phase 6)
-│       # mỗi thư mục: model.ts · api.ts · hooks.ts · components/ · screens/ · seed.ts · index.ts
+│       # mỗi thư mục: model.ts · api.ts · hooks.ts · components/ · screens/ · seed.ts · index.ts (dữ liệu) · ui.ts (màn/component)
+│       # (audit, dashboard chỉ có ui.ts — không export dữ liệu). Không có vòng import (SCC = 0 từ Phase 6.1 R2).
 └── shared/
     ├── ui/           shadcn/Radix primitives (button, input, table, dialog, sheet, tabs…)
     ├── layout/       AppShell (prop `topbarSlot` — app/routes ghép chuông thông báo), Sidebar (lọc theo quyền),
@@ -147,11 +148,12 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   `WebappQuanTri.md` §5.4 — thêm màn hình mới ở đúng nhóm, không tự tạo nhóm mới trừ khi tài liệu
   đổi. Nhãn menu lấy từ `vi.nav`.
 - **Tải lười màn ít dùng** (`docs/DASHBOARD-PLATFORM-PLAN.md` D11): feature có `screens/lazyScreens.ts`
-  (`React.lazy(() => import('./XxxScreen').then(...))`), barrel `index.ts` export **bản lazy** (giữ nguyên tên),
+  (`React.lazy(() => import('./XxxScreen').then(...))`), barrel UI `ui.ts` export **bản lazy** (giữ nguyên tên),
   `app/routes.tsx` bọc `<Suspense fallback=…>`. Đang áp cho Báo cáo tài chính, Trung tâm thông báo, Nhật ký thao tác,
   Cấu hình hệ thống, Vai trò & quyền, Chi tiết nhân viên, widget tài chính Dashboard. Trần: **tổng JS tải đầu
-  `/dashboard` (entry + mọi `modulepreload`) ≤ 1.870 kB**. Barrel được `shared/layout` import (vd. `auth`) tuyệt đối không
-  export tĩnh màn mới.
+  `/dashboard` (entry + mọi `modulepreload`) ≤ 1.870 kB**. Barrel dữ liệu `index.ts` (được `shared/layout` import, vd. `auth`)
+  không còn export màn nào (Phase 6.1 R2). Lưu ý đo: tách barrel ở R2 không đổi tập module tải đầu (so sourcemap) nhưng Rolldown chia thêm
+  chunk dùng chung → +5,5 kB do ranh giới chunk (gzip +0,7 kB) — `docs/TECH-HARDENING-PLAN.md` §12.9.
 - **Danh sách dài phân trang phía client** (`shared/lib/pagination.ts` + `shared/ui/pagination.tsx`, 25 dòng/trang): số
   tổng/đếm tính trên toàn bộ dữ liệu đã lọc, chỉ cắt mảng hiển thị; đổi bộ lọc → về trang 1.
 

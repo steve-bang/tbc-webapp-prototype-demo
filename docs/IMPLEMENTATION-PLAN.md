@@ -632,7 +632,8 @@ seed lệch 2.818 bản ghi giữa giờ máy HCM và UTC; 69 file phụ thuộc
       1.863.679 B, ngân sách R2/R3 phân bổ lại; SCC giữ 98 file; seed không đổi) (plan §1, §2): `RequirePermission` (layout route, quyền theo `nav.tsx`, 18 nhóm) + `NoPermissionState`;
       huỷ giao/nhận xe tự cập nhật `Vehicle Status` theo bảng giả định (`UC-VH-14`/`UC-VR-19`, `TODO(OQ)`), audit
       `SYSTEM_CHANGE_VEHICLE_STATUS`; `DISPATCHER` mở thông báo phân công → Bảng điều phối (`linkFallback`, phương án B); không đổi `permissions.ts`, seed, SCC.
-- [ ] **R2 — Gỡ vòng import** (plan §3): mỗi feature 2 điểm nhập `index.ts` (dữ liệu) + `ui.ts` (màn/component) → SCC 98 → **0**; bật
+- [x] **R2 — Gỡ vòng import** — **DONE** (23/10/2026, brief plan §12, review đạt vòng 1, không Blocker — plan §12.9; SCC **0**, tải đầu
+      1.869.188 B — tập module tải đầu không đổi, tăng do chia chunk) (plan §3): mỗi feature 2 điểm nhập `index.ts` (dữ liệu) + `ui.ts` (màn/component) → SCC 98 → **0**; bật
       `import/no-cycle` trong `oxlint` (đã duyệt E2–E4). Không đổi hành vi (dump seed + harness y hệt).
 - [ ] **R3a — N8 nền + dữ liệu/logic** (plan §4): `shared/lib/datetime.ts` offset cố định UTC+7 (`SA-BR-14`), 13 seed + 15 file logic → seed
       và harness giống hệt dưới mọi múi giờ máy.
