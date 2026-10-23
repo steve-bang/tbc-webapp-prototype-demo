@@ -576,7 +576,25 @@ không phải số thật): lợi nhuận vận hành 12 tháng từ −1,24 t�
       Chấp nhận 3 lệch plan (`HISTORY_TO` −4 · `SCALE` 0,6 + `FILL_FROM` −35 · thêm ngày loại trừ). Nợ: dung lượng sát ngân sách
       (dư ~1,5%); giao dịch hoàn cọc lịch sử không có biên lai `BL-` — chi tiết plan §10.
 
-## Phase 6 — Hoàn thiện nền tảng & polish — `[ ]`
+## Phase 6 — Hoàn thiện nền tảng & polish — `[~]`
+
+Kế hoạch: [`docs/DASHBOARD-PLATFORM-PLAN.md`](DASHBOARD-PLATFORM-PLAN.md) — **`APPROVED`** (23/10/2026, người dùng duyệt cả 7
+điểm plan §16). Chia 4 round:
+
+- [x] **R1 — Tín hiệu cảnh báo + Dashboard** — **DONE** (23/10/2026, review `tech-lead` đạt vòng 1, không Blocker — plan §18.9;
+      30 tín hiệu trên seed, chunk chính 1.810,71 kB, SCC giữ 98 file, seed 1.822.102 ký tự): hàm thuần `collect…Signals` ở 8
+      module nguồn, gom ở `features/notifications` (tính động, không lưu); `features/dashboard` (KPI vận hành + widget KPI tài
+      chính do `finance` sở hữu + bảng cảnh báo); sửa enum `NOTIFICATION_EVENT_TYPES` theo `NT` §7; đồng bộ `Vehicle Status` seed
+      3 xe đang có lượt (`VH-BR-10`, `SEED_VERSION` 23 → 24).
+- [ ] **R2 — Trung tâm thông báo** (`IN_APP_WEBAPP`, sự kiện có lưu + khử trùng + tự `CANCELLED`, Inbox, chuông Topbar qua slot).
+- [ ] **R3 — Nhật ký thao tác** (Audit Record mở rộng tương thích ngược, trần theo ký tự, lọc/phân trang/che dữ liệu/xuất CSV,
+      seed nhật ký mẫu, `AUDIT.VIEW` theo `AL` §16; component phân trang; nợ tab Nhật ký ký gửi).
+- [ ] **R4 — Quản trị hệ thống + polish** (Vai trò & quyền, Cấu hình hệ thống, phân trang danh sách dài, màn Chi tiết nhân viên
+      `/employees/:id`, gom chuỗi `vi.ts`, rà responsive, `README.md`).
+
+Ngân sách seed giữ trần 1,85 triệu ký tự (dự kiến ≤ 1,84 tr). Các mục backlog gốc bên dưới giữ nguyên để đối chiếu — ánh xạ:
+Dashboard → R1 · Trung tâm thông báo → R1+R2 · Nhật ký thao tác → R3 · Cấu hình hệ thống, Vai trò & quyền, responsive, `vi.ts`,
+`README.md` → R4.
 
 - [ ] **Dashboard** thật: KPI vận hành + tài chính, cảnh báo (đăng kiểm/bảo hiểm sắp hết hạn, lượt sắp
       giao/nhận, quá hạn trả, payment quá hạn, sự cố chưa xử lý, bảo dưỡng đến hạn, ký gửi sắp đến hạn) —

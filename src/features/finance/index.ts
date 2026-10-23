@@ -23,3 +23,9 @@ export type { CostRecord } from './revenue-cost/model'
 export { FinanceReportScreen } from './revenue-cost/screens/lazyScreens'
 // docs/CONSIGNMENT-PLAN.md §19.7 — màn Chi trả chủ xe (mount ở /consignment/owner-payouts).
 export { OwnerPayoutScreen } from './payment/screens/OwnerPayoutScreen'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { PAYMENT_REQUESTS_STORAGE_KEY, SETTLEMENTS_STORAGE_KEY, TRANSACTIONS_STORAGE_KEY } from './core/storage'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { collectPaymentSignals } from './payment/model'
+// DASHBOARD-PLATFORM-PLAN.md §5.3 — bản lazy (import tĩnh sẽ làm nở SCC), nơi dùng bọc <Suspense>.
+export { DashboardFinanceWidget } from './revenue-cost/components/lazyWidgets'

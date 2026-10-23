@@ -20,6 +20,7 @@ import type {
   CostRecordStatus,
   CostSource,
   CustomerDocumentType,
+  DashboardAlertGroup,
   CustomerStatus,
   DocumentStatus,
   EmployeeStatus,
@@ -32,6 +33,8 @@ import type {
   IncidentType,
   Liability,
   MaintenanceRuleAppliesTo,
+  NotificationEventType,
+  NotificationPriority,
   OwnerType,
   OwnershipType,
   PaymentMethod,
@@ -2715,6 +2718,30 @@ export const vi = {
       reconNote: 'Công cụ quản trị để đối chiếu, không phải báo cáo lưu chuyển tiền tệ.',
       reconReceivablesLink: 'Xem công nợ khách hàng',
     },
+    // Widget KPI tài chính ở Dashboard — `RevenueCost-BRD.md` §17, `docs/DASHBOARD-PLATFORM-PLAN.md` §4.4/§8.1.
+    dashboardWidget: {
+      title: 'Tài chính',
+      description: 'Doanh thu ghi nhận khi quyết toán hoàn tất; lợi nhuận vận hành = doanh thu − chi phí trực tiếp (ước tính quản trị).',
+      loadError: 'Không tải được dữ liệu tài chính.',
+      periodToday: 'Hôm nay',
+      periodMonth: 'Tháng này',
+      previousToday: 'so hôm qua',
+      previousMonth: 'so tháng trước',
+      kpiRevenue: 'Doanh thu',
+      kpiDirectCost: 'Chi phí trực tiếp',
+      kpiOperatingProfit: 'Lợi nhuận vận hành',
+      kpiReceivables: 'Công nợ phải thu',
+      kpiReceivablesHint: 'Tổng số dư khách còn nợ hiện tại',
+      chartTitle: 'Doanh thu theo ngày (30 ngày gần nhất)',
+      chartEmpty: 'Chưa có doanh thu trong 30 ngày gần nhất.',
+      topVehiclesTitle: 'Xe lợi nhuận cao nhất (30 ngày)',
+      lowVehiclesTitle: 'Xe lợi nhuận thấp nhất (30 ngày)',
+      vehiclesEmpty: 'Chưa có dữ liệu xe.',
+      columnPlate: 'Biển số',
+      columnRevenue: 'Doanh thu',
+      columnProfit: 'Lợi nhuận',
+      reportLink: 'Xem báo cáo tài chính',
+    },
   },
   // Màn "Bảng điều phối trong ngày" (`/schedule/dispatch`, module `EA`/`RC`) —
   // `docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §5.1.
@@ -2737,7 +2764,163 @@ export const vi = {
     widgetOverdueReturn: 'Quá hạn trả',
     widgetEmpty: 'Không có',
   },
+  // Cảnh báo vận hành (tín hiệu) — `docs/DASHBOARD-PLATFORM-PLAN.md` §3.1/§4.1. Template v1 (NT-BR-09);
+  // TODO(OQ: Notification-BRD.md §20 Q3) — ai soạn/sửa Template chưa chốt, Phase 6 cố định trong file này.
+  notifications: {
+    templateVersion: 1,
+    entity: {
+      vehicle: 'Xe',
+      rental: 'Lượt thuê',
+      contract: 'Hợp đồng',
+      incident: 'Sự cố',
+      assignment: 'Phân công',
+      consignmentContract: 'Hợp đồng ký gửi',
+      payout: 'Chi trả chủ xe',
+    },
+    // Khoá `<EventType>` hoặc `<EventType>:<payload.kind>` (biến thể theo `kind`). Biến `{{tên}}` lấy từ `payload`.
+    templates: {
+      VEHICLE_INSPECTION_EXPIRING: {
+        title: 'Đăng kiểm sắp hết hạn',
+        body: 'Xe {{plate}}: đăng kiểm hết hạn {{expiryDate}} (còn {{daysLeft}} ngày).',
+      },
+      'VEHICLE_INSPECTION_EXPIRING:EXPIRED': {
+        title: 'Đăng kiểm đã hết hạn',
+        body: 'Xe {{plate}}: đăng kiểm đã hết hạn từ {{expiryDate}} ({{daysOverdue}} ngày).',
+      },
+      VEHICLE_INSURANCE_EXPIRING: {
+        title: 'Bảo hiểm sắp hết hạn',
+        body: 'Xe {{plate}}: bảo hiểm hết hạn {{expiryDate}} (còn {{daysLeft}} ngày).',
+      },
+      'VEHICLE_INSURANCE_EXPIRING:EXPIRED': {
+        title: 'Bảo hiểm đã hết hạn',
+        body: 'Xe {{plate}}: bảo hiểm đã hết hạn từ {{expiryDate}} ({{daysOverdue}} ngày).',
+      },
+      VEHICLE_DOCUMENT_EXPIRING: {
+        title: 'Giấy tờ xe sắp hết hạn',
+        body: 'Xe {{plate}}: {{documentType}} hết hạn {{expiryDate}} (còn {{daysLeft}} ngày).',
+      },
+      'VEHICLE_DOCUMENT_EXPIRING:EXPIRED': {
+        title: 'Giấy tờ xe đã hết hạn',
+        body: 'Xe {{plate}}: {{documentType}} đã hết hạn từ {{expiryDate}} ({{daysOverdue}} ngày).',
+      },
+      MAINTENANCE_DUE: {
+        title: 'Xe sắp đến hạn bảo dưỡng',
+        body: 'Xe {{plate}}: {{category}} — hạn {{nextDueKm}} km, hiện {{currentKm}} km (còn {{remainingKm}} km).',
+      },
+      'MAINTENANCE_DUE:OVERDUE': {
+        title: 'Xe quá hạn bảo dưỡng',
+        body: 'Xe {{plate}}: {{category}} — hạn {{nextDueKm}} km, hiện {{currentKm}} km (vượt {{overKm}} km).',
+      },
+      HANDOVER_UPCOMING: {
+        title: 'Sắp đến giờ giao xe',
+        body: 'Lượt {{rentalId}} — xe {{plate}} giao lúc {{time}}.',
+      },
+      RETURN_UPCOMING: {
+        title: 'Sắp đến giờ nhận xe',
+        body: 'Lượt {{rentalId}} — xe {{plate}} nhận lúc {{time}}.',
+      },
+      'OPERATION_ALERT_OTHER:RETURN_OVERDUE': {
+        title: 'Quá hạn trả xe',
+        body: 'Lượt {{rentalId}} — xe {{plate}} đáng lẽ trả lúc {{time}}.',
+      },
+      'OPERATION_ALERT_OTHER:INCIDENT_OPEN': {
+        title: 'Sự cố chưa xử lý xong',
+        body: 'Sự cố {{incidentCode}} — xe {{plate}}, trạng thái {{statusLabel}}.',
+      },
+      CONTRACT_INCOMPLETE: {
+        title: 'Hợp đồng chưa có bản ký',
+        body: 'Hợp đồng {{contractId}} (lượt {{rentalId}}) vẫn ở trạng thái đã sinh, chưa ký.',
+      },
+      PAYMENT_INCOMPLETE: {
+        title: 'Chưa thu đủ theo mốc',
+        body: 'Lượt {{rentalId}} — mốc {{milestone}}: còn thiếu {{outstanding}}.',
+      },
+      EMPLOYEE_ASSIGNMENT: {
+        title: 'Được phân công công việc',
+        body: '{{employeeName}} được phân công {{roleLabel}} lượt {{rentalId}}, hạn {{time}}.',
+      },
+      CONSIGNMENT_CONTRACT_EXPIRING: {
+        title: 'Hợp đồng ký gửi sắp hết hạn',
+        body: 'Hợp đồng {{contractCode}} hết hạn {{endDate}} (còn {{daysLeft}} ngày).',
+      },
+      'CONSIGNMENT_PAYMENT_DUE:DUE_SOON': {
+        title: 'Sắp đến hạn chi trả chủ xe',
+        body: 'Hợp đồng {{contractCode}} — kỳ {{period}}, hạn {{dueDate}}.',
+      },
+      'CONSIGNMENT_PAYMENT_DUE:OVERDUE': {
+        title: 'Quá hạn chi trả chủ xe',
+        body: 'Hợp đồng {{contractCode}} — kỳ {{period}}, hạn {{dueDate}} (trễ {{daysOverdue}} ngày).',
+      },
+    } as Record<string, { title: string; body: string }>,
+  },
+  // Dashboard (`/dashboard`) — `WebappQuanTri.md` §5.3, `docs/DASHBOARD-PLATFORM-PLAN.md` §8.1.
+  dashboard: {
+    title: 'Dashboard',
+    description: 'Tổng quan vận hành, tài chính và cảnh báo — chỉ đọc, tính từ dữ liệu hiện có.',
+    updatedAt: 'Cập nhật lúc',
+    refresh: 'Làm mới',
+    opsSectionTitle: 'Vận hành',
+    kpiTotalVehicles: 'Tổng số xe',
+    kpiAvailable: 'Xe sẵn sàng',
+    kpiRented: 'Xe đang thuê',
+    kpiMaintenance: 'Xe bảo dưỡng',
+    kpiInactive: 'Xe ngừng khai thác',
+    kpiDeliveriesToday: 'Giao xe hôm nay',
+    kpiReturnsToday: 'Nhận xe hôm nay',
+    kpiActiveRentals: 'Lượt thuê đang diễn ra',
+    alertsTitle: 'Cảnh báo',
+    alertsDescription: 'Tín hiệu cần chú ý, tính động từ dữ liệu nguồn (ngưỡng do từng module quy định).',
+    alertGroupEmpty: 'Không có cảnh báo.',
+    alertMore: 'và {{count}} cảnh báo khác',
+    overusePending: 'Chưa có ngưỡng cảnh báo — chờ chốt (OQ).',
+    emptyAllTitle: 'Chưa có nội dung để hiển thị',
+    emptyAllDescription: 'Vai trò hiện tại không có quyền xem các nhóm dữ liệu trên Dashboard.',
+    loadError: 'Không tải được dữ liệu cảnh báo.',
+    priorityPrefix: 'Mức',
+  },
 } as const
+
+export const NOTIFICATION_EVENT_TYPE_LABELS: Record<NotificationEventType, string> = {
+  RENTAL_UPCOMING: 'Lượt thuê sắp diễn ra',
+  HANDOVER_UPCOMING: 'Sắp giao xe',
+  RETURN_UPCOMING: 'Sắp nhận xe',
+  EMPLOYEE_ASSIGNMENT: 'Phân công nhân viên',
+  CONTRACT_INCOMPLETE: 'Hợp đồng chưa hoàn tất',
+  PAYMENT_INCOMPLETE: 'Thanh toán chưa đủ',
+  VEHICLE_INSPECTION_EXPIRING: 'Đăng kiểm sắp hết hạn',
+  VEHICLE_INSURANCE_EXPIRING: 'Bảo hiểm sắp hết hạn',
+  VEHICLE_DOCUMENT_EXPIRING: 'Giấy tờ xe sắp hết hạn',
+  CUSTOMER_BOOKING_SUCCESS: 'Khách đặt xe thành công',
+  RETURN_TIME_CONFIRMATION_REQUEST: 'Yêu cầu xác nhận giờ trả xe',
+  VEHICLE_BREAKDOWN_BEFORE_HANDOVER: 'Xe hỏng trước khi giao',
+  CONSIGNMENT_CONTRACT_EXPIRING: 'Hợp đồng ký gửi sắp hết hạn',
+  CONSIGNMENT_PAYMENT_DUE: 'Đến hạn chi trả chủ xe',
+  MAINTENANCE_DUE: 'Đến hạn bảo dưỡng',
+  VEHICLE_OVERUSE: 'Xe chạy vượt ngưỡng',
+  TASK_ASSIGNMENT: 'Giao việc',
+  OPERATION_ALERT_OTHER: 'Cảnh báo vận hành khác',
+}
+
+export const NOTIFICATION_PRIORITY_LABELS: Record<NotificationPriority, string> = {
+  LOW: 'Thấp',
+  NORMAL: 'Bình thường',
+  HIGH: 'Cao',
+  URGENT: 'Khẩn cấp',
+}
+
+// WebappQuanTri.md §5.3 "Cảnh báo" — nhãn nhóm hiển thị trên Dashboard.
+export const DASHBOARD_ALERT_GROUP_LABELS: Record<DashboardAlertGroup, string> = {
+  VEHICLE_DOCUMENT: 'Giấy tờ xe sắp/đã hết hạn',
+  UPCOMING_HANDOVER: 'Sắp giao xe (24h tới)',
+  UPCOMING_RETURN: 'Sắp nhận xe (24h tới)',
+  OVERDUE_RETURN: 'Quá hạn trả xe',
+  PAYMENT_INCOMPLETE: 'Thanh toán chưa đủ theo mốc',
+  INCIDENT_OPEN: 'Sự cố chưa xử lý',
+  CONTRACT_UNSIGNED: 'Hợp đồng thiếu bản ký',
+  MAINTENANCE_DUE: 'Đến hạn bảo dưỡng',
+  VEHICLE_OVERUSE: 'Xe chạy vượt ngưỡng',
+  CONSIGNMENT: 'Xe ký gửi (hợp đồng / chi trả)',
+}
 
 export const ROLE_LABELS: Record<Role, string> = {
   SYSTEM_ADMIN: 'Quản trị hệ thống',

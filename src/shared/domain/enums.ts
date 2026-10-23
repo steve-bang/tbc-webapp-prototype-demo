@@ -417,21 +417,26 @@ export type ConsignmentProposalStatus = (typeof CONSIGNMENT_PROPOSAL_STATUSES)[n
 export const MAINTENANCE_RULE_APPLIES_TO = ['SPECIFIC_VEHICLE', 'VEHICLE_MODEL'] as const
 export type MaintenanceRuleAppliesTo = (typeof MAINTENANCE_RULE_APPLIES_TO)[number]
 
-/** Danh mục sự kiện thông báo — `Notification-BRD.md` §7 + mở rộng. */
+// Notification-BRD.md §7 — sửa scaffold Phase 0 cho khớp tài liệu (mảng chưa được dùng — DASHBOARD-PLATFORM-PLAN.md D10).
 export const NOTIFICATION_EVENT_TYPES = [
-  'VEHICLE_DOCUMENT_EXPIRING',
+  'RENTAL_UPCOMING',
+  'HANDOVER_UPCOMING',
+  'RETURN_UPCOMING',
+  'EMPLOYEE_ASSIGNMENT',
+  'CONTRACT_INCOMPLETE',
+  'PAYMENT_INCOMPLETE',
   'VEHICLE_INSPECTION_EXPIRING',
-  'MAINTENANCE_DUE',
-  'VEHICLE_OVERUSE',
-  'CONTRACT_EXPIRY',
+  'VEHICLE_INSURANCE_EXPIRING',
+  'VEHICLE_DOCUMENT_EXPIRING',
+  'CUSTOMER_BOOKING_SUCCESS',
+  'RETURN_TIME_CONFIRMATION_REQUEST',
+  'VEHICLE_BREAKDOWN_BEFORE_HANDOVER',
   'CONSIGNMENT_CONTRACT_EXPIRING',
   'CONSIGNMENT_PAYMENT_DUE',
-  'PARTNER_PAYMENT_DUE',
+  'MAINTENANCE_DUE',
+  'VEHICLE_OVERUSE',
   'TASK_ASSIGNMENT',
-  'RENTAL_PICKUP_SOON',
-  'RENTAL_RETURN_SOON',
-  'RENTAL_RETURN_OVERDUE',
-  'PAYMENT_OVERDUE',
+  'OPERATION_ALERT_OTHER',
 ] as const
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number]
 
@@ -664,3 +669,26 @@ export const AUDIT_ACTIONS = [
   'CREATE_CONSIGNMENT_ADDENDUM',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
+
+// Notification-BRD.md §6.1 "Priority" — DASHBOARD-PLATFORM-PLAN.md §3.1.
+export const NOTIFICATION_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const
+export type NotificationPriority = (typeof NOTIFICATION_PRIORITIES)[number]
+
+// Notification-BRD.md §6.1 "Source Module" — mã module nguồn phát tín hiệu (DASHBOARD-PLATFORM-PLAN.md §3.1).
+export const NOTIFICATION_SOURCE_MODULES = ['VM', 'MT', 'RM', 'CT', 'PM', 'DI', 'EA', 'VC'] as const
+export type NotificationSourceModule = (typeof NOTIFICATION_SOURCE_MODULES)[number]
+
+// WebappQuanTri.md §5.3 "Cảnh báo" — mã nhóm hiển thị do BA/tech-lead đặt, không phải enum nghiệp vụ (DASHBOARD-PLATFORM-PLAN.md §3.1).
+export const DASHBOARD_ALERT_GROUPS = [
+  'VEHICLE_DOCUMENT',
+  'UPCOMING_HANDOVER',
+  'UPCOMING_RETURN',
+  'OVERDUE_RETURN',
+  'PAYMENT_INCOMPLETE',
+  'INCIDENT_OPEN',
+  'CONTRACT_UNSIGNED',
+  'MAINTENANCE_DUE',
+  'VEHICLE_OVERUSE',
+  'CONSIGNMENT',
+] as const
+export type DashboardAlertGroup = (typeof DASHBOARD_ALERT_GROUPS)[number]

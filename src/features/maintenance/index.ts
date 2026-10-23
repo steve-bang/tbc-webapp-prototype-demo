@@ -7,3 +7,7 @@ export { useMaintenanceRecords, useMaintenanceRules, useSparePartRecords } from 
 export { MaintenanceScreen } from './screens/MaintenanceScreen'
 // REVENUE-COST-PLAN.md §0.2 — re-export read-only cho features/finance (chi phí bảo dưỡng/phụ tùng suy ra).
 export { MAINTENANCE_RECORDS_STORAGE_KEY, SPARE_PART_RECORDS_STORAGE_KEY } from './api'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { MAINTENANCE_RULES_STORAGE_KEY } from './api'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { collectMaintenanceDueSignals } from './model'

@@ -9,3 +9,7 @@ export { EmployeeListScreen } from './screens/EmployeeListScreen'
 export type { Assignment } from './model'
 export { hasAssignmentConflict, canReassign, canCancelAssignment } from './model'
 export { useAssignments, useAssignment, useCreateAssignment, useReassignAssignment, useCancelAssignment } from './hooks'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { ASSIGNMENTS_STORAGE_KEY, EMPLOYEES_STORAGE_KEY } from './api'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { collectAssignmentSignals } from './model'

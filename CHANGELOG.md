@@ -15,6 +15,18 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6 Round 1 — Tín hiệu cảnh báo + Dashboard** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md)
+  §18; plan Phase 6 `APPROVED` — người dùng duyệt 7 điểm). `/dashboard` hết `ComingSoon`: KPI vận hành (xe theo trạng thái, giao/nhận
+  hôm nay, lượt đang diễn ra), widget KPI tài chính do `finance` sở hữu (doanh thu/chi phí trực tiếp/lợi nhuận vận hành "ước tính"
+  tháng này hoặc hôm nay so kỳ trước, công nợ phải thu, thanh doanh thu 30 ngày bằng CSS, top/thấp 5 xe — tải lười, không kéo
+  `recharts`), bảng cảnh báo 10 nhóm lọc theo quyền. Cảnh báo là "tín hiệu" do 8 module nguồn tự phát hiện bằng hàm thuần (ngưỡng
+  thuộc module nguồn), gom ở `features/notifications` mới — tính động, chưa lưu (R2 sẽ chốt thành Trung tâm thông báo). Enum
+  `NOTIFICATION_EVENT_TYPES` sửa đúng 18 mã của tài liệu. Đồng bộ trạng thái 3 xe đang có lượt giao thành `RENTED` (VH-BR-10).
+  **`SEED_VERSION` 24 — demo đang mở sẽ tự reset dữ liệu ở lần tải kế tiếp.** Review `tech-lead` **đạt vòng 1**, không Blocker;
+  chấp nhận 10 lệch nhỏ so với plan; vòng import vẫn 98 file, dung lượng seed không tăng. Ghi Open Question mới: vai trò Dispatcher
+  chưa có quyền xem lượt thuê trong tài liệu nên không nhận cảnh báo giao/nhận.
+- **Planned — Phase 6 (Dashboard & nền tảng)**: kế hoạch 4 round (Dashboard → Trung tâm thông báo → Nhật ký thao tác → Quản trị
+  hệ thống + polish), ngân sách dung lượng giữ trần 1,85 triệu ký tự seed + trần ký tự cho nhật ký/thông báo lúc chạy.
 - **Phase 5.1 — Dữ liệu demo: lịch sử lượt thuê 12 tháng** (theo [`docs/DEMO-DATA-PLAN.md`](docs/DEMO-DATA-PLAN.md)). Chỉ dữ
   liệu seed, không đổi logic/UI: +284 lượt thuê đã hoàn tất trải 12 tháng (sinh tất định, giá theo hạng xe, 2–14 ngày, không trùng
   lịch/khoá lịch/bảo dưỡng/sự cố, xe ký gửi chỉ trong thời gian hợp đồng hiệu lực) + 48 khách mới + lịch thu, giao dịch chuyển

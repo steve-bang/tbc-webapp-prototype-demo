@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import { paths } from '@/app/paths'
+import type { Rental } from '@/features/rentals'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
+import { vi } from '@/shared/i18n/vi'
 import type { ContractAddendumType, ContractStatus, SecurityDepositType } from '@/shared/domain/enums'
 
 /**
@@ -109,3 +113,36 @@ export const contractVoidReasonSchema = z.object({
 })
 
 export type ContractVoidReasonValues = z.infer<typeof contractVoidReasonSchema>
+
+/** Lượt thuê từ `HANDED_OVER` trở đi mà hợp đồng vẫn chưa ký là bất thường (đã giao xe) — nâng mức ưu tiên. */
+const HANDED_OVER_OR_LATER_STATUSES = ['HANDED_OVER', 'IN_RENTAL', 'RETURNED', 'SETTLEMENT', 'COMPLETED', 'DISPUTED']
+
+/**
+ * Tín hiệu hợp đồng chưa có bản ký — hợp đồng `GENERATED` (chưa `SIGNED`) của lượt không `CANCELLED`/`NO_SHOW`.
+ * Đã giao xe mà vẫn `GENERATED` → `HIGH`. Hàm thuần. DASHBOARD-PLATFORM-PLAN.md §4.1.
+ * TODO(OQ: WebappQuanTri.md §5.3 / RevenueCost-BRD.md §17.3) — định nghĩa "hợp đồng thiếu bản ký" chưa chốt.
+ */
+export function collectContractSignals(contracts: Contract[], rentals: Rental[]): OperationalSignal[] {
+  const rentalById = new Map(rentals.map((r) => [r.id, r]))
+  const signals: OperationalSignal[] = []
+  for (const contract of contracts) {
+    if (contract.status !== 'GENERATED') continue
+    const rental = rentalById.get(contract.rentalId)
+    if (!rental || rental.status === 'CANCELLED' || rental.status === 'NO_SHOW') continue
+    signals.push({
+      dedupeKey: signalDedupeKey('CONTRACT_INCOMPLETE', 'Contract', contract.id, contract.version.toString()),
+      eventType: 'CONTRACT_INCOMPLETE',
+      sourceModule: 'CT',
+      group: 'CONTRACT_UNSIGNED',
+      resource: 'CONTRACT',
+      entityType: 'Contract',
+      entityId: contract.id,
+      entityLabel: `${vi.notifications.entity.contract} ${contract.contractCode}`,
+      priority: HANDED_OVER_OR_LATER_STATUSES.includes(rental.status) ? 'HIGH' : 'NORMAL',
+      dueRef: rental.pickupDateTime,
+      payload: { contractId: contract.contractCode, rentalId: rental.id },
+      link: paths.contractDetail(contract.id),
+    })
+  }
+  return signals
+}

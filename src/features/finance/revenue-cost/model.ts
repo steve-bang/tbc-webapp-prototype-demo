@@ -43,7 +43,7 @@ import {
 } from '@/shared/domain/enums'
 import { NUMERIC_RE } from '../core/model.ts'
 import type { PostSettlementCharge, Settlement, Transaction } from '../core/types.ts'
-import { isEffectiveTransaction } from '../payment/model.ts'
+import { isEffectiveTransaction, type CustomerBalance } from '../payment/model.ts'
 
 // ==== Revenue & Cost (RV) — REVENUE-COST-PLAN.md §2-§3 ====
 
@@ -796,3 +796,88 @@ export const costRecordReverseFormSchema = z.object({
   reason: z.string().trim().min(5, 'Lý do huỷ là bắt buộc (tối thiểu 5 ký tự)'),
 })
 export type CostRecordReverseFormValues = z.infer<typeof costRecordReverseFormSchema>
+
+// ==== Dashboard (RV §17) — DASHBOARD-PLATFORM-PLAN.md §4.4 ====
+
+/** Cặp kỳ hiện tại / kỳ liền trước cùng `PeriodSummary` — nguồn cho thẻ KPI + "so kỳ trước". */
+export interface DashboardPeriodPair {
+  period: FinancePeriod
+  previousPeriod: FinancePeriod
+  current: PeriodSummary
+  previous: PeriodSummary
+}
+
+export interface DashboardFinanceSummary {
+  /** Tháng này so với tháng trước (`THIS_MONTH`/`LAST_MONTH`). */
+  month: DashboardPeriodPair
+  /** Hôm nay so với hôm qua (RV §17.1 "hôm nay / tháng này"). */
+  day: DashboardPeriodPair
+  /** Σ `outstanding > 0` của `deriveCustomerBalances` — cùng số với thẻ "Đang nợ" ở màn Công nợ. */
+  receivables: number
+  /** Doanh thu theo ngày, 30 ngày gần nhất (`LAST_30_DAYS`), đủ mọi ngày. */
+  dailyRevenue: { bucket: string; revenue: number }[]
+  /** 5 xe lợi nhuận vận hành cao nhất trong 30 ngày. */
+  topVehicles: VehiclePerformanceRow[]
+  /** 5 xe lợi nhuận vận hành thấp nhất trong 30 ngày (không trùng `topVehicles`). */
+  lowVehicles: VehiclePerformanceRow[]
+}
+
+const DASHBOARD_TOP_VEHICLES = 5
+
+/**
+ * KPI tài chính cho Dashboard — chỉ ghép các hàm thuần sẵn có (`summarizePeriod`, `resolvePeriodPreset`,
+ * `buildVehiclePerformance`) với chính sách `ON_SETTLEMENT` (CR-2026-048; lợi nhuận vận hành = doanh thu − chi phí
+ * trực tiếp, RV-BR-09 "ước tính quản trị"). `today` là tham số (không gọi `new Date()` trong hàm).
+ * TODO(OQ: RevenueCost-BRD.md §17.1/§28 Q14) — tiêu chí "xe hiệu quả thấp": giả định 5 xe lợi nhuận vận hành thấp nhất 30 ngày qua.
+ */
+export function buildDashboardFinanceSummary(input: {
+  revenueLines: RevenueLine[]
+  costEntries: CostEntry[]
+  vehicles: Vehicle[]
+  rentals: Rental[]
+  settlements: Settlement[]
+  incidents: Incident[]
+  blocks: VehicleBlock[]
+  balances: CustomerBalance[]
+  today: Date
+}): DashboardFinanceSummary {
+  const { revenueLines, costEntries, today } = input
+  const pair = (period: FinancePeriod, previous: FinancePeriod): DashboardPeriodPair => ({
+    period,
+    previousPeriod: previous,
+    current: summarizePeriod(revenueLines, costEntries, period),
+    previous: summarizePeriod(revenueLines, costEntries, previous),
+  })
+  const todayKey = dateKeyOf(today)
+  const yesterdayKey = dateKeyOf(subDays(today, 1))
+
+  const last30 = resolvePeriodPreset('LAST_30_DAYS', today)
+  const lines30 = revenueLines.filter((l) => isDateInPeriod(l.recognitionDate, last30))
+  const dailyRevenue = enumeratePeriodBuckets(last30, 'DAY').map((bucket) => ({
+    bucket,
+    revenue: sumAmount(lines30.filter((l) => bucketKeyOf(l.recognitionDate, 'DAY') === bucket)),
+  }))
+
+  const ranked = buildVehiclePerformance({
+    vehicles: input.vehicles.filter((v) => v.status !== 'INACTIVE'),
+    rentals: input.rentals,
+    settlements: input.settlements,
+    revenueLines,
+    costEntries,
+    incidents: input.incidents,
+    blocks: input.blocks,
+    period: last30,
+    today,
+  }).sort((a, b) => b.estimatedProfit - a.estimatedProfit)
+  const topVehicles = ranked.slice(0, DASHBOARD_TOP_VEHICLES)
+  const lowVehicles = ranked.slice(Math.max(DASHBOARD_TOP_VEHICLES, ranked.length - DASHBOARD_TOP_VEHICLES)).reverse()
+
+  return {
+    month: pair(resolvePeriodPreset('THIS_MONTH', today), resolvePeriodPreset('LAST_MONTH', today)),
+    day: pair({ from: todayKey, to: todayKey }, { from: yesterdayKey, to: yesterdayKey }),
+    receivables: input.balances.reduce((sum, b) => sum + (b.outstanding > 0 ? b.outstanding : 0), 0),
+    dailyRevenue,
+    topVehicles,
+    lowVehicles,
+  }
+}

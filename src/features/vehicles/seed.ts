@@ -82,7 +82,7 @@ function seedVehicles(): void {
       bankFinanced: false,
       currentKm: 18500,
       fuelLevel: 80,
-      status: 'AVAILABLE',
+      status: 'RENTED', // VH-BR-10 — đang có lượt rt_017 HANDED_OVER/IN_RENTAL (DASHBOARD-PLATFORM-PLAN.md §16 câu 4)
       documents: standardDocuments('2024-01-10T02:00:00.000Z', false),
       createdAt: '2024-01-10T02:00:00.000Z',
       updatedAt: '2024-01-10T02:00:00.000Z',
@@ -262,7 +262,7 @@ function seedVehicles(): void {
       bankFinanced: false,
       currentKm: 38700,
       fuelLevel: 85,
-      status: 'AVAILABLE',
+      status: 'RENTED', // VH-BR-10 — đang có lượt rt_016 HANDED_OVER/IN_RENTAL (DASHBOARD-PLATFORM-PLAN.md §16 câu 4)
       documents: standardDocuments('2024-03-20T02:00:00.000Z', false),
       createdAt: '2024-03-20T02:00:00.000Z',
       updatedAt: '2024-03-20T02:00:00.000Z',
@@ -397,7 +397,7 @@ function seedVehicles(): void {
       bankFinanced: false,
       currentKm: 6200,
       fuelLevel: 95,
-      status: 'AVAILABLE',
+      status: 'RENTED', // VH-BR-10 — đang có lượt rt_019 HANDED_OVER/IN_RENTAL (DASHBOARD-PLATFORM-PLAN.md §16 câu 4)
       note: 'Xe sở hữu công ty (không ký gửi).',
       documents: standardDocuments('2024-06-01T02:00:00.000Z', false),
       createdAt: '2024-06-01T02:00:00.000Z',

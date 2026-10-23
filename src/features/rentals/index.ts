@@ -29,3 +29,5 @@ export { revertHandoverCancelled, revertReturnCancelled } from './api'
 // `readJson()` (vẫn qua barrel, không deep-import `rentals/api.ts`).
 export { canCompleteRental, canOpenSettlement, canRevertSettlementReversed } from './model'
 export { RENTALS_STORAGE_KEY, markRentalCompleted, markSettlementOpened, revertSettlementReversed } from './api'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { collectRentalTimeSignals } from './model'

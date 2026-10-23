@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import { paths } from '@/app/paths'
+import type { Vehicle } from '@/features/vehicles'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
+import { INCIDENT_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 // Deep-import CHỈ type `MediaMeta` từ `handover-return` (kế hoạch §0.3/§2.1 —
 // mirror placeholder media đã dùng, KHÔNG import giá trị runtime/hàm của
 // feature đó).
@@ -11,6 +15,7 @@ import type {
   IncidentStatus,
   IncidentType,
   Liability,
+  NotificationPriority,
 } from '@/shared/domain/enums'
 
 /**
@@ -266,3 +271,49 @@ export const incidentCancelReasonSchema = z.object({
   reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự)'),
 })
 export type IncidentCancelReasonValues = z.infer<typeof incidentCancelReasonSchema>
+
+/**
+ * Trạng thái kết thúc của sự cố — "chưa xử lý" = mọi trạng thái KHÔNG thuộc tập này.
+ * TODO(OQ: Notification-BRD.md §7 — "sự cố chưa xử lý" chưa có định nghĩa/mã Event riêng) — giả định tạm của
+ * DASHBOARD-PLATFORM-PLAN.md §11 Q13: 4 trạng thái kết thúc `CLOSED`/`CANCELLED`/`WRITTEN_OFF`/`CLOSED_NO_ACTION`.
+ */
+export const INCIDENT_TERMINAL_STATUSES: IncidentStatus[] = ['CLOSED', 'CANCELLED', 'WRITTEN_OFF', 'CLOSED_NO_ACTION']
+
+const INCIDENT_PRIORITY_BY_SEVERITY: Record<IncidentSeverity, NotificationPriority> = {
+  MINOR: 'LOW',
+  MODERATE: 'NORMAL',
+  MAJOR: 'HIGH',
+  CRITICAL: 'URGENT',
+}
+
+/**
+ * Tín hiệu sự cố chưa xử lý xong — dùng `OPERATION_ALERT_OTHER` + `payload.kind = INCIDENT_OPEN`
+ * (TODO(OQ): đề xuất BA mã `INCIDENT_UNRESOLVED` — Notification-BRD.md §7). Mức ưu tiên theo `severity`. Hàm thuần.
+ */
+export function collectIncidentSignals(incidents: Incident[], vehicles: Vehicle[]): OperationalSignal[] {
+  const plateById = new Map(vehicles.map((v) => [v.id, v.plate]))
+  const signals: OperationalSignal[] = []
+  for (const incident of incidents) {
+    if (INCIDENT_TERMINAL_STATUSES.includes(incident.status)) continue
+    signals.push({
+      dedupeKey: signalDedupeKey('OPERATION_ALERT_OTHER', 'Incident', incident.id, 'INCIDENT_OPEN'),
+      eventType: 'OPERATION_ALERT_OTHER',
+      sourceModule: 'DI',
+      group: 'INCIDENT_OPEN',
+      resource: 'INCIDENT',
+      entityType: 'Incident',
+      entityId: incident.id,
+      entityLabel: `${vi.notifications.entity.incident} ${incident.incidentCode}`,
+      priority: INCIDENT_PRIORITY_BY_SEVERITY[incident.severity],
+      dueRef: incident.reportedAt,
+      payload: {
+        kind: 'INCIDENT_OPEN',
+        incidentCode: incident.incidentCode,
+        plate: plateById.get(incident.vehicleId) ?? incident.vehicleId,
+        statusLabel: INCIDENT_STATUS_LABELS[incident.status],
+      },
+      link: paths.incidentDetail(incident.id),
+    })
+  }
+  return signals
+}

@@ -1,4 +1,7 @@
+import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { z } from 'zod'
+import { paths } from '@/app/paths'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
 import {
   VEHICLE_CLASSES,
   VEHICLE_DOCUMENT_TYPES,
@@ -7,6 +10,8 @@ import {
   type VehicleDocumentType,
   type VehicleStatus,
 } from '@/shared/domain/enums'
+import { vi, VEHICLE_DOCUMENT_TYPE_LABELS } from '@/shared/i18n/vi'
+import { formatDate } from '@/shared/lib/datetime'
 import { documentExpiryStatus } from '@/shared/lib/documentStatus'
 
 /**
@@ -100,6 +105,53 @@ export function availableStatusTransitions(from: VehicleStatus): VehicleStatus[]
 export function countDocumentsNeedingAttention(vehicle: Vehicle, today: Date = new Date()): number {
   return vehicle.documents.filter((d) => documentExpiryStatus(d.expiryDate, d.warningLeadDays, today) !== 'VALID')
     .length
+}
+
+/**
+ * Tín hiệu giấy tờ xe sắp/đã hết hạn — `Notification-BRD.md` §7, CR-2026-046 (ngưỡng = `warningLeadDays` của từng giấy tờ,
+ * mặc định 30), CR-2026-041 (chỉ cảnh báo, không chặn). Xe `INACTIVE` không cảnh báo. Hàm thuần: `now` là tham số.
+ * DASHBOARD-PLATFORM-PLAN.md §4.1.
+ */
+export function collectVehicleDocumentSignals(vehicles: Vehicle[], now: Date): OperationalSignal[] {
+  const signals: OperationalSignal[] = []
+  for (const vehicle of vehicles) {
+    if (vehicle.status === 'INACTIVE') continue
+    for (const doc of vehicle.documents) {
+      if (!doc.expiryDate) continue
+      const status = documentExpiryStatus(doc.expiryDate, doc.warningLeadDays, now)
+      if (status === 'VALID') continue
+      const eventType =
+        doc.documentType === 'INSPECTION'
+          ? 'VEHICLE_INSPECTION_EXPIRING'
+          : doc.documentType === 'INSURANCE'
+            ? 'VEHICLE_INSURANCE_EXPIRING'
+            : 'VEHICLE_DOCUMENT_EXPIRING'
+      const daysLeft = differenceInCalendarDays(parseISO(doc.expiryDate), now)
+      signals.push({
+        dedupeKey: signalDedupeKey(eventType, 'VehicleDocument', doc.id, doc.expiryDate),
+        eventType,
+        sourceModule: 'VM',
+        group: 'VEHICLE_DOCUMENT',
+        // Resource `VEHICLE_DOCUMENT` chưa có entry VIEW trong permissions.ts — dùng quyền xem xe.
+        resource: 'VEHICLE',
+        entityType: 'Vehicle',
+        entityId: vehicle.id,
+        entityLabel: `${vi.notifications.entity.vehicle} ${vehicle.plate}`,
+        priority: status === 'EXPIRED' ? 'HIGH' : 'NORMAL',
+        dueRef: doc.expiryDate,
+        payload: {
+          kind: status,
+          plate: vehicle.plate,
+          documentType: VEHICLE_DOCUMENT_TYPE_LABELS[doc.documentType],
+          expiryDate: formatDate(doc.expiryDate),
+          daysLeft,
+          daysOverdue: Math.max(0, -daysLeft),
+        },
+        link: paths.vehicleDetail(vehicle.id),
+      })
+    }
+  }
+  return signals
 }
 
 const NUMERIC_RE = /^\d+$/

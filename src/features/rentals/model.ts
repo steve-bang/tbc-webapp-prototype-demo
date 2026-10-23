@@ -1,7 +1,11 @@
 import { parseISO } from 'date-fns'
 import { z } from 'zod'
+import { paths } from '@/app/paths'
 import type { Customer } from '@/features/customers'
 import type { Vehicle } from '@/features/vehicles'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
+import { vi } from '@/shared/i18n/vi'
+import { formatDateTime } from '@/shared/lib/datetime'
 import { SECURITY_DEPOSIT_TYPES, type RentalStatus, type SecurityDepositType, type VehicleClass } from '@/shared/domain/enums'
 
 /**
@@ -391,3 +395,80 @@ export const rentalCancelReasonSchema = z.object({
 })
 
 export type RentalCancelReasonValues = z.infer<typeof rentalCancelReasonSchema>
+
+/**
+ * Cửa sổ "sắp đến hạn" giao/nhận (giờ). Cùng 24h với widget `DispatchBoardScreen` (không refactor file đó ở Phase 6).
+ * TODO(OQ: RentalCalendar-BRD.md §21 — câu hỏi 16) — cửa sổ "sắp đến hạn" chưa chốt; Notification-BRD.md §20 Q4.
+ */
+export const UPCOMING_WINDOW_HOURS = 24
+
+/** Trước giao = chưa `HANDED_OVER` (khớp `PRE_HANDOVER_STATUSES` của `DispatchBoardScreen`). */
+const SIGNAL_PRE_HANDOVER_STATUSES: RentalStatus[] = ['CONFIRMED', 'CONTRACT_CREATED', 'READY_FOR_HANDOVER']
+/**
+ * Đang thuê (đã giao, chưa nhận). Lệch có chủ đích so với `DispatchBoardScreen` (widget nhận/quá hạn của bảng đó dùng
+ * cả trạng thái trước giao): lượt chưa giao thì không thể "quá hạn trả" — DASHBOARD-PLATFORM-PLAN.md §4.1.
+ */
+const SIGNAL_ON_RENT_STATUSES: RentalStatus[] = ['HANDED_OVER', 'IN_RENTAL']
+
+/**
+ * Tín hiệu giao/nhận sắp tới và quá hạn trả — hàm thuần, `now` là tham số. DASHBOARD-PLATFORM-PLAN.md §4.1.
+ * Không phát `RENTAL_UPCOMING`.
+ * TODO(OQ: Notification-BRD.md §7 — ranh giới RENTAL_UPCOMING vs HANDOVER_UPCOMING) — chỉ phát HANDOVER_UPCOMING/RETURN_UPCOMING.
+ * TODO(OQ: Notification-BRD.md §7 — "quá hạn trả" chưa có mã Event riêng) — dùng OPERATION_ALERT_OTHER + payload.kind RETURN_OVERDUE.
+ */
+export function collectRentalTimeSignals(rentals: Rental[], vehicles: Vehicle[], now: Date): OperationalSignal[] {
+  const plateById = new Map(vehicles.map((v) => [v.id, v.plate]))
+  const nowMs = now.getTime()
+  const untilMs = nowMs + UPCOMING_WINDOW_HOURS * 60 * 60 * 1000
+  const signals: OperationalSignal[] = []
+  for (const rental of rentals) {
+    const plate = plateById.get(rental.vehicleId) ?? rental.vehicleId
+    const base = {
+      sourceModule: 'RM',
+      resource: 'RENTAL',
+      entityType: 'Rental',
+      entityId: rental.id,
+      entityLabel: `${vi.notifications.entity.rental} ${rental.id}`,
+      link: paths.rentalDetail(rental.id),
+    } as const
+    if (SIGNAL_PRE_HANDOVER_STATUSES.includes(rental.status)) {
+      const t = new Date(rental.pickupDateTime).getTime()
+      if (t >= nowMs && t <= untilMs) {
+        signals.push({
+          ...base,
+          dedupeKey: signalDedupeKey('HANDOVER_UPCOMING', 'Rental', rental.id, rental.pickupDateTime),
+          eventType: 'HANDOVER_UPCOMING',
+          group: 'UPCOMING_HANDOVER',
+          priority: 'NORMAL',
+          dueRef: rental.pickupDateTime,
+          payload: { rentalId: rental.id, plate, time: formatDateTime(rental.pickupDateTime) },
+        })
+      }
+    } else if (SIGNAL_ON_RENT_STATUSES.includes(rental.status)) {
+      const t = new Date(rental.expectedReturnDateTime).getTime()
+      const payload = { rentalId: rental.id, plate, time: formatDateTime(rental.expectedReturnDateTime) }
+      if (t >= nowMs && t <= untilMs) {
+        signals.push({
+          ...base,
+          dedupeKey: signalDedupeKey('RETURN_UPCOMING', 'Rental', rental.id, rental.expectedReturnDateTime),
+          eventType: 'RETURN_UPCOMING',
+          group: 'UPCOMING_RETURN',
+          priority: 'NORMAL',
+          dueRef: rental.expectedReturnDateTime,
+          payload,
+        })
+      } else if (t < nowMs) {
+        signals.push({
+          ...base,
+          dedupeKey: signalDedupeKey('OPERATION_ALERT_OTHER', 'Rental', rental.id, `RETURN_OVERDUE:${rental.expectedReturnDateTime}`),
+          eventType: 'OPERATION_ALERT_OTHER',
+          group: 'OVERDUE_RETURN',
+          priority: 'URGENT',
+          dueRef: rental.expectedReturnDateTime,
+          payload: { ...payload, kind: 'RETURN_OVERDUE' },
+        })
+      }
+    }
+  }
+  return signals
+}

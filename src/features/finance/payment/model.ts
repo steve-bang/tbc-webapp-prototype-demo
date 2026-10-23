@@ -1,9 +1,11 @@
 // Module Payment (PM) — hàm thuần + form schema. Tách từ `finance/model.ts` — docs/FINANCE-REFACTOR-PLAN.md §3.1.
 import { z } from 'zod'
+import { paths } from '@/app/paths'
 // `customers`/`handover-return`/`incidents`/`rentals` — CHỈ qua barrel (RENTAL-SETTLEMENT-PLAN.md §0.2) —
 // không deep-import `/api`, `/hooks`, `/model` của 4 feature nguồn.
 import type { Customer } from '@/features/customers'
 import type { Rental } from '@/features/rentals'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
 import type {
   PaymentMilestone,
   PaymentRequestPurpose,
@@ -14,8 +16,9 @@ import type {
   TransactionDirection,
   TransactionType,
 } from '@/shared/domain/enums'
-import { vi } from '@/shared/i18n/vi'
+import { PAYMENT_MILESTONE_LABELS, vi } from '@/shared/i18n/vi'
 import { generateId } from '@/shared/lib/id'
+import { formatVnd } from '@/shared/lib/money'
 import { calcSettlementTotals, NUMERIC_RE } from '../core/model.ts'
 import type {
   CashDrawerSubmission,
@@ -791,3 +794,59 @@ export function makeCashDrawerSubmitSchema(systemAmount: number) {
     })
 }
 export type CashDrawerSubmitFormValues = z.infer<ReturnType<typeof makeCashDrawerSubmitSchema>>
+
+/**
+ * Tín hiệu "chưa thu đủ theo mốc" — chỉ lượt chưa `COMPLETED`/`CANCELLED`/`NO_SHOW` (và Settlement chưa `COMPLETED`).
+ * Mốc `BOOKING` chưa đủ khi lượt ≥ `CONFIRMED`; mốc `HANDOVER` chưa đủ khi lượt `HANDED_OVER`/`IN_RENTAL`
+ * (dùng `buildPaymentSchedule`; yêu cầu cọc của `MOTORBIKE` bị bỏ — PM-BR-22, vật bảo đảm không phải dòng tiền).
+ * KHÔNG tính "quá hạn": TODO(OQ: Payment-BRD.md §27 Q9) — hạn thanh toán chưa chốt. Hàm thuần. DASHBOARD-PLATFORM-PLAN.md §4.1.
+ */
+export function collectPaymentSignals(
+  rentals: Rental[],
+  requests: PaymentRequest[],
+  txns: Transaction[],
+  settlements: Settlement[],
+): OperationalSignal[] {
+  const signals: OperationalSignal[] = []
+  const closedRentalIds = new Set(settlements.filter((st) => st.status === 'COMPLETED').map((st) => st.rentalId))
+  for (const rental of rentals) {
+    if (rental.status === 'COMPLETED' || rental.status === 'CANCELLED' || rental.status === 'NO_SHOW') continue
+    if (rental.status === 'DRAFT' || closedRentalIds.has(rental.id)) continue
+    const onRent = rental.status === 'HANDED_OVER' || rental.status === 'IN_RENTAL'
+    const rentalRequests = requests.filter((r) => r.rentalId === rental.id)
+    const schedule = buildPaymentSchedule(rental, rentalRequests, txns.filter((t) => t.rentalId === rental.id))
+    for (const view of schedule) {
+      if (view.milestone === 'RETURN') continue
+      if (view.milestone === 'HANDOVER' && !onRent) continue
+      if (view.state !== 'OPEN' && view.state !== 'PARTIAL') continue
+      let outstanding = 0
+      for (const req of view.requests) {
+        if (req.status === 'CANCELLED') continue
+        if (view.motorbikeCollateral && req.transactionType === 'DEPOSIT') continue
+        outstanding += calcRequestProgress(req, txns).remaining
+      }
+      if (outstanding <= 0) continue
+      signals.push({
+        dedupeKey: signalDedupeKey('PAYMENT_INCOMPLETE', 'Rental', rental.id, `${view.milestone}:${rental.pickupDateTime}`),
+        eventType: 'PAYMENT_INCOMPLETE',
+        sourceModule: 'PM',
+        group: 'PAYMENT_INCOMPLETE',
+        resource: 'PAYMENT',
+        entityType: 'Rental',
+        entityId: rental.id,
+        entityLabel: `${vi.notifications.entity.rental} ${rental.id}`,
+        priority: view.milestone === 'HANDOVER' ? 'HIGH' : 'NORMAL',
+        dueRef: rental.pickupDateTime,
+        payload: {
+          rentalId: rental.id,
+          milestone: PAYMENT_MILESTONE_LABELS[view.milestone],
+          milestoneCode: view.milestone,
+          outstanding: formatVnd(outstanding),
+          outstandingAmount: outstanding,
+        },
+        link: `${paths.rentalDetail(rental.id)}?tab=payment`,
+      })
+    }
+  }
+  return signals
+}

@@ -13,6 +13,7 @@ import {
 } from '@/features/consignment'
 import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
+import { DashboardScreen } from '@/features/dashboard'
 import { EmployeeListScreen } from '@/features/employees'
 import { CashDrawerScreen, CostRecordsScreen, CustomerReceivablesScreen, FinanceReportScreen, OwnerPayoutScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance'
 import { HandoverReturnListScreen } from '@/features/handover-return'
@@ -32,7 +33,7 @@ export function AppRoutes() {
 
       <Route element={<AppShell />}>
         <Route path="/" element={<Navigate to={paths.dashboard} replace />} />
-        <Route path={paths.dashboard} element={<ComingSoon title="Dashboard" />} />
+        <Route path={paths.dashboard} element={<DashboardScreen />} />
         <Route path={paths.calendar} element={<CalendarScreen />} />
 
         <Route path={paths.vehicles} element={<VehicleListScreen />} />

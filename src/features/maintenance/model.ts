@@ -1,6 +1,9 @@
 import { z } from 'zod'
+import { paths } from '@/app/paths'
 import type { Vehicle } from '@/features/vehicles'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
 import { MAINTENANCE_RULE_APPLIES_TO, type MaintenanceRuleAppliesTo } from '@/shared/domain/enums'
+import { vi } from '@/shared/i18n/vi'
 
 /**
  * Quy tắc bảo dưỡng — `VehicleMaintenance-BRD.md` §6.1 (module `MT`), áp dụng
@@ -134,6 +137,62 @@ export function latestOdometerForCategory(
 export function isOdometerRegression(records: MaintenanceRecord[], vehicleId: string, newOdometer: number): boolean {
   const latest = maxOdometer(records.filter((r) => r.vehicleId === vehicleId))
   return latest !== undefined && newOdometer < latest
+}
+
+/**
+ * Tín hiệu đến hạn bảo dưỡng — `MT §6.3`: với mỗi xe, mỗi hạng mục có Rule active áp dụng (`applicableRule`, MT-BR-02),
+ * `DUE_SOON`/`OVERDUE` theo `maintenanceDueStatus` (ngưỡng `DEFAULT_DUE_SOON_WARNING_KM`). `OVERDUE` → `HIGH`.
+ * Hàm thuần, không nhận `now` (so km, không so ngày). DASHBOARD-PLATFORM-PLAN.md §4.1.
+ * TODO(OQ: VehicleMaintenance-BRD.md §19 Q2) — ngưỡng DUE_SOON chưa chốt (Notification-BRD.md §20 Q4: ngưỡng ngoài giấy tờ xe).
+ */
+export function collectMaintenanceDueSignals(
+  vehicles: Vehicle[],
+  rules: MaintenanceRule[],
+  records: MaintenanceRecord[],
+): OperationalSignal[] {
+  const signals: OperationalSignal[] = []
+  const activeRules = rules.filter((r) => r.active)
+  for (const vehicle of vehicles) {
+    if (vehicle.status === 'INACTIVE') continue
+    const categories = new Set(
+      activeRules
+        .filter(
+          (r) =>
+            (r.appliesTo === 'SPECIFIC_VEHICLE' && r.vehicleId === vehicle.id) ||
+            (r.appliesTo === 'VEHICLE_MODEL' && r.vehicleModel === vehicle.model),
+        )
+        .map((r) => r.category),
+    )
+    for (const category of categories) {
+      const rule = applicableRule(rules, vehicle, category)
+      if (!rule) continue
+      const nextDue = nextDueKm(rule, latestOdometerForCategory(records, vehicle.id, category))
+      const status = maintenanceDueStatus(nextDue, vehicle.currentKm)
+      if (status === 'OK') continue
+      signals.push({
+        dedupeKey: signalDedupeKey('MAINTENANCE_DUE', 'Vehicle', vehicle.id, `${category}:${nextDue}`),
+        eventType: 'MAINTENANCE_DUE',
+        sourceModule: 'MT',
+        group: 'MAINTENANCE_DUE',
+        resource: 'MAINTENANCE',
+        entityType: 'Vehicle',
+        entityId: vehicle.id,
+        entityLabel: `${vi.notifications.entity.vehicle} ${vehicle.plate}`,
+        priority: status === 'OVERDUE' ? 'HIGH' : 'NORMAL',
+        payload: {
+          kind: status,
+          plate: vehicle.plate,
+          category,
+          nextDueKm: nextDue,
+          currentKm: vehicle.currentKm,
+          remainingKm: Math.max(0, nextDue - vehicle.currentKm),
+          overKm: Math.max(0, vehicle.currentKm - nextDue),
+        },
+        link: paths.maintenance,
+      })
+    }
+  }
+  return signals
 }
 
 const NUMERIC_RE = /^\d+$/

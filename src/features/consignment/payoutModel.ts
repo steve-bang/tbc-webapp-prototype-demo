@@ -1,5 +1,7 @@
 import { z } from 'zod'
+import { paths } from '@/app/paths'
 import type { Rental } from '@/features/rentals/model'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
 import {
   CONSIGNMENT_TERMINATION_REQUESTERS,
   type ConsignmentProrationRule,
@@ -8,11 +10,13 @@ import {
   type Role,
 } from '@/shared/domain/enums'
 import { vi } from '@/shared/i18n/vi'
+import { formatDate } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { formatVnd } from '@/shared/lib/money'
 import {
   CONSIGNMENT_PAYMENT_DUE_REMINDER_DAYS,
   dayDiff,
+  isExpiringSoon,
   isFutureDateTime,
   nextSequenceCode,
   resolveTermVersion,
@@ -569,6 +573,68 @@ export function isPayoutDueSoon(record: OwnerPayoutRecord, todayKey: string): bo
 
 export function isPayoutOverdue(record: OwnerPayoutRecord, todayKey: string): boolean {
   return (record.status === 'SCHEDULED' || record.status === 'ON_HOLD') && record.dueDate < todayKey
+}
+
+/**
+ * Tín hiệu ký gửi — hợp đồng sắp hết hạn (`isExpiringSoon`, VC-BR-19) và khoản chi trả chủ xe sắp/quá hạn
+ * (`isPayoutDueSoon` → `NORMAL`, `isPayoutOverdue` → `URGENT`, VC-BR-20). Ngưỡng dùng nguyên hằng
+ * `CONSIGNMENT_EXPIRY_REMINDER_DAYS`/`CONSIGNMENT_PAYMENT_DUE_REMINDER_DAYS` của module. Hàm thuần: `todayKey` là tham số.
+ * CR-2026-051: Phase 1 nhắc gửi Admin (định tuyến người nhận ở `features/notifications`). DASHBOARD-PLATFORM-PLAN.md §4.1.
+ */
+export function collectConsignmentSignals(
+  contracts: ConsignmentContract[],
+  payoutRecords: OwnerPayoutRecord[],
+  todayKey: string,
+): OperationalSignal[] {
+  const signals: OperationalSignal[] = []
+  const contractNoById = new Map(contracts.map((c) => [c.id, c.contractNo]))
+  for (const contract of contracts) {
+    if (!isExpiringSoon(contract, todayKey)) continue
+    signals.push({
+      dedupeKey: signalDedupeKey('CONSIGNMENT_CONTRACT_EXPIRING', 'ConsignmentContract', contract.id, contract.effectiveTo),
+      eventType: 'CONSIGNMENT_CONTRACT_EXPIRING',
+      sourceModule: 'VC',
+      group: 'CONSIGNMENT',
+      resource: 'CONSIGNMENT',
+      entityType: 'ConsignmentContract',
+      entityId: contract.id,
+      entityLabel: `${vi.notifications.entity.consignmentContract} ${contract.contractNo}`,
+      priority: 'NORMAL',
+      dueRef: contract.effectiveTo,
+      payload: {
+        contractCode: contract.contractNo,
+        endDate: formatDate(contract.effectiveTo),
+        daysLeft: dayDiff(todayKey, contract.effectiveTo),
+      },
+      link: paths.consignmentContractDetail(contract.id),
+    })
+  }
+  for (const record of payoutRecords) {
+    const overdue = isPayoutOverdue(record, todayKey)
+    if (!overdue && !isPayoutDueSoon(record, todayKey)) continue
+    const contractCode = contractNoById.get(record.contractId) ?? record.contractId
+    signals.push({
+      dedupeKey: signalDedupeKey('CONSIGNMENT_PAYMENT_DUE', 'OwnerPayoutRecord', record.id, record.dueDate),
+      eventType: 'CONSIGNMENT_PAYMENT_DUE',
+      sourceModule: 'VC',
+      group: 'CONSIGNMENT',
+      resource: 'CONSIGNMENT',
+      entityType: 'OwnerPayoutRecord',
+      entityId: record.id,
+      entityLabel: `${vi.notifications.entity.payout} ${record.code}`,
+      priority: overdue ? 'URGENT' : 'NORMAL',
+      dueRef: record.dueDate,
+      payload: {
+        kind: overdue ? 'OVERDUE' : 'DUE_SOON',
+        contractCode,
+        period: record.period,
+        dueDate: formatDate(record.dueDate),
+        daysOverdue: Math.max(0, dayDiff(record.dueDate, todayKey)),
+      },
+      link: paths.consignmentPayouts,
+    })
+  }
+  return signals
 }
 
 export interface OwnerPayableSummary {

@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import { paths } from '@/app/paths'
+import type { Rental } from '@/features/rentals'
+import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
+import { ASSIGNMENT_ROLE_LABELS, vi } from '@/shared/i18n/vi'
+import { formatDateTime } from '@/shared/lib/datetime'
 import { EMPLOYEE_STATUSES, ROLES } from '@/shared/domain/enums'
 import type { AccountStatus, AssignmentRole, AssignmentStatus, EmployeeStatus, Role } from '@/shared/domain/enums'
 
@@ -258,3 +263,49 @@ export const assignmentCancelSchema = z.object({
   reason: z.string().trim().min(3, 'Lý do là bắt buộc (tối thiểu 3 ký tự)'),
 })
 export type AssignmentCancelValues = z.infer<typeof assignmentCancelSchema>
+
+/**
+ * Tín hiệu phân công giao/nhận — Assignment `ASSIGNED` mà cửa sổ kế hoạch chưa kết thúc (`plannedWindowEnd ≥ now`),
+ * thuộc lượt chưa `CANCELLED`/`NO_SHOW`. `recipientUserIds` = tài khoản của người được giao. Hàm thuần.
+ * Mô hình quét: sự kiện suy từ trạng thái hiện tại, không phát đúng lúc bấm "Phân công" (DASHBOARD-PLATFORM-PLAN.md §2.2 E3).
+ * TODO(OQ: Notification-BRD.md §7 — EMPLOYEE_ASSIGNMENT vs TASK_ASSIGNMENT trùng ý) — chỉ phát EMPLOYEE_ASSIGNMENT.
+ */
+export function collectAssignmentSignals(
+  assignments: Assignment[],
+  employees: Employee[],
+  rentals: Rental[],
+  now: Date,
+): OperationalSignal[] {
+  const employeeById = new Map(employees.map((e) => [e.id, e]))
+  const rentalById = new Map(rentals.map((r) => [r.id, r]))
+  const nowMs = now.getTime()
+  const signals: OperationalSignal[] = []
+  for (const assignment of assignments) {
+    if (assignment.status !== 'ASSIGNED') continue
+    if (new Date(assignment.plannedWindowEnd).getTime() < nowMs) continue
+    const rental = rentalById.get(assignment.rentalId)
+    if (!rental || rental.status === 'CANCELLED' || rental.status === 'NO_SHOW') continue
+    const employee = employeeById.get(assignment.assigneeEmployeeId)
+    signals.push({
+      dedupeKey: signalDedupeKey('EMPLOYEE_ASSIGNMENT', 'Assignment', assignment.id, assignment.plannedWindowEnd),
+      eventType: 'EMPLOYEE_ASSIGNMENT',
+      sourceModule: 'EA',
+      // Không có `group` — không vào Dashboard (DASHBOARD-PLATFORM-PLAN.md §4.1).
+      resource: 'ASSIGNMENT',
+      entityType: 'Assignment',
+      entityId: assignment.id,
+      entityLabel: `${vi.notifications.entity.assignment} ${assignment.rentalId}`,
+      priority: 'NORMAL',
+      dueRef: assignment.plannedWindowEnd,
+      payload: {
+        rentalId: assignment.rentalId,
+        employeeName: employee?.fullName ?? assignment.assigneeEmployeeId,
+        roleLabel: ASSIGNMENT_ROLE_LABELS[assignment.role],
+        time: formatDateTime(assignment.plannedWindowEnd),
+      },
+      link: `${paths.rentalDetail(assignment.rentalId)}?tab=assignment`,
+      recipientUserIds: employee?.account ? [employee.account.userId] : undefined,
+    })
+  }
+  return signals
+}

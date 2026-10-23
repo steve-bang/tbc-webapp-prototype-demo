@@ -37,3 +37,5 @@ export {
   summarizeOwnerPayables,
 } from './payoutModel'
 export type { OwnerPayableSummary } from './payoutModel'
+// DASHBOARD-PLATFORM-PLAN.md §5.3
+export { collectConsignmentSignals } from './payoutModel'
