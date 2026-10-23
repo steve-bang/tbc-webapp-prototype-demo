@@ -60,3 +60,5 @@ import '@/features/consignment/seed'
 import '@/features/finance/seed'
 // docs/DASHBOARD-PLATFORM-PLAN.md §9.2 — sau finance: chỉ đặt key `notifications` về rỗng (không phụ thuộc dữ liệu).
 import '@/features/notifications/seed'
+// docs/DASHBOARD-PLATFORM-PLAN.md §9.2 — CUỐI CÙNG: nhật ký mẫu tham chiếu id thật của mọi feature đã seed ở trên.
+import '@/features/audit/seed'

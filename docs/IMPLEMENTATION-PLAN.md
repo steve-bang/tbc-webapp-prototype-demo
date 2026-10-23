@@ -590,7 +590,9 @@ Kế hoạch: [`docs/DASHBOARD-PLATFORM-PLAN.md`](DASHBOARD-PLATFORM-PLAN.md) �
       1.828,25 kB → từ R3 tải lười màn `/platform/*` (D11)): `IN_APP_WEBAPP`, sự kiện có lưu + khử trùng
       + tự `CANCELLED`, Inbox `/platform/notifications`, chuông Topbar qua slot, 4 entry quyền `NOTIFICATION` (ô `TBD` giữ nguyên),
       bật lại "Xem tất cả" ở Dashboard. Không bump `SEED_VERSION` (vẫn 24).
-- [ ] **R3 — Nhật ký thao tác** (Audit Record mở rộng tương thích ngược, trần theo ký tự, lọc/phân trang/che dữ liệu/xuất CSV,
+- [x] **R3 — Nhật ký thao tác** — **DONE** (23/10/2026, review `tech-lead` đạt vòng 2 — vòng 1 có 1 Blocker: nhật ký mẫu lệch dòng
+      thời gian thật, đã sửa — plan §20.9; tải đầu `/dashboard` 1.845,24 kB) (brief plan §20; trước tiên tải lười `NotificationCenterScreen` — D11;
+      `SEED_VERSION` 24 → 25) (Audit Record mở rộng tương thích ngược, trần theo ký tự, lọc/phân trang/che dữ liệu/xuất CSV,
       seed nhật ký mẫu, `AUDIT.VIEW` theo `AL` §16; component phân trang; nợ tab Nhật ký ký gửi).
 - [ ] **R4 — Quản trị hệ thống + polish** (Vai trò & quyền, Cấu hình hệ thống, phân trang danh sách dài, màn Chi tiết nhân viên
       `/employees/:id`, gom chuỗi `vi.ts`, rà responsive, `README.md`).

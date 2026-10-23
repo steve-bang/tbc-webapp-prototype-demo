@@ -10,9 +10,9 @@ import { useConsignmentAudit, useConsignmentHandoverRecords, useOwnerPayoutRecor
  * (`batch:<kỳ>`) không gắn với hợp đồng nào nên không gộp. Mirror `ContractAuditTab`/`VehicleAuditTab`.
  */
 export function ConsignmentAuditTab({ ownerId, contractId, proposalId }: { ownerId?: string; contractId?: string; proposalId?: string }) {
-  const { data: records } = useConsignmentHandoverRecords(contractId ? { contractId } : undefined)
+  const { data: records } = useConsignmentHandoverRecords(contractId ? { contractId } : undefined, { enabled: !!contractId })
   const handoverIds = useMemo(() => (contractId ? (records ?? []).map((r) => r.id) : []), [contractId, records])
-  const { data: payoutRecords } = useOwnerPayoutRecords(contractId ? { contractId } : undefined)
+  const { data: payoutRecords } = useOwnerPayoutRecords(contractId ? { contractId } : undefined, { enabled: !!contractId })
   const payoutIds = useMemo(() => (contractId ? (payoutRecords ?? []).map((r) => r.id) : []), [contractId, payoutRecords])
 
   const entities = useMemo(() => {

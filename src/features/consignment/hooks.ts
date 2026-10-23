@@ -66,10 +66,12 @@ export function useConsignmentContract(id?: string) {
   })
 }
 
-export function useConsignmentHandoverRecords(filter?: ConsignmentHandoverRecordFilter) {
+/** `options.enabled` mặc định `true` (caller cũ không đổi) — `ConsignmentAuditTab` tắt khi không có `contractId` (DASHBOARD-PLATFORM-PLAN.md §10 nợ #2). */
+export function useConsignmentHandoverRecords(filter?: ConsignmentHandoverRecordFilter, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...ROOT, 'handover-records', filter ?? {}],
     queryFn: () => api.listConsignmentHandoverRecords(filter),
+    enabled: options?.enabled ?? true,
   })
 }
 
@@ -216,10 +218,12 @@ export function useSupersedeConsignmentContract() {
 
 // ---- Lịch chi trả hàng tháng ----
 
-export function useOwnerPayoutRecords(filter?: OwnerPayoutRecordFilter) {
+/** `options.enabled` mặc định `true` (caller cũ không đổi) — xem `useConsignmentHandoverRecords`. */
+export function useOwnerPayoutRecords(filter?: OwnerPayoutRecordFilter, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...ROOT, 'payout-records', filter ?? {}],
     queryFn: () => payoutApi.listOwnerPayoutRecords(filter),
+    enabled: options?.enabled ?? true,
   })
 }
 

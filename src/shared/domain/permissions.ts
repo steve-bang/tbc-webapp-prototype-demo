@@ -519,11 +519,22 @@ const TABLE: PermissionEntry[] = [
   },
 
   // ---- Nền tảng ----
+  // AUDIT — DASHBOARD-PLATFORM-PLAN.md §7. SALES ≈ MANAGER (CR-2026-035, CR-2026-037). ACCOUNTANT chỉ thấy phạm vi tài chính — phạm vi
+  // được lọc ở `features/audit` (`scopeForRole`, tầng api) chứ không ở đây. OPERATION_STAFF ✗ (AL-BR-12).
+  // Cột DISPATCHER không có trong bảng AL §16 → 'TBD' (không cấp ngầm).
+  // TODO(OQ: AuditLog-BRD.md §16 "giới hạn tài chính" — Accountant gồm những module nào; DISPATCHER chưa có cột — DASHBOARD-PLATFORM-PLAN.md §11 Q9/Q19).
   {
     resource: 'AUDIT',
     action: 'VIEW',
-    values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: false, DISPATCHER: false, OPERATION_STAFF: false, ACCOUNTANT: false },
-    source: 'BA đề xuất cho bản demo — chưa có bảng riêng trong tài liệu gốc, mặc định thận trọng theo vai trò quản lý',
+    values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, DISPATCHER: 'TBD', OPERATION_STAFF: false, ACCOUNTANT: true },
+    source: 'AuditLog-BRD.md §16 + CR-2026-035/037 — Truy cập nhật ký toàn hệ thống; Accountant giới hạn tài chính; OPERATION_STAFF ✗ (AL-BR-12)',
+  },
+  // TODO(OQ: AuditLog-BRD.md §22 Q11 — Accountant có được xuất nhật ký không; DISPATCHER chưa có cột) → 'TBD' (không thấy nút Xuất CSV).
+  {
+    resource: 'AUDIT',
+    action: 'EXPORT',
+    values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, DISPATCHER: 'TBD', OPERATION_STAFF: false, ACCOUNTANT: 'TBD' },
+    source: 'AuditLog-BRD.md §16 — Xuất nhật ký (CR-2026-037: Manager xuất được; CR-2026-035: SALES ≈ Manager; Accountant TBD — §22 Q11)',
   },
   {
     resource: 'NOTIFICATION',

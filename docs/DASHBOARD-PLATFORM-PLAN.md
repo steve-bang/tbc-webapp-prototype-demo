@@ -1,7 +1,7 @@
 # Kế hoạch triển khai — Dashboard & Nền tảng (Thông báo · Nhật ký thao tác · Quản trị hệ thống) (Phase 6)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (23/10/2026 — người dùng duyệt cả 7 điểm §16 theo đề xuất,
-ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9) · **Round 2 — `DONE`** (23/10/2026, brief §19, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết §19.9; quyết định bundle D11 áp cho R3/R4). Các Open Question nghiệp vụ
+ghi ở §16; câu 4 chuyển lên **Round 1**) · **Round 1 — `DONE`** (23/10/2026, brief §18, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết 10 lệch §18.9) · **Round 2 — `DONE`** (23/10/2026, brief §19, review `tech-lead` đạt vòng 1, không Blocker — kết quả + phán quyết §19.9; quyết định bundle D11 áp cho R3/R4) · **Round 3 — `APPROVED`, đã giao `dev`** (23/10/2026, brief §20; người dùng duyệt 7 mục gợi ý gồm tải lười D11) — **`DONE`** (23/10/2026, review `tech-lead` đạt vòng 2 sau 1 Blocker — §20.9). Các Open Question nghiệp vụ
 xử lý bằng giả định tạm + `TODO(OQ)` ở §11 (không tự chốt).
 
 Kế hoạch chi tiết **Phase 6** (`docs/IMPLEMENTATION-PLAN.md` mục "Phase 6 — Hoàn thiện nền tảng & polish"). Chia **4 round**:
@@ -71,7 +71,8 @@ CR liên quan: `CR-2026-025` (NT), `CR-2026-032` (Dashboard là trang mặc đ�
 | D7 | **Audit Record mở rộng bằng trường tuỳ chọn** (`module?`, `severity?`, `actorType?`, `correlationId?`, `reason?`); bản ghi cũ không có `module` được **suy ra** từ `entity` qua bảng ánh xạ ở `features/audit/model.ts`. **Không** sửa 227 lời gọi `appendAudit` hiện có. | Giữ diff nhỏ, không đụng các feature trong SCC; Correlation ID chỉ có ở bản ghi mới/seed (ghi rõ ở §11). |
 | D8 | **Trần audit theo ký tự** (`AUDIT_MAX_CHARS`) thay trần 500 bản ghi; `writeJson` trả `boolean` để audit/thông báo tự cắt bớt bản ghi cũ và ghi lại khi `localStorage` đầy (thay vì im lặng mất dữ liệu). | §9 — biến "ngân sách thao tác demo 0,75 triệu ký tự" (5.1) từ giả định thành giới hạn được thực thi. |
 | D9 | **Biểu đồ "doanh thu theo ngày (30 ngày)" trên Dashboard vẽ bằng thanh CSS** (`bg-primary`, chiều cao theo tỉ lệ), **không** dùng `recharts`. | Dashboard là trang mặc định → nằm ở chunk chính; `recharts` (397 kB) phải tiếp tục ở chunk lười. |
-| D11 | **Tải lười mọi màn `/platform/*` + màn mới của R3/R4** (chốt 23/10/2026 khi review R2 — chunk chính còn dư 1,75 kB). Mỗi feature có `screens/lazyScreens.ts` theo mẫu `finance/revenue-cost/screens/lazyScreens.ts`; barrel export bản lazy; `app/routes.tsx` bọc `<Suspense>`. R3: chuyển `NotificationCenterScreen` sang lazy (việc đầu tiên) + `AuditLogScreen` lazy. R4: `SystemConfigScreen`, `PermissionMatrixScreen`, màn Chi tiết nhân viên lazy. Chuông `NotificationBell` giữ tĩnh. Trần chunk chính giữ **≤ 1.830 kB** cho R3/R4. | Trang mặc định (Dashboard) và Topbar phải nằm trong chunk chính; các màn nền tảng ít dùng không cần. Rẻ, có tiền lệ. |
+| D11 | **Tải lười mọi màn `/platform/*` + màn mới của R3/R4** (chốt 23/10/2026 khi review R2 — chunk chính còn dư 1,75 kB). Mỗi feature có `screens/lazyScreens.ts` theo mẫu `finance/revenue-cost/screens/lazyScreens.ts`; barrel export bản lazy; `app/routes.tsx` bọc `<Suspense>`. R3: chuyển `NotificationCenterScreen` sang lazy (việc đầu tiên) + `AuditLogScreen` lazy. R4: `SystemConfigScreen`, `PermissionMatrixScreen`, màn Chi tiết nhân viên lazy. Chuông `NotificationBell` giữ tĩnh. Trần chunk chính giữ **≤ 1.830 kB** cho R3; **từ R4 đổi sang tổng JS tải đầu của `/dashboard` (entry + mọi `modulepreload`) ≤ 1.870 kB** (review R3 — §20.9 L1: Rolldown tự tách chunk dùng chung nên chunk chính không còn phản ánh tải đầu). | Trang mặc định (Dashboard) và Topbar phải nằm trong chunk chính; các màn nền tảng ít dùng không cần. Rẻ, có tiền lệ. |
+| D12 | **Nhãn hành động audit (`AUDIT_ACTION_LABELS`, ~170 mục) đặt ở file i18n riêng `shared/i18n/auditLabels.ts`**, chỉ `features/audit` import (chạy trong chunk lười) — không đặt trong `vi.ts` (chunk chính). Chốt khi lập brief R3 (23/10/2026). | Chunk chính còn dư 1,75 kB; ~8 kB nhãn sẽ vượt trần. Vẫn tập trung chuỗi ở `shared/i18n/` (tinh thần `CONVENTIONS.md` §1); `vi.ts` giữ các chuỗi màn hình. |
 | D10 | `NOTIFICATION_EVENT_TYPES` **thay toàn bộ** bằng đúng 18 mã của `Notification-BRD.md` §7 (giữ thứ tự tài liệu). | Ngoại lệ có tiền lệ (`INCIDENT_STATUSES` — `DAMAGE-INCIDENT-MANAGEMENT-PLAN.md` §0.1): sửa scaffold Phase 0 cho khớp tài liệu, mảng chưa được dùng ở đâu nên không phá dữ liệu. Ghi rõ comment. |
 
 ### 0.3. Không thuộc phạm vi Phase 6 (lý do)
@@ -180,7 +181,7 @@ app/routes.tsx ──► features/dashboard ──► features/notifications ─
      │                     ├──► @/features/finance  (DashboardFinanceWidget)
      │                     └──► @/features/vehicles, @/features/rentals (KPI vận hành)
      ├──► features/notifications (NotificationCenterScreen, NotificationBell → truyền vào AppShell qua topbarSlot)
-     ├──► features/audit ──► shared/lib/audit (KHÔNG import barrel feature nào)
+     ├──► features/audit ──► shared/lib/audit (KHÔNG import barrel feature nào — trừ `audit/seed.ts` đọc storage key qua barrel như mọi seed)
      └──► features/auth  (SystemConfigScreen, PermissionMatrixScreen)
 
 shared/layout/AppShell ──► Topbar(topbarSlot)        — không import features/notifications
@@ -703,7 +704,7 @@ render bảng).
 4. `buildDashboardFinanceSummary` + `DashboardFinanceWidget` (đối chiếu số 5.1).
 5. `dashboard/*` + route; 3 cổng + SCC + evalorder + kích thước chunk.
 
-Brief giao việc R1 đầy đủ: **§18**. Brief R2: **§19**. Round 3–4: `tech-lead` viết mục chi tiết giao việc (§21+ — chèn trước mục Lịch sử) khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
+Brief giao việc R1 đầy đủ: **§18**. Brief R2: **§19**. Brief R3: **§20**. Round 4: `tech-lead` viết mục chi tiết giao việc (§21+ — chèn trước mục Lịch sử) khi round trước `DONE`, theo khuôn `REVENUE-COST-PLAN.md` §19/§20.
 
 ---
 
@@ -1133,10 +1134,262 @@ chặn đọc hộ, prune 300 → 136 event (79.513 ký tự), ghi lỗi → th�
 
 ---
 
-## 20. Lịch sử
+## 20. Round 3 — brief giao việc cho `dev` (`APPROVED` 23/10/2026)
+
+### 20.1. Bối cảnh
+
+Nhật ký thao tác (`AL`) là dịch vụ ghi bất biến mà mọi feature đã gọi (`appendAudit`, 113 chỗ gọi) nhưng chưa có màn tra cứu toàn hệ
+thống (`/platform/audit` vẫn `ComingSoon`), Audit Record thiếu `Module`/`Severity`/`Actor Type`/`Correlation ID` (`AuditLog-BRD.md` §6),
+trần lưu là 500 bản ghi (không giới hạn ký tự), không có seed, đăng xuất không ghi audit, quyền `AUDIT.VIEW` lệch tài liệu. R3 làm màn
+tra cứu (UC-AL-04/05/06/07/10), mở rộng bản ghi **tương thích ngược** (D7), trần theo ký tự (D8), seed nhật ký mẫu, sửa quyền theo `AL` §16
++ CR-2026-035/037, và áp D11 (tải lười) trước tiên vì chunk chính chỉ còn dư 1,75 kB.
+
+### 20.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §20.6)
+
+1. **D11 — tải lười `NotificationCenterScreen`**: `features/notifications/screens/lazyScreens.ts` theo mẫu
+   `features/finance/revenue-cost/screens/lazyScreens.ts`; barrel `notifications` export bản lazy (tên giữ nguyên); `app/routes.tsx` bọc
+   `<Suspense fallback={…vi.common.loading…}>` như route Báo cáo tài chính. `NotificationBell` giữ tĩnh.
+2. **`shared/domain/enums.ts`** (mỗi khối comment nguồn): nối cuối file `AUDIT_MODULES` (13 mã đúng `AL` §6: `VEHICLE, CUSTOMER, RENTAL,
+   HANDOVER, RETURN, INCIDENT, SETTLEMENT, PAYMENT, CONTRACT, EMPLOYEE, REVENUE_COST, AUTH, AUDIT` + nối thêm comment `BA đề xuất`:
+   `NOTIFICATION, MAINTENANCE, CALENDAR, CONSIGNMENT, SYSTEM_ADMIN`), `AUDIT_SEVERITIES` (`INFO, NOTICE, SENSITIVE, SECURITY`),
+   `AUDIT_ACTOR_TYPES` (`USER, SYSTEM`). Nối **cuối** `AUDIT_ACTIONS` (khối `// Audit Log (AL) — DASHBOARD-PLATFORM-PLAN.md §6`):
+   `'LOGOUT'`, `'VIEW_AUDIT_LOG'`, `'VIEW_AUDIT_SENSITIVE_VALUE'`.
+3. **`shared/lib/audit.ts`** (D7/D8 — E5 đã duyệt):
+   - `AuditRecord` thêm trường **tuỳ chọn** `module?: AuditModule`, `severity?: AuditSeverity`, `actorType?: AuditActorType`,
+     `correlationId?: string`, `reason?: string`. `appendAudit(input)` nhận thêm các trường này (vẫn tuỳ chọn — 113 lời gọi cũ **không sửa**).
+   - Bỏ `MAX_RECORDS = 500`; thêm `export const AUDIT_MAX_CHARS = 400_000` (comment: giới hạn kỹ thuật bản demo, không phải chính sách
+     retention — `AL` §12.2/§22 Q6, `TODO(OQ)`). Sau `unshift`, bỏ bản ghi **cũ nhất** tới khi `JSON.stringify(records).length ≤ AUDIT_MAX_CHARS`
+     (tính tăng dần — không `stringify` lại cả mảng mỗi vòng). `writeJson` trả `false` → bỏ thêm 20% bản ghi cũ nhất rồi ghi lại **một lần**.
+   - Giữ nguyên `listAuditRecords()` và `seedAuditRecords()`; không thêm hàm sửa/xoá (AL-BR-01).
+4. **Cập nhật caller hệ thống có `TODO(Phase 6 R3)`** — `features/notifications/api.ts`: `SYNC_NOTIFICATIONS` thêm `actorType: 'SYSTEM'`,
+   `module: 'NOTIFICATION'`; `VIEW_SENSITIVE_NOTIFICATION` thêm `module: 'NOTIFICATION'`, `severity: 'SENSITIVE'`. Xoá `TODO` tương ứng.
+5. **`features/auth/store.ts`** — `logout()` ghi `appendAudit` `LOGOUT` (`entity: 'UserAccount'`, `module: 'AUTH'`, summary từ `vi`) **trước**
+   khi xoá `user` (SA-BR-08). `login`/`switchRole` thêm `module: 'AUTH'` (không đổi gì khác).
+6. **`shared/domain/permissions.ts`** — đúng bảng §7 dòng R3: sửa entry `AUDIT.VIEW` (`SALES` true, `ACCOUNTANT` true, `DISPATCHER` `'TBD'`,
+   `OPERATION_STAFF` false; `source` mới) + thêm `AUDIT.EXPORT` (Admin/Manager/Sales true, `ACCOUNTANT` `'TBD'`, `DISPATCHER` `'TBD'`, Ops false).
+   Comment: `ACCOUNTANT` chỉ thấy phạm vi tài chính (lọc ở `features/audit`) — `TODO(OQ)` Q9.
+7. **`shared/ui/pagination.tsx`** (mới, pattern shadcn, dùng `Button`): props `{ page, pageSize, total, onPageChange }`; hiển thị
+   "x–y / tổng" + Trước/Sau (vô hiệu ở biên) + "Trang a/b"; chuỗi lấy `vi.common.pagination*` (thêm vào `vi.ts`, ~5 khoá); không render khi
+   `total ≤ pageSize`. Không áp cho màn cũ ở R3 (R4).
+8. **`shared/i18n/auditLabels.ts`** (mới — D12): `AUDIT_ACTION_LABELS: Record<AuditAction, string>` (**đủ mọi giá trị** — TS ép),
+   `AUDIT_MODULE_LABELS`, `AUDIT_SEVERITY_LABELS`, `AUDIT_ACTOR_TYPE_LABELS`. Chỉ `features/audit` import file này.
+9. **`features/audit/model.ts`** — hàm thuần (§4.5):
+   - `ENTITY_MODULE_MAP: Record<string, AuditModule>` — đủ **mọi** giá trị `entity` đang được ghi (`dev` grep `entity:` toàn `src/`, kể cả
+     `NotificationEvent`; bảng gợi ý §3.3) + `resolveModule(record)` (ưu tiên `record.module`, rồi bảng, không có → `undefined` và UI hiện
+     `entity` thô). `resolveSeverity` (mặc định `INFO`), `resolveActorType` (mặc định `USER`).
+   - `scopeForRole(role): 'ALL' | 'FINANCE' | 'NONE'` — `SYSTEM_ADMIN`/`MANAGER`/`SALES` → `ALL`; `ACCOUNTANT` → `FINANCE` (module
+     `SETTLEMENT`/`PAYMENT`/`REVENUE_COST` hoặc `entity === 'OwnerPayoutRecord'`; `TODO(OQ: AuditLog-BRD.md §16 — "giới hạn tài chính")`);
+     còn lại → `NONE` (AL-BR-12). `isInScope(record, scope)`.
+   - `AuditFilter` + `filterAuditRecords(records, filter)` — `module`, `action`, `actorUserId`, `actorType`, `entity`, `entityId` (khớp
+     chính xác), `severity`, `correlationId`, `from`/`to` (`yyyy-MM-dd`, ngày địa phương của `at`) — `AL` §9.1; giữ thứ tự mới → cũ.
+   - `paginate(items, page, pageSize)` → `{ items, total, page, pageCount }` (trang ngoài biên kẹp về biên).
+   - Che dữ liệu (`AL` §11): hằng `SENSITIVE_FIELDS` = `{ idNumber: 'ID', licenseNumber: 'ID', documentNumber: 'ID', passportNumber: 'ID',
+     phone: 'PHONE', accountNumber: 'BANK', bankAccountNumber: 'BANK' }` (`TODO(OQ: AuditLog-BRD.md §22 Q4)`); `canRevealSensitive(role, kind)`:
+     `ID`/`PHONE` → `SYSTEM_ADMIN`/`MANAGER`/`SALES`; `BANK` → `SYSTEM_ADMIN`/`MANAGER`/`SALES`/`ACCOUNTANT` (CR-2026-037, CR-2026-035).
+     `maskSensitive(value)` → giữ 4 ký tự đầu + 2 cuối, giữa `****` (chuỗi ≤ 6 ký tự → `****`). `maskSnapshot(value, role, revealed)` duyệt
+     đệ quy object/mảng `before`/`after` theo **tên khoá**, trả bản đã che (không đổi bản gốc). `hasSensitiveValue(record)`.
+   - `buildAuditCsvRows(records, filter, exporter, now)` — 4 dòng đầu: tiêu chí lọc, thời điểm xuất, người xuất (tên + vai trò), số bản ghi
+     (`AL` §10); rồi tiêu đề cột + dữ liệu (thời điểm, người, vai trò/`SYSTEM`, module, hành động (nhãn), đối tượng, mã đối tượng, tóm tắt,
+     severity, correlation). **Không** xuất `before/after`. `AUDIT_EXPORT_MAX_ROWS = 2000`.
+10. **`features/audit/api.ts`** (bọc `fakeRequest`): `listAuditRecordsPage(filter, page, pageSize, viewer)` (áp `scopeForRole` → lọc → phân
+    trang; `NONE` → ném lỗi), `getAuditRecord(id, viewer)` (trả bản đã che theo vai trò, chưa reveal; ngoài phạm vi → lỗi),
+    `revealAuditRecord(id, viewer)` (trả bản không che phần viewer được phép + ghi meta-audit `VIEW_AUDIT_SENSITIVE_VALUE`, `module: 'AUDIT'`,
+    `severity: 'SENSITIVE'`, `entity: 'AuditLog'`, `entityId` = id bản ghi được xem — AL-BR-08), `recordAuditLogView(viewer)` (meta-audit
+    `VIEW_AUDIT_LOG`, `module: 'AUDIT'`, `severity: 'NOTICE'` — AL-BR-06, §11 Q8), `exportAuditCsv(filter, viewer)` (yêu cầu
+    `can(role,'AUDIT','EXPORT')`; vượt `AUDIT_EXPORT_MAX_ROWS` → ném lỗi "thu hẹp bộ lọc"; trả chuỗi CSV từ `toCsv`; ghi `EXPORT`,
+    `module: 'AUDIT'`, `severity: 'NOTICE'`, summary có số bản ghi). Không hàm nào sửa/xoá bản ghi.
+11. **`features/audit/hooks.ts`** — `useAuditRecordsPage(filter, page)`, `useAuditRecord(id)`, `useRevealAuditRecord()`,
+    `useRecordAuditLogView()`, `useExportAuditCsv()`; query key gốc `['audit', …]`; mutation ghi meta-audit → invalidate `['audit']`.
+12. **UI `features/audit`** — `screens/AuditLogScreen.tsx` (§8.3; gọi `recordAuditLogView` **một lần** khi mở màn — `useRef` chặn gọi
+    trùng do StrictMode), `components/AuditFilterBar.tsx` (lưới `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`; người thực hiện = 6 tài khoản demo
+    + "Hệ thống"; hành động = Select theo nhãn; đối tượng = Select entity + Input mã), `components/AuditRecordDetailSheet.tsx` (`Sheet`:
+    thông tin bản ghi, bảng Old/New khoá–giá trị đã che (object lồng → JSON rút gọn), nút "Hiện đầy đủ" chỉ khi `hasSensitiveValue` và viewer
+    reveal được ít nhất một loại, nút "Xem thao tác liên quan" khi có `correlationId` → đặt bộ lọc correlation), `screens/lazyScreens.ts`
+    (D11), `index.ts` (export bản lazy `AuditLogScreen`). Bảng 25 dòng/trang + `Pagination`; banner "chỉ ghi thêm, không sửa/xoá (AL-BR-01)";
+    nút "Xuất CSV" chỉ khi `can('AUDIT','EXPORT')` (dùng `downloadCsv`). Không có nút sửa/xoá ở đâu.
+13. **`features/audit/seed.ts`** + `registerSeeds.ts` (import **cuối cùng**, sau `notifications`): `seedAuditRecords([...])` — **45–55** bản ghi
+    giả lập (comment: dữ liệu demo), `at` rải trong 7 ngày trước thời điểm seed (không mốc tương lai), mới → cũ; **không** `before`/`after`;
+    `id` = `generateId('AL')`. Bắt buộc có: ≥ 6 module khác nhau; ≥ 12 bản ghi phạm vi tài chính (để Accountant thấy dữ liệu); ≥ 3 bản ghi
+    `actorType: 'SYSTEM'`; 2 chuỗi `correlationId` × 3 bản ghi (vd. hoàn tất quyết toán → xác nhận giao dịch → hoàn tất lượt); ≥ 2 `LOGIN` +
+    ≥ 1 `LOGOUT`; actor là 6 tài khoản demo (`features/auth` `DEMO_ACCOUNTS`). Mọi `entityId` lấy từ storage **thật** qua storage key export ở
+    barrel (`RENTALS_STORAGE_KEY`, `VEHICLES_STORAGE_KEY`, `INCIDENTS_STORAGE_KEY`, `TRANSACTIONS_STORAGE_KEY`, `SETTLEMENTS_STORAGE_KEY`,
+    `CONSIGNMENT_CONTRACTS_STORAGE_KEY`, `EMPLOYEES_STORAGE_KEY`… — chỉ key đã export, không thêm export mới); summary không bịa số tiền khác dữ
+    liệu thật. `shared/fixtures/seedAll.ts`: `SEED_VERSION` 24 → **25**.
+14. **Nợ Phase 5 R3 — `ConsignmentAuditTab`**: `useOwnerPayoutRecords(filter, options?: { enabled?: boolean })` và
+    `useConsignmentHandoverRecords(filter, options?)` (mặc định `enabled: true` — caller khác không đổi); tab truyền `enabled: !!contractId`.
+15. **`app/routes.tsx`** — `/platform/audit` mount `AuditLogScreen` (lazy, bọc `Suspense`); bỏ `ComingSoon` dòng này.
+16. **`shared/i18n/vi.ts`** — `vi.audit` (tiêu đề, mô tả, cột, bộ lọc, banner, nút, trạng thái rỗng, lỗi, summary meta-audit),
+    `vi.common.pagination*`, `vi.auth.logoutAuditSummary`. Nhãn hành động/module/severity ở `auditLabels.ts` (D12).
+
+### 20.3. Ngoài phạm vi R3 (không làm dù "tiện tay")
+
+Sửa 113 lời gọi `appendAudit` cũ để thêm `module`/`correlationId` (trừ 2 caller `notifications` và `auth/store` ở mục 4–5) · sửa các tab
+"Nhật ký thao tác" theo đối tượng (`VehicleAuditTab`, `RentalAuditTab`…) · phân trang các màn cũ (R4) · màn `/platform/system-config`,
+`/platform/permissions`, Chi tiết nhân viên (R4) · cấu hình retention/phân quyền xem (UC-AL-12), lưu trữ lạnh, chuỗi băm · `LOGIN_FAILED` ·
+xuất PDF · audit việc xem từng trang/bộ lọc · sửa `docs/` · commit/push.
+
+### 20.4. Quy tắc bắt buộc
+
+1. `features/audit` chỉ import `shared/*`, `@/features/auth` (session, `DEMO_ACCOUNTS`, `usePermission`) và `@/app/paths`; riêng `audit/seed.ts`
+   được import storage key qua barrel. Không feature nào import `@/features/audit`.
+2. Bản ghi audit **không bao giờ** bị sửa/xoá ngoài cơ chế cắt trần trong `audit.ts` (AL-BR-01); che dữ liệu **chỉ ở tầng hiển thị/CSV**,
+   bản lưu giữ đầy đủ (AL-BR-07).
+3. Hàm ở `audit/model.ts` thuần (không `new Date()`/`readJson`); thời điểm và viewer do `api.ts`/hook truyền vào.
+4. Quyền qua `can()`/`usePermission()`; phạm vi Accountant qua `scopeForRole` ở **api** (không chỉ ẩn ở UI).
+5. Comment mã tài liệu tại chỗ (`AL-BR-01/04/06/07/08/12`, `AL` §6/§9/§10/§11, `SA-BR-08`, CR-2026-035/037); `TODO(OQ)` cho Q4 (trường nhạy
+   cảm), Q6 (retention), Q8 (meta-audit), Q9 (phạm vi Accountant), Q11 (Accountant xuất), Q19 (Dispatcher).
+6. Chuỗi UI ở `vi.ts` / `auditLabels.ts`; token theme; bảng trong `Table` (đã có `overflow-x-auto`); không `console.log`/`any`/`enum`/`*/` kẹt.
+
+### 20.5. Definition of Done R3 — chạy đủ và dán kết quả vào báo cáo
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+1. `npx tsc -b` · `npx oxlint` (không cảnh báo mới ngoài 2 cảnh báo cũ) · `npm run build` — sạch. `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. **Chunk chính ≤ 1.830 kB** (R2: 1.828,25) — báo số; dự kiến **giảm** nhờ D11. Có chunk lười riêng cho `NotificationCenterScreen` và
+   `AuditLogScreen`; `auditLabels.ts` **không** nằm trong chunk chính (`grep -c` một nhãn **chỉ có** trong `auditLabels.ts` — tự chọn, ghi
+   rõ trong báo cáo — trên `dist/assets/index-*.js` = 0).
+3. `node $SP/consignment-r3/sccfiles.mjs $REPO | diff - $SP/consignment-r3/scc-target.txt` → rỗng · `node $SP/tl-verify/evalorder.mjs $REPO /src/app/routes.tsx` → `OK`.
+4. `TZ=Asia/Ho_Chi_Minh node $SP/phase6/sizes.mjs $REPO` → `TOTAL` ≤ **1.840.000** (dự kiến 1.822.127 + ≤ 17.000 của `audit`); key `audit`
+   ≤ **17.000** ký tự (báo số).
+5. `TZ=Asia/Ho_Chi_Minh node $SP/demo-data/verify.mjs $REPO $SP/phase6/before-r3.json` → `errors: 0` (`before-r3.json` = `before-r2.json` +
+   `"tbc_admin:audit": []` — `tech-lead` dựng sẵn).
+6. Harness `$SP/phase6/audit-r3.mjs` (`dev` tự viết; `boot()` của `$SP/demo-data/lib.mjs`, `TZ=Asia/Ho_Chi_Minh`, gọi **code thật**). Kỳ vọng:
+   - Seed: 45–55 bản ghi; mọi `entityId` tồn tại trong storage tương ứng; ≥ 6 module; ≥ 12 bản ghi phạm vi `FINANCE`; ≥ 3 `SYSTEM`; 2 chuỗi
+     correlation × 3; ≥ 2 `LOGIN`, ≥ 1 `LOGOUT`; không `at` tương lai; không `before`/`after`; sắp mới → cũ.
+   - `ENTITY_MODULE_MAP` phủ **100%** giá trị `entity` literal trong `src/` (harness grep + so; in danh sách thiếu = rỗng).
+   - Bản ghi cũ không có `module` (vd. `{entity:'Settlement'}`) → `resolveModule` = `SETTLEMENT`; `{entity:'Lạ'}` → `undefined`, không ném.
+   - Phạm vi: `SYSTEM_ADMIN`/`MANAGER`/`SALES` thấy toàn bộ; `ACCOUNTANT` chỉ thấy bản ghi `FINANCE` (số = số đếm ở gạch 1, báo số);
+     `OPERATION_STAFF`/`DISPATCHER` → `listAuditRecordsPage` ném lỗi.
+   - Lọc: theo `correlationId` của chuỗi 1 → đúng 3 bản ghi; theo `module: 'AUTH'` → chỉ `LOGIN`/`LOGOUT`; khoảng ngày ngoài 7 ngày → 0.
+   - Phân trang 25: trang 1 có 25, trang cuối = tổng − 25×(n−1); trang vượt biên kẹp về trang cuối.
+   - Che: `maskSnapshot({customer:{idNumber:'079203001234', phone:'0909123456'}, account:{accountNumber:'0123456789'}}, 'ACCOUNTANT', true)`
+     → `idNumber`/`phone` vẫn che (`0792****34`, `0909****56`), `accountNumber` đầy đủ; cùng input với `MANAGER`, `revealed=false` → che cả 3,
+     `revealed=true` → đầy đủ cả 3. Bản gốc không bị đổi.
+   - Meta-audit: `recordAuditLogView` → +1 `VIEW_AUDIT_LOG` (`module AUDIT`, `NOTICE`); `revealAuditRecord` → +1 `VIEW_AUDIT_SENSITIVE_VALUE`
+     (`SENSITIVE`); `exportAuditCsv` (MANAGER) → +1 `EXPORT` (`module AUDIT`) và CSV có 4 dòng đầu đúng §20.2 mục 9 + số dòng dữ liệu = số
+     bản ghi lọc; `exportAuditCsv` (ACCOUNTANT) → ném lỗi (quyền `TBD`).
+   - Trần: ghi 2.000 bản ghi lớn (mỗi bản có `after` ~1.500 ký tự) bằng `appendAudit` → key `audit` ≤ **400.000** ký tự, bản ghi mới nhất
+     còn, thời gian trung bình mỗi `appendAudit` ≤ **5 ms**; giả lập `setItem` ném lỗi cho key `tbc_admin:audit` → không ném, thử ghi đúng 2 lần.
+   - `logout()` ghi đúng 1 `LOGOUT` (`module AUTH`) với actor là người vừa đăng xuất.
+   - `syncNotifications` lần đầu ghi `SYNC_NOTIFICATIONS` có `actorType: 'SYSTEM'`, `module: 'NOTIFICATION'`.
+   - Quyền: `can('SALES','AUDIT','VIEW')`, `can('ACCOUNTANT','AUDIT','VIEW')` = `true`; `permissionValue('ACCOUNTANT','AUDIT','EXPORT') === 'TBD'`;
+     `permissionValue('DISPATCHER','AUDIT','VIEW') === 'TBD'`; `can('OPERATION_STAFF','AUDIT','VIEW') === false`.
+7. Tab Nhật ký ký gửi (mục 14): đọc code + harness/đếm — với `ownerId`/`proposalId` (không `contractId`) không gọi `listOwnerPayoutRecords`/
+   `listConsignmentHandoverRecords`.
+8. `git status` chỉ gồm file thuộc §20.2; không file `docs/`.
+
+**Không yêu cầu** test trình duyệt (quyết định 14/09/2026).
+
+### 20.6. Thứ tự làm
+
+1. Mục 1 (lazy `NotificationCenterScreen`) → `npm run build`, ghi số chunk chính mới.
+2. Mục 2–3 (enum, `audit.ts`) → `npx tsc -b`; mục 4–6 (caller hệ thống, logout, quyền).
+3. Mục 7–9 (pagination, `auditLabels.ts`, `audit/model.ts`) + phần harness kiểm hàm thuần.
+4. Mục 10–11 (api, hooks) + harness meta-audit/phạm vi/trần.
+5. Mục 13 (seed + `SEED_VERSION`) → DoD 4–5 + harness seed.
+6. Mục 12, 14–16 (UI, nợ ký gửi, route, i18n) → DoD 1–3, 7.
+7. Chạy lại toàn bộ DoD 1–8.
+
+### 20.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §0.2 (D7, D8, D11, D12), §2.1, §3.3, §4.5, §5.2, §6, §7, §8.3, §9, §10 (mục 2), §11 (Q4, Q6–Q10, Q19), §19.9, §20.
+2. `../thien-bao-car-docs/modules/AuditLog-BRD.md` §6–§11, §15–§16 · `WebappQuanTri.md` §13.2.
+3. `CONVENTIONS.md` §1–§6, §8, §11 · `docs/ARCHITECTURE.md` §1, §3.
+4. `src/shared/lib/{audit,storage,csv,id,fakeNetwork,datetime}.ts` · `src/shared/domain/enums.ts` khối `AUDIT_ACTIONS` + cuối file ·
+   `src/shared/domain/permissions.ts` dòng 1–80, 515–575 · `src/shared/fixtures/{registerSeeds,seedAll}.ts`.
+5. `src/features/auth/{store,model,index,usePermission}.ts` · `src/features/notifications/{api,index}.ts` ·
+   `src/features/finance/revenue-cost/screens/lazyScreens.ts` · `src/app/{routes.tsx,paths.ts}`.
+6. Mẫu UI: `src/features/notifications/screens/NotificationCenterScreen.tsx` (bộ lọc + Select) · `src/features/vehicles/components/VehicleAuditTab.tsx` ·
+   `src/shared/ui/{table,sheet,button,select,badge,input}.tsx` · `src/shared/layout/PageHeader.tsx`.
+7. Seed mẫu đọc storage qua barrel: `src/features/finance/revenue-cost/seed.ts` dòng 1–70 · danh sách storage key đã export: các
+   `src/features/{rentals,vehicles,incidents,finance,consignment,employees}/index.ts`.
+8. Nợ ký gửi: `src/features/consignment/hooks.ts` dòng 60–90, 215–230 · `src/features/consignment/components/ConsignmentAuditTab.tsx`.
+9. Harness: `$SP/demo-data/lib.mjs`, `$SP/phase6/{notif-r2,sizes}.mjs`.
+
+### 20.8. Báo cáo bàn giao `dev` phải có
+
+Danh sách file đổi (khớp `git status`) · output rút gọn DoD 1–7 (chunk chính trước/sau mục 1 và cuối round, tên + kích thước 2 chunk lười mới,
+SCC, `evalorder`, `TOTAL` + key `audit`, `verify`, từng gạch harness DoD 6 có số) · bảng `ENTITY_MODULE_MAP` cuối cùng · mọi chỗ lệch plan + lý
+do · `TODO(OQ)` đã đặt (file:dòng).
+
+---
+
+### 20.9. Review vòng 1 (23/10/2026) — **1 Blocker**, trả `dev` sửa
+
+`tech-lead` chạy lại: 3 cổng sạch (2 cảnh báo `oxlint` cũ) · SCC = target (98) · `evalorder` OK · `TOTAL` 1.836.639 (key `audit` 14.512 ký tự,
+50 bản ghi) · `verify` + `before-r3.json` → `errors: 0` · `audit-r3.mjs` ALL PASS. Đọc diff: `audit.ts` cắt trần tăng dần đúng, ghi lỗi → thử lại
+1 lần; `logout` ghi `LOGOUT` trước khi xoá session; quyền `AUDIT` đúng §7; phạm vi Accountant lọc ở api; `ConsignmentAuditTab` tắt 2 query khi
+không có `contractId`; nút "Hiện đầy đủ" chỉ hiện khi `canRevealAnyIn(record, role)` (Accountant với bản ghi chỉ có CCCD/SĐT **không** thấy nút).
+
+**Blocker B1 — nhật ký mẫu mâu thuẫn dữ liệu thật trong store.** `features/audit/seed.ts` đặt `at` theo "số phút trước" cố định, không theo mốc
+của chính thực thể; các bản ghi này hiện ra ở tab "Nhật ký thao tác" của Rental/Contract/Incident… nên khách thấy ngay chỗ vô lý. Công cụ
+`$SP/phase6/audit-seed-timeline.mjs` (tech-lead dựng) báo **23 lỗi**, ví dụ: "Tạo lượt thuê rt_018" hôm nay trong khi lượt tạo 17/10 và đã giao
+20/10 (tương tự `rt_020`/`rt_021` — tạo **sau** giờ giao); chuỗi "hoàn tất quyết toán/hoàn cọc/hoàn tất lượt rt_024" hôm nay trong khi quyết
+toán hoàn tất 05/10 và hoàn cọc xác nhận 07/10; `CREATE_INCIDENT inc_004` 20/10 nhưng sự cố báo 16/10; `CREATE_INCIDENT inc_003` 16/10 trước khi
+sự cố tồn tại (21/10); `EDIT_HANDOVER ho_001`, `CREATE_ASSIGNMENT asg_001` trước khi thực thể được tạo; `CREATE_CUSTOMER cus_004` (khách tạo 2024);
+`SET_CONTRACT_SIGNED ct_005` lệch `signedDate` 21/10. Sửa:
+1. Mỗi bản ghi lấy `at` từ **mốc thật** của thực thể theo hành động (bảng `EXACT` trong `audit-seed-timeline.mjs`: `CREATE_*` → `createdAt`,
+   `CREATE_INCIDENT` → `reportedAt`, `OPEN_SETTLEMENT` → `openedAt`, `COMPLETE_SETTLEMENT` → `completedAt`, `CONFIRM_TRANSACTION` → `confirmedAt`,
+   `SET_CONTRACT_SIGNED` → cùng ngày `signedDate`, `COMPLETE_RENTAL` → `completedAt` của quyết toán lượt đó…); hành động không có mốc riêng
+   (`EDIT_*`, `UPDATE_*`, `LOGIN`…) đặt **sau** `createdAt` của thực thể. Chọn thực thể **theo mốc** (vd. quyết toán có `completedAt` trong cửa
+   sổ) thay vì cố định `rt_024`/`rt_018`… Thực thể không có mốc phù hợp trong cửa sổ → **bỏ** bản ghi đó (không ép).
+2. Nới cửa sổ: `at` trong **14 ngày** trước thời điểm seed (thay 7 ngày — §20.2 mục 13) để đủ sự kiện thật; vẫn 45–55 bản ghi và các tối thiểu
+   (≥ 6 module, ≥ 12 tài chính, ≥ 3 `SYSTEM`, 2 chuỗi correlation × 3 — chuỗi phải là **một** thao tác thật: vd. quyết toán `COMPLETED` → giao
+   dịch hoàn cọc/thu cuối của **cùng lượt** → hoàn tất lượt, `at` theo mốc thật, cách nhau vài phút như dữ liệu), ≥ 2 `LOGIN`, ≥ 1 `LOGOUT`.
+3. `pick()` **không** rơi về phần tử đầu danh sách khi không tìm thấy — bỏ bản ghi (tránh summary nói lượt A mà id trỏ lượt B).
+4. Kỳ trong `batch:<kỳ>` của `GENERATE_OWNER_PAYOUT_RECORDS` suy từ thời điểm seed, không hardcode `2026-10`.
+5. Chuỗi "Hệ thống" lấy từ `vi.notifications.systemActor` (đã có), không hardcode.
+
+**DoD bổ sung vòng 2:** `TZ=Asia/Ho_Chi_Minh node $SP/phase6/audit-seed-timeline.mjs $REPO` → `errors: 0`; gạch "khoảng ngày ngoài 7 ngày → 0" của
+DoD 6 đổi thành "ngoài 14 ngày → 0"; chạy lại toàn bộ DoD 1–8 (key `audit` vẫn ≤ 17.000, `TOTAL` ≤ 1.840.000).
+
+**Phán quyết lệch đã xem (vòng 1):**
+- **L1 — Rolldown tự tách chunk dùng chung (`clsx` 188 kB, `select` 267 kB, `model` 107 kB): chấp nhận.** Đo tải đầu `/dashboard`: R2 =
+  1.828,26 kB (1 file) + 14,29 kB lười (widget + `reportModel`) = **1.842,55 kB / 3 request**; R3 = 1.845,67 kB (4 file `modulepreload` song
+  song) + 14,42 kB lười = **1.860,09 kB / 6 request** → +17,5 kB (+0,95%, do chuỗi `vi.ts`/`audit.ts`/`pagination` mới), số request tăng nhưng
+  tải song song. Chunk chính "1.283 kB" **không** phản ánh tải đầu → từ R4 đổi trần sang **tổng JS tải đầu của `/dashboard` (entry + mọi
+  `modulepreload`) ≤ 1.870 kB** (D11 cập nhật).
+- **L4 — Accountant không "Hiện đầy đủ" được bản ghi chỉ có CCCD/SĐT: chấp nhận** — đúng `canRevealSensitive` (§20.2 mục 9, AL §11); UI ẩn nút.
+- **L6/L8 — `entityId` tượng trưng / summary minh hoạ: không chấp nhận** → Blocker B1. (`entityId` `batch:<kỳ>`, `batch`, `view`, `export` cho thao
+  tác theo lô/meta-audit là quy ước sẵn có — chấp nhận.)
+- L2, L3, L5, L7, L9: phán quyết ở vòng 2 khi `dev` gửi lại báo cáo đầy đủ.
+
+**Review vòng 2 (23/10/2026) — đạt, không Blocker.** `dev` chỉ viết lại `features/audit/seed.ts`. `tech-lead` chạy lại: `audit-seed-timeline.mjs` →
+`{"records":54,"errors":0}` (đã soát lại từng dòng: mốc theo thực thể thật, 2 chuỗi correlation là quyết toán thật `stl_316`/`stl_297` — giao dịch thu
+cuối → hoàn tất quyết toán → hoàn tất lượt cách nhau 1 phút–1 giờ theo dữ liệu) · 3 cổng sạch · chunk chính 1.283,01 kB, **tải đầu `/dashboard`
+1.845,24 kB** (≤ 1.870) · SCC = target · `evalorder` OK · `TOTAL` 1.837.619 (≤ 1.840.000), key `audit` 15.492 ký tự / 54 bản ghi · `verify` +
+`before-r3.json` → `errors: 0` · `audit-r3.mjs` ALL PASS (15 module, 20 bản ghi tài chính — Accountant thấy 20, 4 `SYSTEM`, 6 `LOGIN`, 3 `LOGOUT`,
+CSV 57 dòng). Bỏ `CREATE_CUSTOMER`/`CREATE_MAINTENANCE_RECORD`/`SIGN_CONSIGNMENT_CONTRACT` (không có thực thể trong cửa sổ 14 ngày) và 2 bản ghi
+meta tượng trưng — đúng hướng sửa (không ép).
+
+**Phán quyết L2–L9 (chấp nhận cả 7):**
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L2 | Danh sách không trả `before`/`after` | **Chấp nhận** — chi tiết lấy qua `getAuditRecord` (đã che); không giữ ảnh chụp chưa che trong cache danh sách (AL-BR-07). |
+| L3 | Thêm `sensitiveKindsIn`, `canRevealAnyIn` | **Chấp nhận** — dùng chung cho api (chặn) và UI (ẩn nút) — L4. |
+| L5 | Bộ lọc có "Hệ thống"; bỏ lọc "Kết quả" | **Chấp nhận** — chưa có `LOGIN_FAILED` (ngoài phạm vi §20.3) nên lọc kết quả vô nghĩa. |
+| L6 | Chỉ còn quy ước `batch`/`view`/`export`/`batch:<kỳ>`; `REVENUE` là mã thật `FINANCE_REPORT_KEYS` | **Chấp nhận.** |
+| L7 | Không bản ghi `CostRecord`/`CashDrawerSubmission` (barrel chưa export key, không thêm export) | **Chấp nhận** — đúng quy tắc §20.2 mục 13. |
+| L8 | Summary minh hoạ | **Đã xử lý** (B1). |
+| L9 | `Pagination` kẹp trang về biên; chuỗi ở `vi.common` | **Chấp nhận.** |
+
+**Nợ ghi nhận (không chặn):**
+
+- **N9 —** Summary của nhật ký mẫu là chuỗi tiếng Việt viết trong `seed.ts` (dữ liệu, không phải chuỗi UI) — cùng cách 113 lời gọi `appendAudit`
+  hiện có; chấp nhận.
+- **N10 —** Tải đầu `/dashboard` = 4 file JS (`modulepreload` song song) thay vì 1; tổng +2,7 kB so với R2 (1.842,55 → 1.845,24 kB). Trần mới D11.
+- **N11 —** Bản ghi audit cũ (113 lời gọi) chưa có `module`/`correlationId` — suy module từ `entity`; correlation chỉ có ở bản ghi mới/seed.
+
+---
+
+## 21. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 23/10/2026 | **R3 `DONE`** — review vòng 2 đạt (B1 đã sửa: `audit-seed-timeline.mjs` errors 0); chấp nhận L1–L7, L9; nợ N9–N11; trần D11 từ R4 = tổng JS tải đầu `/dashboard` ≤ 1.870 kB. `SEED_VERSION` 25. |
+| 23/10/2026 | R3 review vòng 1 — **Blocker B1** (nhật ký mẫu lệch dòng thời gian thật, 23 lỗi theo `phase6/audit-seed-timeline.mjs`); chấp nhận L1 (đổi trần sang tổng JS tải đầu ≤ 1.870 kB từ R4), L4 (§20.9). Trả `dev`. |
+| 23/10/2026 | R3 `APPROVED` (người dùng duyệt 7 mục gợi ý, gồm D11) — viết brief §20, **giao `dev`**; chốt D12 (nhãn hành động audit ở `shared/i18n/auditLabels.ts` cho chunk lười); dựng `phase6/before-r3.json`. |
 | 23/10/2026 | **R2 `DONE`** — review `tech-lead` đạt vòng 1, không Blocker; chấp nhận 7 lệch L1–L7, nợ N5–N8 (§19.9); chốt D11 (tải lười màn `/platform/*` từ R3). |
 | 23/10/2026 | R2 `APPROVED` (người dùng duyệt theo gợi ý `tech-lead`, gồm bật lại "Xem tất cả" ở Dashboard) — viết brief §19, **giao `dev`**. Dựng `phase6/expect-r2.mjs` (số chưa đọc kỳ vọng theo từng tài khoản demo) + `phase6/before-r2.json`. |
 | 23/10/2026 | **R1 `DONE`** — review `tech-lead` đạt vòng 1, không Blocker; chấp nhận 10 lệch L1–L10, ghi nợ N1–N4 + OQ Q20 (§18.9). `SEED_VERSION` 24. |

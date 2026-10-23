@@ -15,6 +15,17 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6 Round 3 — Nhật ký thao tác** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §20).
+  `/platform/audit` hết `ComingSoon`: tra cứu nhật ký toàn hệ thống (lọc theo module, hành động, người thực hiện/Hệ thống, đối
+  tượng, mức độ, correlation, khoảng ngày; phân trang 25 dòng), xem chi tiết trước/sau với dữ liệu nhạy cảm (CCCD/GPLX/SĐT/số tài
+  khoản) được che theo vai trò và nút "Hiện đầy đủ" có ghi nhật ký, "Xem thao tác liên quan", xuất CSV (kèm tiêu chí lọc, người xuất,
+  số bản ghi); mở màn/xem đầy đủ/xuất đều được ghi lại. Bản ghi nhật ký có thêm module/mức độ/tác nhân hệ thống/correlation (tương
+  thích bản ghi cũ), trần lưu tính theo dung lượng (400 nghìn ký tự) thay 500 bản ghi, tự co khi bộ nhớ đầy; đăng xuất được ghi nhật
+  ký. **Đổi menu theo tài liệu (AuditLog-BRD §16, CR-2026-035/037): `SALES` và `ACCOUNTANT` nay thấy "Nhật ký thao tác"** (Accountant
+  chỉ phạm vi tài chính, chưa được xuất — còn treo); Dispatcher để `TBD`. Seed thêm 54 bản ghi nhật ký mẫu khớp đúng dòng thời gian dữ
+  liệu thật. Màn Trung tâm thông báo và Nhật ký tải lười. Sửa nợ tab Nhật ký ký gửi tải thừa dữ liệu. **`SEED_VERSION` 25 — demo đang
+  mở sẽ tự reset dữ liệu ở lần tải kế tiếp.** Review `tech-lead` **đạt vòng 2**: vòng 1 có 1 Blocker (nhật ký mẫu lệch mốc thời gian
+  thật của lượt thuê/quyết toán/sự cố — đã sửa); chấp nhận 8 lệch nhỏ; tải đầu trang Dashboard 1.845 kB JS (+2,7 kB so với R2).
 - **Phase 6 Round 2 — Trung tâm thông báo** (theo [`docs/DASHBOARD-PLATFORM-PLAN.md`](docs/DASHBOARD-PLATFORM-PLAN.md) §19).
   `/platform/notifications` hết `ComingSoon`: các cảnh báo của R1 được chốt thành thông báo có lưu (kênh trong Webapp), không trùng
   lặp, tự chuyển "đã hết hiệu lực" khi điều kiện không còn (giữ lại, không xoá), nội dung chụp lúc tạo. Mỗi người chỉ thấy thông báo

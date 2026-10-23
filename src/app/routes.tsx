@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { AuditLogScreen } from '@/features/audit'
 import { LoginScreen } from '@/features/auth'
 import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
 import {
@@ -82,8 +83,22 @@ export function AppRoutes() {
 
         <Route path={paths.platformSystemConfig} element={<ComingSoon title="Cấu hình hệ thống" />} />
         <Route path={paths.platformPermissions} element={<ComingSoon title="Vai trò & quyền" />} />
-        <Route path={paths.platformAudit} element={<ComingSoon title="Nhật ký thao tác" />} />
-        <Route path={paths.platformNotifications} element={<NotificationCenterScreen />} />
+        <Route
+          path={paths.platformAudit}
+          element={
+            <Suspense fallback={<p className="text-muted-foreground text-sm">{vi.common.loading}</p>}>
+              <AuditLogScreen />
+            </Suspense>
+          }
+        />
+        <Route
+          path={paths.platformNotifications}
+          element={
+            <Suspense fallback={<p className="text-muted-foreground text-sm">{vi.common.loading}</p>}>
+              <NotificationCenterScreen />
+            </Suspense>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to={paths.dashboard} replace />} />

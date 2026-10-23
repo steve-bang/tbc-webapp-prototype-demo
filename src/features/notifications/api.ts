@@ -37,11 +37,13 @@ export interface NotificationActor {
   role: Role
 }
 
-/**
- * Tác nhân hệ thống cho bản ghi audit gộp của lượt đồng bộ.
- * TODO(Phase 6 R3): chuyển sang `actorType: 'SYSTEM'` khi `AuditRecord` có trường này.
- */
-const SYSTEM_ACTOR = { actorUserId: 'system', actorName: vi.notifications.systemActor, actorRole: 'SYSTEM' } as const
+/** Tác nhân hệ thống cho bản ghi audit gộp của lượt đồng bộ (AuditLog-BRD.md §6 Actor Type = SYSTEM). */
+const SYSTEM_ACTOR = {
+  actorUserId: 'system',
+  actorName: vi.notifications.systemActor,
+  actorRole: 'SYSTEM',
+  actorType: 'SYSTEM',
+} as const
 
 function readEvents(): NotificationEvent[] {
   return readJson<NotificationEvent[]>(NOTIFICATIONS_STORAGE_KEY) ?? []
@@ -103,6 +105,7 @@ export function syncNotifications(now: Date): { created: number; cancelled: numb
     appendAudit({
       ...SYSTEM_ACTOR,
       action: 'SYNC_NOTIFICATIONS',
+      module: 'NOTIFICATION',
       entity: 'NotificationEvent',
       entityId: 'batch',
       summary: vi.notifications.syncAuditSummary
@@ -140,6 +143,8 @@ export async function markNotificationRead(id: string, user: NotificationActor):
     if (isSensitiveNotification(event)) {
       appendAudit({
         action: 'VIEW_SENSITIVE_NOTIFICATION',
+        module: 'NOTIFICATION',
+        severity: 'SENSITIVE',
         entity: 'NotificationEvent',
         entityId: event.id,
         summary: vi.notifications.viewSensitiveAuditSummary.replace('{{title}}', event.title),

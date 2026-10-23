@@ -670,6 +670,10 @@ export const AUDIT_ACTIONS = [
   // Notification (NT) — DASHBOARD-PLATFORM-PLAN.md §6: NT-BR-13 (BA đề xuất gộp một bản ghi mỗi lượt đồng bộ), AC-NT-009.
   'SYNC_NOTIFICATIONS',
   'VIEW_SENSITIVE_NOTIFICATION',
+  // Audit Log (AL) — DASHBOARD-PLATFORM-PLAN.md §6: LOGOUT (AL §6, SA-BR-08), meta-audit xem nhật ký (AL-BR-06) / xem giá trị nhạy cảm (AL-BR-08).
+  'LOGOUT',
+  'VIEW_AUDIT_LOG',
+  'VIEW_AUDIT_SENSITIVE_VALUE',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
@@ -695,3 +699,35 @@ export const DASHBOARD_ALERT_GROUPS = [
   'CONSIGNMENT',
 ] as const
 export type DashboardAlertGroup = (typeof DASHBOARD_ALERT_GROUPS)[number]
+
+// AuditLog-BRD.md §6 "Module" — 13 mã nguyên văn (DASHBOARD-PLATFORM-PLAN.md §3.3).
+// 5 mã cuối là BA đề xuất (AL §6 chưa liệt kê): NOTIFICATION (NT-BR-13 đã dùng mã này), MAINTENANCE, CALENDAR, CONSIGNMENT, SYSTEM_ADMIN.
+export const AUDIT_MODULES = [
+  'VEHICLE',
+  'CUSTOMER',
+  'RENTAL',
+  'HANDOVER',
+  'RETURN',
+  'INCIDENT',
+  'SETTLEMENT',
+  'PAYMENT',
+  'CONTRACT',
+  'EMPLOYEE',
+  'REVENUE_COST',
+  'AUTH',
+  'AUDIT',
+  'NOTIFICATION',
+  'MAINTENANCE',
+  'CALENDAR',
+  'CONSIGNMENT',
+  'SYSTEM_ADMIN',
+] as const
+export type AuditModule = (typeof AUDIT_MODULES)[number]
+
+// AuditLog-BRD.md §6 "Severity" (DASHBOARD-PLATFORM-PLAN.md §3.3).
+export const AUDIT_SEVERITIES = ['INFO', 'NOTICE', 'SENSITIVE', 'SECURITY'] as const
+export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number]
+
+// AuditLog-BRD.md §6 "Actor Type" (DASHBOARD-PLATFORM-PLAN.md §3.3).
+export const AUDIT_ACTOR_TYPES = ['USER', 'SYSTEM'] as const
+export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number]
