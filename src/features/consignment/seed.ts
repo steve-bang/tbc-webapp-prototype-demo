@@ -2,6 +2,7 @@ import { VEHICLES_STORAGE_KEY } from '@/features/vehicles/api'
 import type { Vehicle } from '@/features/vehicles'
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import type { ConsignmentContractStatus, ConsignmentProrationRule, OwnerType } from '@/shared/domain/enums'
+import { addDaysToKey, addMonthsToKey, startOfMonthKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
   CONSIGNMENT_CONTRACTS_STORAGE_KEY,
@@ -56,26 +57,21 @@ const SEED_ACCOUNTANT = 'Đỗ Thị Kế Toán'
 const SEED_SYSTEM = 'Hệ thống'
 
 function dayKey(offset: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + offset)
-  return toLocalDateKey(d)
+  return addDaysToKey(todayKey(), offset)
 }
 
 function addDaysKey(key: string, offset: number): string {
-  const [y, m, d] = key.split('-').map(Number)
-  return toLocalDateKey(new Date(y, m - 1, d + offset))
+  return addDaysToKey(key, offset)
 }
 
-/** Giờ địa phương `hour:00` của ngày `key` → ISO. */
+/** Giờ +07 `hour:00` của ngày `key` → ISO. */
 function atTime(key: string, hour: number): string {
-  const [y, m, d] = key.split('-').map(Number)
-  return new Date(y, m - 1, d, hour, 0, 0).toISOString()
+  return zonedDateTimeToIso(key, hour, 0)
 }
 
 /** Ngày `day` của tháng (hiện tại + `monthOffset`). */
 function dayOfMonth(monthOffset: number, day: number): string {
-  const now = new Date()
-  return toLocalDateKey(new Date(now.getFullYear(), now.getMonth() + monthOffset, day))
+  return addDaysToKey(addMonthsToKey(startOfMonthKey(todayKey()), monthOffset), day - 1)
 }
 
 // ---- Chủ xe ----
@@ -990,7 +986,7 @@ function assertSeedInvariants(
   payouts: OwnerPayoutRecord[],
   proposals: ConsignmentProposal[],
 ): void {
-  const today = toLocalDateKey(new Date())
+  const today = todayKey()
   const fail = (msg: string): never => {
     throw new Error(`[seed consignment] ${msg}`)
   }

@@ -1,13 +1,12 @@
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
+import { addDaysToKey, todayKey } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import { VEHICLES_STORAGE_KEY } from './api'
 import type { Vehicle, VehicleDocument } from './model'
 
 /** `YYYY-MM-DD` tính từ hôm nay ± số ngày — cùng pattern `features/customers/seed.ts`, để badge `EXPIRING_SOON`/`EXPIRED` đúng dù chạy seed vào ngày nào. */
 function isoDateOffset(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysToKey(todayKey(), days)
 }
 
 let docSeq = 0

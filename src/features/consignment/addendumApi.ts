@@ -1,11 +1,11 @@
 import { vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { formatDate, todayKey } from '@/shared/lib/datetime'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
 import { formatVnd } from '@/shared/lib/money'
 import { planAddendum, type ConsignmentAddendum, type ConsignmentAddendumDraftInput } from './addendumModel'
-import { nextSequenceCode, toLocalDateKey, type ConsignmentActor, type ConsignmentContract } from './model'
+import { nextSequenceCode, type ConsignmentActor, type ConsignmentContract } from './model'
 import { applyContractEndPlan } from './payoutModel'
 import { readContracts, readPayoutRecords, writeContracts, writePayoutRecords } from './storage'
 
@@ -70,7 +70,7 @@ export async function createConsignmentAddendum(
       'PLKG',
       contracts.flatMap((c) => c.addenda.map((a) => a.addendumNo)),
     )
-    const result = planAddendum(before, records, input, toLocalDateKey(new Date()), {
+    const result = planAddendum(before, records, input, todayKey(), {
       id: generateId('cga'),
       addendumNo,
       byName: actor.fullName,

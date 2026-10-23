@@ -15,6 +15,12 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 6.1 Round 3a — Múi giờ cố định `Asia/Ho_Chi_Minh` cho dữ liệu và logic** (theo [`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md) §4, §13 —
+  `SA-BR-14`). `shared/lib/datetime.ts` có bộ hàm ngày giờ theo UTC+7 cố định (không thêm thư viện); 13 file seed và 17 file logic dùng bộ hàm này. Dữ liệu demo,
+  Dashboard, cảnh báo, báo cáo nay **giống hệt nhau dù máy đặt múi giờ nào** (trước đây máy UTC/Mỹ sinh seed lệch ~2.800 bản ghi và số cảnh báo sai). **`SEED_VERSION`
+  26 → 27** — demo đang mở sẽ tự tạo lại dữ liệu. **Sửa lỗi mốc 00:00–06:59:** lượt giao/nhận trong khung giờ này trước đây bị tính sang **ngày hôm trước** ở lưới lịch,
+  kiểm tra khoá xe và bộ lọc ngày lượt thuê (vd. lượt giao 06:00 không hiện đúng ngày) — nay đúng ngày. Phần giao diện (ô nhập ngày giờ, lưới lịch, mặc định "hôm nay")
+  chuyển ở R3b. Tải đầu Dashboard giảm còn 1.862.120 B. Review `tech-lead` **đạt vòng 1**, không Blocker.
 - **Phase 6.1 Round 2 — Gỡ vòng import** (theo [`docs/TECH-HARDENING-PLAN.md`](docs/TECH-HARDENING-PLAN.md) §3, §12). Mỗi feature nay có **2 điểm nhập**:
   `index.ts` (dữ liệu: type, api, model, hook) và `ui.ts` (màn hình, component — kể cả bản tải lười); `audit`, `dashboard` chỉ còn `ui.ts`. Vòng import
   lớn **98 file → 0**; bật `import/no-cycle` trong `oxlint` để chặn vòng mới. **Không đổi hành vi**: seed và toàn bộ harness y hệt trước (giờ Việt Nam + UTC).

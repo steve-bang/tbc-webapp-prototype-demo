@@ -1,10 +1,9 @@
-import { format, parseISO } from 'date-fns'
 import type { AuditActorType, AuditModule, AuditSeverity, Role } from '@/shared/domain/enums'
 import { vi } from '@/shared/i18n/vi'
 import { AUDIT_ACTION_LABELS, AUDIT_MODULE_LABELS, AUDIT_SEVERITY_LABELS } from '@/shared/i18n/auditLabels'
 import type { AuditRecord } from '@/shared/lib/audit'
 import type { CsvCell } from '@/shared/lib/csv'
-import { formatDateTime } from '@/shared/lib/datetime'
+import { formatDateTime, toDateKey } from '@/shared/lib/datetime'
 
 /**
  * Hàm thuần của màn Nhật ký thao tác (AuditLog-BRD.md §6/§9/§10/§11/§16; DASHBOARD-PLATFORM-PLAN.md §4.5/§20.2 mục 9).
@@ -106,13 +105,13 @@ export interface AuditFilter {
   entityId?: string
   severity?: AuditSeverity
   correlationId?: string
-  /** `yyyy-MM-dd`, ngày địa phương của `at`. */
+  /** `yyyy-MM-dd`, ngày +07 của `at`. */
   from?: string
   to?: string
 }
 
 function localDay(iso: string): string {
-  return format(parseISO(iso), 'yyyy-MM-dd')
+  return toDateKey(iso)
 }
 
 /** Lọc theo AL §9.1; giữ nguyên thứ tự đầu vào (kỳ vọng mới → cũ). Tiêu chí bỏ trống = không lọc. */

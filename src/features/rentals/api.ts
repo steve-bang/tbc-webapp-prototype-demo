@@ -7,6 +7,7 @@ import { getById as getVehicleById } from '@/features/vehicles/api'
 import type { RentalStatus, Role, SecurityDepositType, VehicleClass } from '@/shared/domain/enums'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
+import { toDateKey } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
@@ -87,7 +88,8 @@ function matches(rental: Rental, filter?: RentalFilter): boolean {
   if (filter.status && rental.status !== filter.status) return false
   if (filter.customerId && rental.customerId !== filter.customerId) return false
   if (filter.vehicleId && rental.vehicleId !== filter.vehicleId) return false
-  const pickupDate = rental.pickupDateTime.slice(0, 10)
+  // N8 — ngày +07 của mốc giao (trước đây cắt chuỗi UTC: giao 00:00–06:59 +07 bị lọc vào hôm trước)
+  const pickupDate = toDateKey(rental.pickupDateTime)
   if (filter.dateFrom && pickupDate < filter.dateFrom) return false
   if (filter.dateTo && pickupDate > filter.dateTo) return false
   return true

@@ -1,22 +1,12 @@
 // RV — hàm thuần CHỈ màn Báo cáo tài chính dùng (chunk lazy). File thuộc chunk chính KHÔNG được import file này
 // (docs/FINANCE-REFACTOR-PLAN.md §2 điểm 5).
-import {
-  differenceInCalendarDays,
-  endOfMonth,
-  endOfQuarter,
-  endOfYear,
-  parseISO,
-  startOfMonth,
-  startOfQuarter,
-  startOfYear,
-  subMonths,
-} from 'date-fns'
 import type { Incident } from '@/features/incidents'
 import type { Rental } from '@/features/rentals'
 // CHỈ `import type` — cấm import giá trị runtime từ barrel `vehicles` (vòng barrel, REVENUE-COST-PLAN.md §0.2).
 import type { Vehicle } from '@/features/vehicles'
 import { type CostCategory, type PaymentMethod, type RevenueCategory, PAYMENT_METHODS } from '@/shared/domain/enums'
 import type { CsvCell } from '@/shared/lib/csv'
+import { addMonthsToKey, dayDiff, endOfMonthKey, startOfMonthKey } from '@/shared/lib/datetime'
 import type { Settlement } from '../core/types.ts'
 import type { CustomerBalance } from '../payment/model.ts'
 import {
@@ -24,37 +14,36 @@ import {
   type CashEntry,
   checkSettlementRevenueReconciliation,
   type CostEntry,
-  dateKeyOf,
   enumeratePeriodBuckets,
   type FinancePeriod,
   isDateInPeriod,
   isIncidentCostCounted,
   type PeriodSelection,
   previousPeriod,
+  quarterRange,
   type ReportGranularity,
   type RevenueLine,
   summarizePeriod,
   type VehiclePerformanceRow,
+  yearRange,
 } from './model.ts'
 
 // ---- Báo cáo tài chính (REVENUE-COST-PLAN.md §19.3) — hàm thuần, UI chỉ hiển thị kết quả ----
 
 /** `RevenueCost-BRD.md` §14 "so với kỳ trước": tháng/quý/năm lịch so với kỳ lịch liền trước; còn lại so với kỳ cùng độ dài liền trước. */
 export function comparisonPeriodOf(selection: PeriodSelection): FinancePeriod {
-  const from = parseISO(selection.period.from)
+  const from = selection.period.from
   switch (selection.preset) {
     case 'THIS_MONTH':
     case 'LAST_MONTH': {
-      const prev = subMonths(from, 1)
-      return { from: dateKeyOf(startOfMonth(prev)), to: dateKeyOf(endOfMonth(prev)) }
+      const prev = addMonthsToKey(from, -1)
+      return { from: startOfMonthKey(prev), to: endOfMonthKey(prev) }
     }
     case 'THIS_QUARTER': {
-      const prev = subMonths(from, 3)
-      return { from: dateKeyOf(startOfQuarter(prev)), to: dateKeyOf(endOfQuarter(prev)) }
+      return quarterRange(addMonthsToKey(from, -3))
     }
     case 'THIS_YEAR': {
-      const prev = subMonths(from, 12)
-      return { from: dateKeyOf(startOfYear(prev)), to: dateKeyOf(endOfYear(prev)) }
+      return yearRange(addMonthsToKey(from, -12))
     }
     default:
       return previousPeriod(selection.period)
@@ -69,7 +58,7 @@ export function calcChangeRatio(current: number, previous: number): number | nul
 
 /** Gợi ý độ chi tiết khi đổi kỳ: ≤ 31 ngày theo ngày · ≤ 92 ngày theo tuần · còn lại theo tháng. */
 export function suggestGranularity(period: FinancePeriod): ReportGranularity {
-  const days = differenceInCalendarDays(parseISO(period.to), parseISO(period.from)) + 1
+  const days = dayDiff(period.from, period.to) + 1
   if (days <= 31) return 'DAY'
   if (days <= 92) return 'WEEK'
   return 'MONTH'

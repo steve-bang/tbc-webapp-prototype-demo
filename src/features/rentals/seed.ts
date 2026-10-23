@@ -1,5 +1,6 @@
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import type { RentalStatus, SecurityDepositType, VehicleClass } from '@/shared/domain/enums'
+import { addDaysIso, addDaysToKey, addMonthsToKey, dayDiff, startOfMonthKey, toDateKey, todayKey, zonedDateTimeToIso, zonedParts } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import { RENTALS_STORAGE_KEY } from './api'
 import {
@@ -21,17 +22,13 @@ import {
  * giữ nguyên giờ:phút (Rental cần datetime đầy đủ, không chỉ ngày).
  */
 function dt(daysOffset: number, hour: number, minute = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysOffset)
-  d.setHours(hour, minute, 0, 0)
-  return d.toISOString()
+  // ngày/giờ theo +07 (SA-BR-14), không phụ thuộc giờ máy
+  return zonedDateTimeToIso(addDaysToKey(todayKey(), daysOffset), hour, minute)
 }
 
 /** `createdAt`/`updatedAt` — vài ngày trước `pickupDateTime` (thời điểm đặt lượt). */
 function beforeIso(iso: string, days: number): string {
-  const d = new Date(iso)
-  d.setDate(d.getDate() - days)
-  return d.toISOString()
+  return addDaysIso(iso, -days)
 }
 
 const OFFICE = 'Văn phòng Thiên Bảo Car — 123 Nguyễn Văn Cừ, Quận 5, TP.HCM'
@@ -156,8 +153,8 @@ interface DemoVehicleSpec {
 
 function demoVehicleSpecs(): DemoVehicleSpec[] {
   // cg_014 (veh_016) bắt đầu ngày 15 của tháng (hiện tại − 2) — consignment/seed.ts dayOfMonth(-2, 15); +2 ngày biên.
-  const now = new Date()
-  const day15Back2 = Math.round((new Date(now.getFullYear(), now.getMonth() - 2, 15).getTime() - startOfToday().getTime()) / 86_400_000)
+  const today = todayKey()
+  const day15Back2 = dayDiff(today, `${addMonthsToKey(startOfMonthKey(today), -2).slice(0, 7)}-15`) // date key — không phụ thuộc múi giờ
   return [
     { id: 'veh_001', vehicleClass: 'VIP_LUXURY', from: -298, to: null, target: 0.6 }, // cg_001 −300
     { id: 'veh_002', vehicleClass: 'STANDARD', from: -343, to: null, target: 0.55 }, // cg_002 −345
@@ -243,23 +240,13 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-function startOfToday(): Date {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-/** Ngày tương đối hôm nay (theo ngày địa phương) của một mốc ISO. */
+/** Ngày tương đối hôm nay (theo ngày +07) của một mốc ISO. */
 function dayOffsetOf(iso: string): number {
-  const d = new Date(iso)
-  d.setHours(0, 0, 0, 0)
-  return Math.round((d.getTime() - startOfToday().getTime()) / 86_400_000)
+  return dayDiff(todayKey(), toDateKey(iso))
 }
 
 function monthOfOffset(offset: number): number {
-  const d = new Date()
-  d.setDate(d.getDate() + offset)
-  return d.getMonth() + 1
+  return zonedParts(addDaysToKey(todayKey(), offset)).month
 }
 
 function pad(n: number, width: number): string {

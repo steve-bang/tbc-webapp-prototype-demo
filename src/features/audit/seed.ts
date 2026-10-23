@@ -11,6 +11,7 @@ import type { AuditAction, AuditModule, AuditSeverity, Role } from '@/shared/dom
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import { seedAuditRecords, type AuditRecord } from '@/shared/lib/audit'
 import { vi } from '@/shared/i18n/vi'
+import { toMonthKey } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { readJson } from '@/shared/lib/storage'
 
@@ -234,8 +235,7 @@ registerSeedStep(() => {
   if (firstPaid && owners.some((o) => o.id === firstPaid.p.ownerId)) {
     add({ at: firstPaid.paidAt - 30 * MIN, actor: accountant, action: 'VIEW_OWNER_BANK_ACCOUNT', module: 'CONSIGNMENT', entity: 'VehicleOwner', entityId: firstPaid.p.ownerId as string, summary: 'Xem số tài khoản ngân hàng chủ xe', severity: 'SENSITIVE' })
   }
-  const nowDate = new Date(now)
-  const period = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`
+  const period = toMonthKey(now)
   add({ at: now - 2 * DAY, actor: system, action: 'GENERATE_OWNER_PAYOUT_RECORDS', module: 'CONSIGNMENT', entity: 'OwnerPayoutRecord', entityId: `batch:${period}`, summary: `Hệ thống sinh lịch chi trả chủ xe đến kỳ ${period}` })
 
   // ---- Báo cáo tài chính (reportKey là mã thật trong FINANCE_REPORT_KEYS) ----

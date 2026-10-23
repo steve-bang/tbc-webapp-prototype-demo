@@ -1,7 +1,7 @@
 # Kế hoạch — Vòng kỹ thuật sau Phase 6: Route guard · N4 · N8 (múi giờ) · Gỡ vòng import (Phase 6.1)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **`APPROVED`** (23/10/2026 — người dùng duyệt cả 6 điểm §10 theo đề xuất; các Round
-chạy liên tục R1 → R2 → R3a → R3b, không dừng chờ duyệt giữa chừng) · **R1 — `DONE`** (23/10/2026, brief §11, review `tech-lead` đạt vòng 1, không Blocker — §11.9) · **R2 — `DONE`** (23/10/2026, brief §12, review đạt vòng 1, không Blocker — §12.9; SCC 98 → 0) · R3a, R3b — chờ
+chạy liên tục R1 → R2 → R3a → R3b, không dừng chờ duyệt giữa chừng) · **R1 — `DONE`** (23/10/2026, brief §11, review `tech-lead` đạt vòng 1, không Blocker — §11.9) · **R2 — `DONE`** (23/10/2026, brief §12, review đạt vòng 1, không Blocker — §12.9; SCC 98 → 0) · **R3a — `DONE`** (23/10/2026, brief §13, review đạt vòng 1, không Blocker — §13.9) · R3b — chờ
 (brief viết sau khi Round trước `DONE`) · R2b — tuỳ chọn, sau R3b.
 
 Vòng này **không thêm tính năng nghiệp vụ mới**. Nó trả 4 khoản nợ kỹ thuật ghi ở `docs/DASHBOARD-PLATFORM-PLAN.md` §18.9 (N4),
@@ -821,12 +821,174 @@ Danh sách file đổi (khớp `git status`, có số đếm) · output rút g�
 `tech-lead` sửa `$SP/hardening/run-harness.sh` nhận đường dẫn tương đối. Cập nhật `CONVENTIONS.md` §3 (2 điểm nhập, `import/no-cycle`) và `docs/ARCHITECTURE.md`
 §2, §7. Baseline mới ở commit R2: `$SP/hardening/baseline-r2/`, `base-r2-{hcm,utc}.json`.
 
+## 13. Round 3a — brief giao việc cho `dev` (`APPROVED` 23/10/2026)
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+### 13.1. Bối cảnh
+
+R2 đã `DONE` (commit `9bcb814`, SCC = 0). Nợ **N8**: app tính ngày/giờ theo **giờ trình duyệt**, trái `SA-BR-14` ("timestamp toàn hệ thống dùng một múi
+giờ thống nhất, mặc định UTC+7") và `WebappQuanTri.md` §13 ("múi giờ hiển thị thống nhất theo cấu hình toàn cục"). Số đo trên baseline R2 (§0, §4):
+
+- Seed sinh ra khác nhau theo giờ máy: HCM vs UTC lệch 2.818 bản ghi; HCM vs New_York lệch 2.830 bản ghi và còn khác **số lượng** (285 lượt thuê mới thay vì 284).
+- Harness dưới UTC: `signals-r1` 28 tín hiệu (đúng là 30), `notif-r2` FAILS 8, `verify` errors 18. Dưới New_York: `notif-r2` FAILS 11.
+
+Round 3a làm **nền + dữ liệu + logic** (§4.3): helper múi giờ cố định trong `shared/lib/datetime.ts`, cùng 13 file seed và 15 file logic `.ts`. Kết quả phải là:
+seed và mọi harness **giống hệt nhau dưới mọi giờ máy**, và **giống hệt baseline HCM** của R2. **Không** sửa file `.tsx` — đó là việc của R3b.
+
+Người dùng đã duyệt (§10 câu 5): (a) tự viết helper, **không** thêm thư viện; (b) chấp nhận đổi hành vi do sửa lỗi cắt ngày theo UTC; (c) `SEED_VERSION` 26 → **27**.
+
+### 13.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §13.5)
+
+1. **`src/shared/lib/datetime.ts` — helper múi giờ cố định** (API như §4.2; comment đầu file trích `SA-BR-14` + `TECH-HARDENING-PLAN.md` §4):
+   - `SYSTEM_TIME_ZONE = 'Asia/Ho_Chi_Minh'`, `SYSTEM_UTC_OFFSET_MINUTES = 420`. Comment: không có giờ mùa hè từ 1975 nên offset cố định là chính xác;
+     `TODO(OQ: TECH-HARDENING-PLAN.md §9 OQ-N8-1)` — múi giờ có cấu hình được không.
+   - Hàm thuần **không** dùng `Intl` và **không** dùng getter/setter giờ địa phương (`getHours`/`setDate`/`new Date(y, m, d)`…). Chỉ được dùng `Date.UTC`, `getUTC*`,
+     `getTime`, `toISOString`. Ví dụ: `zonedParts(value)` = `getUTC*` của `new Date(ms + offset)`.
+   - Hàm cần có:
+     - `zonedParts`
+     - `toDateKey(value: string | Date)` — nhận `'YYYY-MM-DD'` thì trả nguyên văn
+     - `toMonthKey`, `todayKey(now = new Date())`
+     - `zonedDateTimeToIso(dateKey, hour, minute = 0)`
+     - `startOfDayIso`, `endOfDayIso`
+     - `addDaysToKey`, `addMonthsToKey`, `dayDiff(fromKey, toKey)`
+     - `startOfWeekKey(key, weekStartsOn = 1)`, `startOfMonthKey`, `endOfMonthKey`, `eachDayKey(fromKey, toKey)`
+     - `isoToDateTimeInput(iso)` ↔ `dateTimeInputToIso(value)`
+   - `formatDate` / `formatDateTime` / `formatTime` **giữ nguyên chữ ký và định dạng** (`dd/MM/yyyy`, `dd/MM/yyyy HH:mm`, `HH:mm`) nhưng tự định dạng từ
+     `zonedParts`. `formatDate` nhận được cả date key. `formatRelative` giữ `date-fns` (khoảng cách tuyệt đối, không phụ thuộc múi giờ).
+   - Các hàm cũ `isSameCalendarDay`, `todayIso`, `addDaysIso`, `daysBetween` giữ chữ ký, đổi ruột theo +07 (`addDaysIso`: cộng ngày theo lịch +07, giữ giờ:phút +07).
+2. **Gom helper trùng:**
+   - `finance/payment/seed.ts` `localDateKey`/`shiftKey` → dùng helper.
+   - `finance/revenue-cost/model.ts` `toLocalDateKey`/`dateKeyOf` và `consignment/model.ts` `toLocalDateKey`/`dayDiff`: **giữ tên export** (có nơi `.tsx` đang
+     dùng — R3a không sửa `.tsx`) nhưng thân hàm gọi helper `datetime.ts`. Comment: "giữ tên cho tương thích — gộp ở R3b nếu không còn nơi dùng".
+3. **15 file logic `.ts`** (danh sách từ `tz-scan.mjs`):
+   `shared/lib/documentStatus.ts` · `features/finance/revenue-cost/{model,reportModel}.ts` · `features/consignment/{model,payoutModel,addendumModel,addendumApi}.ts` ·
+   `features/calendar/model.ts` · `features/dashboard/model.ts` · `features/notifications/model.ts` · `features/audit/model.ts` · `features/auth/api.ts` ·
+   `features/rentals/api.ts` · `features/vehicles/model.ts` · `features/handover-return/model.ts`.
+   Thay mọi điểm thuộc 6 nhóm ở §4.1 (`LOCAL_GETSET`, `DATEFNS_CAL`, `FORMAT_FNS`, `UTC_SLICE`, `LOCAL_CTOR`, chuyển đổi `datetime-local` trong `.ts`) bằng helper:
+   - `iso.slice(0, 10)` lấy ngày → `toDateKey(iso)`; `slice(0, 7)` → `toMonthKey`. **Ngoại lệ:** giá trị **đã là** date key thuần (`'YYYY-MM-DD'`) thì cắt chuỗi
+     vẫn đúng — giữ nguyên, kèm comment `// date key — không phụ thuộc múi giờ`.
+   - `format(x, 'yyyy-MM-dd')` → `toDateKey`; `differenceInCalendarDays` → `dayDiff` trên date key; `startOfWeek`/`addMonths`/`eachDayOfInterval`… → helper.
+   - Bỏ import `date-fns` ở file nào không còn dùng.
+   - **Giữ nguyên chữ ký mọi hàm export** — `.tsx` không phải sửa.
+4. **13 file seed** (`features/{rentals,consignment,contracts,customers,employees,calendar,handover-return,incidents,maintenance,vehicles,audit}/seed.ts`,
+   `features/finance/payment/seed.ts`, `features/finance/core/seedHelpers.ts`):
+   - Mọi `dt(daysOffset, hour, minute)` → `zonedDateTimeToIso(addDaysToKey(todayKey(now), daysOffset), hour, minute)`.
+   - Mọi `isoDateOffset(days)` → `addDaysToKey(todayKey(now), days)`.
+   - `new Date(y, m, d)` / `setDate` / `getMonth` → helper date key.
+   - `now` lấy đúng như hiện tại (`new Date()` — harness cố định bằng `FIXED_NOW`).
+   - Thứ tự và số lần gọi `Math.random()` / `generateId()` **không được đổi** — seed HCM phải trùng từng bản ghi.
+5. **`src/shared/fixtures/seedAll.ts`:** `SEED_VERSION` 26 → **27**, comment 1 dòng (`TECH-HARDENING-PLAN.md` §13 — seed không còn phụ thuộc giờ máy; máy
+   ngoài UTC+7 cần seed lại).
+6. Nếu đạt DoD 6–7 đòi sửa thêm file `.ts` không phải UI ngoài danh sách mục 3–4 → được sửa, ghi vào "lệch plan". **Không** sửa `.tsx`.
+
+### 13.3. Ngoài phạm vi R3a (không làm dù "tiện tay")
+
+- Mọi file `.tsx` (R3b): lưới lịch, bộ lọc ngày, giá trị mặc định "hôm nay" của dialog, `SystemConfigScreen`.
+- Đổi định dạng hiển thị; đổi `formatRelative`.
+- Thêm thư viện (`@date-fns/tz`, `date-fns-tz`…).
+- Đổi cấu trúc entity / giá trị đã lưu: mốc vẫn là ISO `…Z`, date key vẫn là `'YYYY-MM-DD'`.
+- Sửa harness `phase6/*`, `demo-data/*` cho "qua" (harness phụ thuộc TZ thì báo `tech-lead`, không tự sửa).
+- Tải lười thêm / đổi cấu hình build.
+- Sửa `docs/`.
+
+### 13.4. Quy tắc bắt buộc
+
+- `CONVENTIONS.md` §1 (ngày giờ qua `shared/lib/datetime.ts`), §2, §10, §11.
+- Mỗi chỗ đổi hành vi **trong HCM** phải kèm comment `// N8 — <mô tả>`. Đây là loại sửa lỗi cắt ngày UTC với mốc 00:00–06:59 +07, ví dụ `calendar/model.ts` cắt
+  `pickupDateTime.slice(0, 10)`. Đồng thời liệt kê **từng điểm** trong báo cáo mục "đổi hành vi trong HCM". Harness ở `FIXED_NOW` 10:00 không bắt được loại thay đổi
+  này nên danh sách là bắt buộc.
+- Trần tải đầu D11 **1.870.000 B** là cứng. Hiện còn dư 812 B (§12.9 L1). Bù phần helper bằng cách bỏ hàm `date-fns` thay thế được. Vượt trần → **dừng, báo
+  `tech-lead`**; không tự tải lười, không đổi `vite.config.ts`.
+- Gặp quyết định nghiệp vụ mới → dừng, báo lại.
+
+### 13.5. Thứ tự làm
+
+1. Mục 1 (`datetime.ts`), rồi tự kiểm nhanh helper bằng một script scratchpad: chạy dưới `TZ=UTC`/`America/New_York`/`Asia/Ho_Chi_Minh`, các ca biên 06:59/07:00 +07, cuối tháng, năm nhuận.
+2. Mục 4 + 5 (seed + `SEED_VERSION`) → DoD 6 (dump 3 TZ).
+3. Mục 2 + 3 (logic) → DoD 7 (harness 3 TZ) + DoD 8.
+4. Build → DoD 2. Chạy toàn bộ DoD 1–10.
+
+### 13.6. Definition of Done R3a — chạy đủ và dán kết quả vào báo cáo
+
+1. `npx tsc -b` · `npx oxlint` (có `import/no-cycle`) · `npm run build` sạch (2 cảnh báo cũ). `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. `node $SP/hardening/initial-load.mjs $REPO` → `INITIAL_JS` ≤ **1.870.000**. Báo chênh lệch so với 1.869.188.
+3. `node $SP/consignment-r3/sccfiles.mjs $REPO` rỗng · `evalorder` OK cho `/src/app/routes.tsx` và `/src/shared/lib/datetime.ts`.
+4. `node $SP/hardening/tz-scan.mjs $REPO -v | grep -vE '\.tsx$'`: ngoài bảng tổng chỉ còn dòng `shared/lib/datetime.ts`. Dòng `.ts` còn lại (nếu có) → giải thích từng dòng
+   (vd. date key thuần — dương tính giả).
+5. `grep -rn "toISOString()\.slice" $REPO/src --include=*.ts` rỗng · `grep -rln "from 'date-fns'" $REPO/src --include=*.ts`: in danh sách, chỉ còn file thật sự cần (dự kiến `datetime.ts` cho `formatRelative`).
+6. **Seed độc lập múi giờ:** với `Z` ∈ {`Asia/Ho_Chi_Minh`, `UTC`, `America/New_York`}:
+   `TZ=$Z node $SP/hardening/dump-seed.mjs $REPO $SP/hardening/r3a-$Z.json` (thay `/` bằng `_` trong tên file), rồi
+   `node $SP/hardening/diff-seed.mjs $SP/hardening/base-r2-hcm.json <file>` → **`TOTAL diff records 0` cả 3**. Tức seed mọi múi giờ = seed HCM của R2.
+7. **Harness độc lập múi giờ:**
+   - `bash $SP/hardening/run-harness.sh $REPO <Z> $SP/hardening/r3a-<Z> $SP/hardening/baseline-r2 Asia/Ho_Chi_Minh` cho cả 3 `Z`. Đối số thứ 5 = so với baseline **HCM**.
+   - Kết quả: **24/24 dòng `diff=0`**. Tức dưới UTC/New_York: `signals-r1` = 30, `notif-r2` ALL PASS, `verify` errors 0, `sizes` `TOTAL 1837906`.
+   - Ngoại lệ được phép: dòng in thời gian chạy (`ms`) đã bị bỏ khi so.
+   - Nếu `audit-r3` lệch ở dòng "≥ 6 module" chỉ do **thứ tự** liệt kê → báo, không sửa harness.
+8. **Harness biên ngày** `$SP/hardening/tz-r3a.mjs` (`dev` viết). Dựa trên `boot()` của `$SP/demo-data/lib.mjs`, nhưng cho phép truyền `FIXED_NOW` = **2026-10-22 06:30 +07**
+   (= 21/10 23:30 UTC). In:
+   - `todayKey()`;
+   - KPI vận hành Dashboard (`features/dashboard/model.ts`): giao/nhận hôm nay, đang diễn ra;
+   - số tín hiệu theo `eventType` (`collectAllSignals`);
+   - `formatDateTime` của 3 mốc mẫu.
+
+   Chạy dưới 3 TZ → **output giống hệt nhau**, và `todayKey` = `2026-10-22`. Lưu output HCM vào `$SP/hardening/tz-r3a-expected.txt`.
+9. Harness R1 vẫn ALL PASS: `guard-r1.mjs`, `n4-r1.mjs` (TZ HCM).
+10. `git status`: `shared/lib/datetime.ts`, `shared/fixtures/seedAll.ts`, 13 seed, ≤ 15 file logic `.ts` (+ file mục 6 nếu có). **Không có `.tsx`**, không file `docs/`. Báo số file.
+
+**Không yêu cầu** kiểm bằng trình duyệt (quyết định 14/09/2026).
+
+### 13.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §0 (dòng "Seed theo TZ", "Dữ liệu giờ sáng sớm"), §4 (toàn bộ), §8, §9 (OQ-N8-1, OQ-N8-2), §10 câu 5, §12.9 (L1), §13.
+2. `CONVENTIONS.md` §1, §2, §4, §10, §11.
+3. Nghiệp vụ (chỉ dòng): `../thien-bao-car-docs/modules/SystemAdministration-BRD.md` dòng 155, 245, 283 · `../thien-bao-car-docs/WebappQuanTri.md` dòng 845–846, 926.
+4. `src/shared/lib/datetime.ts` · `src/shared/fixtures/seedAll.ts` · 13 seed + 15 file logic ở mục 3–4. Đọc quanh dòng mà `node $SP/hardening/tz-scan.mjs $REPO -v` chỉ ra; dùng thêm
+   `grep -nE "getHours|getDate\(|getMonth|getFullYear|getDay\(|set(Hours|Date|Month)|new Date\([^)]*,|slice\(0, ?(7|10)\)|format\(|startOf|endOf|differenceIn|eachDay|isToday|isSame|addDays|addMonths|subMonths" <file>`.
+5. Harness: `$SP/demo-data/lib.mjs` · `$SP/hardening/{tz-scan.mjs,dump-seed.mjs,diff-seed.mjs,run-harness.sh,initial-load.mjs}` · `$SP/phase6/tzdiff.mjs` (mẫu so tín hiệu theo TZ).
+
+### 13.8. Báo cáo bàn giao `dev` phải có
+
+- Danh sách file đổi (khớp `git status`, có số đếm) và API `datetime.ts` cuối cùng.
+- Output rút gọn DoD 1–9:
+  - tải đầu + chênh lệch;
+  - `tz-scan`;
+  - 2 lệnh grep;
+  - `diff-seed` × 3;
+  - bảng `run-harness` 3 TZ (24 dòng);
+  - `tz-r3a` 3 TZ;
+  - `guard-r1` / `n4-r1`.
+- Mục **"đổi hành vi trong HCM"**: liệt kê từng điểm, kèm ví dụ dữ liệu bị ảnh hưởng trên seed (vd. `rt_019` giao 06:00).
+- Mọi chỗ lệch plan.
+
+### 13.9. Kết quả review & phán quyết (23/10/2026 — đạt vòng 1, không Blocker)
+
+`tech-lead` chạy lại: 3 cổng sạch · tải đầu **1.862.120 B** (−7.068 B so với R2 — bỏ `date-fns` khỏi 16 file `.ts`; dư 7.880 B dưới trần) · SCC rỗng ·
+`tz-scan` (file `.ts`) chỉ còn `datetime.ts` · `date-fns` chỉ còn ở `datetime.ts` (`formatRelative`) · `diff-seed` HCM và New_York so `base-r2-hcm` = **0** ·
+`run-harness` New_York so baseline **HCM** 8/8 `diff=0` (`signals-r1` 30, `notif-r2` ALL PASS, `verify` 0). Đọc diff: 32 file `src/` (không `.tsx`), 6 chú thích
+`// N8 —` đúng chỗ đổi hành vi trong HCM; `datetime.ts` chỉ dùng `Date.UTC`/`getUTC*`/`Date.parse`, date key được hiểu là 00:00 +07.
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L1 | Thêm `dateTimeToMs` (chuỗi `datetime-local` không có `Z` → hiểu theo +07; ISO → `Date.parse`) | **Chấp nhận** — cần cho `rentalDurationDays` nhận giá trị form lẫn ISO mà không phụ thuộc giờ máy. |
+| L2 | `export` `quarterRange`/`yearRange` ở `revenue-cost/model.ts` | **Chấp nhận** — hàm thuần, không đổi chữ ký cũ. |
+| L3 | Đổi vài chỗ chỉ để `tz-scan` không báo nhầm | **Chấp nhận** — chỉ đổi cách viết, không đổi hành vi (harness 3 TZ `diff=0`). |
+| L4 | Giữ `.slice(0, 7)` trên date key, có comment | **Chấp nhận** — đúng ngoại lệ §13.2 mục 3. |
+| L5 | 2 file ngoài danh sách (`rentals/model.ts`, `settlement/model.ts` — bỏ `parseISO`) | **Chấp nhận** — §13.2 mục 6. |
+| L6 | **Khoảng lệch tạm giữa R3a và R3b:** `.tsx` (vd. `ConsignmentIntakeDialog`/`ConsignmentReturnDialog` `new Date(values.handoverAt)`, khoá ngày ở lưới lịch, giá trị mặc định "hôm nay") vẫn theo giờ trình duyệt trong khi logic `.ts` đã theo +07 | **Chấp nhận, không sửa trong R3a** — chỉ ảnh hưởng trình duyệt ngoài UTC+7 (máy demo ở HCM không đổi), R3b chạy ngay sau và sửa đúng các chỗ này trước tiên (§14.2 mục 1). Giữ R3a "không `.tsx`" để review đọc được ranh giới. |
+
+**Đổi hành vi trong HCM** (`dev` liệt kê, chỉ mốc 00:00–06:59 +07; trên seed chỉ `rt_019` giao 22/10 06:00): `calendar/model.ts` 3 hàm (lưới lịch, chồng lấp khoá xe, lượt bị ảnh
+hưởng bởi khoá) · bộ lọc ngày `rentals/api.ts` · `signedDate` mặc định `contracts/seed.ts` (seed không đổi) · `isFutureDateTime` ở `consignment/model.ts`/`payoutModel.ts`.
+`tech-lead` cập nhật `CONVENTIONS.md` §1 (quy tắc múi giờ). Baseline mới: `$SP/hardening/baseline-r3a/` (3 TZ) + `base-r3a-hcm.json`.
+
 ---
 
-## 13. Lịch sử
+## 14. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 23/10/2026 | **R3a `DONE`** — review vòng 1 đạt, không Blocker; seed + harness giống hệt nhau dưới HCM/UTC/New_York; tải đầu 1.862.120 B; `SEED_VERSION` 27; chấp nhận L1–L6 (L6: khoảng lệch `.tsx` tới R3b) — §13.9. |
+| 23/10/2026 | Brief R3a (§13) — **giao `dev`**; baseline ở commit R2 (`9bcb814`): `$SP/hardening/baseline-r2/` (HCM/UTC/New_York) + `base-r2-{hcm,utc,ny}.json`; `run-harness.sh` thêm đối số so baseline khác TZ. |
 | 23/10/2026 | **R2 `DONE`** — review vòng 1 đạt, không Blocker; SCC 98 → 0, bật `import/no-cycle`; chấp nhận L1–L4 (L1: tải đầu 1.869.188 B do chia chunk, tập module không đổi) — §12.9. |
 | 23/10/2026 | Brief R2 (§12) — **giao `dev`**; baseline mới ở commit R1 (`a897c94`): `$SP/hardening/baseline-r1/` + `base-r1-{hcm,utc}.json`. |
 | 23/10/2026 | **R1 `DONE`** — review vòng 1 đạt, không Blocker; chấp nhận L1–L4 (L1: phân bổ lại ngân sách tải đầu; L3: sửa harness `platform-r4a`, chụp baseline mới `baseline-r1/`) — §11.9. |

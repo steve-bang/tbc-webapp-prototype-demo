@@ -1,4 +1,3 @@
-import { format, parseISO } from 'date-fns'
 import { canAccessPath } from '@/app/routeAccess'
 import { collectConsignmentSignals, type ConsignmentContract, type OwnerPayoutRecord } from '@/features/consignment'
 import { collectContractSignals, type Contract } from '@/features/contracts'
@@ -24,6 +23,7 @@ import {
 } from '@/shared/domain/enums'
 import { can as canRole, type Action, type Resource } from '@/shared/domain/permissions'
 import { vi } from '@/shared/i18n/vi'
+import { toDateKey } from '@/shared/lib/datetime'
 
 /** Dữ liệu nguồn mà các collector cần (đọc từ storage ở `api.ts`). */
 export interface SignalSources {
@@ -47,7 +47,7 @@ export interface SignalSources {
  * Mô hình quét (pull), DASHBOARD-PLATFORM-PLAN.md D1.
  */
 export function collectAllSignals(sources: SignalSources, now: Date): OperationalSignal[] {
-  const todayKey = format(now, 'yyyy-MM-dd')
+  const todayKey = toDateKey(now)
   return [
     ...collectVehicleDocumentSignals(sources.vehicles, now),
     ...collectMaintenanceDueSignals(sources.vehicles, sources.maintenanceRules, sources.maintenanceRecords),
@@ -344,7 +344,7 @@ export function filterNotifications(
       if (filter.readState === 'UNREAD' && e.readBy[userId]) return false
       if (filter.readState === 'READ' && !e.readBy[userId]) return false
       if (filter.from || filter.to) {
-        const day = format(parseISO(e.triggerAt), 'yyyy-MM-dd')
+        const day = toDateKey(e.triggerAt)
         if (filter.from && day < filter.from) return false
         if (filter.to && day > filter.to) return false
       }

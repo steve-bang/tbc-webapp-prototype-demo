@@ -2,6 +2,7 @@ import { PRICE_PER_KM_BY_CLASS, calcAllowedKm, rentalDurationDays } from '@/feat
 import type { VehicleClass } from '@/shared/domain/enums'
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import { generateId } from '@/shared/lib/id'
+import { addDaysToKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import { HANDOVER_RECORDS_STORAGE_KEY, RETURN_RECORDS_STORAGE_KEY } from './api'
 import {
@@ -25,10 +26,7 @@ import {
  * nghĩa lại đây) để tái tạo đúng thời gian của Rental đang tham chiếu.
  */
 function dt(daysOffset: number, hour: number, minute = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysOffset)
-  d.setHours(hour, minute, 0, 0)
-  return d.toISOString()
+  return zonedDateTimeToIso(addDaysToKey(todayKey(), daysOffset), hour, minute)
 }
 
 function addMinutesIso(iso: string, minutes: number): string {

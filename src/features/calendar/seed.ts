@@ -1,13 +1,12 @@
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
+import { addDaysToKey, todayKey } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import { VEHICLE_BLOCKS_STORAGE_KEY } from './api'
 import type { VehicleBlock } from './model'
 
 /** `YYYY-MM-DD` tính từ hôm nay ± số ngày — cùng pattern `features/maintenance/seed.ts`/`features/vehicles/seed.ts`. */
 function isoDateOffset(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysToKey(todayKey(), days)
 }
 
 /** `YYYY-MM-DDT02:00:00.000Z` — giờ cố định cho `createdAt`/`updatedAt`/`releasedAt` tính từ ngày. */

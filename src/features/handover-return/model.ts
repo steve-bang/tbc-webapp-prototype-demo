@@ -8,6 +8,7 @@ import type {
   IncidentItemType,
   VehicleStatus,
 } from '@/shared/domain/enums'
+import { zonedParts } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 
 /**
@@ -314,15 +315,15 @@ export function calcOvertimeFee(
   const lateMs = new Date(actualReturnDateTime).getTime() - new Date(expectedReturnDateTime).getTime()
   const lateMinutes = lateMs / 60000
   if (lateMinutes <= graceMinutes) return 0
-  const actualReturn = new Date(actualReturnDateTime)
-  const closedAfter23h = actualReturn.getHours() >= 23
+  const actualReturnHour = zonedParts(actualReturnDateTime).hour // giờ +07 (SA-BR-14), không theo giờ trình duyệt
+  const closedAfter23h = actualReturnHour >= 23
   if (!closedAfter23h && lateMinutes <= 180) {
     if (lateMinutes <= 60) return dailyRate * 0.1
     if (lateMinutes <= 120) return dailyRate * 0.3
     return dailyRate * 0.5
   }
   // > 3h hoặc sau giờ đóng cửa 23:00 — khách giữ xe qua đêm.
-  return actualReturn.getHours() < 8 ? dailyRate * 0.5 : dailyRate * 1
+  return actualReturnHour < 8 ? dailyRate * 0.5 : dailyRate * 1
 }
 
 /** VR-BR-25/CR-2026-062 — copy nguyên `rental.deliveryFee` đã snapshot lúc tạo Rental, không tính lại. */

@@ -1,4 +1,4 @@
-import { parseISO } from 'date-fns'
+import { dateTimeToMs } from '@/shared/lib/datetime'
 import { z } from 'zod'
 import { paths } from '@/app/paths'
 import type { Customer } from '@/features/customers'
@@ -117,7 +117,7 @@ export const FREE_DELIVERY_RADIUS_KM = 10
  * tối thiểu 1 ngày.
  */
 export function rentalDurationDays(pickupDateTime: string, expectedReturnDateTime: string): number {
-  const ms = parseISO(expectedReturnDateTime).getTime() - parseISO(pickupDateTime).getTime()
+  const ms = dateTimeToMs(expectedReturnDateTime) - dateTimeToMs(pickupDateTime)
   return Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)))
 }
 

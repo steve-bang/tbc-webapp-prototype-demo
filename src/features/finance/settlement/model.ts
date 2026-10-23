@@ -1,5 +1,4 @@
 // Module Rental Settlement (RS) — hàm thuần + form schema. Tách từ `finance/model.ts` — docs/FINANCE-REFACTOR-PLAN.md §3.1.
-import { parseISO } from 'date-fns'
 import { z } from 'zod'
 import type { ReturnIncidentItem, ReturnRecord } from '@/features/handover-return'
 import type { Incident } from '@/features/incidents'
@@ -257,8 +256,8 @@ export function getCompletionBlockers(settlement: Settlement): SettlementBlocker
  * TODO(OQ: RentalSettlement-BRD.md §28 Q11 — đóng lượt khi còn công nợ; demo cho đóng khi đã tạo yêu cầu thu, không hạn mức.)
  */
 export function calcSettlementCollectOutstanding(settlement: Pick<Settlement, 'paymentRequests'>, paymentRequests: PaymentRequest[], txns: Transaction[], asOf?: string): number {
-  const asOfTime = asOf ? parseISO(asOf).getTime() : undefined
-  const visibleTxns = asOfTime === undefined ? txns : txns.filter((t) => parseISO(t.confirmedAt ?? t.performedAt).getTime() <= asOfTime)
+  const asOfTime = asOf ? Date.parse(asOf) : undefined
+  const visibleTxns = asOfTime === undefined ? txns : txns.filter((t) => Date.parse(t.confirmedAt ?? t.performedAt) <= asOfTime)
   let outstanding = 0
   for (const spr of settlement.paymentRequests) {
     if (spr.type !== 'COLLECT' || spr.status !== 'REQUESTED') continue

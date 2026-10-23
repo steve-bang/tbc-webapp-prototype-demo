@@ -6,6 +6,7 @@ import { RETURN_RECORDS_STORAGE_KEY } from '@/features/handover-return/api'
 import type { ReturnRecord } from '@/features/handover-return/model'
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import { generateId } from '@/shared/lib/id'
+import { addDaysToKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import { INCIDENTS_STORAGE_KEY } from './api'
 import { mapIncidentItemTypeToIncidentType, type Incident } from './model'
@@ -13,10 +14,7 @@ import type { MediaMeta } from '@/features/handover-return/model'
 
 /** Mirror `dt()` của `handover-return/seed.ts` — tính ngày động từ hôm nay. */
 function dt(daysOffset: number, hour: number, minute = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysOffset)
-  d.setHours(hour, minute, 0, 0)
-  return d.toISOString()
+  return zonedDateTimeToIso(addDaysToKey(todayKey(), daysOffset), hour, minute)
 }
 
 function media(category: string, capturedAt: string, employeeId: string, note?: string): MediaMeta {

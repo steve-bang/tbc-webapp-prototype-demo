@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { CONSIGNMENT_PRORATION_RULES } from '@/shared/domain/enums'
 import { CONSIGNMENT_CONTRACT_STATUS_LABELS, CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { addMonthsToKey, formatDate } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import {
   addDaysKey,
@@ -105,13 +105,12 @@ export function listTermVersionStates(
 
 /** Ngày 1 của tháng chứa `todayKey`. */
 export function monthStartKey(todayKey: string): string {
-  return `${todayKey.slice(0, 7)}-01`
+  return `${todayKey.slice(0, 7)}-01` // date key — không phụ thuộc múi giờ
 }
 
 /** Ngày 1 của tháng kế tiếp tháng chứa `todayKey` — ngày hiệu lực gợi ý cho đổi điều khoản. */
 export function nextMonthStartKey(todayKey: string): string {
-  const [y, m] = todayKey.split('-').map(Number)
-  return toLocalDateKey(new Date(y, m, 1))
+  return addMonthsToKey(monthStartKey(todayKey), 1)
 }
 
 /** `effectiveFrom` lớn nhất trong `termVersions` (phiên bản mới nhất, kể cả "sắp hiệu lực"). */

@@ -1,13 +1,12 @@
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
+import { addDaysToKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import { CUSTOMERS_STORAGE_KEY } from './api'
 import type { Customer } from './model'
 
 /** `YYYY-MM-DD` tính từ hôm nay ± số ngày — dùng để seed `CustomerDocument.expiryDate` demo đúng ngưỡng `documentExpiryStatus()` (30 ngày) dù chạy seed vào ngày nào. */
 function isoDateOffset(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysToKey(todayKey(), days)
 }
 
 // ---- Khách hàng demo bổ sung cho lịch sử lượt thuê 12 tháng (docs/DEMO-DATA-PLAN.md §3.1) ----
@@ -93,10 +92,7 @@ function buildDemoCustomers(existing: Customer[]): Customer[] {
     usedNames.add(fullName)
 
     // Tạo trước toàn bộ lịch sử lượt thuê (lượt đầu ≈ 365 ngày trước, đặt trước 3 ngày).
-    const created = new Date()
-    created.setDate(created.getDate() - (380 + 3 * k))
-    created.setHours(9, 0, 0, 0)
-    const createdAt = created.toISOString()
+    const createdAt = zonedDateTimeToIso(addDaysToKey(todayKey(), -(380 + 3 * k)), 9, 0)
 
     result.push({
       id: `cus_${pad(DEMO_CUSTOMER_FIRST_SEQ + k, 3)}`,

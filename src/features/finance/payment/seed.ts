@@ -13,6 +13,7 @@ import {
 } from '@/features/consignment'
 import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
 import { vi } from '@/shared/i18n/vi'
+import { addDaysToKey, addMonthsToKey, startOfMonthKey, toMonthKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
@@ -891,20 +892,9 @@ export function seedPaymentRound2(): void {
 
 // ==== Chi trả chủ xe ký gửi — docs/CONSIGNMENT-PLAN.md mục 19.9.2 ====
 
-function localDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-/** Ngày `key` lùi / tiến `offsetDays` ngày (ngày địa phương `YYYY-MM-DD`). */
-function shiftKey(key: string, offsetDays: number): string {
-  const [y, m, d] = key.split('-').map(Number)
-  return localDateKey(new Date(y, m - 1, d + offsetDays))
-}
-
-/** Giờ địa phương `hour:minute` của ngày `key` (+ `offsetDays` ngày) → ISO. */
+/** Giờ +07 `hour:minute` của ngày `key` (+ `offsetDays` ngày) → ISO. */
 function atLocal(key: string, offsetDays: number, hour: number, minute = 0): string {
-  const [y, m, d] = key.split('-').map(Number)
-  return new Date(y, m - 1, d + offsetDays, hour, minute, 0).toISOString()
+  return zonedDateTimeToIso(addDaysToKey(key, offsetDays), hour, minute)
 }
 
 /**
@@ -917,15 +907,15 @@ function atLocal(key: string, offsetDays: number, hour: number, minute = 0): str
  */
 export function seedOwnerPayouts(): void {
   const nowIso = new Date().toISOString()
-  const today = localDateKey(new Date())
+  const today = todayKey()
   const records = readJson<OwnerPayoutRecord[]>(OWNER_PAYOUT_RECORDS_STORAGE_KEY) ?? []
   const owners = readJson<VehicleOwner[]>(VEHICLE_OWNERS_STORAGE_KEY) ?? []
   const contracts = readJson<ConsignmentContract[]>(CONSIGNMENT_CONTRACTS_STORAGE_KEY) ?? []
   const requests = readJson<PaymentRequest[]>(PAYMENT_REQUESTS_STORAGE_KEY) ?? []
   const transactions = readJson<Transaction[]>(TRANSACTIONS_STORAGE_KEY) ?? []
 
-  const now = new Date()
-  const periodMinus = (n: number): string => localDateKey(new Date(now.getFullYear(), now.getMonth() - n, 1)).slice(0, 7)
+  const thisMonth = startOfMonthKey(today)
+  const periodMinus = (n: number): string => toMonthKey(addMonthsToKey(thisMonth, -n))
   const reversedPeriod = periodMinus(3)
   const pendingPeriod = periodMinus(1)
 
@@ -1024,7 +1014,7 @@ export function seedOwnerPayouts(): void {
     const isPendingCase = record.contractId === 'cg_006' && record.period === pendingPeriod
     // Giao dịch `PENDING` của ca (2): performedAt = min(hạn chi − 2, hôm nay − 1) 09:00, luôn ≥ mốc tạo khoản chi trả.
     const performedAt = isPendingCase
-      ? atLocal(shiftKey(record.dueDate, -2) < shiftKey(today, -1) ? shiftKey(record.dueDate, -2) : shiftKey(today, -1), 0, 9)
+      ? atLocal(addDaysToKey(record.dueDate, -2) < addDaysToKey(today, -1) ? addDaysToKey(record.dueDate, -2) : addDaysToKey(today, -1), 0, 9)
       : atLocal(record.dueDate, -2, 9)
     if (isPendingCase) {
       events.push({ at: performedAt, run: () => void createPayout(currentRecord(record.id), performedAt, undefined) })

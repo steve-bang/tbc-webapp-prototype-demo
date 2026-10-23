@@ -1,4 +1,5 @@
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
+import { addDaysToKey, todayKey } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import {
   MAINTENANCE_RECORDS_STORAGE_KEY,
@@ -9,9 +10,7 @@ import type { MaintenanceRecord, MaintenanceRule, SparePartRecord } from './mode
 
 /** `YYYY-MM-DD` tính từ hôm nay ± số ngày — cùng pattern `features/vehicles/seed.ts`. */
 function isoDateOffset(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysToKey(todayKey(), days)
 }
 
 const SEEDED_BY = 'Hoàng Văn Nhân Viên' // OPERATION_STAFF demo — features/employees/seed.ts

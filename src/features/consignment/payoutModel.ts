@@ -10,7 +10,7 @@ import {
   type Role,
 } from '@/shared/domain/enums'
 import { vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { addDaysToKey, dateTimeToMs, endOfMonthKey, formatDate } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { formatVnd } from '@/shared/lib/money'
 import {
@@ -144,12 +144,11 @@ function pad2(n: number): string {
 
 /** `YYYY-MM` của một ngày `YYYY-MM-DD`. */
 export function periodOf(dateKey: string): string {
-  return dateKey.slice(0, 7)
+  return dateKey.slice(0, 7) // date key — không phụ thuộc múi giờ
 }
 
 export function daysInMonthOf(period: string): number {
-  const [y, m] = period.split('-').map(Number)
-  return new Date(y, m, 0).getDate()
+  return dayDiff(`${period}-01`, endOfMonthKey(`${period}-01`)) + 1
 }
 
 export function nextPeriod(period: string): string {
@@ -749,8 +748,7 @@ export interface TerminationNoticeContext {
 
 /** Ngày dự kiến kết thúc sớm nhất hợp lệ = ngày thông báo + Notice Period (VC-BR-14). */
 export function earliestPlannedEnd(noticeDate: string, noticePeriodDays: number): string {
-  const [y, m, d] = noticeDate.split('-').map(Number)
-  return toLocalDateKey(new Date(y, m - 1, d + noticePeriodDays))
+  return addDaysToKey(noticeDate, noticePeriodDays)
 }
 
 /** Thông báo chấm dứt (§19.1 điểm 17): cho nhập lùi, `effectiveFrom ≤ noticeDate ≤ hôm nay`, `plannedEnd ≥ noticeDate + notice`. */
@@ -794,7 +792,7 @@ export function makeConsignmentReturnFormSchema(ctx: ConsignmentReturnContext) {
       .string()
       .min(1, p.returnAtRequired)
       .refine((v) => !isFutureDateTime(v), { message: p.returnAtFuture })
-      .refine((v) => new Date(v).getTime() >= new Date(ctx.intakeHandoverAt).getTime(), { message: p.returnAtBeforeIntake }),
+      .refine((v) => dateTimeToMs(v) >= dateTimeToMs(ctx.intakeHandoverAt), { message: p.returnAtBeforeIntake }),
     odoKm: z
       .string()
       .trim()

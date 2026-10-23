@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { Rental } from '@/features/rentals'
 import { TURNAROUND_BUFFER_MINUTES } from '@/features/rentals'
 import type { RentalStatus, VehicleBlockStatus } from '@/shared/domain/enums'
+import { toDateKey } from '@/shared/lib/datetime'
 
 /**
  * Vehicle Block — `RentalManagement-BRD.md` §57 (CR-2026-015) + `RentalCalendar-BRD.md`
@@ -69,8 +70,9 @@ export function isVehicleBlockedForPeriod(
   startDate: string,
   endDate: string,
 ): boolean {
-  const periodStart = startDate.slice(0, 10)
-  const periodEnd = endDate.slice(0, 10)
+  // N8 — ngày +07 (trước đây cắt chuỗi UTC: mốc 00:00–06:59 +07 bị tính vào hôm trước)
+  const periodStart = toDateKey(startDate)
+  const periodEnd = toDateKey(endDate)
   return blocks.some((b) => {
     if (b.vehicleId !== vehicleId || b.status !== 'ACTIVE') return false
     return periodStart <= blockEndBound(b) && b.startDate <= periodEnd
@@ -88,12 +90,13 @@ export function findRentalsAffectedByBlock(
   startDate: string,
   endDate: string,
 ): Rental[] {
-  const periodStart = startDate.slice(0, 10)
-  const periodEnd = (endDate || '9999-12-31').slice(0, 10)
+  // N8 — ngày +07 (trước đây cắt chuỗi UTC: mốc 00:00–06:59 +07 bị tính vào hôm trước)
+  const periodStart = toDateKey(startDate)
+  const periodEnd = toDateKey(endDate || '9999-12-31')
   return rentals.filter((r) => {
     if (r.vehicleId !== vehicleId || !isOccupyingLikeStatus(r.status)) return false
-    const rentalStart = r.pickupDateTime.slice(0, 10)
-    const rentalEnd = r.expectedReturnDateTime.slice(0, 10)
+    const rentalStart = toDateKey(r.pickupDateTime)
+    const rentalEnd = toDateKey(r.expectedReturnDateTime)
     return rentalStart <= periodEnd && periodStart <= rentalEnd
   })
 }
@@ -115,12 +118,13 @@ export function turnaroundBufferWindow(previousExpectedReturnDateTime: string): 
  * (không đụng conflict/pricing).
  */
 export function rentalsByVehicleInRange(rentals: Rental[], startDate: string, endDate: string): Map<string, Rental[]> {
-  const periodStart = startDate.slice(0, 10)
-  const periodEnd = endDate.slice(0, 10)
+  // N8 — ngày +07 (trước đây cắt chuỗi UTC: mốc 00:00–06:59 +07 bị tính vào hôm trước)
+  const periodStart = toDateKey(startDate)
+  const periodEnd = toDateKey(endDate)
   const map = new Map<string, Rental[]>()
   for (const r of rentals) {
-    const rentalStart = r.pickupDateTime.slice(0, 10)
-    const rentalEnd = r.expectedReturnDateTime.slice(0, 10)
+    const rentalStart = toDateKey(r.pickupDateTime)
+    const rentalEnd = toDateKey(r.expectedReturnDateTime)
     if (rentalEnd < periodStart || rentalStart > periodEnd) continue
     const list = map.get(r.vehicleId) ?? []
     list.push(r)

@@ -5,7 +5,8 @@ import { readJson, writeJson } from '@/shared/lib/storage'
  * trong localStorage của trình duyệt sẽ tự động được seed lại thay vì gây lỗi
  * do lệch schema.
  */
-const SEED_VERSION = 26
+// TECH-HARDENING-PLAN.md §13 — seed không còn phụ thuộc giờ máy; máy ngoài UTC+7 cần seed lại.
+const SEED_VERSION = 27
 const SEED_META_KEY = 'seedMeta'
 
 interface SeedMeta {

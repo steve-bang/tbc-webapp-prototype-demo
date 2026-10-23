@@ -1,5 +1,5 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns'
 import type { DocumentStatus } from '@/shared/domain/enums'
+import { dayDiff, toDateKey } from '@/shared/lib/datetime'
 
 /**
  * Tính trạng thái hiệu lực giấy tờ theo Expiry Date − Warning Lead Days.
@@ -17,7 +17,7 @@ export function documentExpiryStatus(
   today: Date = new Date(),
 ): DocumentStatus {
   if (!expiryDate) return 'VALID'
-  const diffDays = differenceInCalendarDays(parseISO(expiryDate), today)
+  const diffDays = dayDiff(toDateKey(today), toDateKey(expiryDate))
   if (diffDays < 0) return 'EXPIRED'
   if (diffDays <= warningLeadDays) return 'EXPIRING_SOON'
   return 'VALID'

@@ -12,7 +12,7 @@ import {
   type Role,
 } from '@/shared/domain/enums'
 import { CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { addDaysToKey, dateTimeToMs, dayDiff as dayDiffKey, formatDate, toDateKey } from '@/shared/lib/datetime'
 import { formatVnd } from '@/shared/lib/money'
 import type { ConsignmentAddendum } from './addendumModel'
 
@@ -246,29 +246,21 @@ export const INTAKE_DOCUMENT_KEYS = ['REGISTRATION', 'INSPECTION', 'INSURANCE'] 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
 
 /**
- * `YYYY-MM-DD` theo giờ ĐỊA PHƯƠNG. Không dùng `toISOString().slice(0, 10)` vì lệch ngày theo UTC.
+ * `YYYY-MM-DD` theo ngày +07 (SA-BR-14) — giữ tên cho tương thích, gộp vào `toDateKey` ở R3b nếu không còn nơi dùng.
  * Mirror helper cùng tên của finance (consignment không được import finance — plan mục 0.3 điểm 1).
  */
 export function toLocalDateKey(value: string | Date): string {
-  if (typeof value === 'string' && DATE_KEY_RE.test(value)) return value
-  const d = typeof value === 'string' ? new Date(value) : value
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return toDateKey(value)
 }
 
-/** Số ngày từ `fromKey` đến `toKey` (cả hai dạng `YYYY-MM-DD`), tính theo lịch — không bị lệch giờ mùa hè. */
+/** Số ngày từ `fromKey` đến `toKey` (cả hai dạng `YYYY-MM-DD`), tính theo lịch — giữ tên cho tương thích, gộp ở R3b nếu không còn nơi dùng. */
 export function dayDiff(fromKey: string, toKey: string): number {
-  const [fy, fm, fd] = fromKey.split('-').map(Number)
-  const [ty, tm, td] = toKey.split('-').map(Number)
-  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000)
+  return dayDiffKey(fromKey, toKey)
 }
 
-/** Cộng/trừ `offset` ngày vào một khoá ngày `YYYY-MM-DD` (theo lịch, giờ địa phương). */
+/** Cộng/trừ `offset` ngày vào một khoá ngày `YYYY-MM-DD` (theo lịch +07). */
 export function addDaysKey(key: string, offset: number): string {
-  const [y, m, d] = key.split('-').map(Number)
-  return toLocalDateKey(new Date(y, m - 1, d + offset))
+  return addDaysToKey(key, offset)
 }
 
 /** Mã tuần tự 6 chữ số: lấy số lớn nhất đang có trong `codes` (cùng `prefix`) cộng 1. */
@@ -612,9 +604,10 @@ export function summarizeContracts(contracts: ConsignmentContract[], todayKey: s
 
 const NUMERIC_RE = /^\d+$/
 
-/** `true` khi chuỗi ngày giờ (ISO hoặc `datetime-local`) nằm sau thời điểm hiện tại. */
+/** `true` khi chuỗi ngày giờ (ISO hoặc giá trị ô nhập ngày giờ) nằm sau thời điểm hiện tại. */
 export function isFutureDateTime(value: string): boolean {
-  const t = new Date(value).getTime()
+  // N8 — giá trị ô nhập ngày giờ (không có múi giờ) hiểu theo +07, không theo giờ trình duyệt
+  const t = dateTimeToMs(value)
   return Number.isFinite(t) && t > Date.now()
 }
 

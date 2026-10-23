@@ -1,11 +1,10 @@
 // Hằng + hàm ngày dùng chung của các bước seed finance (tầng `core`) — docs/FINANCE-REFACTOR-PLAN.md §3.4.
 
+import { addDaysToKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
+
 /** Mirror `dt()` của `incidents/seed.ts`/`handover-return/seed.ts` — tính ngày động từ hôm nay. */
 export function dt(daysOffset: number, hour: number, minute = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysOffset)
-  d.setHours(hour, minute, 0, 0)
-  return d.toISOString()
+  return zonedDateTimeToIso(addDaysToKey(todayKey(), daysOffset), hour, minute)
 }
 
 export const ACCOUNTANT = 'Lý Thị Kế Toán' // mirror vai trò ACCOUNTANT dùng ở auth demo
@@ -13,9 +12,7 @@ export const MANAGER = 'Trần Thị Quản Lý'
 
 /** `hours` giờ sau một mốc ISO — dùng để đặt `performedAt` của giao dịch tương đối theo `pickupDateTime`/`createdAt` thật của Rental (§8.2 kế hoạch). */
 export function hoursAfter(iso: string, hours: number): string {
-  const d = new Date(iso)
-  d.setMinutes(d.getMinutes() + hours * 60)
-  return d.toISOString()
+  return new Date(Date.parse(iso) + hours * 3_600_000).toISOString()
 }
 
 // ==== Payment (PM) — PAYMENT-PLAN.md §8, Round 1 ====

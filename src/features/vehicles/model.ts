@@ -1,4 +1,3 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { z } from 'zod'
 import { paths } from '@/app/paths'
 import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
@@ -11,7 +10,7 @@ import {
   type VehicleStatus,
 } from '@/shared/domain/enums'
 import { vi, VEHICLE_DOCUMENT_TYPE_LABELS } from '@/shared/i18n/vi'
-import { formatDate } from '@/shared/lib/datetime'
+import { dayDiff, formatDate, toDateKey } from '@/shared/lib/datetime'
 import { documentExpiryStatus } from '@/shared/lib/documentStatus'
 
 /**
@@ -126,7 +125,7 @@ export function collectVehicleDocumentSignals(vehicles: Vehicle[], now: Date): O
           : doc.documentType === 'INSURANCE'
             ? 'VEHICLE_INSURANCE_EXPIRING'
             : 'VEHICLE_DOCUMENT_EXPIRING'
-      const daysLeft = differenceInCalendarDays(parseISO(doc.expiryDate), now)
+      const daysLeft = dayDiff(toDateKey(now), toDateKey(doc.expiryDate))
       signals.push({
         dedupeKey: signalDedupeKey(eventType, 'VehicleDocument', doc.id, doc.expiryDate),
         eventType,

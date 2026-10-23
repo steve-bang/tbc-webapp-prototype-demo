@@ -10,6 +10,7 @@ import {
 } from '@/features/rentals/model'
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import type { ContractStatus, SecurityDepositType, VehicleClass } from '@/shared/domain/enums'
+import { addDaysIso, addDaysToKey, toDateKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import { CONTRACTS_STORAGE_KEY, CONTRACT_ADDENDUMS_STORAGE_KEY } from './api'
 import { COMPANY_NAME, generateContractCode, type Contract, type ContractAddendum } from './model'
@@ -22,17 +23,12 @@ import { COMPANY_NAME, generateContractCode, type Contract, type ContractAddendu
  * thật (không tính tay dễ lệch — cùng tinh thần `rentals/seed.ts` §3.1).
  */
 function dt(daysOffset: number, hour: number, minute = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysOffset)
-  d.setHours(hour, minute, 0, 0)
-  return d.toISOString()
+  return zonedDateTimeToIso(addDaysToKey(todayKey(), daysOffset), hour, minute)
 }
 
 /** `createdAt`/`updatedAt` — vài ngày trước `pickupDateTime` (thời điểm sinh hợp đồng, sau khi Rental `CONFIRMED`). */
 function beforeIso(iso: string, days: number): string {
-  const d = new Date(iso)
-  d.setDate(d.getDate() - days)
-  return d.toISOString()
+  return addDaysIso(iso, -days)
 }
 
 const OFFICE = 'Văn phòng Thiên Bảo Car — 123 Nguyễn Văn Cừ, Quận 5, TP.HCM'
@@ -106,7 +102,8 @@ function buildContract(input: SeedContractInput, existingCount: number): Contrac
     snapshotSecurityDepositType: input.securityDepositType,
     snapshotSecurityDepositAmount: input.securityDepositType === 'CASH_20M' ? CASH_DEPOSIT_AMOUNT : undefined,
     signedCopyFileName: isSignedOrLater ? (input.signed?.fileName ?? `HD-scan-${input.id}.pdf`) : undefined,
-    signedDate: isSignedOrLater ? (input.signed?.date ?? input.pickupDateTime.slice(0, 10)) : undefined,
+    // N8 — ngày +07 của mốc giao (trước đây cắt chuỗi UTC: pickup 00:00–06:59 +07 ra hôm trước)
+    signedDate: isSignedOrLater ? (input.signed?.date ?? toDateKey(input.pickupDateTime)) : undefined,
     signedByCompany: isSignedOrLater ? (input.signed?.byCompany ?? 'Nguyễn Văn Admin') : undefined,
     signedByCustomer: isSignedOrLater ? (input.signed?.byCustomer ?? input.customerName) : undefined,
     voidReason: isVoid ? input.voidReason : undefined,
@@ -295,7 +292,7 @@ function seedContracts(): void {
       id: 'ctad_001',
       contractId: 'ct_005', // ct_005 (ACTIVE, rt_016) — đổi xe giữa kỳ, ghi chênh lệch giá (CT-BR-17).
       type: 'ADDENDUM_VEHICLE_SWAP',
-      effectiveDate: dt(0, 9, 0).slice(0, 10),
+      effectiveDate: toDateKey(dt(0, 9, 0)),
       description:
         'Đổi từ xe VinFast Fadil (51A-012.34) sang xe cùng hạng do phát sinh bảo trì đột xuất — không phát sinh chênh lệch giá (cùng Vehicle Class).',
       createdAt: beforeIso(dt(-1, 9, 0), 0),
@@ -304,7 +301,7 @@ function seedContracts(): void {
       id: 'ctad_002',
       contractId: 'ct_008', // ct_008 (CLOSED, rt_024) — kết thúc sớm giữa kỳ (CT-BR-17/RM-BR-28).
       type: 'TERMINATION_AGREEMENT',
-      effectiveDate: dt(-18, 9, 0).slice(0, 10),
+      effectiveDate: toDateKey(dt(-18, 9, 0)),
       description: 'Khách yêu cầu kết thúc lượt thuê sớm hơn dự kiến 1 ngày do thay đổi lịch trình cá nhân.',
       createdAt: dt(-18, 10, 0),
     },

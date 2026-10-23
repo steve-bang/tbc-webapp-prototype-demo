@@ -635,7 +635,8 @@ seed lệch 2.818 bản ghi giữa giờ máy HCM và UTC; 69 file phụ thuộc
 - [x] **R2 — Gỡ vòng import** — **DONE** (23/10/2026, brief plan §12, review đạt vòng 1, không Blocker — plan §12.9; SCC **0**, tải đầu
       1.869.188 B — tập module tải đầu không đổi, tăng do chia chunk) (plan §3): mỗi feature 2 điểm nhập `index.ts` (dữ liệu) + `ui.ts` (màn/component) → SCC 98 → **0**; bật
       `import/no-cycle` trong `oxlint` (đã duyệt E2–E4). Không đổi hành vi (dump seed + harness y hệt).
-- [ ] **R3a — N8 nền + dữ liệu/logic** (plan §4): `shared/lib/datetime.ts` offset cố định UTC+7 (`SA-BR-14`), 13 seed + 15 file logic → seed
+- [x] **R3a — N8 nền + dữ liệu/logic** — **DONE** (23/10/2026, brief plan §13, review đạt vòng 1, không Blocker — plan §13.9; seed/harness
+      giống hệt dưới mọi giờ máy; tải đầu 1.862.120 B; `SEED_VERSION` 27) (plan §4): `shared/lib/datetime.ts` offset cố định UTC+7 (`SA-BR-14`), 13 seed + 15 file logic → seed
       và harness giống hệt dưới mọi múi giờ máy.
 - [ ] **R3b — N8 giao diện** (plan §4): ~40 màn/dialog (lưới lịch, bộ lọc ngày, ô nhập ngày giờ) → `tz-scan` = 0 ngoài `datetime.ts`.
 - [ ] *(Tuỳ chọn)* **R2b** — gom 89 import sâu chéo feature vào barrel (plan §3.3).

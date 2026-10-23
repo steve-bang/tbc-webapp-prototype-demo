@@ -15,6 +15,10 @@ implement/review.
   field/biến/hàm.
 - Ngày giờ: dùng `formatDate`/`formatDateTime`/`formatTime`/`formatRelative` trong
   `shared/lib/datetime.ts` (định dạng `dd/MM/yyyy`). Tiền: `formatVnd` trong `shared/lib/money.ts`.
+- **Múi giờ cố định `Asia/Ho_Chi_Minh` (UTC+7 — `SA-BR-14`, Phase 6.1 R3, `docs/TECH-HARDENING-PLAN.md` §4):** mốc lưu là ISO `…Z`; ngày
+  lịch là date key `YYYY-MM-DD` theo +07. Ngoài `shared/lib/datetime.ts` **cấm** `get/setHours|Date|Month|FullYear|Day`, `new Date(y, m, d)`,
+  `iso.slice(0, 10|7)` để lấy ngày, `format()`/hàm lịch của `date-fns` — dùng `toDateKey`, `todayKey`, `zonedDateTimeToIso`, `addDaysToKey`,
+  `dayDiff`, `isoToDateTimeInput`/`dateTimeInputToIso`… (áp cho file `.ts` từ R3a, cho `.tsx` từ R3b).
 - Comment/JSDoc bằng tiếng Việt khi giải thích lý do (WHY); không viết comment mô tả lại điều tên
   biến/hàm đã nói rõ.
 

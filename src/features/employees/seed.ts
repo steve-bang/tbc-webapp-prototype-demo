@@ -1,5 +1,6 @@
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
 import { generateId } from '@/shared/lib/id'
+import { addDaysIso, addDaysToKey, todayKey, zonedDateTimeToIso } from '@/shared/lib/datetime'
 import { writeJson } from '@/shared/lib/storage'
 import { ASSIGNMENTS_STORAGE_KEY, EMPLOYEES_STORAGE_KEY } from './api'
 import type { Assignment, Employee } from './model'
@@ -135,10 +136,7 @@ registerSeedStep(seedEmployees)
  * Rental đang tham chiếu (`docs/EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §7).
  */
 function dt(daysOffset: number, hour: number, minute = 0): string {
-  const d = new Date()
-  d.setDate(d.getDate() + daysOffset)
-  d.setHours(hour, minute, 0, 0)
-  return d.toISOString()
+  return zonedDateTimeToIso(addDaysToKey(todayKey(), daysOffset), hour, minute)
 }
 
 function addMinutesIso(iso: string, minutes: number): string {
@@ -147,9 +145,7 @@ function addMinutesIso(iso: string, minutes: number): string {
 
 /** Vài ngày trước mốc đã cho — thời điểm phân công thường đi trước Planned Window. */
 function beforeIso(iso: string, days: number): string {
-  const d = new Date(iso)
-  d.setDate(d.getDate() - days)
-  return d.toISOString()
+  return addDaysIso(iso, -days)
 }
 
 interface SeedAssignmentInput {

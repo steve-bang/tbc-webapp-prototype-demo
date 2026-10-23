@@ -2,6 +2,7 @@ import { can } from '@/shared/domain/permissions'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { vi } from '@/shared/i18n/vi'
+import { todayIso } from '@/shared/lib/datetime'
 import { measureAppStorage, readJson, writeJson } from '@/shared/lib/storage'
 import { systemConfigSchema, type SystemConfig, type SystemConfigFormValues } from './model'
 import type { SessionUser } from './model'
@@ -39,7 +40,7 @@ export async function updateSystemConfig(
     const changed = Object.keys(after)
     if (changed.length === 0) return current
 
-    const next: SystemConfig = { ...current, ...values, updatedAt: new Date().toISOString(), updatedBy: actor.fullName }
+    const next: SystemConfig = { ...current, ...values, updatedAt: todayIso(), updatedBy: actor.fullName }
     writeJson(SYSTEM_CONFIG_STORAGE_KEY, next)
     appendAudit({
       action: 'CONFIG_CHANGE',

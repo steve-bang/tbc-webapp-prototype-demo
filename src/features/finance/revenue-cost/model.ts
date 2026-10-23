@@ -1,20 +1,5 @@
 // Module Revenue & Cost (RV) — lõi hàm thuần + form Cost Record. Tách từ `finance/model.ts` — docs/FINANCE-REFACTOR-PLAN.md §3.1.
-import {
-  addDays,
-  addMonths,
-  differenceInCalendarDays,
-  endOfMonth,
-  endOfQuarter,
-  endOfYear,
-  format,
-  parseISO,
-  startOfMonth,
-  startOfQuarter,
-  startOfWeek,
-  startOfYear,
-  subDays,
-  subMonths,
-} from 'date-fns'
+import { addDaysToKey, addMonthsToKey, dayDiff, eachDayKey, endOfMonthKey, startOfMonthKey, startOfWeekKey, toDateKey, toMonthKey, todayKey as currentDateKey } from '@/shared/lib/datetime'
 import { z } from 'zod'
 import type { OwnerPayoutRecord } from '@/features/consignment'
 import type { Incident } from '@/features/incidents'
@@ -182,16 +167,27 @@ export function isManualCostCategory(value: string): value is ManualCostCategory
 // ---- Kỳ phân tích (§3.3) ----
 
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/
-const DATE_KEY_FORMAT = 'yyyy-MM-dd'
 
-/** Quy mọi ISO datetime về ngày địa phương `yyyy-MM-dd` trước khi so — tránh lệch ngày do UTC. */
+/** Quy mọi ISO datetime về ngày +07 `yyyy-MM-dd` trước khi so — giữ tên cho tương thích, gộp vào `toDateKey` ở R3b nếu không còn nơi dùng. */
 export function toLocalDateKey(value: string): string {
-  if (DATE_KEY_RE.test(value)) return value
-  return format(parseISO(value), DATE_KEY_FORMAT)
+  return toDateKey(value)
 }
 
+/** Ngày +07 của một `Date` → `yyyy-MM-dd` — giữ tên cho tương thích, gộp vào `toDateKey` ở R3b nếu không còn nơi dùng. */
 export function dateKeyOf(date: Date): string {
-  return format(date, DATE_KEY_FORMAT)
+  return toDateKey(date)
+}
+
+/** Ngày đầu / cuối quý chứa `key` (quý lịch: 1–3, 4–6, 7–9, 10–12). */
+export function quarterRange(key: string): { from: string; to: string } {
+  const quarterFirstMonth = Math.floor((Number(key.slice(5, 7)) - 1) / 3) * 3 + 1 // date key — không phụ thuộc múi giờ
+  const from = `${key.slice(0, 4)}-${String(quarterFirstMonth).padStart(2, '0')}-01`
+  return { from, to: endOfMonthKey(addMonthsToKey(from, 2)) }
+}
+
+export function yearRange(key: string): { from: string; to: string } {
+  const year = key.slice(0, 4) // date key — không phụ thuộc múi giờ
+  return { from: `${year}-01-01`, to: `${year}-12-31` }
 }
 
 /** RV-BR-03 — chỉ so theo `Recognition Date`/`Cost Date`, KHÔNG dùng `createdAt`. */
@@ -201,23 +197,24 @@ export function isDateInPeriod(value: string, period: FinancePeriod): boolean {
 }
 
 export function resolvePeriodPreset(preset: FinancePeriodPreset, today: Date = new Date()): FinancePeriod {
+  const t = dateKeyOf(today)
   switch (preset) {
     case 'LAST_MONTH': {
-      const last = subMonths(today, 1)
-      return { from: dateKeyOf(startOfMonth(last)), to: dateKeyOf(endOfMonth(last)) }
+      const last = addMonthsToKey(t, -1)
+      return { from: startOfMonthKey(last), to: endOfMonthKey(last) }
     }
     case 'LAST_30_DAYS':
-      return { from: dateKeyOf(subDays(today, 29)), to: dateKeyOf(today) }
+      return { from: addDaysToKey(t, -29), to: t }
     case 'THIS_QUARTER':
-      return { from: dateKeyOf(startOfQuarter(today)), to: dateKeyOf(endOfQuarter(today)) }
+      return quarterRange(t)
     case 'THIS_YEAR':
-      return { from: dateKeyOf(startOfYear(today)), to: dateKeyOf(endOfYear(today)) }
+      return yearRange(t)
     case 'LAST_12_MONTHS':
-      return { from: dateKeyOf(startOfMonth(subMonths(today, 11))), to: dateKeyOf(endOfMonth(today)) }
+      return { from: startOfMonthKey(addMonthsToKey(t, -11)), to: endOfMonthKey(t) }
     case 'THIS_MONTH':
     case 'CUSTOM':
     default:
-      return { from: dateKeyOf(startOfMonth(today)), to: dateKeyOf(endOfMonth(today)) }
+      return { from: startOfMonthKey(t), to: endOfMonthKey(t) }
   }
 }
 
@@ -227,25 +224,23 @@ export function initialPeriodSelection(preset: FinancePeriodPreset): PeriodSelec
 
 /** BRD §14 "so với kỳ trước" — cùng độ dài, liền trước. */
 export function previousPeriod(period: FinancePeriod): FinancePeriod {
-  const from = parseISO(period.from)
-  const length = differenceInCalendarDays(parseISO(period.to), from) + 1
-  const prevTo = subDays(from, 1)
-  return { from: dateKeyOf(subDays(prevTo, length - 1)), to: dateKeyOf(prevTo) }
+  const length = dayDiff(period.from, period.to) + 1
+  const prevTo = addDaysToKey(period.from, -1)
+  return { from: addDaysToKey(prevTo, -(length - 1)), to: prevTo }
 }
 
 /** Khoá nhóm theo độ chi tiết: ngày `yyyy-MM-dd` · tuần ISO bắt đầu thứ Hai (khoá = ngày thứ Hai) · tháng `yyyy-MM`. */
 export function bucketKeyOf(value: string, granularity: ReportGranularity): string {
   const key = toLocalDateKey(value)
   if (granularity === 'DAY') return key
-  if (granularity === 'MONTH') return key.slice(0, 7)
-  return dateKeyOf(startOfWeek(parseISO(key), { weekStartsOn: 1 }))
+  if (granularity === 'MONTH') return toMonthKey(key)
+  return startOfWeekKey(key, 1)
 }
 
 export function enumeratePeriodBuckets(period: FinancePeriod, granularity: ReportGranularity): string[] {
   const keys: string[] = []
-  const last = parseISO(period.to)
-  for (let d = parseISO(period.from); d <= last; d = addDays(d, 1)) {
-    const key = bucketKeyOf(dateKeyOf(d), granularity)
+  for (const day of eachDayKey(period.from, period.to)) {
+    const key = bucketKeyOf(day, granularity)
     if (keys[keys.length - 1] !== key) keys.push(key)
   }
   return keys
@@ -256,7 +251,7 @@ function overlapDays(aFrom: string, aTo: string, bFrom: string, bTo: string): nu
   const from = aFrom > bFrom ? aFrom : bFrom
   const to = aTo < bTo ? aTo : bTo
   if (from > to) return 0
-  return differenceInCalendarDays(parseISO(to), parseISO(from)) + 1
+  return dayDiff(from, to) + 1
 }
 
 // ---- Doanh thu (§3.1) ----
@@ -397,7 +392,7 @@ export function expandCostRecord(record: CostRecord): CostEntry[] {
       category: record.category,
       allocationType: record.allocationType,
       amount: index === total - 1 ? record.amount - perSlice * (total - 1) : perSlice,
-      costDate: dateKeyOf(addMonths(parseISO(record.costDate), index)),
+      costDate: addMonthsToKey(toDateKey(record.costDate), index),
       vehicleId: record.vehicleId,
       rentalId: record.rentalId,
       source: 'MANUAL',
@@ -593,7 +588,7 @@ export function calcAvailableDays(vehicle: Vehicle, blocks: VehicleBlock[], peri
   const from = period.from > createdKey ? period.from : createdKey
   const to = period.to < todayKey ? period.to : todayKey
   if (from > to) return 0
-  const total = differenceInCalendarDays(parseISO(to), parseISO(from)) + 1
+  const total = dayDiff(from, to) + 1
 
   // Gộp các khoảng khoá giao nhau để không trừ trùng ngày.
   const intervals = blocks
@@ -768,7 +763,7 @@ export const costRecordFormSchema = z
       .trim()
       .min(1, 'Ngày chi phí là bắt buộc')
       .refine((v) => DATE_KEY_RE.test(v), { message: 'Ngày chi phí không hợp lệ' })
-      .refine((v) => v <= dateKeyOf(new Date()), { message: 'Ngày chi phí không được ở tương lai' }),
+      .refine((v) => v <= currentDateKey(), { message: 'Ngày chi phí không được ở tương lai' }),
     allocationType: z.enum(ALLOCATION_TYPES),
     vehicleId: z.string().trim().optional(),
     rentalId: z.string().trim().optional(),
@@ -849,7 +844,7 @@ export function buildDashboardFinanceSummary(input: {
     previous: summarizePeriod(revenueLines, costEntries, previous),
   })
   const todayKey = dateKeyOf(today)
-  const yesterdayKey = dateKeyOf(subDays(today, 1))
+  const yesterdayKey = addDaysToKey(todayKey, -1)
 
   const last30 = resolvePeriodPreset('LAST_30_DAYS', today)
   const lines30 = revenueLines.filter((l) => isDateInPeriod(l.recognitionDate, last30))
