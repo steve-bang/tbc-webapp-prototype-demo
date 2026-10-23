@@ -515,15 +515,32 @@ nay thống nhất theo **`RevenueCost-BRD.md` §28**, xem `docs/REVENUE-COST-PL
       không đổi storage key/`SEED_VERSION`. Có thể gộp dọn nợ treo: `postSettlementChargeFormSchema` chưa nối
       vào `PostSettlementChargeDialog` (`REVENUE-COST-PLAN.md` §10).
 
-## Phase 5 — Xe ký gửi — `[ ]`
+## Phase 5 — Xe ký gửi — `[~]`
 
-- [ ] `features/consignment` (VC): model (VehicleOwner, ConsignmentContract `FIXED_MONTHLY`,
-      OwnerPayoutRecord) · **Hồ sơ chủ xe** · **Hợp đồng ký gửi** · **Lịch chi trả hàng tháng** (đánh dấu
-      `SCHEDULED`/`PAID`).
-- [ ] Nối tab Owner/Consignment ở Vehicle Detail vào dữ liệu thật.
-- [ ] Khoản chi trả chủ xe phản ánh đúng vào `finance` (Cost Record `CONSIGNMENT_PAYOUT`, không tính lợi
-      nhuận công ty — CR-2026-050).
-- [ ] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng.
+Kế hoạch chi tiết: [`docs/CONSIGNMENT-PLAN.md`](CONSIGNMENT-PLAN.md) (`APPROVED` 23/10/2026 — `tech-lead` tự duyệt). Chia
+**3 round**: R1 = hồ sơ chủ xe + hợp đồng ký gửi `FIXED_MONTHLY` (`DRAFT → PENDING_APPROVAL → SIGNED → ACTIVE`, tạm ngưng/
+khôi phục, thay bản mới) + biên bản nhận xe `INTAKE` + tab Vehicle Detail — **không đụng `finance`**; R2 = lịch chi trả
+(Owner Payout Record, prorate) + chấm dứt/đóng/mất xe + biên bản trả xe + nối `finance` (`OWNER_PAYOUT`, Cost
+`CONSIGNMENT_PAYOUT`, màn "Chi trả chủ xe"); R3 = đề nghị ký gửi & thẩm định + phụ lục/gia hạn. Quyết định khung: chiều import
+**`finance → consignment` một chiều** (`consignment` không import `finance`; màn "Chi trả chủ xe" là screen của
+`finance/payment` mount ở `/consignment/owner-payouts` — plan §0.3 điểm 1). Phát hiện: khối `CONSIGNMENT` trong
+`permissions.ts` khai trùng `EDIT` (entry sau ghi đè — Accountant sửa được hồ sơ chủ xe, Sales không) → viết lại theo
+`VehicleConsignment-BRD.md` §18 ở R1 (plan §0.1 F1, §5); 14 điểm diễn giải/lệch tài liệu ghi cho BA (plan §0.4). Ngoài phạm
+vi (roadmap plan §13): tự đặt/gỡ `Ownership Type` (VC-BR-03) và chặn lượt thuê mới (VC-BR-04) — cần ngoại lệ ghi vào
+`vehicles`/`rentals`.
+
+- [x] **Round 1** — xong 23/10/2026, review `tech-lead` đạt vòng 1 (plan §1.2, §2–§8, §10, §14–§17): `features/consignment`
+      (model/api/hooks/seed/index), 4 màn (`/consignment/owners[/:id]`, `/consignment/contracts[/:id]`), tab "Chủ xe & Ký
+      gửi" ở Vehicle Detail (ngoại lệ có kiểm soát `VehicleDetailScreen.tsx`), khối quyền Nhóm 7 viết lại theo BRD §18,
+      seed 10 chủ xe · 19 hợp đồng · 18 biên bản, `SEED_VERSION` 20. Nợ "Nên sửa" mang sang R2: gate trang `VIEW` (hiện chỉ
+      qua nav), chuyển sang bản mới sau "Thay bằng bản mới", chặn `handoverAt` tương lai (plan §18).
+- [ ] **Round 2** — lịch chi trả + chấm dứt/đóng + nối `finance` (plan §1.3, §3.2, §4, §9, §15.2). Nội dung backlog gốc:
+      **Lịch chi trả hàng tháng** (`SCHEDULED`/`PAID`) · khoản chi trả chủ xe phản ánh đúng vào `finance` (Cost Record
+      `CONSIGNMENT_PAYOUT`, không tính lợi nhuận công ty — CR-2026-050).
+- [ ] **Round 3** — đề nghị ký gửi & thẩm định + phụ lục/gia hạn (plan §1.4).
+- [~] Nối tab Owner/Consignment ở Vehicle Detail vào dữ liệu thật — R1 (khối "chi trả gần nhất" ở R2).
+- [~] Cập nhật `registerSeeds.ts` (R1: `consignment/seed` chạy ngay trước `finance/seed`), xoá `ComingSoon` — R1 xoá
+      `/consignment/owners` + `/consignment/contracts`; `/consignment/payouts` xoá ở R2.
 
 ## Phase 6 — Hoàn thiện nền tảng & polish — `[ ]`
 

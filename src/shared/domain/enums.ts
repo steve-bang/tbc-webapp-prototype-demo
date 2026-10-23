@@ -376,6 +376,20 @@ export type ConsignmentContractStatus = (typeof CONSIGNMENT_CONTRACT_STATUSES)[n
 export const PAYOUT_STATUSES = ['SCHEDULED', 'PAID', 'ON_HOLD'] as const
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number]
 
+// ---- Vehicle Consignment (VC) — docs/CONSIGNMENT-PLAN.md §2.6 ----
+
+/** Mô hình chi trả chủ xe — `VehicleConsignment-BRD.md` §6.4 (CR-2026-050: chỉ còn một mô hình). */
+export const CONSIGNMENT_PAYMENT_TERM_MODELS = ['FIXED_MONTHLY'] as const
+export type ConsignmentPaymentTermModel = (typeof CONSIGNMENT_PAYMENT_TERM_MODELS)[number]
+
+/** Quy tắc prorate tháng lẻ — BRD §6.4 chỉ mô tả "prorate theo ngày / trả tròn tháng"; mã là BA đề xuất. */
+export const CONSIGNMENT_PRORATION_RULES = ['PRORATE_BY_DAY', 'FULL_MONTH'] as const
+export type ConsignmentProrationRule = (typeof CONSIGNMENT_PRORATION_RULES)[number]
+
+/** Loại biên bản bàn giao xe ký gửi — BRD §6.3. */
+export const CONSIGNMENT_HANDOVER_TYPES = ['INTAKE', 'RETURN'] as const
+export type ConsignmentHandoverType = (typeof CONSIGNMENT_HANDOVER_TYPES)[number]
+
 /**
  * Phạm vi áp dụng của một `MaintenanceRule` — `VehicleMaintenance-BRD.md` §6.1,
  * `MT-BR-01/02`. `SPECIFIC_VEHICLE` (một xe) ưu tiên hơn `VEHICLE_MODEL`
@@ -590,5 +604,19 @@ export const AUDIT_ACTIONS = [
   'COST_MANUAL_UPDATE',
   'COST_MANUAL_REVERSE',
   'REPORT_EXPORT',
+  // Vehicle Consignment (VC) — CONSIGNMENT-PLAN.md §7 (UC-VC-14).
+  'CREATE_VEHICLE_OWNER',
+  'UPDATE_VEHICLE_OWNER',
+  'VIEW_OWNER_BANK_ACCOUNT',
+  'CREATE_CONSIGNMENT_CONTRACT',
+  'UPDATE_CONSIGNMENT_CONTRACT',
+  'SUBMIT_CONSIGNMENT_CONTRACT',
+  'RETURN_CONSIGNMENT_CONTRACT_TO_DRAFT',
+  'SIGN_CONSIGNMENT_CONTRACT',
+  'CREATE_CONSIGNMENT_INTAKE',
+  'ACTIVATE_CONSIGNMENT_CONTRACT',
+  'SUSPEND_CONSIGNMENT_CONTRACT',
+  'RESUME_CONSIGNMENT_CONTRACT',
+  'SUPERSEDE_CONSIGNMENT_CONTRACT',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

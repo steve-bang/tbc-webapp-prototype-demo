@@ -13,6 +13,19 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ### 2026-10-23
 
+**Added**
+
+- **Phase 5 Round 1 — Xe ký gửi: hồ sơ chủ xe + hợp đồng ký gửi** (theo
+  [`docs/CONSIGNMENT-PLAN.md`](docs/CONSIGNMENT-PLAN.md), kế hoạch 3 round do `tech-lead` lập + tự duyệt). Feature mới
+  `features/consignment`: Hồ sơ chủ xe (danh sách/chi tiết/tạo-sửa, số tài khoản luôn che, "Hiện đầy đủ" kiểm quyền ở API +
+  ghi nhật ký xem, nhật ký không lộ số tài khoản/CCCD/MST) · Hợp đồng ký gửi `FIXED_MONTHLY` (`DRAFT → PENDING_APPROVAL →
+  SIGNED → ACTIVE`, tạm ngưng/khôi phục, trả về nháp, thay bằng bản mới; chốt điều khoản khi ký; chặn hợp đồng hiệu lực/mở
+  thứ hai cho cùng xe; chỉ kích hoạt khi có biên bản nhận xe hai bên xác nhận) · Biên bản nhận xe (định giá bắt buộc) ·
+  bảng trường trộn giả lập (chưa có mẫu `.docx`) · tab "Chủ xe & Ký gửi" ở Vehicle Detail. Khối quyền Nhóm 7 trong
+  `permissions.ts` viết lại theo `VehicleConsignment-BRD.md` §18 (sửa lỗi scaffold khai trùng `EDIT`; Operation Staff không
+  còn quyền xem). Seed 10 chủ xe · 19 hợp đồng · 18 biên bản, `SEED_VERSION` 20. Không đụng `finance` — số liệu Phase 4
+  giữ nguyên. Review `tech-lead` **đạt vòng 1**, không Blocker; 3 mục "Nên sửa" mang sang Round 2 (plan §18).
+
 **Changed**
 
 - **Phase 2 đóng (`[x]`)** — mục cuối "Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng" xác nhận không

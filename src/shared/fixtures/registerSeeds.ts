@@ -41,6 +41,10 @@
  * `@/features/incidents`) để dựng `Settlement` bằng chính hàm thuần
  * `buildSourceLines`/`calcSettlementTotals`/`calcDepositReconciliation` — buộc
  * phải chạy sau cả 3 feature nguồn.
+ *
+ * `consignment` chạy NGAY TRƯỚC `finance` — `docs/CONSIGNMENT-PLAN.md` mục 10: đọc xe thật từ
+ * `vehicles` (qua `VEHICLES_STORAGE_KEY`) để dựng snapshot điều khoản; vòng sau `finance` sẽ đọc
+ * lịch chi trả của ký gửi để sinh chi phí `CONSIGNMENT_PAYOUT`, nên ký gửi phải có dữ liệu trước.
  */
 
 import '@/features/employees/seed'
@@ -52,4 +56,5 @@ import '@/features/calendar/seed'
 import '@/features/contracts/seed'
 import '@/features/handover-return/seed'
 import '@/features/incidents/seed'
+import '@/features/consignment/seed'
 import '@/features/finance/seed'

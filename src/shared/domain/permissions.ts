@@ -464,54 +464,58 @@ const TABLE: PermissionEntry[] = [
     source: 'RevenueCost-BRD.md §22 — Xuất báo cáo',
   },
 
-  // ---- Nhóm 7 — Xe ký gửi (§12.4) ----
+  // ---- Nhóm 7 — Xe ký gửi (VehicleConsignment-BRD.md §18) ----
+  // Viết lại theo docs/CONSIGNMENT-PLAN.md §0.1 F1: khối scaffold cũ khai `EDIT` hai lần (entry sau ghi đè entry
+  // trước nên Accountant sửa được hồ sơ chủ xe còn Sales thì không) và cho OPERATION_STAFF xem (BRD §18 ghi ✗).
+  // SALES ≈ MANAGER (CR-2026-035) trừ dòng điều chỉnh Owner Payout Record (BRD §18 ghi Sales ✗ — giữ đúng chữ).
+  // Ô `'TBD'` (tạo Owner Payout của Manager/Sales) = Open Question, không phải cấm. Plan §0.4 điểm 2.
   {
     resource: 'CONSIGNMENT',
     action: 'VIEW',
-    values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, ACCOUNTANT: true, OPERATION_STAFF: true },
-    source: 'WebappQuanTri.md §12.4',
+    values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, ACCOUNTANT: true, OPERATION_STAFF: false },
+    source: 'VehicleConsignment-BRD.md §18 — Xem hợp đồng ký gửi / lịch chi trả',
   },
   {
     resource: 'CONSIGNMENT',
-    action: 'EDIT',
+    action: 'CREATE',
     values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, ACCOUNTANT: false, OPERATION_STAFF: false },
-    source: 'WebappQuanTri.md §12.4 — Tạo/sửa hồ sơ chủ xe, ghi nhận đề nghị ký gửi',
+    source: 'VehicleConsignment-BRD.md §18 — Tạo / sửa hồ sơ chủ xe · Ghi nhận đề nghị ký gửi · Soạn hợp đồng ký gửi (DRAFT)',
   },
   {
     resource: 'CONSIGNMENT',
     action: 'ASSESS',
     values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, ACCOUNTANT: false, OPERATION_STAFF: true },
-    source: 'WebappQuanTri.md §12.4 — Thẩm định xe (phần hiện trạng)',
+    source: 'VehicleConsignment-BRD.md §18 — Thẩm định xe ký gửi (nhập biên bản)',
   },
   {
     resource: 'CONSIGNMENT',
     action: 'APPROVE',
     values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, ACCOUNTANT: false, OPERATION_STAFF: false },
-    source: 'WebappQuanTri.md §12.4 — Duyệt/từ chối xe, duyệt & kích hoạt hợp đồng, chấm dứt',
+    source: 'VehicleConsignment-BRD.md §18 — Duyệt / từ chối xe · Duyệt & kích hoạt hợp đồng · Tạm dừng / chấm dứt hợp đồng',
   },
   {
     resource: 'CONSIGNMENT',
     action: 'EXECUTE',
     values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, ACCOUNTANT: false, OPERATION_STAFF: true },
-    source: 'WebappQuanTri.md §12.4 — Nhận / trả xe ký gửi (biên bản)',
+    source: 'VehicleConsignment-BRD.md §18 — Nhận xe / trả xe ký gửi (biên bản bàn giao)',
   },
   {
     resource: 'CONSIGNMENT',
     action: 'CONFIG',
     values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: true, ACCOUNTANT: false, OPERATION_STAFF: false },
-    source: 'WebappQuanTri.md §12.4 — Cấu hình Fixed Monthly Amount + Payment Day',
+    source: 'VehicleConsignment-BRD.md §18 — Cấu hình mức chi trả hàng tháng của hợp đồng (Fixed Monthly Amount, Payment Day)',
   },
   {
     resource: 'CONSIGNMENT',
     action: 'EDIT',
-    values: { SYSTEM_ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALES: false, OPERATION_STAFF: false },
-    source: 'WebappQuanTri.md §12.4 — Điều chỉnh thủ công / ON_HOLD Owner Payout Record',
+    values: { SYSTEM_ADMIN: true, MANAGER: true, SALES: false, ACCOUNTANT: true, OPERATION_STAFF: false },
+    source: 'VehicleConsignment-BRD.md §18 — Điều chỉnh thủ công Owner Payout Record (Adjustment / ON_HOLD)',
   },
   {
     resource: 'CONSIGNMENT',
-    action: 'CREATE',
-    values: { SYSTEM_ADMIN: true, ACCOUNTANT: true, MANAGER: 'TBD', SALES: 'TBD', OPERATION_STAFF: false },
-    source: 'WebappQuanTri.md §12.4 — Tạo Owner Payout hàng tháng',
+    action: 'CONFIRM',
+    values: { SYSTEM_ADMIN: true, MANAGER: 'TBD', SALES: 'TBD', ACCOUNTANT: true, OPERATION_STAFF: false },
+    source: 'VehicleConsignment-BRD.md §18 — Tạo Owner Payout',
   },
 
   // ---- Nền tảng ----

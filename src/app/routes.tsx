@@ -2,6 +2,12 @@ import { Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginScreen } from '@/features/auth'
 import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
+import {
+  ConsignmentContractDetailScreen,
+  ConsignmentContractListScreen,
+  VehicleOwnerDetailScreen,
+  VehicleOwnerListScreen,
+} from '@/features/consignment'
 import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
@@ -59,8 +65,10 @@ export function AppRoutes() {
           }
         />
 
-        <Route path={paths.consignmentOwners} element={<ComingSoon title="Hồ sơ chủ xe" />} />
-        <Route path={paths.consignmentContracts} element={<ComingSoon title="Hợp đồng ký gửi" />} />
+        <Route path={paths.consignmentOwners} element={<VehicleOwnerListScreen />} />
+        <Route path="/consignment/owners/:id" element={<VehicleOwnerDetailScreen />} />
+        <Route path={paths.consignmentContracts} element={<ConsignmentContractListScreen />} />
+        <Route path="/consignment/contracts/:id" element={<ConsignmentContractDetailScreen />} />
         <Route path={paths.consignmentPayouts} element={<ComingSoon title="Lịch chi trả hàng tháng" />} />
 
         <Route path={paths.platformSystemConfig} element={<ComingSoon title="Cấu hình hệ thống" />} />

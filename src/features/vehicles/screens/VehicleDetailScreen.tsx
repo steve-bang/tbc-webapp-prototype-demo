@@ -2,6 +2,7 @@ import { Pencil, RefreshCcw } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { usePermission } from '@/features/auth'
+import { VehicleConsignmentTab } from '@/features/consignment'
 import { VehicleCostTab, VehicleProfitTab, VehicleRevenueTab } from '@/features/finance'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
@@ -23,7 +24,8 @@ import { useVehicle } from '../hooks'
 /**
  * `UC-VM` — chi tiết xe, 12 tab tối đa (`docs/VEHICLE-MANAGEMENT-PLAN.md`
  * §8.3). Tab "Chủ xe & Ký gửi" chỉ hiện khi `ownershipType === 'CONSIGNED'`
- * (ẩn hẳn, không disable); 3 tab Doanh thu/Chi phí/Lợi nhuận ẩn hẳn khỏi
+ * và có quyền `CONSIGNMENT.VIEW` (ẩn hẳn, không disable; nội dung từ
+ * `features/consignment` — `docs/CONSIGNMENT-PLAN.md` §0.2); 3 tab Doanh thu/Chi phí/Lợi nhuận ẩn hẳn khỏi
  * `TabsList` khi `!can('VEHICLE','EXPORT')` — gate theo nhóm View Financial
  * chung (`CR-2026-036`), không phân quyền theo từng tab riêng lẻ. Nội dung 3 tab
  * tài chính lấy từ `features/finance` (`docs/REVENUE-COST-PLAN.md` §0.2).
@@ -33,6 +35,7 @@ export function VehicleDetailScreen() {
   const { can } = usePermission()
   const canEdit = can('VEHICLE', 'EDIT')
   const canViewFinancial = can('VEHICLE', 'EXPORT')
+  const canViewConsignment = can('CONSIGNMENT', 'VIEW')
 
   const { data: vehicle, isLoading } = useVehicle(id)
 
@@ -88,7 +91,7 @@ export function VehicleDetailScreen() {
       <Tabs defaultValue="overview">
         <TabsList className="max-w-full">
           <TabsTrigger value="overview">{vi.vehicles.tabOverview}</TabsTrigger>
-          {vehicle.ownershipType === 'CONSIGNED' && (
+          {vehicle.ownershipType === 'CONSIGNED' && canViewConsignment && (
             <TabsTrigger value="consignment">{vi.vehicles.tabConsignment}</TabsTrigger>
           )}
           <TabsTrigger value="documents">{vi.vehicles.tabDocuments}</TabsTrigger>
@@ -106,9 +109,9 @@ export function VehicleDetailScreen() {
         <TabsContent value="overview">
           <VehicleOverviewTab vehicle={vehicle} />
         </TabsContent>
-        {vehicle.ownershipType === 'CONSIGNED' && (
+        {vehicle.ownershipType === 'CONSIGNED' && canViewConsignment && (
           <TabsContent value="consignment">
-            <VehicleDetailPlaceholder note={vi.vehicles.consignmentPlaceholder} />
+            <VehicleConsignmentTab vehicle={vehicle} />
           </TabsContent>
         )}
         <TabsContent value="documents">
