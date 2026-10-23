@@ -19,6 +19,7 @@ export function TransactionDetailSheet({
   transaction,
   allTransactions,
   customerName,
+  partyName,
   outsideFilter,
   open,
   onOpenChange,
@@ -26,6 +27,8 @@ export function TransactionDetailSheet({
   transaction: Transaction | null
   allTransactions: Transaction[]
   customerName?: string
+  /** Tên đối tượng của giao dịch (khách hàng hoặc chủ xe); mặc định rơi về `customerName`. */
+  partyName?: string
   /** §10.9 góp ý R1-#1 — giao dịch đang mở không còn khớp bộ lọc hiện tại (chỉ ghi chú, không đổi cơ chế resolve). */
   outsideFilter?: boolean
   open: boolean
@@ -38,6 +41,9 @@ export function TransactionDetailSheet({
   const [refundDecision, setRefundDecision] = useState<'APPROVED' | 'REJECTED' | null>(null)
 
   if (!transaction) return null
+
+  const isOwnerPayout = transaction.type === 'OWNER_PAYOUT'
+  const party = partyName ?? customerName
 
   const reversalPair = transaction.reversedById ? allTransactions.find((t) => t.id === transaction.reversedById) : undefined
   const reversalOf = transaction.reversalOfId ? allTransactions.find((t) => t.id === transaction.reversalOfId) : undefined
@@ -99,9 +105,29 @@ export function TransactionDetailSheet({
               <span>{PAYMENT_METHOD_LABELS[transaction.method]}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">{vi.finance.payment.ledgerColumnCustomer}</span>
-              <span className="min-w-0 truncate">{customerName ?? transaction.customerId}</span>
+              <span className="text-muted-foreground">{isOwnerPayout ? vi.finance.ownerPayout.partyOwner : vi.finance.payment.ledgerColumnCustomer}</span>
+              {isOwnerPayout && transaction.vehicleOwnerId ? (
+                <Link to={paths.consignmentOwnerDetail(transaction.vehicleOwnerId)} className="text-primary min-w-0 truncate underline underline-offset-2">
+                  {party ?? transaction.vehicleOwnerId}
+                </Link>
+              ) : (
+                <span className="min-w-0 truncate">{party ?? transaction.customerId ?? '—'}</span>
+              )}
             </div>
+            {isOwnerPayout && transaction.payoutRecipient && (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground">{vi.finance.ownerPayout.detailRecipient}</span>
+                <span>{transaction.payoutRecipient}</span>
+              </div>
+            )}
+            {isOwnerPayout && transaction.ownerPayoutRecordId && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{vi.finance.ownerPayout.detailRecord}</span>
+                <Link to={`${paths.consignmentPayouts}?record=${transaction.ownerPayoutRecordId}`} className="text-primary font-mono text-xs underline underline-offset-2">
+                  {transaction.ownerPayoutRecordId}
+                </Link>
+              </div>
+            )}
             {transaction.rentalId && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">{vi.finance.payment.ledgerColumnRental}</span>
@@ -254,7 +280,7 @@ export function TransactionDetailSheet({
       </Sheet>
       <TransactionConfirmDialog transaction={confirmOpen ? transaction : null} open={confirmOpen} onOpenChange={setConfirmOpen} />
       <TransactionReasonDialog transaction={reasonMode ? transaction : null} mode={reasonMode ?? 'fail'} open={!!reasonMode} onOpenChange={(o) => !o && setReasonMode(null)} />
-      <ReceiptDialog transaction={receiptOpen ? transaction : null} customerName={customerName} open={receiptOpen} onOpenChange={setReceiptOpen} />
+      <ReceiptDialog transaction={receiptOpen ? transaction : null} customerName={party} open={receiptOpen} onOpenChange={setReceiptOpen} />
       <RefundApprovalDialog
         transaction={refundDecision ? transaction : null}
         decision={refundDecision ?? 'APPROVED'}

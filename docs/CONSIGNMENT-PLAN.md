@@ -2,8 +2,9 @@
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** `APPROVED` (23/10/2026 — `tech-lead` tự duyệt theo giao việc của người
 dùng "giao cho tech lead làm phase 5"; không có quyết định nghiệp vụ mới nào cần người dùng chốt — mọi điểm treo xử lý
-bằng giả định tạm + `TODO(OQ)` ở §12) · **Round 1 — `DONE` (23/10/2026, review `tech-lead` đạt vòng 1)** · Round 2 / Round 3 — chưa giao (chi tiết
-hoá khi tới lượt, theo mẫu `REVENUE-COST-PLAN.md` §19/§20).
+bằng giả định tạm + `TODO(OQ)` ở §12) · **Round 1 — `DONE` (23/10/2026, review `tech-lead` đạt vòng 1)** · **Round 2 —
+`DONE` (23/10/2026, chi tiết §19, review `tech-lead` đạt vòng 1 — nợ "Nên sửa" ghi §18)** · Round 3 — chưa giao (chi tiết hoá
+khi tới lượt).
 
 Kế hoạch chi tiết **Phase 5** (`features/consignment`, module `VC`). Chia **3 round**:
 
@@ -57,8 +58,8 @@ Vehicle Detail), `VM-RULE-015`. Phía nối finance (Round 2): `Payment-BRD.md` 
 | `features/consignment/**` (mới) | R1+ | Toàn quyền theo cấu trúc `CONVENTIONS.md` §3 (feature đơn module — **không** chia thư mục con) | Import `@/features/finance` dưới mọi hình thức (§0.3 điểm 1) |
 | `features/vehicles/screens/VehicleDetailScreen.tsx` — **ngoại lệ có kiểm soát** (tiền lệ 4.3) | R1 | (1) 1 dòng import `VehicleConsignmentTab` từ `@/features/consignment`; (2) thay đúng `<VehicleDetailPlaceholder note={vi.vehicles.consignmentPlaceholder} />` bằng `<VehicleConsignmentTab vehicle={vehicle} />`; (3) thêm điều kiện `can('CONSIGNMENT','VIEW')` vào **cả** `TabsTrigger` lẫn `TabsContent` của tab `consignment` (ẩn hẳn, mirror gate 3 tab tài chính); (4) sửa docstring cho khớp | Đổi tab khác/thứ tự tab/gate khác; sửa `vehicles/{model,api,hooks,seed,index}.ts` hay component `vehicles/components/*` |
 | `features/vehicles/api.ts` | R1 | **Chỉ đọc** `VEHICLES_STORAGE_KEY` (deep import — tiền lệ `rentals`/`contracts` deep-import `@/features/vehicles/api`); UI dùng `useVehicles`/`useVehicle` deep-import `@/features/vehicles/hooks` | Ghi xe (đổi `ownershipType`/`status`) — roadmap §13 |
-| `features/rentals` | R2 | **Chỉ đọc** qua barrel (`RENTALS_STORAGE_KEY`, `Rental`, `useRentals`) để liệt kê lượt thuê đang chạy/đã đặt khi chấm dứt (VC-BR-14, AC-VC-011) | Sửa bất kỳ file nào (chặn lượt thuê mới VC-BR-04 → roadmap) |
-| `features/incidents` | R2 | Chỉ đọc qua barrel (liên kết sự cố khi mất xe — UC-VC-12, tuỳ chọn) | Sửa |
+| `features/rentals` | R2 | **Chỉ đọc** qua deep import `@/features/rentals/api` (`RENTALS_STORAGE_KEY`) + `import type { Rental }` từ `…/model` — **không** barrel (barrel → `RentalDetailScreen` → `finance` → `consignment` = vòng mới; §19.5.3) — để liệt kê lượt thuê đang chạy/đã đặt khi chấm dứt (VC-BR-14, AC-VC-011) | Sửa bất kỳ file nào (chặn lượt thuê mới VC-BR-04 → roadmap) |
+| `features/incidents` | R2 | Chỉ đọc qua deep import `@/features/incidents/api` (`INCIDENTS_STORAGE_KEY`) + `import type` từ `…/model` (liên kết sự cố khi mất xe — UC-VC-12, tuỳ chọn) | Sửa |
 | `features/finance/**` | R2 | Theo tầng `core ← payment ← settlement ← revenue-cost` (§9) — finance **import** `@/features/consignment` (barrel) | Phá chiều import giữa thư mục con; tạo barrel con |
 | `shared/domain/enums.ts` | R1/R2/R3 | Thêm enum mới + nối cuối mảng có sẵn (F2/F4) + nối audit action vào **cuối** `AUDIT_ACTIONS` | Sửa/sắp lại enum khác |
 | `shared/domain/permissions.ts` | R1 | Viết lại **đúng khối "Nhóm 7 — Xe ký gửi"** (F1, bảng §5) | Sửa khối khác |
@@ -198,7 +199,7 @@ round đầu vừa dựng feature mới vừa sửa `finance/payment` (kiểu `T
 5. Badge nhắc "Sắp hết hạn" (≤ 30 ngày tới `effectiveTo` — VC-BR-19).
 6. Seed 10 chủ xe · 19 hợp đồng (7/8 trạng thái — §10) · 16 biên bản `INTAKE` + 2 `RETURN`; `SEED_VERSION` 20.
 
-### 1.3. Trong phạm vi — Round 2 (phác thảo, chi tiết hoá khi giao)
+### 1.3. Trong phạm vi — Round 2 (phác thảo — bản chi tiết đã duyệt ở **§19**, §19 thắng khi khác)
 
 1. Owner Payout Record: sinh lịch theo tháng (UC-VC-06, VC-BR-21), prorate tháng đầu/cuối (AC-VC-014/015), `ON_HOLD` ⇄
    `SCHEDULED` (UC-VC-08 A1), điều chỉnh thủ công + duyệt (UC-VC-08 A2), `CANCELLED` + bản prorate thay thế (UC-VC-06 A1);
@@ -567,7 +568,7 @@ zod (§0.3 điểm 9).
 
 ---
 
-## 9. Nối `finance` — Round 2 (quyết định khung; chi tiết hoá khi giao R2)
+## 9. Nối `finance` — Round 2 (quyết định khung — bản chi tiết ở §19.7, §19 thắng khi khác)
 
 ### 9.1. Chiều import
 
@@ -777,7 +778,7 @@ CR-2026-049 (merge-field, `TODO(OQ)` mẫu `.docx`) · BRD §21 (che số tài k
 9. Responsive 375/768: danh sách → card, bảng cuộn ngang riêng, header chi tiết + thanh nút xuống dòng không tràn.
 10. Số liệu Phase 4 không đổi (không file `finance` nào bị sửa).
 
-### 15.2. Round 2 (khung, chi tiết khi giao)
+### 15.2. Round 2 (khung — DoD chi tiết thay thế ở §19.11)
 
 1. 6 ca §4 chạy đúng bằng hàm thuần (harness tạm ngoài repo, ghi kết quả trong báo cáo bàn giao).
 2. Prorate seed: hợp đồng #14 (`veh_016`) — record tháng đầu = `round(5.000.000 × (daysInMonth − 15 + 1) / daysInMonth)`; `dev`
@@ -839,3 +840,435 @@ CR-2026-049 (merge-field, `TODO(OQ)` mẫu `.docx`) · BRD §21 (che số tài k
 | --- | --- |
 | 23/10/2026 | `tech-lead` lập + tự duyệt kế hoạch (3 round); giao `dev` Round 1. |
 | 23/10/2026 | Round 1 `DONE` — review `tech-lead` đạt vòng 1, không Blocker. Lệch nhỏ được chấp nhận: thêm `ConsignmentField.tsx` (ngoài §14); `index.ts` chưa export hook/hàm thuần (R2 bổ sung khi `finance` cần); đối chiếu lượt thuê ↔ `effectiveFrom` làm ở harness (seed không đọc `rentals` — §0.2). Nợ "Nên sửa" mang sang R2: gate trang `VIEW` ở 4 màn (hiện chỉ gate qua nav), chuyển sang bản mới sau "Thay bằng bản mới", chặn `handoverAt` ở tương lai trong biên bản nhận xe. |
+| 23/10/2026 | Round 2 chi tiết hoá ở §19 (người dùng đồng ý đề xuất, gộp 4 nợ "Nên sửa" R1), `tech-lead` tự duyệt; giao `dev`. |
+| 23/10/2026 | Round 2 `DONE` — review `tech-lead` đạt vòng 1, không Blocker. Số liệu khớp 100% §19.11 (Σ chi trả 12 tháng 1.269.283.178; chi phí trực tiếp 09/2026 145.980.000 / 10/2026 154.080.000; 145 khoản 126 `PAID`/14 `SCHEDULED`/5 `ON_HOLD`; 129 giao dịch / 128 lệnh chi `OWNER_PAYOUT`; doanh thu Phase 4 giữ nguyên). Lệch được chấp nhận: 3 file `finance` sửa thêm vì `tsc` (`CashDrawerScreen`, `TransactionLedgerScreen` — cột "Đối tượng", `reportModel` guard Report 03); `materializeDrafts` sinh id trong `payoutModel.ts` (tiền lệ `buildReversalPair`); thêm `previewConsignmentContractEnd`/`formatPeriod`/`sumApprovedAdjustments`, schema factory `make…Schema`; nút Chấm dứt chỉ hiện khi trả trước hạn. **Nợ "Nên sửa" mang sang R3:** (1) **vòng import runtime mới** `consignment/api.ts` → `incidents/api.ts` → `handover-return/api.ts` → barrel `rentals` → `RentalDetailScreen` → barrel `finance` → `TransactionLedgerScreen` → barrel `consignment` (SCC 123 file; HEAD trước R2 = 0 vòng) — **lỗi ở chính §19.5.3** (chỉ định deep import `incidents/api` mà không soát `incidents/api` kéo `rentals` barrel); app build + chạy dev/preview không lỗi khởi tạo, nhưng phải gỡ: đọc `INCIDENTS_STORAGE_KEY` từ một module lá (vd. `incidents/storageKeys.ts`, ngoại lệ có kiểm soát) và mở rộng `import-graph.mjs` ra toàn `src/`; (2) tab Nhật ký hợp đồng (`ConsignmentAuditTab`) chưa gộp audit entity `OwnerPayoutRecord` của hợp đồng (vẫn ghi đủ, xem được ở nhật ký hệ thống). |
+
+---
+
+## 19. Round 2 — chi tiết (`APPROVED` 23/10/2026)
+
+Lịch chi trả hàng tháng (Owner Payout Record) + chấm dứt / đóng / mất xe + biên bản trả xe `RETURN` + nối `finance`
+(`OWNER_PAYOUT` ở Payment, Cost `CONSIGNMENT_PAYOUT` ở Revenue & Cost, màn "Chi trả chủ xe") + 4 nợ "Nên sửa" của R1.
+**Số liệu Phase 4 phía chi phí/lợi nhuận/đối chiếu sẽ đổi** (đã báo người dùng — §19.11 ghi số trước/sau). `SEED_VERSION`
+20 → 21.
+
+**Nguồn nghiệp vụ R2:** `VehicleConsignment-BRD.md` §6.6, §6.7, §7.2 (nhánh `TERMINATED`/`CLOSED`), §7.3, §10, §11 (dòng
+"Mất xe"), §13, §14, §14a (dòng 2), §15, §17 (VC-BR-10/12/13/14/15/16/17/20/21), §18, §19 (AC-VC-007/011/013/014/015), §20
+EX-04. `VehicleConsignment-UseCase.md` §4.3, §10 (UC-VC-06), §12.4 (UC-VC-08 A1/A2), §13 (UC-VC-09), §15 (UC-VC-11), §16
+(UC-VC-12). `Payment-BRD.md` dòng 132, 160–186 (cây entity), 237 + 243 (§8 `OWNER_PAYOUT`), `PM-BR-16`, `PM-BR-24`, §27
+Q23–Q24. `RevenueCost-BRD.md` `RV-BR-19`, §28 Q18–Q19. `WebappQuanTri.md` §12.2–§12.5.
+
+### 19.1. Diễn giải / giả định mới (nối tiếp §0.4 — ghi cho BA, không tự sửa tài liệu)
+
+| # | Điểm | Cách làm trong demo | Nguồn / lý do |
+| --- | --- | --- | --- |
+| 15 | `TERMINATED` có cần chi dứt điểm mọi khoản trước không? UC-VC-11 A2 "không đóng Agreement cho tới khi mọi Record `PAID`", nhưng UC-VC-12 bước 3→5 chuyển `TERMINATED` **rồi** mới chi dứt điểm; BRD §7.2 chỉ ghi "đã chi trả kỳ cuối" cho `CLOSED` | `CLOSED` **bắt buộc** mọi Record không huỷ đã `PAID`; `TERMINATED` (chấm dứt trước hạn / mất xe) **không** chặn — khoản còn lại chi sau, vẫn hiện ở công nợ chủ xe | BRD §7.2 nguyên văn từng nhánh |
+| 16 | Ngày kết thúc tính tiền (`endedDate`) | `TERMINATED` thường = **ngày của biên bản `RETURN`** (AC-VC-011: giữ hợp đồng tới khi xe được trả); mất xe = `Event Date` (AC-VC-015); `CLOSED` = `effectiveTo` | AC-VC-011/015, BRD §10 |
+| 17 | Ngày thông báo chấm dứt | Cho **nhập lùi** (thông báo nhận ngoài hệ thống), `effectiveFrom ≤ noticeDate ≤ hôm nay`; ngày dự kiến kết thúc `plannedEndDate ≥ noticeDate + noticePeriodDays` (VC-BR-14) và `< effectiveTo` (bằng/ sau `effectiveTo` = hết hạn tự nhiên → dùng "Đóng hợp đồng") | BA đề xuất — để demo được Notice Period mà không phải chờ |
+| 18 | Lượt thuê nào chặn việc trả xe về chủ (VC-BR-14) | **Chặn** khi xe còn lượt thuê `CONFIRMED`/`CONTRACT_CREATED`/`READY_FOR_HANDOVER`/`HANDED_OVER`/`IN_RENTAL`; `DRAFT` chỉ cảnh báo; trạng thái còn lại (xe đã về) bỏ qua. Chỉ **đọc** `rentals` — không tự huỷ/đổi xe | BA đề xuất; xử lý lượt thuê làm ở màn Lượt thuê (RM §54) |
+| 19 | Kết thúc giữa tháng khi Record kỳ đó/kỳ sau đã có | Record bị ảnh hưởng `SCHEDULED`/`ON_HOLD` chưa có lệnh chi → `CANCELLED`; Record thay thế prorate (UC-VC-06 A1) **kế thừa** trạng thái `ON_HOLD` + lý do + danh sách điều chỉnh. Nếu Record bị ảnh hưởng đã `PAID` hoặc đang có lệnh chi chờ → **từ chối**, yêu cầu đảo/huỷ giao dịch trước | BA đề xuất — tránh chi thừa âm thầm |
+| 20 | Ngưỡng `Amount Payable` sau điều chỉnh | Phải **> 0** (BRD §14 "luôn ≥ 0"; bằng 0 thì không có gì để chi và Record kẹt `SCHEDULED`, chặn cả "Đóng hợp đồng") | BA đề xuất |
+| 21 | Ai duyệt `Adjustment` (UC-VC-08 A2 "Manager nhập … + duyệt") | Người có `EDIT` **và** `APPROVE` (SA/Manager) nhập → hiệu lực ngay (tự duyệt); Accountant (`EDIT`, không `APPROVE`) nhập → `PENDING_APPROVAL`, chờ người có `EDIT`+`APPROVE` duyệt/từ chối. Sales (`APPROVE` nhưng ✗ `EDIT`) **không** duyệt — giữ đúng chữ BRD §18. Mỗi Record tối đa 1 điều chỉnh chờ duyệt | Thay §12 dòng 15 |
+| 22 | "Tác vụ nền đầu mỗi tháng" (UC-VC-06 §10.3) | Prototype không có tác vụ nền: (a) nút **"Sinh lịch chi trả đến tháng này"** (`EDIT`) — idempotent; (b) tự sinh khi **Kích hoạt** hợp đồng (bù các kỳ từ ngày bắt đầu tới tháng hiện tại); (c) tự tính lại khi kết thúc hợp đồng (điểm 19) | UC-VC-06 §10.3 "hoặc khi hợp đồng chuyển ACTIVE / TERMINATED" |
+| 23 | "Tạo lại Owner Payout đúng" sau chi sai (UC-VC-09 A1) | Lệnh chi (`PaymentRequest`) mà giao dịch `FAILED`/`VOIDED`/`REVERSED` → yêu cầu đó `CANCELLED`, Record gỡ liên kết (đảo sau `PAID` → Record về `SCHEDULED` — VC-BR-13); tạo lệnh chi mới = yêu cầu + giao dịch mới. Mỗi Record **tối đa 1** yêu cầu chưa huỷ | Kỹ thuật, khớp PM-BR-03/05 |
+| 24 | "Thông báo chi trả cho chủ xe" (UC-VC-08 bước 1, Phase 1 gửi thủ công) | Không dựng (Notification là Phase 6) — chỉ hiện "Đã chi" + mã giao dịch | Ngoài phạm vi R2 |
+| 25 | Xe mất → Vehicle Management đặt `INACTIVE` (UC-VC-12 bước 3) | **Không** ghi `vehicles` (roadmap §13) — dialog/banner nhắc "cập nhật trạng thái xe ở Danh sách xe" | §0.2 |
+
+### 19.2. Phạm vi R2
+
+**Trong phạm vi**
+
+| # | Hạng mục | Nguồn |
+| --- | --- | --- |
+| R2-1 | Enum/nhãn/audit action R2 (§19.3) + `storage.ts` dùng chung trong feature (§19.4.0) | §0.1 F2/F4 |
+| R2-2 | Entity `OwnerPayoutRecord` + hàm thuần sinh lịch/prorate/kết thúc/công nợ (`payoutModel.ts`) | BRD §6.6/§10/§13, VC-BR-21 |
+| R2-3 | API lịch chi trả: sinh lịch (nút + khi kích hoạt), tạm giữ/bỏ tạm giữ, điều chỉnh + duyệt/từ chối, + 4 hàm đồng bộ cho `finance` | UC-VC-06/08/09, VC-BR-10/13/17 |
+| R2-4 | Chấm dứt (thông báo → biên bản `RETURN` → `TERMINATED`), Đóng (`CLOSED`), Mất xe (`TERMINATED` ngay, không cần `RETURN`) | UC-VC-11/12, VC-BR-14/15/16, AC-VC-011/015 |
+| R2-5 | UI VC: màn **Lịch chi trả hàng tháng** `/consignment/payouts` (thay `ComingSoon`), tab "Lịch chi trả" ở chi tiết hợp đồng + chi tiết chủ xe, khối "Chi trả gần nhất" ở tab xe, Sheet chi tiết Record, 6 dialog mới | WebappQuanTri §12.2, BRD §13/§21 "minh bạch" |
+| R2-6 | `finance/payment`: kiểu `PaymentRequest`/`Transaction` nới cho chủ xe; `createOwnerPayout`; đồng bộ trạng thái Record khi xác nhận/thất bại/huỷ/đảo; màn **Chi trả chủ xe** `/consignment/owner-payouts` (công nợ chủ xe + khoản chờ chi + đã chi); sổ giao dịch hiện đúng đối tượng | BRD §14, PM-BR-16/24, UC-VC-09 |
+| R2-7 | `finance/revenue-cost`: Cost `CONSIGNMENT_PAYOUT` suy ra từ Record; gỡ banner + `TODO(Phase 5)`; giữ `TODO(OQ: … §28 Q18 …)` | RV-BR-19, VC-BR-12 |
+| R2-8 | Seed lịch chi trả lịch sử + giao dịch chi khớp (§19.9); `SEED_VERSION` 21 | §10 |
+| R2-9 | 4 nợ "Nên sửa" R1: gate trang `VIEW`; điều hướng sang bản mới sau "Thay bằng bản mới"; chặn `handoverAt` tương lai (UI + API, cả `RETURN`); zod bắt "nhập ngân hàng/chủ tài khoản mà thiếu số tài khoản" | §18 |
+
+**Ngoài phạm vi R2** (không làm dù tiện tay): đề nghị ký gửi & thẩm định, phụ lục/gia hạn/Auto Renew (R3); đồng bộ
+`Ownership Type` + đặt xe `INACTIVE` + chặn lượt thuê mới (VC-BR-03/04 — roadmap §13, **không ghi `vehicles`/`rentals`**);
+sự kiện Notification VC-BR-19/20 (chỉ badge); thông báo chi trả gửi chủ xe; huỷ thông báo chấm dứt; sửa/xoá biên bản; xoá
+Record (không có `remove`); chi trả tự động qua API ngân hàng/SePay (chi tay `BANK_TRANSFER`); phí phạt chấm dứt, bồi thường mất
+xe, thuế TNCN (ngoài hệ thống); bổ sung lịch sử lượt thuê để "số đẹp" (task riêng nếu chủ dự án muốn).
+
+### 19.3. Enum / nhãn / audit (`shared/domain/enums.ts`, `shared/i18n/vi.ts`)
+
+| Thay đổi | Giá trị | Nguồn |
+| --- | --- | --- |
+| `PAYOUT_STATUSES` nối cuối | `'CANCELLED'` (nhãn "Đã huỷ") | BRD §6.6/§7.3 (F2) |
+| `PAYMENT_REQUEST_SOURCES` nối cuối | `'CONSIGNMENT'` (nhãn "Ký gửi") — sửa comment "thuộc Phase 5, chưa thêm" | `Payment-BRD.md` dòng 186/243 (F4) |
+| `PAYMENT_REQUEST_PURPOSES` nối cuối | `'PAYOUT'` — sửa comment | idem |
+| Mới `CONSIGNMENT_END_REASONS` | `['EXPIRED','EARLY_TERMINATION','VEHICLE_LOSS']` | BA đề xuất (BRD §7.2/§15/§11) |
+| Mới `CONSIGNMENT_TERMINATION_REQUESTERS` | `['OWNER','COMPANY']` | BRD §15 "chủ xe hoặc công ty" |
+| Mới `OWNER_PAYOUT_ADJUSTMENT_STATUSES` | `['PENDING_APPROVAL','APPROVED','REJECTED']` | BA đề xuất (UC-VC-08 A2 "nhập + duyệt") |
+| `AUDIT_ACTIONS` nối cuối (khối `// Vehicle Consignment (VC) — Round 2`) | `GENERATE_OWNER_PAYOUT_RECORDS`, `HOLD_OWNER_PAYOUT_RECORD`, `RELEASE_OWNER_PAYOUT_RECORD`, `ADJUST_OWNER_PAYOUT_RECORD`, `APPROVE_OWNER_PAYOUT_ADJUSTMENT`, `REJECT_OWNER_PAYOUT_ADJUSTMENT`, `CANCEL_OWNER_PAYOUT_RECORD`, `LINK_OWNER_PAYOUT_RECORD`, `UNLINK_OWNER_PAYOUT_RECORD`, `MARK_OWNER_PAYOUT_RECORD_PAID`, `REVERT_OWNER_PAYOUT_RECORD_PAID`, `NOTIFY_CONSIGNMENT_TERMINATION`, `CREATE_CONSIGNMENT_RETURN`, `TERMINATE_CONSIGNMENT_CONTRACT`, `CLOSE_CONSIGNMENT_CONTRACT`, `CREATE_OWNER_PAYOUT` (16) | VC-BR-17, UC-VC-14 |
+
+Nhãn mới: `CONSIGNMENT_END_REASON_LABELS`, `CONSIGNMENT_TERMINATION_REQUESTER_LABELS`, `OWNER_PAYOUT_ADJUSTMENT_STATUS_LABELS`.
+Chuỗi: `vi.consignment.payouts.*` / `vi.consignment.termination.*` (VC) và `vi.finance.ownerPayout.*` (màn finance). **Xoá**
+`vi.finance.revenueCost.profitConsignmentBanner` (thay bằng ghi chú trung tính — §19.7.3).
+
+### 19.4. Data model
+
+#### 19.4.0. `consignment/storage.ts` (mới — tách cơ học từ `api.ts`)
+
+Chuyển 3 storage key + 3 cặp `read…/write…` + `readVehicles` đang `private` trong `api.ts` sang `storage.ts`, thêm
+`OWNER_PAYOUT_RECORDS_STORAGE_KEY = 'ownerPayoutRecords'` + `readPayoutRecords/writePayoutRecords`. Lý do: `api.ts` (hợp đồng —
+kết thúc phải ghi Record) và `payoutApi.ts` (Record) cùng cần storage mà **không** import lẫn nhau (không tạo vòng). Barrel + `seed.ts`
+lấy key từ `./storage`. Không đổi tên key/giá trị.
+
+#### 19.4.1. `OwnerPayoutRecord` (`payoutModel.ts`, storage `ownerPayoutRecords`) — BRD §6.6
+
+| Field | Kiểu | Ghi chú |
+| --- | --- | --- |
+| `id` · `code` | `string` | `opr_…` · `CTCX-000001` tuần tự |
+| `contractId` · `ownerId` · `vehicleId` | `string` | Copy từ hợp đồng |
+| `period` | `YYYY-MM` | Tháng được trả cho |
+| `coverageFrom` · `coverageTo` | `YYYY-MM-DD` | Phần của kỳ nằm trong `[payoutStart, payoutEnd]` (§4) |
+| `daysCovered` · `daysInMonth` | `number` | "Proration" BRD §6.6 hiển thị dạng `11/30` |
+| `termVersionNo` · `fixedMonthlyAmount` · `paymentDay` · `prorationRule` | | Lấy từ `termVersions` hiệu lực tại `coverageFrom` (VC-BR-05, AC-VC-012) — **không** đọc `contract.paymentTerm` |
+| `baseAmount` | `number` | §4 (`Math.round`, `TODO(OQ)` làm tròn — §0.4 điểm 10) |
+| `adjustments` | `OwnerPayoutAdjustment[]` | `{ id; amount (nguyên ≠ 0, có dấu); note; status: OwnerPayoutAdjustmentStatus; requestedByName; requestedByRole; requestedAt; decidedByName?; decidedAt?; decisionNote? }` |
+| `amountPayable` | `number` | = `baseAmount + Σ adjustments APPROVED` (> 0 — §19.1 điểm 20). Chỉ ghi qua `deriveAmountPayable` |
+| `dueDate` | `YYYY-MM-DD` | `Payment Day` của tháng **sau** kỳ, kẹp ngày cuối tháng (§0.4 điểm 3, 9) |
+| `status` | `PayoutStatus` | `SCHEDULED`/`ON_HOLD`/`PAID`/`CANCELLED` |
+| `holdReason?` · `cancelReason?` | `string` | |
+| `replacesRecordId?` · `replacedByRecordId?` | `string` | UC-VC-06 A1 |
+| `payout?` | `{ paymentRequestId; transactionId; transactionCode; linkedAt; paidAt? }` | "Linked Owner Payout" BRD §6.6 — có = đang có lệnh chi; `paidAt` có ⇔ `status = PAID` |
+| `statusHistory` | `{ from?; to; at; byName; reason? }[]` | Mọi chuyển trạng thái |
+| `payoutLog` | `{ at; byName; event: 'LINKED' \| 'PAID' \| 'UNLINKED' \| 'REVERTED'; transactionCode; note? }[]` | Minh bạch VC-BR-13 trên màn VC |
+| `createdByName` · `createdAt` · `updatedAt` | | |
+
+#### 19.4.2. `ConsignmentContract` — thêm field (R1 đã hẹn ở §2.2)
+
+`terminationNotice?: { requestedBy: ConsignmentTerminationRequester; noticeDate; plannedEndDate; reason; recordedByName; recordedAt }` ·
+`endedDate?` (`YYYY-MM-DD`) · `endReason?: ConsignmentEndReason` · `returnRecordId?` ·
+`lossInfo?: { eventDate; incidentId?; note; recordedByName; recordedAt }`. `CONTRACT_TRANSITIONS`: `ACTIVE → SUSPENDED/TERMINATED/CLOSED`,
+`SUSPENDED → ACTIVE/TERMINATED/CLOSED`.
+
+Biên bản `RETURN` (`ConsignmentHandoverRecord`, entity sẵn có): `appraisedValue` bỏ trống; `documentsReceived` dùng để ghi
+**giấy tờ gốc trả lại chủ xe** (nhãn UI đổi theo `type`).
+
+#### 19.4.3. Hàm thuần — `payoutModel.ts` (mọi hàm nhận `todayKey`/`uptoPeriod` làm tham số, không tự gọi `new Date()`)
+
+| Hàm | Mục đích |
+| --- | --- |
+| `periodOf(dateKey)` · `daysInMonthOf(period)` · `nextPeriod(period)` · `periodRange(from, to)` | Tiện ích kỳ |
+| `calcDueDate(period, paymentDay)` | §4 dòng `dueDate` |
+| `resolveTermVersion(contract, dateKey)` | Bản mới nhất có `effectiveFrom ≤ dateKey`; không có → bản đầu |
+| `calcPayoutWindow(contract)` → `{ start; end } \| undefined` | `start = max(effectiveFrom, ngày địa phương activatedAt)`; `end = min(effectiveTo, endedDate ?? effectiveTo)`; chưa từng kích hoạt → `undefined` |
+| `calcPeriodPayout(contract, period)` → bản nháp Record \| `undefined` | Đúng §4 (cả `FULL_MONTH`) |
+| `buildExpectedPayouts(contract, uptoPeriod)` | Mọi kỳ từ `start` tới `min(uptoPeriod, kỳ của end)` — dùng chung seed + sinh lịch |
+| `planPayoutGeneration(contracts, records, uptoPeriod)` | Hợp đồng `ACTIVE`/`SUSPENDED` (BRD §10 — `SUSPENDED` vẫn trả đủ, `TODO(OQ)` "trừ khi Terms Snapshot ghi khác") × kỳ **chưa có Record không huỷ** → danh sách bản nháp (VC-BR-21: mỗi hợp đồng mỗi kỳ **một** Record) |
+| `planContractEnd(contract, records, endedDate)` → `{ cancel: Record[]; create: draft[] } \| { error: string }` | §19.1 điểm 19: kỳ > kỳ(endedDate) → huỷ; kỳ của endedDate → huỷ + bản thay thế nếu `amount`/`coverageTo` đổi; bù kỳ còn thiếu tới kỳ(endedDate); Record bị ảnh hưởng đã `PAID`/có `payout` → `error` |
+| `deriveAmountPayable(record)` | §19.4.1 |
+| `canHold` · `canRelease` · `canAdjust` · `canDecideAdjustment` | Guard trạng thái (không có `payout`, không `PAID`/`CANCELLED`) |
+| `getOwnerPayoutBlocker(record, owner)` → `string \| undefined` | VC-BR-10 / AC-VC-007: `SCHEDULED`, chưa có `payout`, không có điều chỉnh chờ duyệt, chủ xe có tài khoản, `amountPayable > 0`. **Dùng chung** API `finance` + UI |
+| `applyOwnerPayoutLinked/Paid/Unlinked/Reverted(record, info)` | Biến đổi thuần (không storage, không audit) — dùng bởi 4 hàm đồng bộ §19.5 **và** seed finance §19.9 |
+| `isPayoutDueSoon(record, todayKey)` (0 ≤ `dueDate − today` ≤ 3, `SCHEDULED`/`ON_HOLD`) · `isPayoutOverdue` (`dueDate < today`, `SCHEDULED`/`ON_HOLD`) | VC-BR-20 badge |
+| `summarizeOwnerPayables(records, todayKey)` → theo chủ xe `{ ownerId; dueUnpaid; onHold; overdueCount; overdueAmount; paidTotal; nextDueDate? }` | BRD §14 "công nợ chủ xe" — `dueUnpaid` = Σ `amountPayable` Record `dueDate ≤ hôm nay` chưa `PAID`/`CANCELLED` (tách `ON_HOLD`) |
+| `canCloseContract(contract, records, returnRecord, todayKey)` → lý do chặn \| `undefined` | `effectiveTo ≤ hôm nay` + có `RETURN` + mọi Record không huỷ `PAID` (UC-VC-11 A2) + không thiếu kỳ |
+| `listBlockingRentals(rentals, vehicleId)` / `listDraftRentals` | §19.1 điểm 18 (nhận mảng `Rental` — kiểu `import type` từ `@/features/rentals/model`) |
+| Schema zod: `ownerPayoutAdjustmentSchema`, `terminationNoticeSchema`, `consignmentReturnFormSchema`, `vehicleLossSchema` | RHF + `zodResolver` |
+
+### 19.5. API
+
+#### 19.5.1. `payoutApi.ts` (mới) — mọi hàm `fakeRequest`, đọc/guard/ghi **trong** callback, `appendAudit` entity `'OwnerPayoutRecord'`
+
+| Hàm | Guard | Audit |
+| --- | --- | --- |
+| `listOwnerPayoutRecords(filter?: { contractId?; ownerId?; vehicleId?; period?; status? })` | sắp `period` giảm dần, `code` | — |
+| `getOwnerPayoutRecord(id)` | | — |
+| `generateOwnerPayoutRecords(actor)` → `{ created: number; upToPeriod }` | `planPayoutGeneration` tới kỳ hiện tại; 0 bản → không ghi, không audit | `GENERATE_OWNER_PAYOUT_RECORDS` (entityId `batch:<period>`, after = danh sách mã) |
+| `holdOwnerPayoutRecord(id, reason, actor)` | `canHold`; lý do ≥ 3 | `HOLD_OWNER_PAYOUT_RECORD` |
+| `releaseOwnerPayoutRecord(id, reason, actor)` | `ON_HOLD` | `RELEASE_OWNER_PAYOUT_RECORD` |
+| `requestOwnerPayoutAdjustment(id, { amount; note }, actor)` | `canAdjust`; không có điều chỉnh chờ duyệt; kết quả > 0. Tự duyệt khi `can(actor.role,'CONSIGNMENT','EDIT') && can(…,'APPROVE')` — **ngoại lệ thứ 2 của F11** (quyết định luồng duyệt, không phải chặn quyền; comment tại chỗ) | `ADJUST_OWNER_PAYOUT_RECORD` (+ `APPROVE_…` nếu tự duyệt) |
+| `decideOwnerPayoutAdjustment(id, adjustmentId, { decision; note? }, actor)` | `canDecideAdjustment`; từ chối cần lý do ≥ 3; duyệt → kết quả > 0 | `APPROVE_…`/`REJECT_OWNER_PAYOUT_ADJUSTMENT` |
+
+**4 hàm đồng bộ cho `finance`** (export qua barrel; **đồng bộ, không `fakeRequest`** — gọi trong callback của finance, mirror tinh
+thần `markSettlementOpened`; mỗi hàm đọc storage mới nhất, `throw` nếu sai trạng thái, ghi + `appendAudit`):
+`linkOwnerPayoutRecord(recordId, { paymentRequestId; transactionId; transactionCode }, actor, now)` (Record `SCHEDULED`, chưa có
+`payout`) · `markOwnerPayoutRecordPaid(recordId, { transactionId; paidAt }, actor, now)` (`payout.transactionId` khớp →
+`PAID`) · `unlinkOwnerPayoutRecord(recordId, { transactionId; reason }, actor, now)` (giao dịch `FAILED`/`VOIDED` → gỡ `payout`,
+giữ `SCHEDULED`) · `revertOwnerPayoutRecordPaid(recordId, { transactionId; reason }, actor, now)` (`PAID` → `SCHEDULED`, gỡ
+`payout` — VC-BR-13).
+
+#### 19.5.2. `api.ts` (sửa) — hợp đồng
+
+| Hàm | Guard | Ghi Record | Audit |
+| --- | --- | --- | --- |
+| `activateConsignmentContract` (sửa) | như R1 | `buildExpectedPayouts(…, kỳ hiện tại)` cho hợp đồng vừa kích hoạt | + `GENERATE_OWNER_PAYOUT_RECORDS` nếu có bản mới |
+| `recordConsignmentIntake` (sửa) | **+ `handoverAt ≤ now`** (nợ R1 #3) | — | như R1 |
+| `notifyConsignmentTermination(id, { requestedBy; noticeDate; plannedEndDate; reason }, actor)` | `ACTIVE`/`SUSPENDED`; chưa có notice; §19.1 điểm 17 (thông điệp trích VC-BR-14) | — | `NOTIFY_CONSIGNMENT_TERMINATION` |
+| `listVehicleRentalsForConsignment(vehicleId)` → `{ id; status; pickupDateTime; expectedReturnDateTime; customerId }[]` | đọc `RENTALS_STORAGE_KEY` (deep import `@/features/rentals/api`) | — | — |
+| `listVehicleIncidentsForConsignment(vehicleId)` → `{ id; incidentCode; status; reportedAt }[]` | đọc `INCIDENTS_STORAGE_KEY` (deep import `@/features/incidents/api`) | — | — |
+| `recordConsignmentReturn(contractId, input, actor)` | `ACTIVE`/`SUSPENDED`; chưa có `RETURN`; (có notice **và** ngày trả ≥ `plannedEndDate`) **hoặc** ngày trả ≥ `effectiveTo`; `handoverAt ≤ now` và ≥ `handoverAt` của `INTAKE`; `odoKm ≥ odo INTAKE`; không còn lượt thuê chặn (VC-BR-14); hai bên xác nhận (VC-BR-15) | — | `CREATE_CONSIGNMENT_RETURN` |
+| `terminateConsignmentContract(id, actor)` | `ACTIVE`/`SUSPENDED`; có notice; có `RETURN` (VC-BR-15); `endedDate` = ngày của `RETURN`; `planContractEnd` không lỗi | huỷ/tạo theo `planContractEnd` | `TERMINATE_…` + `CANCEL_OWNER_PAYOUT_RECORD` từng bản + `GENERATE_…` nếu tạo |
+| `closeConsignmentContract(id, actor)` | `ACTIVE`/`SUSPENDED`; `canCloseContract` (thông điệp nêu số khoản chưa chi + tổng tiền); `endedDate = effectiveTo` | — (không tự sinh; người dùng bấm "Sinh lịch" + chi trước) | `CLOSE_CONSIGNMENT_CONTRACT` |
+| `recordConsignmentVehicleLoss(id, { eventDate; incidentId?; note }, actor)` | `ACTIVE`/`SUSPENDED`; `payoutStart ≤ eventDate ≤ hôm nay`; `incidentId` (nếu có) thuộc đúng xe; `planContractEnd` không lỗi. **Không** cần `RETURN` | huỷ/tạo theo `planContractEnd` | `TERMINATE_…` (summary "mất xe") + `CANCEL_…`/`GENERATE_…` |
+
+Thông điệp lỗi/summary: tiếng Việt, trích `VC-BR-xx` khi hữu ích, **không** chứa `§`/`UC-`/`AC-`/`.md`/`Phase`/`Round`.
+
+#### 19.5.3. `hooks.ts` / `index.ts`
+
+Query key con dưới `['consignment']`: `'payout-records'`, `'payout-record'`, `'vehicle-rentals'`, `'vehicle-incidents'`; export
+`CONSIGNMENT_QUERY_KEY = ['consignment'] as const` (finance dùng để invalidate). Mutation VC invalidate `['consignment']` (số liệu
+`finance` tự làm mới vì query analytics `staleTime: 0` + refetch khi mount — tiền lệ `invalidateFinanceAll`).
+
+Barrel R2 thêm: `OwnerPayoutScheduleScreen`, `OwnerBankAccountField`, `OwnerPayoutStatusBadge`, type `OwnerPayoutRecord`,
+`OWNER_PAYOUT_RECORDS_STORAGE_KEY` (+ 3 key cũ chuyển nguồn sang `./storage`), `CONSIGNMENT_QUERY_KEY`, hooks
+`useOwnerPayoutRecords`/`useVehicleOwners`/`useConsignmentContracts`, 4 hàm đồng bộ §19.5.1, hàm thuần
+`getOwnerPayoutBlocker`/`applyOwnerPayoutLinked`/`applyOwnerPayoutPaid`/`applyOwnerPayoutReverted`/`isPayoutDueSoon`/
+`isPayoutOverdue`/`summarizeOwnerPayables`/`maskAccountNumber`. Ghi comment khối "Round 2 — chỉ `features/finance` dùng".
+
+**Chiều import (bắt buộc):** `consignment` **không** import `@/features/finance` và **không** import barrel `@/features/rentals` /
+`@/features/incidents` (barrel `rentals` → `RentalDetailScreen` → `finance` → `consignment` sẽ thành **vòng mới**) — chỉ deep import
+`@/features/rentals/api` + `@/features/incidents/api` (storage key) và `import type` từ `…/model` (tiền lệ deep-import `vehicles/api`).
+Bảng §0.2 đã sửa theo điều này.
+
+### 19.6. UI phía VC (`react-hook-form` + `zodResolver`, chuỗi ở `vi.consignment.*`, responsive 375/768)
+
+1. **Gate trang (nợ R1 #1)**: component `ConsignmentNoPermission` + mẫu "wrapper kiểm quyền → component nội dung" (mirror
+   `FinanceReportScreen` — không vi phạm rules-of-hooks, không tải dữ liệu khi thiếu quyền) cho **5** màn VC (4 màn R1 + màn mới).
+2. **`OwnerPayoutScheduleScreen`** `/consignment/payouts` (gate `VIEW`): PageHeader + nút "Sinh lịch chi trả đến tháng này"
+   (`EDIT`, toast số khoản mới). 4 thẻ KPI: phải trả kỳ đang chọn · quá hạn (số + tiền, toàn bộ) · tạm giữ (số + tiền) · sắp tới hạn
+   ≤ 3 ngày. Bộ lọc: kỳ (mặc định kỳ hiện tại, có "Tất cả kỳ"), trạng thái, chủ xe, tìm số HĐ/biển số. Khối **"Tổng phải trả theo chủ
+   xe"** của kỳ đang chọn (BRD §13 màn gộp). Bảng/card `OwnerPayoutRecordTable`: Mã · Kỳ · Chủ xe · Xe · Số HĐ · Tỷ lệ
+   (`11/30`) · Mức/tháng · Điều chỉnh · Phải trả · Hạn chi (+ badge "Sắp tới hạn"/"Quá hạn") · Trạng thái (+ "Đang có lệnh chi
+   GD-…"). Click → `OwnerPayoutRecordSheet`.
+3. **`OwnerPayoutRecordSheet`**: diễn giải công thức (`9.000.000 × 11/30 = 3.300.000` + điều chỉnh = phải trả), phiên bản điều
+   khoản, hạn chi, lý do tạm giữ/huỷ, liên kết bản thay thế/bị thay, danh sách điều chỉnh (trạng thái, người nhập/duyệt),
+   `statusHistory`, `payoutLog`. Nút: Tạm giữ / Bỏ tạm giữ (`EDIT`, `ConsignmentReasonDialog`), Điều chỉnh (`EDIT`,
+   `OwnerPayoutAdjustmentDialog` — số có dấu + ghi chú; hiện "sẽ chờ duyệt" khi người nhập thiếu `APPROVE`), Duyệt/Từ chối điều chỉnh
+   (`EDIT` && `APPROVE`), link **"Đi tới chi trả"** → `paths.consignmentOwnerPayouts + '?record=<id>'` (hiện khi `CONFIRM`; bị
+   chặn thì hiện lý do từ `getOwnerPayoutBlocker`).
+4. **Chi tiết hợp đồng**: thêm tab **"Lịch chi trả"** (Record của hợp đồng, kể cả `CANCELLED` mờ). Thanh hành động thêm (theo
+   trạng thái + quyền): "Thông báo chấm dứt" (`APPROVE`, chưa có notice) · "Lập biên bản trả xe" (`EXECUTE`, đủ điều kiện §19.5.2) ·
+   "Chấm dứt hợp đồng" (`APPROVE`, có notice + `RETURN`) · "Đóng hợp đồng" (`APPROVE`, `effectiveTo ≤ hôm nay` + `RETURN`) ·
+   "Ghi nhận mất xe" (`APPROVE`). Banner: đã thông báo chấm dứt (bên yêu cầu, ngày thông báo, ngày dự kiến kết thúc, "không nhận lượt
+   thuê mới — chỉ thông tin"); `TERMINATED`/`CLOSED` (lý do kết thúc, ngày kết thúc); **mất xe**: khối "Tài liệu tham chiếu bồi
+   thường" — `Appraised Value` + mã/ngày biên bản nhận xe + "bảo hiểm do công ty mua" + "bồi thường chủ xe do hai bên thoả thuận ngoài
+   hệ thống" (VC-BR-16, AC-VC-015) + nút "Xuất PDF" chỉ toast + nhắc cập nhật trạng thái xe ở Danh sách xe. **Nợ R1 #2**: "Thay bằng
+   bản mới" thành công → `navigate(paths.consignmentContractDetail(created.id))`.
+5. **Dialog mới**: `ConsignmentTerminationNoticeDialog` (bên yêu cầu, ngày thông báo, ngày dự kiến kết thúc — hiện ngày sớm nhất
+   hợp lệ theo Notice Period, lý do + `VehicleRentalImpactList`) · `ConsignmentReturnDialog` (mirror `ConsignmentIntakeDialog`: odo,
+   nhiên liệu, hiện trạng, checklist, phụ kiện, giấy tờ gốc trả lại, ảnh/video giả lập, đại diện công ty, 2 xác nhận; **không** có
+   định giá; `VehicleRentalImpactList` + chặn nút khi còn lượt thuê chặn) · `ConsignmentVehicleLossDialog` (ngày sự kiện, sự cố liên
+   quan tuỳ chọn, ghi chú, hiện `Appraised Value` tham chiếu + xem trước khoản tháng cuối) · `ConsignmentEndDialog` (xác nhận
+   Chấm dứt/Đóng: xem trước `planContractEnd` — kỳ cuối `x/y` ngày, số khoản bị huỷ, khoản thay thế, số khoản còn chưa chi) ·
+   `OwnerPayoutAdjustmentDialog` · `VehicleRentalImpactList` (danh sách lượt thuê của xe: chặn / cảnh báo, link chi tiết lượt thuê).
+   **Nợ R1 #3**: `handoverAt` ở `ConsignmentIntakeDialog` + `ConsignmentReturnDialog` — schema chặn thời điểm tương lai.
+6. **Chi tiết chủ xe**: tab **"Lịch chi trả"** (Record của chủ xe + dòng tổng `summarizeOwnerPayables` của chủ xe đó).
+   **Nợ R1 #4**: `vehicleOwnerFormSchema` thêm `hasExistingBankAccount: z.boolean().optional()` — nhập ngân hàng/chủ tài khoản mà
+   không có số tài khoản (và chưa có tài khoản cũ) → lỗi ở ô số tài khoản; API `create` kiểm lại cùng luật.
+7. **`VehicleConsignmentTab`**: khối **"Chi trả gần nhất"** (3 kỳ mới nhất không huỷ của hợp đồng hiện hành: kỳ, phải trả, hạn, trạng
+   thái) + link màn Lịch chi trả.
+8. `ConsignmentHandoverRecordsTab` hiện được biên bản `RETURN` (nhãn "giấy tờ trả lại", không có định giá).
+
+### 19.7. Điểm nối `finance` — từng file (tầng `core ← payment ← settlement ← revenue-cost`, không barrel con, không vòng)
+
+#### 19.7.1. `finance/core`
+
+- `types.ts`: `PaymentRequest.rentalId?`/`customerId?` (optional) + `vehicleOwnerId?`/`ownerPayoutRecordId?`/`vehicleId?`/
+  `consignmentContractId?`; `Transaction.customerId?` + `vehicleOwnerId?`/`ownerPayoutRecordId?`/`vehicleId?`/`payoutRecipient?`
+  (chuỗi **đã che** "••••6789 — Ngân hàng — Chủ TK"). JSDoc trích `PM-BR-16`/`PM-BR-24`: `type === 'OWNER_PAYOUT'` ⇔ có
+  `vehicleOwnerId`, không `customerId`/`rentalId`.
+- Mọi chỗ `tsc` báo lỗi do optional: thêm narrowing/guard **đúng nghĩa** (không `!`/`as` ép kiểu): đường thu/hoàn của khách
+  (`recordTransaction`, `createRefundTransaction`, settlement…) từ chối yêu cầu `source === 'CONSIGNMENT'` ngay đầu hàm ("Lệnh chi
+  trả chủ xe — thao tác ở màn Chi trả chủ xe"); UI hiển thị `customerId ?? '—'`.
+
+#### 19.7.2. `finance/payment`
+
+- `model.ts`: **sửa `calcRequestProgress`** — chiều mong đợi `OUT` cho `purpose` `REFUND` **và** `PAYOUT` (hiện tại `PAYOUT` sẽ bị
+  tính như thu — lỗi âm thầm). **Sửa `buildReversalPair`**: giao dịch đối ứng chép cả `vehicleOwnerId`/`ownerPayoutRecordId`/
+  `vehicleId`/`payoutRecipient` (hiện chỉ chép `customerId`/`rentalId`…). `ownerPayoutCreateFormSchema` (`reference?`, `note?` — `useState` + `safeParse`, ngoại lệ §7).
+- `api.ts`: `createOwnerPayout(recordId, input, actor)` — trong callback: đọc Record/chủ xe/hợp đồng qua storage key của barrel
+  `consignment`; `getOwnerPayoutBlocker` (VC-BR-10/AC-VC-007 — thông điệp "Chỉ tạo lệnh chi từ khoản chi trả đã lên lịch (VC-BR-10)");
+  chặn nếu Record đã có yêu cầu chưa huỷ; tạo `PaymentRequest` `CONSIGNMENT`/`PAYOUT`/`OWNER_PAYOUT` (`expectedAmount = amountPayable`,
+  gắn chủ xe/Record/xe/hợp đồng, `note` "Chi trả chủ xe kỳ MM/YYYY — HĐ …") + `Transaction` `OWNER_PAYOUT` `OUT` `PENDING`
+  `BANK_TRANSFER` (`TODO(OQ: Payment-BRD.md §27 Q24 — phương thức chi)`, `payoutRecipient` đã che, **không** `customerId`/`rentalId`,
+  không gắn quỹ) → `linkOwnerPayoutRecord` → audit `CREATE_OWNER_PAYOUT` (entity `Transaction`). `confirmTransaction`/`failTransaction`/
+  `voidTransaction`/`reverseTransaction`: sau khi ghi, nếu `before.type === 'OWNER_PAYOUT'` → `syncOwnerPayoutAfterPaymentChange`.
+  `confirmTransaction` với `OWNER_PAYOUT`: không cho sửa số (nhánh `OUT` sẵn có), không kiểm quỹ (không phải `CASH`).
+- `ledger.ts`: `syncOwnerPayoutAfterPaymentChange(transactionId, actor, now)` — tính lại `status` yêu cầu (`deriveRequestStatus`);
+  `CONFIRMED` → `markOwnerPayoutRecordPaid`; `FAILED`/`VOIDED` → yêu cầu `CANCELLED` (+ `cancelReason`) + `unlinkOwnerPayoutRecord`;
+  `REVERSED` → yêu cầu `CANCELLED` + `revertOwnerPayoutRecordPaid` (§19.1 điểm 23). Chạy trong **cùng callback** (nguyên tử).
+- `hooks.ts`: `useCreateOwnerPayout`; `useConfirmTransaction`/`useFailTransaction`/`useVoidTransaction`/`useReverseTransaction` +
+  `useCreateOwnerPayout` invalidate thêm `CONSIGNMENT_QUERY_KEY`.
+- `screens/OwnerPayoutScreen.tsx` (mới, mount `/consignment/owner-payouts`, gate trang `CONSIGNMENT.VIEW`; dữ liệu qua hook barrel
+  `consignment` + `useTransactions({ type: 'OWNER_PAYOUT' })` + `useVehicles` deep như tiền lệ finance):
+  (a) **Công nợ chủ xe** (BRD §14): bảng theo chủ xe từ `summarizeOwnerPayables` — đến hạn chưa chi · tạm giữ · quá hạn (badge
+  cảnh báo) · đã chi (Σ giao dịch `OWNER_PAYOUT` hiệu lực) · hạn kế tiếp; (b) **Khoản chờ chi** (Record `SCHEDULED`, sắp theo
+  `dueDate`): nút **"Tạo lệnh chi"** (`CONSIGNMENT.CONFIRM`, ẩn/khoá + lý do khi `getOwnerPayoutBlocker`) → `OwnerPayoutCreateDialog`
+  (số tiền chỉ đọc, người nhận đã che + `OwnerBankAccountField` "Hiện đầy đủ" có meta-audit, mã tham chiếu/ghi chú tuỳ chọn); Record
+  đang có lệnh chi → hiện mã GD + mở `TransactionDetailSheet` sẵn có (xác nhận `PAYMENT.CONFIRM` / huỷ `PAYMENT.VOID`); (c) **Đã
+  chi gần đây** (giao dịch `OWNER_PAYOUT` `CONFIRMED`/`REVERSED`, mở `TransactionDetailSheet` — đảo theo `PAYMENT.REVERSE`, lưu ý
+  Accountant `TBD`). `?record=<id>` → cuộn tới + mở sẵn dialog tạo lệnh chi nếu tạo được.
+- `components/OwnerPayoutCreateDialog.tsx` (mới). `TransactionDetailSheet.tsx` + `ReceiptDialog.tsx`: nhãn đối tượng "Chủ xe"
+  + tên chủ xe (link chi tiết chủ xe) khi `vehicleOwnerId`, hiện `payoutRecipient` + kỳ/Record. `TransactionLedgerScreen.tsx`: cột
+  "Khách hàng" → "Đối tượng" (tên khách **hoặc** tên chủ xe). `CashDrawerScreen.tsx`/`CustomerReceivablesScreen.tsx`: chỉ sửa kiểu nếu
+  `tsc` yêu cầu. `seed.ts`: bước `seedOwnerPayouts` (§19.9.2).
+- `deriveCustomerBalances`, Report 03 (khách), quỹ tiền mặt: **không** được đếm `OWNER_PAYOUT` (không có `customerId`/`rentalId`,
+  không `CASH`) — kiểm, không cần sửa logic.
+
+#### 19.7.3. `finance/revenue-cost`
+
+- `model.ts`: `CostEntry.sourceRef` + `ownerPayoutRecordId?`/`consignmentContractId?`; `CashEntry.customerId?`;
+  `deriveConsignmentPayoutCostEntries(records)` → `CONSIGNMENT_PAYOUT`, `DIRECT`, `source: 'SYSTEM'`, `costDate = '<period>-01'`,
+  `amount = amountPayable`, `vehicleId`, `sourceLabel` = mã Record · kỳ; **bỏ `CANCELLED`**, giữ `ON_HOLD`/`SCHEDULED`/`PAID` (ghi
+  nhận dồn tích theo nghĩa vụ hợp đồng — comment tại chỗ, `RV-BR-19`, §0.4 điểm 4).
+- `api.ts` `listCostEntries`: thay comment chừa chỗ bằng dòng nối nguồn (đọc `OWNER_PAYOUT_RECORDS_STORAGE_KEY` của barrel
+  `consignment`). `reportModel.ts`: sửa docstring `buildReconciliation` (bỏ `TODO(Phase 5)`, `costPaid` = Σ `OWNER_PAYOUT` hiệu lực
+  theo ngày xác nhận — logic giữ nguyên); `ensure(cash.customerId)` ở Report 03 thêm guard kiểu.
+- `VehicleProfitTab.tsx` + `FinanceReportScreen.tsx`: **gỡ banner** + `TODO(Phase 5)`; thay bằng ghi chú trung tính (muted)
+  `vi.finance.revenueCost.profitConsignmentIncludedNote` "Chi phí trực tiếp đã gồm khoản chi trả cố định hàng tháng cho chủ xe
+  ký gửi." (hiện khi xe/đội xe có xe ký gửi); **giữ** `TODO(OQ: RevenueCost-BRD.md §28 Q18 …)`.
+- `CostEntryTable.tsx`: dòng `CONSIGNMENT_PAYOUT` link tới chi tiết hợp đồng (`paths.consignmentContractDetail`).
+
+#### 19.7.4. Gốc `finance` + app
+
+`finance/index.ts` export `OwnerPayoutScreen`; `finance/seed.ts` đăng ký `seedOwnerPayouts` **cuối cùng** (sau
+`seedRevenueCost`). `app/paths.ts` + `consignmentOwnerPayouts: '/consignment/owner-payouts'`; `app/routes.tsx`: `/consignment/payouts`
+→ `OwnerPayoutScheduleScreen` (bỏ `ComingSoon`), `/consignment/owner-payouts` → `OwnerPayoutScreen`; `shared/layout/nav.tsx` mục thứ
+4 "Chi trả chủ xe" (`CONSIGNMENT`/`VIEW`) — F9. `permissions.ts` **không** đổi.
+
+### 19.8. Công thức + bảng tính tay (bổ sung §4)
+
+```text
+Kết thúc giữa tháng (UC-VC-06 A1):  endedDate = 12/09/2026, Record 09/2026 trọn tháng 8.000.000 (SCHEDULED)
+  → Record cũ CANCELLED (cancelReason) + Record mới 01/09–12/09: round(8.000.000 × 12/30) = 3.200.000, replacesRecordId = cũ
+  → Record 10/2026 (nếu đã sinh, chưa chi) CANCELLED, không sinh thay thế               (AC-VC-015)
+Điều chỉnh: baseAmount 9.000.000 + (−1.000.000 APPROVED) = amountPayable 8.000.000; điều chỉnh PENDING không tính
+Đến hạn / quá hạn (today 22/10/2026): dueDate 25/10 → "Sắp tới hạn" (3 ngày); dueDate 05/10 chưa PAID → "Quá hạn"
+```
+
+6 ca §4 + 3 ca trên (chấm dứt giữa tháng có Record trọn tháng sẵn · điều chỉnh duyệt/chờ · kết thúc khi kỳ đã `PAID` → lỗi) phải
+chạy bằng hàm thuần trong harness (§19.11 mục 2).
+
+### 19.9. Seed (`SEED_VERSION` 20 → 21)
+
+#### 19.9.1. `consignment/seed.ts` (chạy trước finance — không ghi audit)
+
+1. R1 bổ sung field R2: #15 (`veh_007`, `TERMINATED`): `endReason = EARLY_TERMINATION`, `endedDate = dayKey(−35)`,
+   `terminationNotice = { requestedBy: OWNER, noticeDate = endedDate − noticePeriodDays, plannedEndDate = endedDate, reason }`,
+   `returnRecordId`. #17 (`veh_013`, `CLOSED`): `endReason = EXPIRED`, `endedDate = effectiveTo`, `returnRecordId`.
+2. Record cho mọi hợp đồng đã kích hoạt (#1–15, #17) = `buildExpectedPayouts(contract, kỳ hiện tại)` (**cùng hàm** runtime), mã
+   `CTCX-…` theo thứ tự (hợp đồng, kỳ), id `opr_001…`, `createdAt` = max(ngày 1 của kỳ 08:00, `activatedAt`), `createdByName`
+   "Hệ thống". Mọi Record khởi tạo `SCHEDULED`.
+3. Quy tắc trạng thái/điều chỉnh (theo luật, không gõ tay từng bản): (a) chủ xe `own_009` (chưa có tài khoản) → **mọi** Record
+   `ON_HOLD` "Chủ xe chưa cung cấp tài khoản ngân hàng"; (b) #10 (`SUSPENDED` −12) → Record có `dueDate ≥` ngày tạm ngưng →
+   `ON_HOLD` "Tạm giữ do tranh chấp điều khoản, chờ làm rõ"; (c) #12 kỳ (hiện tại − 1): điều chỉnh `−1.000.000` `APPROVED` ("Hai bên
+   thống nhất giảm do xe nằm xưởng 5 ngày vì lỗi công ty" — Accountant nhập, Manager duyệt); (d) #13 kỳ hiện tại: điều chỉnh
+   `+500.000` `PENDING_APPROVAL` (Accountant nhập "Hỗ trợ phí gửi xe theo thoả thuận"). Mọi mốc thời gian `createdAt ≤ mốc ≤ now`.
+4. Bước kiểm (`throw`): mỗi hợp đồng `ACTIVE`/`SUSPENDED` có đúng 1 Record không huỷ cho mỗi kỳ từ `payoutStart` tới kỳ hiện tại;
+   không Record nào có kỳ > kỳ hiện tại; `amountPayable === deriveAmountPayable(r)`; #15/#17 không có Record sau kỳ của `endedDate`.
+
+#### 19.9.2. `finance/payment/seed.ts` — bước mới `seedOwnerPayouts` (chạy **cuối** finance; không audit)
+
+1. Với mỗi Record `SCHEDULED` có `dueDate < hôm nay` và chủ xe có tài khoản: `PaymentRequest` + `Transaction` `OWNER_PAYOUT`
+   `BANK_TRANSFER` (`performedAt` = `dueDate − 2` 09:00, `confirmedAt` = `dueDate` 14:00, người thực hiện = kế toán seed
+   `PM_ACCOUNTANT_*`), rồi biến đổi Record bằng `applyOwnerPayoutLinked` + `applyOwnerPayoutPaid` (hàm thuần của barrel
+   `consignment` — **cùng logic** runtime) và ghi lại `OWNER_PAYOUT_RECORDS_STORAGE_KEY` (ngoại lệ seed có kiểm soát: bước seed của
+   `finance` ghi storage `consignment` qua key + hàm thuần do `consignment` export, không tự dựng object Record).
+2. Ngoại lệ có chủ đích: **#1 kỳ (hiện tại − 3)** — giao dịch A `CONFIRMED` → đảo (`buildReversalPair`, "Chuyển nhầm sang tài khoản
+   cũ của chủ xe") lúc `dueDate + 1` 10:00, yêu cầu A `CANCELLED`, Record `applyOwnerPayoutReverted`; giao dịch B (yêu cầu mới)
+   `CONFIRMED` `dueDate + 2` 14:00 → Record `PAID` theo B (demo VC-BR-13). **#6 kỳ (hiện tại − 1)** — chỉ tạo giao dịch `PENDING`
+   (`performedAt = min(dueDate − 2, hôm nay − 1)` 09:00, ≥ `createdAt` của Record) + `applyOwnerPayoutLinked` → demo "Xác nhận đã chi".
+3. Mã `GD-…` mới nối tiếp sau toàn bộ mã cũ (`nextSequenceCode`), cấp theo thứ tự thời gian `performedAt`; **mã giao dịch cũ không
+   đổi**. `PaymentRequest.status` suy bằng `deriveRequestStatus` (sau khi sửa `calcRequestProgress`), không gõ tay.
+4. Bước kiểm (`throw`): mỗi Record `PAID` có đúng 1 giao dịch `OWNER_PAYOUT` hiệu lực, số tiền = `amountPayable`; không giao dịch
+   `OWNER_PAYOUT` nào có `customerId`/`rentalId`/`method ≠ BANK_TRANSFER`; mọi mốc ≤ now.
+
+Số lượng dự kiến (today 22/10/2026 — §19.11): **145 Record** (126 `PAID` · 14 `SCHEDULED` gồm 1 đang có lệnh chi · 5 `ON_HOLD` · 0
+`CANCELLED`) · **129 giao dịch** `OWNER_PAYOUT` mới (126 hiệu lực + 1 bị đảo + 1 đối ứng + 1 `PENDING`) · **128 yêu cầu** (126
+`FULFILLED` + 1 `CANCELLED` + 1 `OPEN`). Quỹ tiền mặt không đổi.
+
+### 19.10. File tạo / sửa / cấm
+
+**Tạo:** `src/features/consignment/{storage,payoutModel,payoutApi}.ts` · `consignment/components/`: `ConsignmentNoPermission.tsx`,
+`OwnerPayoutStatusBadge.tsx`, `OwnerPayoutRecordTable.tsx`, `OwnerPayoutRecordSheet.tsx`, `OwnerPayoutAdjustmentDialog.tsx`,
+`ConsignmentTerminationNoticeDialog.tsx`, `ConsignmentReturnDialog.tsx`, `ConsignmentVehicleLossDialog.tsx`,
+`ConsignmentEndDialog.tsx`, `VehicleRentalImpactList.tsx` · `consignment/screens/OwnerPayoutScheduleScreen.tsx` ·
+`src/features/finance/payment/screens/OwnerPayoutScreen.tsx` · `finance/payment/components/OwnerPayoutCreateDialog.tsx`.
+
+**Sửa:** `consignment/{model,api,hooks,seed,index}.ts`; `consignment/components/{VehicleConsignmentTab,ConsignmentContractOverviewTab,
+ConsignmentHandoverRecordsTab,ConsignmentIntakeDialog,VehicleOwnerFormSheet}.tsx`; 4 screen R1; `finance/core/types.ts`;
+`finance/payment/{model,api,ledger,hooks,seed}.ts`; `finance/payment/components/{TransactionDetailSheet,ReceiptDialog}.tsx`;
+`finance/payment/screens/TransactionLedgerScreen.tsx` (+ `CashDrawerScreen`/`CustomerReceivablesScreen`/file `settlement`/
+`RefundCreateDialog`… **chỉ** khi `tsc` báo do kiểu optional); `finance/revenue-cost/{model,api,reportModel}.ts`;
+`finance/revenue-cost/components/{VehicleProfitTab,CostEntryTable,CustomerReportPanel?}.tsx`;
+`finance/revenue-cost/screens/FinanceReportScreen.tsx`; `finance/{index,seed}.ts`; `shared/domain/enums.ts`;
+`shared/i18n/vi.ts`; `app/paths.ts`; `app/routes.tsx`; `shared/layout/nav.tsx`; `shared/fixtures/seedAll.ts` (21).
+
+**Cấm:** `features/vehicles/**` · `features/rentals/**` · `features/incidents/**` (chỉ được **đọc** qua deep import `api`/`model`
+type) · mọi feature khác · `shared/domain/permissions.ts` · `shared/ui/**` · `shared/fixtures/registerSeeds.ts` · `docs/**` ·
+`CHANGELOG.md`.
+
+### 19.11. Definition of Done — Round 2
+
+1. `npx tsc -b`, `npx oxlint`, `npm run build` sạch; `grep -rn '\*/[a-zA-Z]' src/` không có kết quả mới; `git diff --stat` ⊆ §19.10.
+2. **Harness** (copy `seed-harness.mjs` v2 của scratchpad `finance-refactor` sang scratchpad mới, giữ `FIXED_NOW =
+   2026-10-22T10:00+07:00` + reset RNG, chạy **trước** (`HEAD` = `19d78d6`, qua `git worktree` ở scratchpad — **không** `git stash`)
+   và **sau**): (a) 6 ca §4 + 3 ca §19.8 ra đúng số; (b) bảng số trước/sau ở mục 3–5; (c) `import-graph.mjs` 0 vòng trong `finance`
+   + `grep -rn "@/features/finance\|@/features/rentals'\|@/features/incidents'" src/features/consignment` rỗng.
+3. **Không đổi** (trước = sau): doanh thu ghi nhận 12 tháng 63.750.000 · thực thu 109.510.000 · chênh −45.760.000 · `rt_026` 975.000 ·
+   doanh thu tháng trước 7.050.000 · 27 Revenue Line · công nợ khách hàng · mã `GD-…` cũ.
+4. **Đổi đúng bằng payout** (số dự kiến `tech-lead` tính bằng script độc lập theo luật §4/§19.9 — `dev` phải ra **đúng** hoặc giải
+   thích chênh): Σ Cost `CONSIGNMENT_PAYOUT` 12 tháng (11/2025–10/2026) **1.269.283.178** = mức tăng chi phí trực tiếp = mức giảm lợi
+   nhuận vận hành 12 tháng; kỳ 09/2026 **140.100.000** (chi phí trực tiếp tháng trước 5.880.000 → **145.980.000**, lợi nhuận vận hành
+   1.170.000 → **−138.930.000**); kỳ 10/2026 **136.000.000** (chi phí trực tiếp 18.080.000 → **154.080.000**, lợi nhuận −5.930.000 →
+   **−141.930.000**); `costPaid` đối chiếu 12 tháng 0 → **1.106.541.243** (123 giao dịch hiệu lực xác nhận trong kỳ); Cost Entry
+   70 → **215**; Cash Entry 64 → **190**; lợi nhuận 12 tháng `veh_001` giảm đúng **152.903.226**. Với **mọi** xe X, kỳ K: Σ
+   `amountPayable` Record (không huỷ) = Σ Cost `CONSIGNMENT_PAYOUT` (X, K) ở `/finance/costs` = lợi nhuận(X,K) trước − sau.
+5. Prorate seed: #14 (`veh_016`) kỳ 08/2026 = `round(5.000.000 × 17/31)` = **2.741.935**; #15 kỳ 09/2026 = 5.100.000 (17/30); #17 kỳ
+   08/2026 = 2.741.935 (17/31); #7 (`FULL_MONTH`) kỳ đầu = 15.000.000.
+6. Luồng (đọc code + harness gọi API; người dùng tự bấm thử sau bàn giao): kích hoạt #19 sinh Record kỳ đúng; sinh lịch lần 2 → 0
+   bản mới; tạo lệnh chi từ Record chưa sinh/`ON_HOLD`/có điều chỉnh chờ duyệt/chủ xe thiếu tài khoản → bị từ chối (AC-VC-007);
+   tạo lệnh chi → xác nhận → Record `PAID`, Cost không đổi, `costPaid` tăng; đảo → Record `SCHEDULED`, yêu cầu `CANCELLED`, Cost
+   không đổi, `costPaid` giảm đúng số đó; huỷ/thất bại → gỡ liên kết; #2 (`veh_002`, không còn lượt thuê chặn) thông báo chấm dứt (ngày
+   thông báo lùi ≥ 30 ngày) → biên bản trả xe → Chấm dứt: Record tháng hiện tại huỷ + bản prorate tới ngày trả; trả xe khi còn lượt
+   thuê chặn (vd `veh_004`) → bị từ chối (VC-BR-14); mất xe giữa tháng → AC-VC-015; "Đóng" khi còn khoản chưa chi → từ chối nêu số
+   khoản; guard có mặt ở **API**, không chỉ UI.
+7. Phân quyền: `OPERATION_STAFF` gõ URL `/consignment/owners/own_001` (và 4 URL còn lại) → màn không có quyền, không tải dữ liệu;
+   `ACCOUNTANT` sinh lịch/tạm giữ/điều chỉnh (chờ duyệt)/tạo lệnh chi/xác nhận được, không chấm dứt/đóng; `MANAGER` duyệt điều chỉnh,
+   **không** có nút tạo lệnh chi (`CONFIRM` = `TBD`); `SALES` không điều chỉnh/duyệt điều chỉnh, có chấm dứt/đóng/mất xe. Không có
+   `if (role === …)`.
+8. Mọi hàm ghi (kể cả 4 hàm đồng bộ) có `appendAudit`; payload chủ xe/giao dịch không chứa số tài khoản đầy đủ; mọi đọc/guard trong
+   callback `fakeRequest`; schema dùng thật (RHF+`zodResolver` ở VC, `safeParse` ở finance); chuỗi UI/lỗi/audit không chứa `§`,
+   `UC-`, `AC-`, `.md`, `Phase`, `Round`; ngày nghiệp vụ là ngày địa phương `YYYY-MM-DD`.
+9. Không còn `TODO(Phase 5)` trong `src/` ngoài `vehicles`/`maintenance` (roadmap); `TODO(OQ: RevenueCost-BRD.md §28 Q18 …)` còn.
+
+### 19.12. Danh sách file `dev` đọc trước — Round 2 (đúng danh sách, không scan rộng)
+
+**Nghiệp vụ:** (1) `docs/CONSIGNMENT-PLAN.md` §0.2–§0.4, §2.2, §3, §4, §9, **§19 toàn bộ**; (2) `VehicleConsignment-BRD.md` §6.6,
+§6.7, §7.2, §7.3, §10, §11 (dòng mất xe), §13, §14, §15, §17, §18, §19 (AC-VC-007/011/013/014/015); (3) `VehicleConsignment-UseCase.md`
+§10, §12.4, §13, §15, §16; (4) `Payment-BRD.md` dòng 130–190, 230–245, 490–505; (5) `RevenueCost-BRD.md` dòng `RV-BR-19`.
+
+**Code:** (6) `src/features/consignment/` — `model.ts`, `api.ts`, `seed.ts`, `hooks.ts`, `index.ts`, `screens/ConsignmentContractDetailScreen.tsx`,
+`components/ConsignmentIntakeDialog.tsx`, `components/ConsignmentReasonDialog.tsx`, `components/VehicleConsignmentTab.tsx`,
+`components/OwnerBankAccountField.tsx`; (7) `src/features/finance/core/{types,storage,hooks}.ts`; (8) `finance/payment/api.ts`,
+`ledger.ts`, `model.ts` (dòng 80–180, 440–490, 684–695), `hooks.ts`, `seed.ts` (dòng 1–60 + cuối file), `components/TransactionDetailSheet.tsx`,
+`screens/CustomerReceivablesScreen.tsx` (mẫu màn công nợ); (9) `finance/revenue-cost/api.ts` (dòng 1–110), `model.ts` (dòng 40–170,
+400–500), `reportModel.ts` (dòng 440–510), `components/VehicleProfitTab.tsx`, `components/CostEntryTable.tsx`,
+`screens/FinanceReportScreen.tsx` (dòng 80–100, 380–400); (10) `finance/seed.ts`, `finance/core/seedHelpers.ts`;
+(11) `src/features/rentals/api.ts` dòng 1–40 + `incidents/api.ts` dòng 1–40 (chỉ để lấy storage key); (12) `shared/domain/enums.ts`
+(khối Payment ~180–215, VC ~370–395, cuối `AUDIT_ACTIONS`), `shared/domain/permissions.ts` khối Nhóm 7 + `PAYMENT`;
+(13) `app/paths.ts`, `app/routes.tsx`, `shared/layout/nav.tsx`, `shared/fixtures/seedAll.ts`; (14) scratchpad
+`finance-refactor/seed-harness.mjs` + `import-graph.mjs`.
+
+### 19.13. Thứ tự làm đề xuất
+
+1. `enums.ts` + nhãn `vi.ts` → `consignment/storage.ts` (tách cơ học, chạy `tsc`) → `payoutModel.ts` (+ harness 9 ca ngay) →
+   `payoutApi.ts` → sửa `api.ts` (kết thúc/trả xe/mất xe/kích hoạt sinh lịch/guard `handoverAt`) → `hooks.ts` → `index.ts`.
+2. `consignment/seed.ts` (field R2 + Record + bước kiểm).
+3. `finance/core/types.ts` + sửa `calcRequestProgress` → `payment/api.ts`/`ledger.ts`/`hooks.ts` → `payment/seed.ts` bước
+   `seedOwnerPayouts` + `finance/seed.ts` → `SEED_VERSION` 21 → harness "sau" (đối chiếu §19.11 mục 3–5 **trước** khi làm UI).
+4. `revenue-cost` (Cost + gỡ banner + docstring).
+5. UI VC: gate 5 màn → `OwnerPayoutScheduleScreen` + Sheet + bảng → tab Lịch chi trả (hợp đồng, chủ xe) → dialog chấm dứt/trả xe/
+   kết thúc/mất xe → khối tab xe → 4 nợ R1 còn lại.
+6. UI finance: `OwnerPayoutScreen` + dialog → sổ giao dịch/sheet/biên lai → `paths`/`routes`/`nav`.
+7. 3 cổng + các `grep` §19.11 + bảng số trước/sau trong báo cáo bàn giao.

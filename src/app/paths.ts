@@ -28,6 +28,7 @@ export const paths = {
   consignmentContracts: '/consignment/contracts',
   consignmentContractDetail: (id: string) => `/consignment/contracts/${id}`,
   consignmentPayouts: '/consignment/payouts',
+  consignmentOwnerPayouts: '/consignment/owner-payouts',
   platformSystemConfig: '/platform/system-config',
   platformPermissions: '/platform/permissions',
   platformAudit: '/platform/audit',

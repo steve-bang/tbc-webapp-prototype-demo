@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/shared/ui/card'
 import { Input } from '@/shared/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
+import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { ConsignmentContractCard } from '../components/ConsignmentContractCard'
 import { ConsignmentContractFormSheet } from '../components/ConsignmentContractFormSheet'
 import { ConsignmentContractStatusBadge } from '../components/ConsignmentContractStatusBadge'
@@ -36,6 +37,12 @@ function Kpi({ label, value }: { label: string; value: string }) {
 
 /** Danh sách hợp đồng ký gửi (`/consignment/contracts`) — plan mục 8.3. */
 export function ConsignmentContractListScreen() {
+  const { can } = usePermission()
+  if (!can('CONSIGNMENT', 'VIEW')) return <ConsignmentNoPermission title={vi.consignment.contractsTitle} />
+  return <ConsignmentContractListScreenContent />
+}
+
+function ConsignmentContractListScreenContent() {
   const navigate = useNavigate()
   const { can } = usePermission()
   const canCreate = can('CONSIGNMENT', 'CREATE')

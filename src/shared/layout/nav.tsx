@@ -1,4 +1,5 @@
 import {
+  Banknote,
   Bell,
   Building2,
   CalendarDays,
@@ -143,6 +144,14 @@ export const NAV_ENTRIES: NavEntry[] = [
         label: 'Lịch chi trả hàng tháng',
         path: paths.consignmentPayouts,
         icon: Wallet,
+        resource: 'CONSIGNMENT',
+        action: 'VIEW',
+      },
+      // Màn của `finance/payment` (WebappQuanTri.md §5.4 — mục thứ 4 của nhóm Xe ký gửi).
+      {
+        label: 'Chi trả chủ xe',
+        path: paths.consignmentOwnerPayouts,
+        icon: Banknote,
         resource: 'CONSIGNMENT',
         action: 'VIEW',
       },

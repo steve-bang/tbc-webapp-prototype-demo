@@ -98,7 +98,7 @@ export function CashDrawerScreen() {
                         {myBalance.transactions.map((t) => (
                           <div key={t.id} className="flex items-center justify-between text-sm">
                             <span className="min-w-0 truncate">
-                              {t.code} — {customerById.get(t.customerId)?.fullName ?? t.customerId}
+                              {t.code} — {t.customerId ? (customerById.get(t.customerId)?.fullName ?? t.customerId) : '—'}
                             </span>
                             <span>{formatVnd(t.amount)}</span>
                           </div>

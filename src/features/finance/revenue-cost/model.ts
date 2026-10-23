@@ -16,6 +16,7 @@ import {
   subMonths,
 } from 'date-fns'
 import { z } from 'zod'
+import type { OwnerPayoutRecord } from '@/features/consignment'
 import type { Incident } from '@/features/incidents'
 import type { VehicleBlock } from '@/features/calendar'
 import type { MaintenanceRecord, SparePartRecord } from '@/features/maintenance'
@@ -117,7 +118,14 @@ export interface CostEntry {
   vehicleId?: string
   rentalId?: string
   source: CostSource
-  sourceRef: { costRecordId?: string; incidentId?: string; maintenanceRecordId?: string; sparePartRecordId?: string }
+  sourceRef: {
+    costRecordId?: string
+    incidentId?: string
+    maintenanceRecordId?: string
+    sparePartRecordId?: string
+    ownerPayoutRecordId?: string
+    consignmentContractId?: string
+  }
   sourceLabel: string
   isUnusual: boolean
   /** Chỉ khi `spreadMonths > 1`. */
@@ -136,7 +144,8 @@ export interface CashEntry {
   type: TransactionType
   method: PaymentMethod
   rentalId?: string
-  customerId: string
+  /** Giao dịch chi trả chủ xe (`OWNER_PAYOUT`) không có khách hàng (PM-BR-24). */
+  customerId?: string
   revenueRelated: boolean
 }
 
@@ -468,6 +477,33 @@ export function deriveMaintenanceCostEntries(records: MaintenanceRecord[], spare
       }),
     )
   return [...fromRecords, ...fromParts]
+}
+
+/**
+ * RV-BR-19 / VC-BR-12 (CR-2026-050) — mỗi Owner Payout Record (trừ `CANCELLED`) là một chi phí trực tiếp `CONSIGNMENT_PAYOUT`
+ * của xe ký gửi, ghi nhận DỒN TÍCH theo nghĩa vụ hợp đồng: `costDate` = ngày 1 của kỳ chi trả (chi phí khớp tháng xe được khai
+ * thác), `amount` = `amountPayable`; khoản `ON_HOLD` vẫn tính vì nghĩa vụ vẫn tồn tại. Không phụ thuộc đã chi hay chưa
+ * (thực chi nằm ở góc nhìn thực thu / đối chiếu).
+ * TODO(OQ: RevenueCost-BRD.md §28 Q18–Q19 — Recognition Date là tháng được trả cho hay tháng thực chi chưa chốt; demo ghi theo kỳ)
+ */
+export function deriveConsignmentPayoutCostEntries(records: OwnerPayoutRecord[]): CostEntry[] {
+  return records
+    .filter((r) => r.status !== 'CANCELLED')
+    .map((r): CostEntry => {
+      const [year, month] = r.period.split('-')
+      return {
+        id: `opr:${r.id}`,
+        category: 'CONSIGNMENT_PAYOUT',
+        allocationType: 'DIRECT',
+        amount: r.amountPayable,
+        costDate: `${r.period}-01`,
+        vehicleId: r.vehicleId,
+        source: 'SYSTEM',
+        sourceRef: { ownerPayoutRecordId: r.id, consignmentContractId: r.contractId },
+        sourceLabel: `${r.code} · ${month}/${year}`,
+        isUnusual: false,
+      }
+    })
 }
 
 // ---- Thực thu (§3.4) ----

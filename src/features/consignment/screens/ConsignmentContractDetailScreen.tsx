@@ -1,22 +1,30 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { paths } from '@/app/paths'
 import { usePermission } from '@/features/auth'
 import { useVehicle } from '@/features/vehicles/hooks'
-import { vi } from '@/shared/i18n/vi'
+import { CONSIGNMENT_END_REASON_LABELS, CONSIGNMENT_TERMINATION_REQUESTER_LABELS, vi } from '@/shared/i18n/vi'
+import { formatDate } from '@/shared/lib/datetime'
+import { formatVnd } from '@/shared/lib/money'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Button } from '@/shared/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { ConsignmentAuditTab } from '../components/ConsignmentAuditTab'
 import { ConsignmentContractFormSheet } from '../components/ConsignmentContractFormSheet'
 import { ConsignmentContractOverviewTab } from '../components/ConsignmentContractOverviewTab'
 import { ConsignmentContractStatusBadge } from '../components/ConsignmentContractStatusBadge'
 import { ConsignmentDraftPreviewDialog } from '../components/ConsignmentDraftPreviewDialog'
+import { ConsignmentEndDialog, type ConsignmentEndKind } from '../components/ConsignmentEndDialog'
 import { ConsignmentHandoverRecordsTab } from '../components/ConsignmentHandoverRecordsTab'
 import { ConsignmentIntakeDialog } from '../components/ConsignmentIntakeDialog'
 import { ConsignmentReasonDialog } from '../components/ConsignmentReasonDialog'
+import { ConsignmentReturnDialog } from '../components/ConsignmentReturnDialog'
 import { ConsignmentSignDialog } from '../components/ConsignmentSignDialog'
+import { ConsignmentTerminationNoticeDialog } from '../components/ConsignmentTerminationNoticeDialog'
+import { ConsignmentVehicleLossDialog } from '../components/ConsignmentVehicleLossDialog'
+import { OwnerPayoutRecordsPanel } from '../components/OwnerPayoutRecordTable'
 import {
   useActivateConsignmentContract,
   useConsignmentContract,
@@ -37,6 +45,13 @@ type ReasonDialogKind = 'return' | 'suspend' | 'resume' | 'supersede'
  * nút "Kích hoạt" luôn bấm được ở `SIGNED` để API từ chối khi thiếu biên bản (VC-BR-02 / AC-VC-001).
  */
 export function ConsignmentContractDetailScreen() {
+  const { can } = usePermission()
+  if (!can('CONSIGNMENT', 'VIEW')) return <ConsignmentNoPermission title={vi.consignment.contractsTitle} />
+  return <ConsignmentContractDetailScreenContent />
+}
+
+function ConsignmentContractDetailScreenContent() {
+  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { can } = usePermission()
   const canCreate = can('CONSIGNMENT', 'CREATE')
@@ -49,6 +64,7 @@ export function ConsignmentContractDetailScreen() {
   const { data: vehicle } = useVehicle(contract?.vehicleId)
   const { data: records } = useConsignmentHandoverRecords(contract ? { contractId: contract.id } : undefined)
   const intake = records?.find((r) => r.type === 'INTAKE')
+  const returnRecord = records?.find((r) => r.type === 'RETURN')
 
   const submit = useSubmitConsignmentContract()
   const activate = useActivateConsignmentContract()
@@ -61,6 +77,10 @@ export function ConsignmentContractDetailScreen() {
   const [signOpen, setSignOpen] = useState(false)
   const [intakeOpen, setIntakeOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [noticeOpen, setNoticeOpen] = useState(false)
+  const [returnOpen, setReturnOpen] = useState(false)
+  const [lossOpen, setLossOpen] = useState(false)
+  const [endKind, setEndKind] = useState<ConsignmentEndKind | undefined>(undefined)
   const [reasonKind, setReasonKind] = useState<ReasonDialogKind | undefined>(undefined)
 
   if (isLoading) {
@@ -125,13 +145,20 @@ export function ConsignmentContractDetailScreen() {
       title: vi.consignment.supersedeDialogTitle,
       description: vi.consignment.supersedeDialogDescription,
       successMessage: vi.consignment.supersedeSuccess,
-      run: (reason) => supersede.mutateAsync({ id: current.id, reason }),
+      run: async (reason) => {
+        // Bản cũ chuyển "Đã thay thế" — chuyển sang bản nháp mới để người dùng chỉnh sửa tiếp.
+        const created = await supersede.mutateAsync({ id: current.id, reason })
+        navigate(paths.consignmentContractDetail(created.id))
+      },
     },
   }
   const activeReason = reasonKind ? reasonConfig[reasonKind] : undefined
 
   const { status } = current
   const busy = submit.isPending || activate.isPending
+  const running = status === 'ACTIVE' || status === 'SUSPENDED'
+  const notice = current.terminationNotice
+  const expired = current.effectiveTo <= todayKey
 
   return (
     <div className="flex flex-col gap-5">
@@ -196,6 +223,32 @@ export function ConsignmentContractDetailScreen() {
             </>
           )}
 
+          {running && canApprove && !notice && (
+            <Button size="sm" variant="outline" onClick={() => setNoticeOpen(true)}>
+              {vi.consignment.termination.actionNotify}
+            </Button>
+          )}
+          {running && canExecute && !current.returnRecordId && (notice || expired) && (
+            <Button size="sm" variant="outline" onClick={() => setReturnOpen(true)}>
+              {vi.consignment.termination.actionReturn}
+            </Button>
+          )}
+          {running && canApprove && notice && current.returnRecordId && !expired && (
+            <Button size="sm" variant="destructive" onClick={() => setEndKind('terminate')}>
+              {vi.consignment.termination.actionTerminate}
+            </Button>
+          )}
+          {running && canApprove && expired && current.returnRecordId && (
+            <Button size="sm" onClick={() => setEndKind('close')}>
+              {vi.consignment.termination.actionClose}
+            </Button>
+          )}
+          {running && canApprove && (
+            <Button size="sm" variant="outline" onClick={() => setLossOpen(true)}>
+              {vi.consignment.termination.actionLoss}
+            </Button>
+          )}
+
           {status === 'ACTIVE' && canApprove && (
             <Button size="sm" variant="outline" onClick={() => setReasonKind('suspend')}>
               {vi.consignment.actionSuspend}
@@ -227,14 +280,81 @@ export function ConsignmentContractDetailScreen() {
         </div>
       )}
 
+      {running && notice && (
+        <div className="border-status-info/40 bg-status-info/10 text-status-info rounded-lg border p-3 text-sm">
+          <p className="font-medium">
+            {vi.consignment.termination.noticeBanner(
+              CONSIGNMENT_TERMINATION_REQUESTER_LABELS[notice.requestedBy],
+              formatDate(notice.noticeDate),
+              formatDate(notice.plannedEndDate),
+            )}
+          </p>
+          <p>{notice.reason}</p>
+          <p className="text-xs">{vi.consignment.termination.noticeBannerNote}</p>
+        </div>
+      )}
+
+      {(status === 'TERMINATED' || status === 'CLOSED') && current.endedDate && (
+        <div className="border-border bg-muted/40 rounded-lg border p-3 text-sm">
+          <p className="font-medium">
+            {current.endReason ? CONSIGNMENT_END_REASON_LABELS[current.endReason] : vi.consignment.termination.endedGeneric} —{' '}
+            {vi.consignment.termination.endedOn(formatDate(current.endedDate))}
+          </p>
+          {notice && (
+            <p className="text-muted-foreground">
+              {vi.consignment.termination.noticeBanner(
+                CONSIGNMENT_TERMINATION_REQUESTER_LABELS[notice.requestedBy],
+                formatDate(notice.noticeDate),
+                formatDate(notice.plannedEndDate),
+              )}
+            </p>
+          )}
+          {returnRecord && (
+            <p className="text-muted-foreground">
+              {vi.consignment.termination.returnRecordLine(returnRecord.code, formatDate(returnRecord.handoverAt))}
+            </p>
+          )}
+        </div>
+      )}
+
+      {current.lossInfo && (
+        <div className="border-destructive/40 bg-destructive/10 flex flex-col gap-2 rounded-lg border p-3 text-sm">
+          <p className="text-destructive font-medium">{vi.consignment.termination.lossBannerTitle(formatDate(current.lossInfo.eventDate))}</p>
+          <p>{current.lossInfo.note}</p>
+          <div className="border-border bg-background/60 flex flex-col gap-1 rounded-md border p-2">
+            <p className="font-medium">{vi.consignment.termination.lossReferenceTitle}</p>
+            <p>
+              {vi.consignment.termination.lossAppraised}: {intake?.appraisedValue ? formatVnd(intake.appraisedValue) : vi.consignment.noValue}
+              {intake ? ` (${intake.code} — ${formatDate(intake.handoverAt)})` : ''}
+            </p>
+            <p>{vi.consignment.termination.lossInsuranceNote}</p>
+            <p className="text-muted-foreground text-xs">{vi.consignment.termination.lossReferenceNote}</p>
+            <div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => toast.success(vi.consignment.exportPdfSuccess)}
+              >
+                {vi.consignment.exportPdf}
+              </Button>
+            </div>
+          </div>
+          <p className="text-status-pending text-xs">{vi.consignment.termination.lossVehicleStatusReminder}</p>
+        </div>
+      )}
+
       <Tabs defaultValue="overview">
         <TabsList className="max-w-full">
           <TabsTrigger value="overview">{vi.consignment.contractTabOverview}</TabsTrigger>
+          <TabsTrigger value="payouts">{vi.consignment.contractTabPayouts}</TabsTrigger>
           <TabsTrigger value="handover">{vi.consignment.contractTabHandover}</TabsTrigger>
           <TabsTrigger value="audit">{vi.consignment.contractTabAudit}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <ConsignmentContractOverviewTab contract={current} />
+        </TabsContent>
+        <TabsContent value="payouts">
+          <OwnerPayoutRecordsPanel filter={{ contractId: current.id }} hideColumns={['owner', 'vehicle', 'contract']} />
         </TabsContent>
         <TabsContent value="handover">
           <ConsignmentHandoverRecordsTab contractId={current.id} />
@@ -247,6 +367,21 @@ export function ConsignmentContractDetailScreen() {
       {canCreate && <ConsignmentContractFormSheet contract={current} open={editOpen} onOpenChange={setEditOpen} />}
       {canApprove && <ConsignmentSignDialog contract={current} open={signOpen} onOpenChange={setSignOpen} />}
       {canExecute && <ConsignmentIntakeDialog contract={current} open={intakeOpen} onOpenChange={setIntakeOpen} />}
+      {canApprove && running && (
+        <ConsignmentTerminationNoticeDialog contract={current} open={noticeOpen} onOpenChange={setNoticeOpen} />
+      )}
+      {canExecute && running && <ConsignmentReturnDialog contract={current} open={returnOpen} onOpenChange={setReturnOpen} />}
+      {canApprove && running && <ConsignmentVehicleLossDialog contract={current} open={lossOpen} onOpenChange={setLossOpen} />}
+      {canApprove && running && endKind && (
+        <ConsignmentEndDialog
+          contract={current}
+          kind={endKind}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEndKind(undefined)
+          }}
+        />
+      )}
       <ConsignmentDraftPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}

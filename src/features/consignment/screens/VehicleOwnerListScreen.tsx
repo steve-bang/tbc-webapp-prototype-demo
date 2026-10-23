@@ -12,6 +12,7 @@ import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
+import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { VehicleOwnerCard } from '../components/VehicleOwnerCard'
 import { VehicleOwnerFormSheet } from '../components/VehicleOwnerFormSheet'
 import { useConsignmentContracts, useVehicleOwners } from '../hooks'
@@ -22,6 +23,12 @@ const ALL = '__ALL__'
 
 /** Danh sách hồ sơ chủ xe (`/consignment/owners`) — plan mục 8.1. Gate trang: `CONSIGNMENT.VIEW` (nav). */
 export function VehicleOwnerListScreen() {
+  const { can } = usePermission()
+  if (!can('CONSIGNMENT', 'VIEW')) return <ConsignmentNoPermission title={vi.consignment.ownersTitle} />
+  return <VehicleOwnerListScreenContent />
+}
+
+function VehicleOwnerListScreenContent() {
   const navigate = useNavigate()
   const { can } = usePermission()
   const canCreate = can('CONSIGNMENT', 'CREATE')

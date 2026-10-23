@@ -31,6 +31,7 @@ function toFormValues(owner?: VehicleOwner | null): VehicleOwnerFormValues {
     bankAccountNumber: '',
     bankName: owner?.bankAccount?.bankName ?? '',
     bankAccountHolder: owner?.bankAccount?.accountHolder ?? '',
+    hasExistingBankAccount: !!owner?.bankAccount,
     note: owner?.note ?? '',
   }
 }

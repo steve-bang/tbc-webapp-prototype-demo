@@ -386,10 +386,10 @@ function FinanceReportContent() {
                 </div>
               </div>
             </div>
-            {/* TODO(Phase 5): gộp CONSIGNMENT_PAYOUT khi có features/consignment.
-                TODO(OQ: RevenueCost-BRD.md §28 Q18 — xe ký gửi 1 hay 2 góc nhìn; chỉ nhắc chưa gồm chi trả chủ xe) */}
+            {/* Chi phí trực tiếp đã gồm CONSIGNMENT_PAYOUT (RV-BR-19).
+                TODO(OQ: RevenueCost-BRD.md §28 Q18 — xe ký gửi 1 hay 2 góc nhìn: lợi nhuận xe vs lợi nhuận công ty sau khoản chi trả chủ xe) */}
             {hasConsignedVehicle && (
-              <p className="border-status-info/40 bg-status-info/10 text-status-info rounded-md border p-3 text-sm">{vi.finance.revenueCost.profitConsignmentBanner}</p>
+              <p className="text-muted-foreground text-xs">{vi.finance.revenueCost.profitConsignmentIncludedNote}</p>
             )}
             {canDrillDown && <p className="text-muted-foreground text-xs">{t.vehicleRowHint}</p>}
             {sortedRows.length === 0 ? (

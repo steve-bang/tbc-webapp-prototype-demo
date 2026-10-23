@@ -3,10 +3,13 @@ import {
   CONSIGNMENT_PRORATION_RULES,
   OWNER_TYPES,
   type ConsignmentContractStatus,
+  type ConsignmentEndReason,
   type ConsignmentHandoverType,
   type ConsignmentPaymentTermModel,
   type ConsignmentProrationRule,
+  type ConsignmentTerminationRequester,
   type OwnerType,
+  type Role,
 } from '@/shared/domain/enums'
 import { CONSIGNMENT_PRORATION_RULE_LABELS, vi } from '@/shared/i18n/vi'
 import { formatDate } from '@/shared/lib/datetime'
@@ -135,6 +138,22 @@ export interface ConsignmentContract {
   activatedAt?: string
   supersedesContractId?: string
   supersededByContractId?: string
+  /** Thông báo chấm dứt trước hạn (BRD mục 15, VC-BR-14) — ghi nhận bởi người có quyền chấm dứt. */
+  terminationNotice?: {
+    requestedBy: ConsignmentTerminationRequester
+    noticeDate: string
+    plannedEndDate: string
+    reason: string
+    recordedByName: string
+    recordedAt: string
+  }
+  /** Ngày kết thúc tính tiền (`YYYY-MM-DD`) — có khi `TERMINATED`/`CLOSED`; mốc `payoutEnd` của lịch chi trả. */
+  endedDate?: string
+  endReason?: ConsignmentEndReason
+  /** Biên bản trả xe (`RETURN`) đã lập cho hợp đồng này. */
+  returnRecordId?: string
+  /** Mất xe (BRD mục 11, VC-BR-16) — ngày sự kiện + sự cố liên quan (tuỳ chọn). */
+  lossInfo?: { eventDate: string; incidentId?: string; note: string; recordedByName: string; recordedAt: string }
   statusHistory: ConsignmentStatusChange[]
   note?: string
   createdByName: string
@@ -175,6 +194,13 @@ export interface ConsignmentHandoverRecord {
   companyConfirmed: boolean
   createdByName: string
   createdAt: string
+}
+
+/** Người thực hiện thao tác — dùng để ghi audit (VC-BR-17). */
+export interface ConsignmentActor {
+  userId: string
+  fullName: string
+  role: Role
 }
 
 // ---- Hằng số ----
@@ -243,13 +269,13 @@ export function nextSequenceCode(prefix: string, codes: string[]): string {
   return `${prefix}-${String(max + 1).padStart(6, '0')}`
 }
 
-/** State machine hợp đồng — plan mục 3.1 (chấm dứt / đóng thêm ở vòng sau). */
+/** State machine hợp đồng — plan mục 3.1 (BRD mục 7.2). */
 export const CONTRACT_TRANSITIONS: Record<ConsignmentContractStatus, ConsignmentContractStatus[]> = {
   DRAFT: ['PENDING_APPROVAL', 'SUPERSEDED'],
   PENDING_APPROVAL: ['DRAFT', 'SIGNED', 'SUPERSEDED'],
   SIGNED: ['ACTIVE', 'SUPERSEDED'],
-  ACTIVE: ['SUSPENDED'],
-  SUSPENDED: ['ACTIVE'],
+  ACTIVE: ['SUSPENDED', 'TERMINATED', 'CLOSED'],
+  SUSPENDED: ['ACTIVE', 'TERMINATED', 'CLOSED'],
   CLOSED: [],
   TERMINATED: [],
   SUPERSEDED: [],
@@ -553,6 +579,13 @@ export function summarizeContracts(contracts: ConsignmentContract[], todayKey: s
 // ---- Form schema ----
 
 const NUMERIC_RE = /^\d+$/
+
+/** `true` khi chuỗi ngày giờ (ISO hoặc `datetime-local`) nằm sau thời điểm hiện tại. */
+export function isFutureDateTime(value: string): boolean {
+  const t = new Date(value).getTime()
+  return Number.isFinite(t) && t > Date.now()
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_RE = /^[0-9]{9,11}$/
 
@@ -579,6 +612,8 @@ export const vehicleOwnerFormSchema = z
     bankAccountNumber: z.string().trim().optional(),
     bankName: z.string().trim().optional(),
     bankAccountHolder: z.string().trim().optional(),
+    /** Form sửa: hồ sơ đã có sẵn số tài khoản (ô số tài khoản để trống = giữ nguyên số cũ). */
+    hasExistingBankAccount: z.boolean().optional(),
     note: z.string().trim().optional(),
   })
   .superRefine((v, ctx) => {
@@ -596,6 +631,9 @@ export const vehicleOwnerFormSchema = z
       if (!v.bankAccountHolder) {
         ctx.addIssue({ code: 'custom', path: ['bankAccountHolder'], message: 'Nhập chủ tài khoản khi có số tài khoản' })
       }
+    } else if ((v.bankName || v.bankAccountHolder) && !v.hasExistingBankAccount) {
+      // Nhập ngân hàng / chủ tài khoản mà không có số tài khoản (và chưa có tài khoản cũ để giữ) → lỗi ở ô số tài khoản.
+      ctx.addIssue({ code: 'custom', path: ['bankAccountNumber'], message: 'Nhập số tài khoản khi có ngân hàng hoặc chủ tài khoản' })
     }
   })
 
@@ -657,7 +695,10 @@ export type ConsignmentReasonValues = z.infer<typeof consignmentReasonSchema>
 
 /** Biên bản nhận xe — VC-BR-15 (hai bên xác nhận) + VC-BR-16 (định giá bắt buộc khi nhận xe). */
 export const consignmentIntakeFormSchema = z.object({
-  handoverAt: z.string().min(1, 'Thời điểm nhận xe là bắt buộc'),
+  handoverAt: z
+    .string()
+    .min(1, 'Thời điểm nhận xe là bắt buộc')
+    .refine((v) => !isFutureDateTime(v), { message: 'Thời điểm nhận xe không được ở tương lai' }),
   odoKm: z.string().trim().refine((v) => NUMERIC_RE.test(v), { message: 'Odo phải là số nguyên không âm' }),
   fuelLevel: z
     .string()

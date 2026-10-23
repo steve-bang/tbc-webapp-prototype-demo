@@ -343,7 +343,8 @@ export function buildCustomerReport(input: {
     present.add(settlement.customerId)
   }
   for (const cash of input.cashEntries) {
-    if (!cash.revenueRelated || !isDateInPeriod(cash.date, period)) continue
+    // Giao dịch chi trả chủ xe không có khách hàng — và cũng không phải revenue-related nên vốn không vào đây.
+    if (!cash.revenueRelated || !cash.customerId || !isDateInPeriod(cash.date, period)) continue
     ensure(cash.customerId).collected += cash.signedAmount
     present.add(cash.customerId)
   }
@@ -464,8 +465,8 @@ export interface ReconciliationResult {
 /**
  * Đối chiếu doanh thu ghi nhận (Recognition Date) với thực thu (Cash Date) và chi phí ghi nhận với thực chi.
  * BẤT BIẾN: Σ `rentalRows.diff` = `revenueDiff`. Công cụ quản trị, không phải báo cáo lưu chuyển tiền tệ (BRD §15).
- * `costPaid` hiện chỉ gồm chi trả chủ xe (`OWNER_PAYOUT`) — chi phí nhập tay không gắn giao dịch (RV-BR-17, BRD §15).
- * TODO(Phase 5): `OWNER_PAYOUT` chỉ phát sinh khi có features/consignment — hiện luôn 0.
+ * `costPaid` chỉ gồm chi trả chủ xe (`OWNER_PAYOUT`) hiệu lực, theo ngày xác nhận chi — chi phí nhập tay không gắn giao dịch
+ * (RV-BR-17, BRD §15). Chi trả chủ xe là `Cost Record` ghi nhận theo kỳ nên `costDiff` phản ánh khoản đã ghi nhận chưa chi.
  */
 export function buildReconciliation(input: { revenueLines: RevenueLine[]; cashEntries: CashEntry[]; costEntries: CostEntry[]; period: FinancePeriod }): ReconciliationResult {
   const { period } = input

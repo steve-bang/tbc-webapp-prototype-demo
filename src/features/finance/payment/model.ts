@@ -14,6 +14,7 @@ import type {
   TransactionDirection,
   TransactionType,
 } from '@/shared/domain/enums'
+import { vi } from '@/shared/i18n/vi'
 import { generateId } from '@/shared/lib/id'
 import { calcSettlementTotals, NUMERIC_RE } from '../core/model.ts'
 import type {
@@ -152,12 +153,13 @@ export function buildScheduleRequests(rental: Rental, actorName: string, now: st
  * UC-PM-01 bước 3, PM-BR-15 — `collected` = "đã thực hiện" của yêu cầu, tính
  * có dấu theo `purpose` (F1, PAYMENT-PLAN.md §10.3): `COLLECT` → giao dịch
  * `IN` cộng/`OUT` trừ (như Round 1); `REFUND` → giao dịch `OUT` cộng/`IN` trừ
- * (để yêu cầu hoàn đạt `FULFILLED` khi đã hoàn đủ, không bao giờ âm). `pending`
+ * (để yêu cầu hoàn đạt `FULFILLED` khi đã hoàn đủ, không bao giờ âm); `PAYOUT` (chi trả chủ xe) tính như `REFUND`. `pending`
  * chỉ tính giao dịch `PENDING` cùng chiều mong đợi của `purpose`.
  */
 export function calcRequestProgress(request: PaymentRequest, txns: Transaction[]): { collected: number; pending: number; remaining: number } {
   const related = txns.filter((t) => t.paymentRequestId === request.id)
-  const expectedDirection: TransactionDirection = request.purpose === 'REFUND' ? 'OUT' : 'IN'
+  // `PAYOUT` (chi trả chủ xe) cũng là chiều ra tiền — nếu không liệt kê ở đây, lệnh chi bị tính như khoản thu mà không báo lỗi.
+  const expectedDirection: TransactionDirection = request.purpose === 'REFUND' || request.purpose === 'PAYOUT' ? 'OUT' : 'IN'
   const collected = related
     .filter(isEffectiveTransaction)
     .reduce((sum, t) => sum + (t.direction === expectedDirection ? t.amount : -t.amount), 0)
@@ -367,6 +369,20 @@ export const SETTLEMENT_REQUEST_MAPPING: Record<SettlementRequestType, { purpose
   OVERPAYMENT_REFUND: { purpose: 'REFUND', transactionType: 'OVERPAYMENT_REFUND' },
 }
 
+/** Yêu cầu thu / hoàn của khách: bắt buộc có `rentalId` + `customerId` (PM-BR-16). */
+export type RentalPaymentRequest = PaymentRequest & { rentalId: string; customerId: string }
+
+/**
+ * Đường thu / hoàn của khách chỉ nhận yêu cầu của khách. Lệnh chi trả chủ xe (`source = CONSIGNMENT`, PM-BR-24) không có
+ * `rentalId`/`customerId` và được xử lý ở màn Chi trả chủ xe — từ chối ngay đầu hàm, đồng thời thu hẹp kiểu.
+ */
+export function asRentalRequest(request: PaymentRequest): RentalPaymentRequest {
+  if (request.source === 'CONSIGNMENT' || request.rentalId === undefined || request.customerId === undefined) {
+    throw new Error(vi.finance.ownerPayout.errConsignmentRequest)
+  }
+  return { ...request, rentalId: request.rentalId, customerId: request.customerId }
+}
+
 /** UC-PM-01 — `PaymentRequest` `source = SETTLEMENT`, 1-1 với `SettlementPaymentRequest` (§0.3 điểm 7). */
 export function buildSettlementPaymentRequest(settlement: Settlement, spr: SettlementPaymentRequest, actorName: string, now: string): PaymentRequest {
   const mapping = SETTLEMENT_REQUEST_MAPPING[spr.type]
@@ -461,6 +477,11 @@ export function buildReversalPair(
     status: 'CONFIRMED',
     customerId: original.customerId,
     rentalId: original.rentalId,
+    // Chi trả chủ xe (PM-BR-24): bản đối ứng phải trỏ cùng chủ xe / khoản chi trả / xe để sổ giao dịch và công nợ chủ xe khớp.
+    vehicleOwnerId: original.vehicleOwnerId,
+    ownerPayoutRecordId: original.ownerPayoutRecordId,
+    vehicleId: original.vehicleId,
+    payoutRecipient: original.payoutRecipient,
     paymentRequestId: original.paymentRequestId,
     settlementId: original.settlementId,
     reversalOfId: original.id,
@@ -649,6 +670,13 @@ export const refundCreateFormSchema = z
     }
   })
 export type RefundCreateFormValues = z.infer<typeof refundCreateFormSchema>
+
+/** UC-VC-09 — tạo lệnh chi trả chủ xe: số tiền, người nhận, phương thức do khoản chi trả quyết định; chỉ nhập mã tham chiếu / ghi chú. */
+export const ownerPayoutCreateFormSchema = z.object({
+  reference: z.string().trim().optional(),
+  note: z.string().trim().optional(),
+})
+export type OwnerPayoutCreateFormValues = z.infer<typeof ownerPayoutCreateFormSchema>
 
 /** UC-PM-09 bước 4 — duyệt/từ chối hoàn vượt ngưỡng, lý do bắt buộc khi từ chối. */
 export const refundDecisionFormSchema = z

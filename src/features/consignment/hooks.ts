@@ -9,9 +9,14 @@ import type {
   ConsignmentContractInput,
   ConsignmentHandoverRecordFilter,
   ConsignmentIntakeInput,
+  ConsignmentReturnInput,
+  ConsignmentTerminationNoticeInput,
+  ConsignmentVehicleLossInput,
   VehicleOwnerFilter,
   VehicleOwnerInput,
 } from './api'
+import * as payoutApi from './payoutApi'
+import type { OwnerPayoutAdjustmentDecision, OwnerPayoutAdjustmentInput, OwnerPayoutRecordFilter } from './payoutApi'
 
 /** Mirror `contracts/hooks.ts` — fallback khi mất session là `OPERATION_STAFF` (quyền thấp nhất). */
 function useActor(): ActorInfo {
@@ -23,7 +28,9 @@ function useActor(): ActorInfo {
   }
 }
 
-const ROOT = ['consignment'] as const
+/** Khoá gốc mọi query của Xe ký gửi — `features/finance` dùng để làm mới sau khi tạo / xác nhận / đảo lệnh chi. */
+export const CONSIGNMENT_QUERY_KEY = ['consignment'] as const
+const ROOT = CONSIGNMENT_QUERY_KEY
 
 export function useVehicleOwners(filter?: VehicleOwnerFilter) {
   return useQuery({
@@ -199,6 +206,144 @@ export function useSupersedeConsignmentContract() {
   const invalidate = useInvalidateConsignment()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.supersedeConsignmentContract(id, reason, actor),
+    onSuccess: invalidate,
+  })
+}
+
+// ---- Lịch chi trả hàng tháng ----
+
+export function useOwnerPayoutRecords(filter?: OwnerPayoutRecordFilter) {
+  return useQuery({
+    queryKey: [...ROOT, 'payout-records', filter ?? {}],
+    queryFn: () => payoutApi.listOwnerPayoutRecords(filter),
+  })
+}
+
+export function useOwnerPayoutRecord(id?: string) {
+  return useQuery({
+    queryKey: [...ROOT, 'payout-record', id],
+    queryFn: () => payoutApi.getOwnerPayoutRecord(id as string),
+    enabled: !!id,
+  })
+}
+
+export function useGenerateOwnerPayoutRecords() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: () => payoutApi.generateOwnerPayoutRecords(actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useHoldOwnerPayoutRecord() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => payoutApi.holdOwnerPayoutRecord(id, reason, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useReleaseOwnerPayoutRecord() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => payoutApi.releaseOwnerPayoutRecord(id, reason, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRequestOwnerPayoutAdjustment() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: OwnerPayoutAdjustmentInput }) =>
+      payoutApi.requestOwnerPayoutAdjustment(id, input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDecideOwnerPayoutAdjustment() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, adjustmentId, input }: { id: string; adjustmentId: string; input: OwnerPayoutAdjustmentDecision }) =>
+      payoutApi.decideOwnerPayoutAdjustment(id, adjustmentId, input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+// ---- Chấm dứt · trả xe · đóng · mất xe ----
+
+export function useVehicleRentalsForConsignment(vehicleId?: string) {
+  return useQuery({
+    queryKey: [...ROOT, 'vehicle-rentals', vehicleId],
+    queryFn: () => api.listVehicleRentalsForConsignment(vehicleId as string),
+    enabled: !!vehicleId,
+  })
+}
+
+export function useVehicleIncidentsForConsignment(vehicleId?: string) {
+  return useQuery({
+    queryKey: [...ROOT, 'vehicle-incidents', vehicleId],
+    queryFn: () => api.listVehicleIncidentsForConsignment(vehicleId as string),
+    enabled: !!vehicleId,
+  })
+}
+
+export function useConsignmentEndPreview(contractId?: string, endedDate?: string) {
+  return useQuery({
+    queryKey: [...ROOT, 'end-preview', contractId, endedDate],
+    queryFn: () => api.previewConsignmentContractEnd(contractId as string, endedDate as string),
+    enabled: !!contractId && !!endedDate,
+  })
+}
+
+export function useNotifyConsignmentTermination() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConsignmentTerminationNoticeInput }) =>
+      api.notifyConsignmentTermination(id, input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRecordConsignmentReturn() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ contractId, input }: { contractId: string; input: ConsignmentReturnInput }) =>
+      api.recordConsignmentReturn(contractId, input, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useTerminateConsignmentContract() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: (id: string) => api.terminateConsignmentContract(id, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useCloseConsignmentContract() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: (id: string) => api.closeConsignmentContract(id, actor),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRecordConsignmentVehicleLoss() {
+  const actor = useActor()
+  const invalidate = useInvalidateConsignment()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ConsignmentVehicleLossInput }) =>
+      api.recordConsignmentVehicleLoss(id, input, actor),
     onSuccess: invalidate,
   })
 }

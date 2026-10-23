@@ -15,6 +15,18 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Phase 5 Round 2 — Xe ký gửi: lịch chi trả chủ xe + chấm dứt/đóng/mất xe + nối tài chính** (theo
+  [`docs/CONSIGNMENT-PLAN.md`](docs/CONSIGNMENT-PLAN.md) §19). Owner Payout Record hàng tháng (prorate tháng đầu/cuối, hạn chi
+  theo ngày chi trả của tháng sau, tạm giữ/bỏ tạm giữ, điều chỉnh có duyệt — Admin/Manager tự duyệt, Kế toán chờ duyệt; sinh
+  lịch idempotent bằng nút + khi kích hoạt) · thông báo chấm dứt → biên bản trả xe → `TERMINATED`, đóng `CLOSED`, mất xe (huỷ +
+  thay khoản prorate, chặn khi khoản đã chi/đang có lệnh chi hoặc xe còn lượt thuê đã xác nhận) · màn "Lịch chi trả hàng tháng"
+  + tab lịch chi trả ở chi tiết hợp đồng/chủ xe/xe. Nối `finance` một chiều: giao dịch `OWNER_PAYOUT` (lệnh chi, xác nhận →
+  `PAID`, thất bại/huỷ → gỡ liên kết, đảo → về `SCHEDULED`; người nhận lưu dạng đã che), màn "Chi trả chủ xe", sổ giao dịch hiện
+  "Đối tượng" (chủ xe hoặc khách), Cost `CONSIGNMENT_PAYOUT` ghi nhận theo kỳ. Gộp 4 nợ R1 (gate trang theo quyền xem — đóng lỗ
+  xem hồ sơ chủ xe qua URL, điều hướng bản mới, chặn ngày bàn giao tương lai, kiểm tài khoản ngân hàng). `SEED_VERSION` 21 —
+  Σ chi trả 12 tháng 1.269.283.178, lợi nhuận đội xe âm sâu (đúng bản chất trả cố định), doanh thu Phase 4 không đổi. Review
+  `tech-lead` **đạt vòng 1**, không Blocker; 2 nợ "Nên sửa" sang R3 (vòng import runtime mới qua `incidents/api` — lỗi chỉ
+  định của plan; gộp audit khoản chi trả vào tab Nhật ký hợp đồng).
 - **Phase 5 Round 1 — Xe ký gửi: hồ sơ chủ xe + hợp đồng ký gửi** (theo
   [`docs/CONSIGNMENT-PLAN.md`](docs/CONSIGNMENT-PLAN.md), kế hoạch 3 round do `tech-lead` lập + tự duyệt). Feature mới
   `features/consignment`: Hồ sơ chủ xe (danh sách/chi tiết/tạo-sửa, số tài khoản luôn che, "Hiện đầy đủ" kiểm quyền ở API +

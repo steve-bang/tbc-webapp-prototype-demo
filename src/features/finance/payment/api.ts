@@ -1,4 +1,15 @@
 // Payment (PM) — fake API. Tách từ `finance/api.ts` — docs/FINANCE-REFACTOR-PLAN.md §3.2.
+import {
+  CONSIGNMENT_CONTRACTS_STORAGE_KEY,
+  OWNER_PAYOUT_RECORDS_STORAGE_KEY,
+  VEHICLE_OWNERS_STORAGE_KEY,
+  getOwnerPayoutBlocker,
+  linkOwnerPayoutRecord,
+  maskAccountNumber,
+  type ConsignmentContract,
+  type OwnerPayoutRecord,
+  type VehicleOwner,
+} from '@/features/consignment'
 import { listIncidents } from '@/features/incidents'
 import type {
   PaymentMethod,
@@ -8,9 +19,12 @@ import type {
   TransactionStatus,
   TransactionType,
 } from '@/shared/domain/enums'
+import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
+import { formatVnd } from '@/shared/lib/money'
+import { readJson } from '@/shared/lib/storage'
 import { listPostSettlementCharges, listSettlements } from '../core/api.ts'
 import { isPscOnHold } from '../core/model.ts'
 import {
@@ -23,8 +37,9 @@ import {
   writeAllTransactions,
 } from '../core/storage.ts'
 import type { ActorInfo, CashDrawerSubmission, PaymentRequest, PostSettlementCharge, Receipt, Transaction } from '../core/types.ts'
-import { syncFinanceAfterPaymentChange } from './ledger.ts'
+import { syncFinanceAfterPaymentChange, syncOwnerPayoutAfterPaymentChange } from './ledger.ts'
 import {
+  asRentalRequest,
   buildReversalPair,
   buildScheduleRequests,
   calcCashDrawerBalance,
@@ -171,8 +186,10 @@ export async function recordTransaction(input: RecordTransactionInput, actor: Ac
     throw new Error('Phương thức này chỉ do hệ thống tự sinh (cấn trừ cọc / webhook SePay) — không ghi nhận thủ công')
   }
   if (!Number.isInteger(input.amount) || input.amount <= 0) throw new Error('Số tiền phải là số nguyên dương (PM-BR-20)')
-  const requestPre = readAllPaymentRequests().find((r) => r.id === input.paymentRequestId)
-  if (!requestPre) throw new Error('Không tìm thấy yêu cầu thanh toán')
+  const requestFound = readAllPaymentRequests().find((r) => r.id === input.paymentRequestId)
+  if (!requestFound) throw new Error('Không tìm thấy yêu cầu thanh toán')
+  // Lệnh chi trả chủ xe không đi qua đường thu của khách (PM-BR-24) — từ chối ngay đầu hàm.
+  const requestPre = asRentalRequest(requestFound)
   if (requestPre.purpose === 'REFUND') {
     throw new Error("Yêu cầu hoàn tiền — dùng 'Tạo giao dịch hoàn' (createRefundTransaction), không ghi nhận thu")
   }
@@ -195,8 +212,9 @@ export async function recordTransaction(input: RecordTransactionInput, actor: Ac
       throw new Error('Xe máy cầm cố — khoản thu thuộc quyết toán/phát sinh sau quyết toán chỉ nhận chuyển khoản (PM-BR-22)')
     }
     const prList = readAllPaymentRequests()
-    const request = prList.find((r) => r.id === input.paymentRequestId)
-    if (!request) throw new Error('Không tìm thấy yêu cầu thanh toán')
+    const requestRaw = prList.find((r) => r.id === input.paymentRequestId)
+    if (!requestRaw) throw new Error('Không tìm thấy yêu cầu thanh toán')
+    const request = asRentalRequest(requestRaw)
     if (!isRequestActionable(request, rental, { settlementStatus: settlement?.status, psc, pscOnHold })) {
       throw new Error('Yêu cầu thanh toán này không còn ở trạng thái cho phép ghi nhận thu')
     }
@@ -339,6 +357,7 @@ export async function confirmTransaction(id: string, input: ConfirmTransactionIn
       after: { amount: after.amount, status: after.status },
     })
     if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    if (before.type === 'OWNER_PAYOUT') syncOwnerPayoutAfterPaymentChange(before.id, actor, now)
     return after
   })
 }
@@ -367,6 +386,7 @@ export async function failTransaction(id: string, reason: string, actor: ActorIn
       after: { status: after.status, reason: trimmedReason },
     })
     if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    if (before.type === 'OWNER_PAYOUT') syncOwnerPayoutAfterPaymentChange(before.id, actor, now)
     return after
   })
 }
@@ -395,6 +415,7 @@ export async function voidTransaction(id: string, reason: string, actor: ActorIn
       after: { status: after.status, reason: trimmedReason },
     })
     if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    if (before.type === 'OWNER_PAYOUT') syncOwnerPayoutAfterPaymentChange(before.id, actor, now)
     return after
   })
 }
@@ -433,6 +454,7 @@ export async function reverseTransaction(id: string, reason: string, actor: Acto
       after: { originalId: before.id, reversalId: reversal.id, reason: trimmedReason },
     })
     if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
+    if (before.type === 'OWNER_PAYOUT') syncOwnerPayoutAfterPaymentChange(before.id, actor, now)
     return updatedOriginal
   })
 }
@@ -636,8 +658,10 @@ export async function createRefundTransaction(requestId: string, input: CreateRe
   if ((input.method === 'BANK_TRANSFER' || input.method === 'E_WALLET') && !input.reference?.trim()) {
     throw new Error('Mã tham chiếu là bắt buộc với chuyển khoản/ví')
   }
-  const requestPre = readAllPaymentRequests().find((r) => r.id === requestId)
-  if (!requestPre) throw new Error('Không tìm thấy yêu cầu thanh toán')
+  const requestFound = readAllPaymentRequests().find((r) => r.id === requestId)
+  if (!requestFound) throw new Error('Không tìm thấy yêu cầu thanh toán')
+  // Lệnh chi trả chủ xe có đường riêng (`createOwnerPayout`) — không đi qua đường hoàn tiền của khách.
+  const requestPre = asRentalRequest(requestFound)
   if (requestPre.purpose !== 'REFUND') throw new Error('Chỉ tạo giao dịch hoàn cho yêu cầu hoàn tiền')
   const settlement = (await listSettlements({ rentalId: requestPre.rentalId }))[0]
   let psc: PostSettlementCharge | undefined
@@ -654,8 +678,9 @@ export async function createRefundTransaction(requestId: string, input: CreateRe
     // trên trạng thái mới nhất.
     const rental = readRentalOrThrow(requestPre.rentalId)
     const prList = readAllPaymentRequests()
-    const request = prList.find((r) => r.id === requestId)
-    if (!request) throw new Error('Không tìm thấy yêu cầu thanh toán')
+    const requestRaw = prList.find((r) => r.id === requestId)
+    if (!requestRaw) throw new Error('Không tìm thấy yêu cầu thanh toán')
+    const request = asRentalRequest(requestRaw)
     if (!isRequestActionable(request, rental, { settlementStatus: settlement?.status, psc, pscOnHold })) {
       throw new Error('Yêu cầu thanh toán này không còn ở trạng thái cho phép tạo giao dịch hoàn')
     }
@@ -763,5 +788,90 @@ export async function decideRefundApproval(transactionId: string, input: DecideR
     })
     if (before.rentalId) syncFinanceAfterPaymentChange(before.rentalId, actor, now)
     return after
+  })
+}
+
+// ==== Chi trả chủ xe ký gửi (UC-VC-09, PM-BR-16/24) ====
+
+export interface CreateOwnerPayoutInput {
+  reference?: string
+  note?: string
+}
+
+/**
+ * Tạo lệnh chi cho một khoản chi trả chủ xe: `PaymentRequest` (`CONSIGNMENT`/`PAYOUT`) + `Transaction` `OWNER_PAYOUT`
+ * `OUT` `PENDING` bằng chuyển khoản, rồi gắn liên kết vào khoản chi trả — tất cả trong cùng một callback. Số tiền = `amountPayable`
+ * (không sửa tay); điều kiện tạo xem `getOwnerPayoutBlocker` (VC-BR-10). Giao dịch không gắn khách / lượt thuê / quỹ tiền mặt.
+ * TODO(OQ: Payment-BRD.md §27 Q24 — phương thức chi trả chủ xe chưa chốt; demo chỉ chuyển khoản, nhập tay xác nhận)
+ */
+export async function createOwnerPayout(recordId: string, input: CreateOwnerPayoutInput, actor: ActorInfo): Promise<Transaction> {
+  return fakeRequest(() => {
+    const record = (readJson<OwnerPayoutRecord[]>(OWNER_PAYOUT_RECORDS_STORAGE_KEY) ?? []).find((r) => r.id === recordId)
+    if (!record) throw new Error(vi.finance.ownerPayout.errRecordNotFound)
+    const owner = (readJson<VehicleOwner[]>(VEHICLE_OWNERS_STORAGE_KEY) ?? []).find((o) => o.id === record.ownerId)
+    const contract = (readJson<ConsignmentContract[]>(CONSIGNMENT_CONTRACTS_STORAGE_KEY) ?? []).find((c) => c.id === record.contractId)
+    const blocker = getOwnerPayoutBlocker(record, owner)
+    if (blocker) throw new Error(blocker)
+    if (!owner?.bankAccount) throw new Error(vi.finance.ownerPayout.errNoRecipient)
+    const requests = readAllPaymentRequests()
+    if (requests.some((r) => r.ownerPayoutRecordId === record.id && r.status !== 'CANCELLED')) {
+      throw new Error(vi.finance.ownerPayout.errAlreadyHasRequest)
+    }
+
+    const now = new Date().toISOString()
+    const txns = readAllTransactions()
+    const [year, month] = record.period.split('-')
+    const request: PaymentRequest = {
+      id: generateId('prq'),
+      source: 'CONSIGNMENT',
+      purpose: 'PAYOUT',
+      transactionType: 'OWNER_PAYOUT',
+      expectedAmount: record.amountPayable,
+      status: 'OPEN',
+      vehicleOwnerId: record.ownerId,
+      ownerPayoutRecordId: record.id,
+      vehicleId: record.vehicleId,
+      consignmentContractId: record.contractId,
+      note: vi.finance.ownerPayout.requestNote(`${month}/${year}`, contract?.contractNo ?? record.contractId),
+      createdByName: actor.fullName,
+      createdAt: now,
+      updatedAt: now,
+    }
+    const txn: Transaction = {
+      id: generateId('txn'),
+      code: nextSequenceCode('GD', txns.map((t) => t.code)),
+      type: 'OWNER_PAYOUT',
+      direction: 'OUT',
+      amount: record.amountPayable,
+      method: 'BANK_TRANSFER',
+      status: 'PENDING',
+      vehicleOwnerId: record.ownerId,
+      ownerPayoutRecordId: record.id,
+      vehicleId: record.vehicleId,
+      // Chỉ lưu dạng đã che — số tài khoản đầy đủ không đi vào sổ giao dịch hay nhật ký.
+      payoutRecipient: `${maskAccountNumber(owner.bankAccount.accountNumber)} — ${owner.bankAccount.bankName} — ${owner.bankAccount.accountHolder}`,
+      paymentRequestId: request.id,
+      reference: input.reference?.trim() || undefined,
+      evidenceNote: input.note?.trim() || undefined,
+      performedByUserId: actor.userId,
+      performedByName: actor.fullName,
+      performedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    }
+    writeAllPaymentRequests([...requests, request])
+    writeAllTransactions([...txns, txn])
+    linkOwnerPayoutRecord(record.id, { paymentRequestId: request.id, transactionId: txn.id, transactionCode: txn.code }, actor, now)
+    appendAudit({
+      action: 'CREATE_OWNER_PAYOUT',
+      entity: 'Transaction',
+      entityId: txn.id,
+      summary: vi.finance.ownerPayout.auditCreate(txn.code, record.code, formatVnd(txn.amount)),
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      after: txn,
+    })
+    return txn
   })
 }

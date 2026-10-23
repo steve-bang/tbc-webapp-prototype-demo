@@ -1,11 +1,13 @@
 // Payment (PM) — hook TanStack Query. Tách từ `finance/hooks.ts` — docs/FINANCE-REFACTOR-PLAN.md §3.3.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CONSIGNMENT_QUERY_KEY } from '@/features/consignment'
 import * as api from './api'
 import { invalidateFinanceAll, invalidatePayment, useActor } from '../core/hooks.ts'
 import type {
   CashDrawerSubmissionFilter,
   ConfirmTransactionInput,
   CreateAdjustmentInput,
+  CreateOwnerPayoutInput,
   CreateRefundTransactionInput,
   DecideRefundApprovalInput,
   PaymentRequestFilter,
@@ -13,6 +15,15 @@ import type {
   SubmitCashDrawerInput,
   TransactionFilter,
 } from './api.ts'
+
+/**
+ * Giao dịch chi trả chủ xe đổi trạng thái khoản chi trả (Owner Payout Record) và chi phí / thực chi của xe ký gửi →
+ * ngoài namespace `finance` còn phải làm mới `['consignment']` (lịch chi trả, công nợ chủ xe).
+ */
+function invalidateAfterTransaction(queryClient: ReturnType<typeof useQueryClient>, txn: { type: string; rentalId?: string }) {
+  invalidateFinanceAll(queryClient, txn.rentalId)
+  if (txn.type === 'OWNER_PAYOUT') queryClient.invalidateQueries({ queryKey: CONSIGNMENT_QUERY_KEY })
+}
 
 // ==== Payment (PM) — PAYMENT-PLAN.md §9.2, Round 1 ====
 
@@ -51,7 +62,7 @@ export function useRecordTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: (input: RecordTransactionInput) => api.recordTransaction(input, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -60,7 +71,7 @@ export function useConfirmTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: ConfirmTransactionInput }) => api.confirmTransaction(id, input, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -69,7 +80,7 @@ export function useFailTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.failTransaction(id, reason, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -78,7 +89,7 @@ export function useVoidTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.voidTransaction(id, reason, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -87,7 +98,7 @@ export function useReverseTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => api.reverseTransaction(id, reason, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -96,7 +107,7 @@ export function useCreateAdjustment() {
   const actor = useActor()
   return useMutation({
     mutationFn: (input: CreateAdjustmentInput) => api.createAdjustment(input, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -106,7 +117,7 @@ export function useCreateRefundTransaction() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ requestId, input }: { requestId: string; input: CreateRefundTransactionInput }) => api.createRefundTransaction(requestId, input, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -115,7 +126,7 @@ export function useDecideRefundApproval() {
   const actor = useActor()
   return useMutation({
     mutationFn: ({ transactionId, input }: { transactionId: string; input: DecideRefundApprovalInput }) => api.decideRefundApproval(transactionId, input, actor),
-    onSuccess: (txn) => invalidateFinanceAll(queryClient, txn.rentalId),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }
 
@@ -143,5 +154,15 @@ export function useReceiveCashDrawerSubmission() {
   return useMutation({
     mutationFn: (id: string) => api.receiveCashDrawerSubmission(id, actor),
     onSuccess: () => invalidatePayment(queryClient),
+  })
+}
+
+// Chi trả chủ xe ký gửi (UC-VC-09).
+export function useCreateOwnerPayout() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ recordId, input }: { recordId: string; input: CreateOwnerPayoutInput }) => api.createOwnerPayout(recordId, input, actor),
+    onSuccess: (txn) => invalidateAfterTransaction(queryClient, txn),
   })
 }

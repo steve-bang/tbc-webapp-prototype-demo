@@ -5,13 +5,14 @@ import { CalendarScreen, DispatchBoardScreen } from '@/features/calendar'
 import {
   ConsignmentContractDetailScreen,
   ConsignmentContractListScreen,
+  OwnerPayoutScheduleScreen,
   VehicleOwnerDetailScreen,
   VehicleOwnerListScreen,
 } from '@/features/consignment'
 import { ContractDetailScreen, ContractListScreen } from '@/features/contracts'
 import { CustomerDetailScreen, CustomerListScreen } from '@/features/customers'
 import { EmployeeListScreen } from '@/features/employees'
-import { CashDrawerScreen, CostRecordsScreen, CustomerReceivablesScreen, FinanceReportScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance'
+import { CashDrawerScreen, CostRecordsScreen, CustomerReceivablesScreen, FinanceReportScreen, OwnerPayoutScreen, SettlementListScreen, TransactionLedgerScreen } from '@/features/finance'
 import { HandoverReturnListScreen } from '@/features/handover-return'
 import { IncidentDetailScreen, IncidentListScreen } from '@/features/incidents'
 import { MaintenanceScreen } from '@/features/maintenance'
@@ -69,7 +70,9 @@ export function AppRoutes() {
         <Route path="/consignment/owners/:id" element={<VehicleOwnerDetailScreen />} />
         <Route path={paths.consignmentContracts} element={<ConsignmentContractListScreen />} />
         <Route path="/consignment/contracts/:id" element={<ConsignmentContractDetailScreen />} />
-        <Route path={paths.consignmentPayouts} element={<ComingSoon title="Lịch chi trả hàng tháng" />} />
+        <Route path={paths.consignmentPayouts} element={<OwnerPayoutScheduleScreen />} />
+        {/* Màn của `finance/payment` — mount ở nhóm Xe ký gửi (WebappQuanTri.md §5.4). */}
+        <Route path={paths.consignmentOwnerPayouts} element={<OwnerPayoutScreen />} />
 
         <Route path={paths.platformSystemConfig} element={<ComingSoon title="Cấu hình hệ thống" />} />
         <Route path={paths.platformPermissions} element={<ComingSoon title="Vai trò & quyền" />} />

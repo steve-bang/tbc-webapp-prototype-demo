@@ -12,13 +12,16 @@ import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+import { ConsignmentNoPermission } from '../components/ConsignmentNoPermission'
 import { ConsignmentAuditTab } from '../components/ConsignmentAuditTab'
 import { ConsignmentContractStatusBadge } from '../components/ConsignmentContractStatusBadge'
 import { ConsignmentField } from '../components/ConsignmentField'
 import { OwnerBankAccountField } from '../components/OwnerBankAccountField'
+import { OwnerPayoutRecordsPanel } from '../components/OwnerPayoutRecordTable'
 import { VehicleOwnerFormSheet } from '../components/VehicleOwnerFormSheet'
-import { useConsignmentContracts, useVehicleOwner } from '../hooks'
+import { useConsignmentContracts, useOwnerPayoutRecords, useVehicleOwner } from '../hooks'
 import { calcAge, isExpiringSoon, toLocalDateKey } from '../model'
+import { summarizeOwnerPayables } from '../payoutModel'
 
 const GENDER_LABEL = {
   MALE: vi.consignment.ownerGenderMale,
@@ -28,6 +31,12 @@ const GENDER_LABEL = {
 
 /** Chi tiết chủ xe (`/consignment/owners/:id`) — plan mục 8.2: Hồ sơ · Xe & hợp đồng · Nhật ký. */
 export function VehicleOwnerDetailScreen() {
+  const { can } = usePermission()
+  if (!can('CONSIGNMENT', 'VIEW')) return <ConsignmentNoPermission title={vi.consignment.ownersTitle} />
+  return <VehicleOwnerDetailScreenContent />
+}
+
+function VehicleOwnerDetailScreenContent() {
   const { id } = useParams<{ id: string }>()
   const { can } = usePermission()
   const canEdit = can('CONSIGNMENT', 'CREATE')
@@ -37,10 +46,12 @@ export function VehicleOwnerDetailScreen() {
   const { data: owner, isLoading } = useVehicleOwner(id)
   const { data: contracts } = useConsignmentContracts({ ownerId: id })
   const { data: vehicles } = useVehicles()
+  const { data: payoutRecords } = useOwnerPayoutRecords({ ownerId: id })
   const [formOpen, setFormOpen] = useState(false)
 
   const todayKey = toLocalDateKey(new Date())
   const plateById = useMemo(() => new Map((vehicles ?? []).map((v) => [v.id, v.plate])), [vehicles])
+  const payable = useMemo(() => summarizeOwnerPayables(payoutRecords ?? [], todayKey)[0], [payoutRecords, todayKey])
   const monthlyTotal = useMemo(
     () =>
       (contracts ?? [])
@@ -91,6 +102,7 @@ export function VehicleOwnerDetailScreen() {
         <TabsList className="max-w-full">
           <TabsTrigger value="profile">{vi.consignment.ownerTabProfile}</TabsTrigger>
           <TabsTrigger value="contracts">{vi.consignment.ownerTabContracts}</TabsTrigger>
+          <TabsTrigger value="payouts">{vi.consignment.ownerTabPayouts}</TabsTrigger>
           <TabsTrigger value="audit">{vi.consignment.ownerTabAudit}</TabsTrigger>
         </TabsList>
 
@@ -184,6 +196,22 @@ export function VehicleOwnerDetailScreen() {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="payouts">
+          <div className="flex flex-col gap-3">
+            {payable && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <ConsignmentField label={vi.consignment.payouts.ownerSummaryDue}>{formatVnd(payable.dueUnpaid)}</ConsignmentField>
+                <ConsignmentField label={vi.consignment.payouts.ownerSummaryHold}>{formatVnd(payable.onHold)}</ConsignmentField>
+                <ConsignmentField label={vi.consignment.payouts.ownerSummaryOverdue}>
+                  {formatVnd(payable.overdueAmount)} ({vi.consignment.payouts.kpiCount(payable.overdueCount)})
+                </ConsignmentField>
+                <ConsignmentField label={vi.consignment.payouts.ownerSummaryPaid}>{formatVnd(payable.paidTotal)}</ConsignmentField>
+              </div>
+            )}
+            <OwnerPayoutRecordsPanel filter={{ ownerId: owner.id }} hideColumns={['owner']} />
+          </div>
         </TabsContent>
 
         <TabsContent value="audit">

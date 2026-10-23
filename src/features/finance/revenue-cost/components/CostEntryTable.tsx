@@ -57,6 +57,13 @@ export function CostEntryTable({ entries, reversedRecords = [], recordById, vehi
           {entry.sourceLabel}
         </Link>
       )
+    } else if (entry.sourceRef.consignmentContractId) {
+      // Chi trả chủ xe ký gửi — dẫn tới hợp đồng ký gửi nguồn (RV-BR-19).
+      code = (
+        <Link to={paths.consignmentContractDetail(entry.sourceRef.consignmentContractId)} className="text-primary font-mono text-xs hover:underline">
+          {entry.sourceLabel}
+        </Link>
+      )
     } else if (entry.source === 'SYSTEM') {
       code = (
         <Link to={paths.maintenance} className="text-primary text-xs hover:underline">

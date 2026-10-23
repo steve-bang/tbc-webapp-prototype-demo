@@ -74,9 +74,17 @@ export function ReceiptDialog({
             )}
             <div className="border-border flex flex-col gap-1.5 border-t pt-3">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{vi.finance.payment.receiptCustomer}</span>
-                <span>{customerName ?? transaction.customerId}</span>
+                <span className="text-muted-foreground">
+                  {transaction.type === 'OWNER_PAYOUT' ? vi.finance.ownerPayout.partyOwner : vi.finance.payment.receiptCustomer}
+                </span>
+                <span>{customerName ?? transaction.customerId ?? transaction.vehicleOwnerId ?? '—'}</span>
               </div>
+              {transaction.payoutRecipient && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{vi.finance.ownerPayout.detailRecipient}</span>
+                  <span>{transaction.payoutRecipient}</span>
+                </div>
+              )}
               {transaction.rentalId && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">{vi.finance.payment.receiptRental}</span>

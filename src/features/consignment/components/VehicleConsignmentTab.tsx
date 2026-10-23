@@ -6,10 +6,12 @@ import { formatDate, formatDateTime } from '@/shared/lib/datetime'
 import { formatNumber, formatVnd } from '@/shared/lib/money'
 import { Badge } from '@/shared/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table'
-import { useConsignmentContracts, useConsignmentHandoverRecords, useVehicleOwner } from '../hooks'
+import { useConsignmentContracts, useConsignmentHandoverRecords, useOwnerPayoutRecords, useVehicleOwner } from '../hooks'
 import { getCurrentContractForVehicle, isExpiringSoon, maskAccountNumber, toLocalDateKey } from '../model'
 import { ConsignmentContractStatusBadge } from './ConsignmentContractStatusBadge'
+import { formatPeriod, isPayoutDueSoon, isPayoutOverdue } from '../payoutModel'
 import { ConsignmentField } from './ConsignmentField'
+import { OwnerPayoutStatusBadge } from './OwnerPayoutStatusBadge'
 
 /**
  * Tab "Chủ xe & Ký gửi" của Vehicle Detail (plan mục 8.5): chủ xe + hợp đồng hiện hành + biên bản nhận xe + lịch sử hợp
@@ -21,6 +23,8 @@ export function VehicleConsignmentTab({ vehicle }: { vehicle: Vehicle }) {
   const { data: owner } = useVehicleOwner(current?.ownerId)
   const { data: records } = useConsignmentHandoverRecords(current ? { contractId: current.id } : undefined)
   const intake = current ? records?.find((r) => r.type === 'INTAKE') : undefined
+  const { data: payouts } = useOwnerPayoutRecords(current ? { contractId: current.id } : undefined)
+  const recentPayouts = (payouts ?? []).filter((r) => r.status !== 'CANCELLED').slice(0, 3)
   const todayKey = toLocalDateKey(new Date())
 
   if (isLoading) return <p className="text-muted-foreground text-sm">{vi.common.loading}</p>
@@ -110,6 +114,51 @@ export function VehicleConsignmentTab({ vehicle }: { vehicle: Vehicle }) {
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">{vi.consignment.tabNoIntake}</p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">{vi.consignment.payouts.tabRecentTitle}</h3>
+          <Link className="text-primary text-sm underline-offset-4 hover:underline" to={paths.consignmentPayouts}>
+            {vi.consignment.payouts.tabGoSchedule}
+          </Link>
+        </div>
+        {recentPayouts.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{vi.consignment.payouts.tabRecentEmpty}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{vi.consignment.payouts.columnPeriod}</TableHead>
+                  <TableHead className="text-right">{vi.consignment.payouts.columnPayable}</TableHead>
+                  <TableHead>{vi.consignment.payouts.columnDueDate}</TableHead>
+                  <TableHead>{vi.common.status}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentPayouts.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{formatPeriod(r.period)}</TableCell>
+                    <TableCell className="text-right">{formatVnd(r.amountPayable)}</TableCell>
+                    <TableCell>
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {formatDate(r.dueDate)}
+                        {isPayoutOverdue(r, todayKey) && <Badge variant="destructive">{vi.consignment.payouts.overdueBadge}</Badge>}
+                        {!isPayoutOverdue(r, todayKey) && isPayoutDueSoon(r, todayKey) && (
+                          <Badge variant="warning">{vi.consignment.payouts.dueSoonBadge}</Badge>
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <OwnerPayoutStatusBadge status={r.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </section>
 

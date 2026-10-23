@@ -534,13 +534,17 @@ vi (roadmap plan §13): tự đặt/gỡ `Ownership Type` (VC-BR-03) và chặn 
       gửi" ở Vehicle Detail (ngoại lệ có kiểm soát `VehicleDetailScreen.tsx`), khối quyền Nhóm 7 viết lại theo BRD §18,
       seed 10 chủ xe · 19 hợp đồng · 18 biên bản, `SEED_VERSION` 20. Nợ "Nên sửa" mang sang R2: gate trang `VIEW` (hiện chỉ
       qua nav), chuyển sang bản mới sau "Thay bằng bản mới", chặn `handoverAt` tương lai (plan §18).
-- [ ] **Round 2** — lịch chi trả + chấm dứt/đóng + nối `finance` (plan §1.3, §3.2, §4, §9, §15.2). Nội dung backlog gốc:
-      **Lịch chi trả hàng tháng** (`SCHEDULED`/`PAID`) · khoản chi trả chủ xe phản ánh đúng vào `finance` (Cost Record
-      `CONSIGNMENT_PAYOUT`, không tính lợi nhuận công ty — CR-2026-050).
-- [ ] **Round 3** — đề nghị ký gửi & thẩm định + phụ lục/gia hạn (plan §1.4).
-- [~] Nối tab Owner/Consignment ở Vehicle Detail vào dữ liệu thật — R1 (khối "chi trả gần nhất" ở R2).
-- [~] Cập nhật `registerSeeds.ts` (R1: `consignment/seed` chạy ngay trước `finance/seed`), xoá `ComingSoon` — R1 xoá
-      `/consignment/owners` + `/consignment/contracts`; `/consignment/payouts` xoá ở R2.
+- [x] **Round 2** — xong 23/10/2026, review `tech-lead` đạt vòng 1 (plan **§19**): Owner Payout Record
+      (`SCHEDULED`/`ON_HOLD`/`PAID`/`CANCELLED`, prorate, điều chỉnh có duyệt, sinh lịch bằng nút + khi kích hoạt) · thông báo
+      chấm dứt → biên bản `RETURN` → `TERMINATED`, đóng `CLOSED`, mất xe · nối `finance` một chiều: `OWNER_PAYOUT`, Cost
+      `CONSIGNMENT_PAYOUT` theo kỳ, màn "Chi trả chủ xe" + "Lịch chi trả" · 4 nợ R1 · `SEED_VERSION` 21. Số liệu khớp §19.11
+      (Σ chi trả 12 tháng 1.269.283.178; lợi nhuận 09/2026 −138.930.000; doanh thu Phase 4 giữ nguyên). Nợ "Nên sửa" mang
+      sang R3 (plan §18): gỡ vòng import runtime mới qua `incidents/api` (lỗi chỉ định ở plan §19.5.3) + gộp audit
+      `OwnerPayoutRecord` vào tab Nhật ký hợp đồng.
+- [ ] **Round 3** — đề nghị ký gửi & thẩm định + phụ lục/gia hạn (plan §1.4) + 2 nợ R2 ở trên.
+- [x] Nối tab Owner/Consignment ở Vehicle Detail vào dữ liệu thật — R1 + khối "Chi trả gần nhất" R2.
+- [x] Cập nhật `registerSeeds.ts` (`consignment/seed` chạy ngay trước `finance/seed`), xoá `ComingSoon` — R1 xoá
+      `/consignment/owners` + `/consignment/contracts`; R2 xoá `/consignment/payouts`.
 
 ## Phase 6 — Hoàn thiện nền tảng & polish — `[ ]`
 

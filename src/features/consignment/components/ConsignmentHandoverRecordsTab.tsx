@@ -25,9 +25,11 @@ function RecordCard({ record }: { record: ConsignmentHandoverRecord }) {
           <ConsignmentField label={vi.consignment.handoverAtLabel}>{formatDateTime(record.handoverAt)}</ConsignmentField>
           <ConsignmentField label={vi.consignment.handoverOdo}>{formatNumber(record.odoKm)} km</ConsignmentField>
           <ConsignmentField label={vi.consignment.handoverFuel}>{record.fuelLevel}%</ConsignmentField>
-          <ConsignmentField label={vi.consignment.handoverAppraised}>
-            {record.appraisedValue ? formatVnd(record.appraisedValue) : undefined}
-          </ConsignmentField>
+          {record.type === 'INTAKE' && (
+            <ConsignmentField label={vi.consignment.handoverAppraised}>
+              {record.appraisedValue ? formatVnd(record.appraisedValue) : undefined}
+            </ConsignmentField>
+          )}
         </div>
         <ConsignmentField label={vi.consignment.handoverBaseline}>{record.baselineCondition}</ConsignmentField>
         <ConsignmentField label={vi.consignment.handoverChecklist}>
@@ -44,7 +46,7 @@ function RecordCard({ record }: { record: ConsignmentHandoverRecord }) {
           <ConsignmentField label={vi.consignment.handoverAccessories}>
             {record.accessories.length > 0 ? record.accessories.join(', ') : undefined}
           </ConsignmentField>
-          <ConsignmentField label={vi.consignment.handoverDocuments}>
+          <ConsignmentField label={record.type === 'RETURN' ? vi.consignment.handoverDocumentsReturned : vi.consignment.handoverDocuments}>
             {record.documentsReceived.length > 0
               ? record.documentsReceived
                   .map((d) => `${d.name} (${d.kind === 'ORIGINAL' ? vi.consignment.docKindOriginal : vi.consignment.docKindCopy})`)

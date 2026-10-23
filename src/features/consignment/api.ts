@@ -1,23 +1,35 @@
-import { VEHICLES_STORAGE_KEY } from '@/features/vehicles/api'
-import type { Vehicle } from '@/features/vehicles'
-import type { AuditAction, ConsignmentContractStatus, OwnerType, Role } from '@/shared/domain/enums'
+import { INCIDENTS_STORAGE_KEY } from '@/features/incidents/api'
+import type { Incident } from '@/features/incidents/model'
+import { RENTALS_STORAGE_KEY } from '@/features/rentals/api'
+import type { Rental } from '@/features/rentals/model'
+import type {
+  AuditAction,
+  ConsignmentContractStatus,
+  ConsignmentTerminationRequester,
+  IncidentStatus,
+  OwnerType,
+  RentalStatus,
+} from '@/shared/domain/enums'
 import { can } from '@/shared/domain/permissions'
-import { CONSIGNMENT_CONTRACT_STATUS_LABELS } from '@/shared/i18n/vi'
+import { CONSIGNMENT_CONTRACT_STATUS_LABELS, vi } from '@/shared/i18n/vi'
+import { formatDate } from '@/shared/lib/datetime'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
-import { readJson, writeJson } from '@/shared/lib/storage'
+import { readJson } from '@/shared/lib/storage'
 import {
   buildTermsSnapshot,
   canActivate,
   canTransition,
   findEffectiveContractForVehicle,
   findOpenContractForVehicle,
+  isFutureDateTime,
   maskAccountNumber,
   nextSequenceCode,
   toLocalDateKey,
   toOwnerAuditSnapshot,
   vehicleOwnerFormSchema,
+  type ConsignmentActor,
   type ConsignmentContract,
   type ConsignmentExploitationRights,
   type ConsignmentHandoverRecord,
@@ -27,6 +39,29 @@ import {
   type VehicleOwner,
   type VehicleOwnerFormValues,
 } from './model'
+import {
+  applyContractEndPlan,
+  calcPayoutWindow,
+  canCloseContract,
+  listBlockingRentals,
+  makeTerminationNoticeSchema,
+  makeVehicleLossSchema,
+  materializeDrafts,
+  periodOf,
+  planContractEnd,
+  planPayoutGeneration,
+} from './payoutModel'
+import {
+  readContracts,
+  readOwners,
+  readPayoutRecords,
+  readRecords,
+  readVehicles,
+  writeContracts,
+  writeOwners,
+  writePayoutRecords,
+  writeRecords,
+} from './storage'
 
 /**
  * Lớp dữ liệu "fake API" của Xe ký gửi (`docs/CONSIGNMENT-PLAN.md` mục 6).
@@ -34,43 +69,17 @@ import {
  * - Mọi đọc, guard và ghi nằm TRONG callback `fakeRequest` (không đọc storage trước rồi ghi sau độ trễ).
  * - Mọi hàm ghi gọi `appendAudit` (VC-BR-17); payload hồ sơ chủ xe luôn đi qua `toOwnerAuditSnapshot` (che dữ liệu).
  * - Không có hàm `remove` (VC-BR-18): hồ sơ chủ xe và hợp đồng chỉ đổi trạng thái.
+ * - Kết thúc hợp đồng (chấm dứt / mất xe) và kích hoạt ghi cả khoản chi trả (`ownerPayoutRecords`) trong cùng callback;
+ *   hàm riêng của khoản chi trả (tạm giữ, điều chỉnh, đồng bộ với `finance`) nằm ở `payoutApi.ts`. Hai file không import lẫn nhau.
  * - Bản prototype: dữ liệu nằm ở localStorage nên API vẫn trả số tài khoản đầy đủ; backend thật phải che ở tầng API
  *   (`docs/ARCHITECTURE.md`) và chỉ trả số đầy đủ qua `revealOwnerBankAccount`.
  * - Quy ước kiểm quyền ở UI, ngoại lệ DUY NHẤT là `revealOwnerBankAccount` (dữ liệu nhạy cảm — BRD mục 21).
  */
 
-export const VEHICLE_OWNERS_STORAGE_KEY = 'vehicleOwners'
-export const CONSIGNMENT_CONTRACTS_STORAGE_KEY = 'consignmentContracts'
-export const CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY = 'consignmentHandoverRecords'
-
 /** Người thực hiện thao tác — dùng để ghi audit (VC-BR-17). */
-export interface ActorInfo {
-  userId: string
-  fullName: string
-  role: Role
-}
+export type ActorInfo = ConsignmentActor
 
-function readOwners(): VehicleOwner[] {
-  return readJson<VehicleOwner[]>(VEHICLE_OWNERS_STORAGE_KEY) ?? []
-}
-function writeOwners(items: VehicleOwner[]): void {
-  writeJson(VEHICLE_OWNERS_STORAGE_KEY, items)
-}
-function readContracts(): ConsignmentContract[] {
-  return readJson<ConsignmentContract[]>(CONSIGNMENT_CONTRACTS_STORAGE_KEY) ?? []
-}
-function writeContracts(items: ConsignmentContract[]): void {
-  writeJson(CONSIGNMENT_CONTRACTS_STORAGE_KEY, items)
-}
-function readRecords(): ConsignmentHandoverRecord[] {
-  return readJson<ConsignmentHandoverRecord[]>(CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY) ?? []
-}
-function writeRecords(items: ConsignmentHandoverRecord[]): void {
-  writeJson(CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY, items)
-}
-function readVehicles(): Vehicle[] {
-  return readJson<Vehicle[]>(VEHICLES_STORAGE_KEY) ?? []
-}
+const t = vi.consignment.termination
 
 function findOwnerOrThrow(items: VehicleOwner[], id: string): VehicleOwner {
   const found = items.find((o) => o.id === id)
@@ -86,7 +95,7 @@ function findContractOrThrow(items: ConsignmentContract[], id: string): Consignm
 function audit(
   actor: ActorInfo,
   action: AuditAction,
-  entity: 'VehicleOwner' | 'ConsignmentContract' | 'ConsignmentHandoverRecord',
+  entity: 'VehicleOwner' | 'ConsignmentContract' | 'ConsignmentHandoverRecord' | 'OwnerPayoutRecord',
   entityId: string,
   summary: string,
   before?: unknown,
@@ -154,7 +163,7 @@ function buildOwnerFields(
   input: VehicleOwnerInput,
   existing?: VehicleOwner,
 ): Omit<VehicleOwner, 'id' | 'code' | 'createdByName' | 'createdAt' | 'updatedAt'> {
-  const parsed = vehicleOwnerFormSchema.safeParse(input)
+  const parsed = vehicleOwnerFormSchema.safeParse({ ...input, hasExistingBankAccount: !!existing?.bankAccount })
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? 'Dữ liệu chủ xe không hợp lệ')
   const v = parsed.data
   const isIndividual = v.ownerType === 'INDIVIDUAL'
@@ -579,6 +588,7 @@ export async function recordConsignmentIntake(
     if (records.some((r) => r.contractId === contractId && r.type === 'INTAKE')) {
       throw new Error('Hợp đồng này đã có biên bản nhận xe')
     }
+    if (isFutureDateTime(input.handoverAt)) throw new Error(t.handoverFuture)
     // VC-BR-15 — biên bản phải được cả hai bên xác nhận.
     if (!input.ownerConfirmed || !input.companyConfirmed) {
       throw new Error('Biên bản cần được cả chủ xe và đại diện công ty xác nhận (VC-BR-15)')
@@ -669,6 +679,22 @@ export async function activateConsignmentContract(id: string, actor: ActorInfo):
       { status: before.status },
       { status: after.status },
     )
+    // UC-VC-06 §10.3 — kích hoạt bù các kỳ chi trả từ ngày bắt đầu tới tháng hiện tại (prorate tháng đầu lẻ).
+    const records = readPayoutRecords()
+    const drafts = planPayoutGeneration([after], records, periodOf(toLocalDateKey(new Date())))
+    if (drafts.length > 0) {
+      const created = materializeDrafts(drafts, records, { createdAt: now, createdByName: actor.fullName })
+      writePayoutRecords([...records, ...created])
+      audit(
+        actor,
+        'GENERATE_OWNER_PAYOUT_RECORDS',
+        'OwnerPayoutRecord',
+        `contract:${id}`,
+        t.auditGenerateOnActivate(created.length, before.contractNo),
+        undefined,
+        created.map((r) => r.code),
+      )
+    }
     return after
   })
 }
@@ -827,4 +853,371 @@ export async function listConsignmentHandoverRecords(
       .filter((r) => !filter?.vehicleId || r.vehicleId === filter.vehicleId)
       .sort((a, b) => b.handoverAt.localeCompare(a.handoverAt)),
   )
+}
+
+// ============================================================================
+// Chấm dứt · đóng · mất xe (Round 2)
+// ============================================================================
+
+const ENDABLE_STATUSES: ConsignmentContractStatus[] = ['ACTIVE', 'SUSPENDED']
+
+function assertEndable(contract: ConsignmentContract): void {
+  if (!ENDABLE_STATUSES.includes(contract.status)) {
+    throw new Error(t.notRunning(CONSIGNMENT_CONTRACT_STATUS_LABELS[contract.status]))
+  }
+}
+
+export interface ConsignmentTerminationNoticeInput {
+  requestedBy: ConsignmentTerminationRequester
+  noticeDate: string
+  plannedEndDate: string
+  reason: string
+}
+
+/**
+ * UC-VC-11 — ghi nhận thông báo chấm dứt. Cho nhập lùi ngày thông báo (thông báo nhận ngoài hệ thống); ngày dự kiến kết
+ * thúc phải ≥ ngày thông báo + Notice Period (VC-BR-14) và trước ngày hết hạn (bằng/sau = hết hạn tự nhiên → "Đóng hợp đồng").
+ */
+export async function notifyConsignmentTermination(
+  id: string,
+  input: ConsignmentTerminationNoticeInput,
+  actor: ActorInfo,
+): Promise<ConsignmentContract> {
+  return fakeRequest(() => {
+    const all = readContracts()
+    const before = findContractOrThrow(all, id)
+    assertEndable(before)
+    if (before.terminationNotice) throw new Error(t.noticeExists)
+    const parsed = makeTerminationNoticeSchema({
+      effectiveFrom: before.effectiveFrom,
+      effectiveTo: before.effectiveTo,
+      noticePeriodDays: before.noticePeriodDays,
+      todayKey: toLocalDateKey(new Date()),
+    }).safeParse(input)
+    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? t.noticeInvalid)
+    const now = new Date().toISOString()
+    const after: ConsignmentContract = {
+      ...before,
+      terminationNotice: { ...parsed.data, recordedByName: actor.fullName, recordedAt: now },
+      updatedAt: now,
+    }
+    writeContracts(all.map((c) => (c.id === id ? after : c)))
+    audit(
+      actor,
+      'NOTIFY_CONSIGNMENT_TERMINATION',
+      'ConsignmentContract',
+      id,
+      t.auditNotice(before.contractNo, parsed.data.noticeDate, parsed.data.plannedEndDate),
+      undefined,
+      after.terminationNotice,
+    )
+    return after
+  })
+}
+
+export interface VehicleRentalForConsignment {
+  id: string
+  vehicleId: string
+  status: RentalStatus
+  pickupDateTime: string
+  expectedReturnDateTime: string
+  customerId: string
+}
+
+/** Chỉ ĐỌC lượt thuê của xe (VC-BR-14) — không tự huỷ / đổi xe; xử lý lượt thuê làm ở màn Lượt thuê. */
+export async function listVehicleRentalsForConsignment(vehicleId: string): Promise<VehicleRentalForConsignment[]> {
+  return fakeRequest(() =>
+    (readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? [])
+      .filter((r) => r.vehicleId === vehicleId)
+      .map((r) => ({
+        id: r.id,
+        vehicleId: r.vehicleId,
+        status: r.status,
+        pickupDateTime: r.pickupDateTime,
+        expectedReturnDateTime: r.expectedReturnDateTime,
+        customerId: r.customerId,
+      }))
+      .sort((a, b) => b.pickupDateTime.localeCompare(a.pickupDateTime)),
+  )
+}
+
+export interface VehicleIncidentForConsignment {
+  id: string
+  incidentCode: string
+  status: IncidentStatus
+  reportedAt: string
+}
+
+/** Chỉ ĐỌC sự cố của xe — để liên kết khi ghi nhận mất xe (tuỳ chọn). */
+export async function listVehicleIncidentsForConsignment(vehicleId: string): Promise<VehicleIncidentForConsignment[]> {
+  return fakeRequest(() =>
+    (readJson<Incident[]>(INCIDENTS_STORAGE_KEY) ?? [])
+      .filter((i) => i.vehicleId === vehicleId)
+      .map((i) => ({ id: i.id, incidentCode: i.incidentCode, status: i.status, reportedAt: i.reportedAt }))
+      .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt)),
+  )
+}
+
+export type ConsignmentReturnInput = Omit<ConsignmentIntakeInput, 'appraisedValue'>
+
+/**
+ * UC-VC-11 — biên bản trả xe về chủ xe (`RETURN`). Điều kiện: có thông báo chấm dứt và ngày trả ≥ ngày dự kiến kết thúc,
+ * hoặc ngày trả ≥ ngày hết hạn; không còn lượt thuê chặn (VC-BR-14); hai bên xác nhận (VC-BR-15). Không có định giá.
+ */
+export async function recordConsignmentReturn(
+  contractId: string,
+  input: ConsignmentReturnInput,
+  actor: ActorInfo,
+): Promise<ConsignmentHandoverRecord> {
+  return fakeRequest(() => {
+    const contracts = readContracts()
+    const records = readRecords()
+    const contract = findContractOrThrow(contracts, contractId)
+    assertEndable(contract)
+    if (records.some((r) => r.contractId === contractId && r.type === 'RETURN')) throw new Error(t.returnExists)
+    const intake = records.find((r) => r.contractId === contractId && r.type === 'INTAKE')
+    if (!intake) throw new Error(t.returnNoIntake)
+
+    if (isFutureDateTime(input.handoverAt)) throw new Error(t.handoverFuture)
+    if (new Date(input.handoverAt).getTime() < new Date(intake.handoverAt).getTime()) throw new Error(t.returnBeforeIntake)
+    const returnDate = toLocalDateKey(new Date(input.handoverAt))
+    const notice = contract.terminationNotice
+    if (returnDate < contract.effectiveTo) {
+      if (!notice) throw new Error(t.returnNeedsNotice)
+      if (returnDate < notice.plannedEndDate) throw new Error(t.returnBeforePlanned(formatDate(notice.plannedEndDate)))
+    }
+    if (!Number.isInteger(input.odoKm) || input.odoKm < intake.odoKm) throw new Error(t.returnOdoBelowIntake(intake.odoKm))
+    if (!Number.isFinite(input.fuelLevel) || input.fuelLevel < 0 || input.fuelLevel > 100) {
+      throw new Error('Mức nhiên liệu phải từ 0 đến 100')
+    }
+    if (!input.baselineCondition.trim()) throw new Error('Mô tả hiện trạng là bắt buộc')
+    // VC-BR-15 — biên bản phải được cả hai bên xác nhận.
+    if (!input.ownerConfirmed || !input.companyConfirmed) throw new Error(t.confirmRequired)
+    // VC-BR-14 — không trả xe về chủ khi còn lượt thuê đã xác nhận / đang chạy.
+    const blocking = listBlockingRentals(readJson<Rental[]>(RENTALS_STORAGE_KEY) ?? [], contract.vehicleId)
+    if (blocking.length > 0) throw new Error(t.blockedByRentals(blocking.length))
+
+    const now = new Date().toISOString()
+    const record: ConsignmentHandoverRecord = {
+      id: generateId('cgh'),
+      code: nextSequenceCode(
+        'BBKG',
+        records.map((r) => r.code),
+      ),
+      type: 'RETURN',
+      contractId: contract.id,
+      vehicleId: contract.vehicleId,
+      ownerId: contract.ownerId,
+      handoverAt: input.handoverAt,
+      odoKm: input.odoKm,
+      fuelLevel: input.fuelLevel,
+      baselineCondition: input.baselineCondition.trim(),
+      checklist: input.checklist,
+      accessories: input.accessories,
+      documentsReceived: input.documentsReceived,
+      missingDocumentsNote: input.missingDocumentsNote || undefined,
+      mediaNote: input.mediaNote || undefined,
+      companyRepName: input.companyRepName.trim(),
+      ownerConfirmed: input.ownerConfirmed,
+      companyConfirmed: input.companyConfirmed,
+      createdByName: actor.fullName,
+      createdAt: now,
+    }
+    writeRecords([...records, record])
+    writeContracts(contracts.map((c) => (c.id === contractId ? { ...c, returnRecordId: record.id, updatedAt: now } : c)))
+    audit(
+      actor,
+      'CREATE_CONSIGNMENT_RETURN',
+      'ConsignmentHandoverRecord',
+      record.id,
+      t.auditReturn(record.code, contract.contractNo),
+      undefined,
+      record,
+    )
+    return record
+  })
+}
+
+/** Ghi khoản chi trả sau khi hợp đồng kết thúc (huỷ / tạo thay thế) + audit từng khoản — gọi trong callback của hàm kết thúc. */
+function applyEndPlanAndAudit(
+  contract: ConsignmentContract,
+  endedDate: string,
+  actor: ActorInfo,
+  now: string,
+  cancelReason: string,
+): void {
+  const records = readPayoutRecords()
+  const plan = planContractEnd(contract, records, endedDate)
+  if ('error' in plan) throw new Error(plan.error)
+  const result = applyContractEndPlan(records, plan, { now, byName: actor.fullName, cancelReason })
+  writePayoutRecords(result.records)
+  for (const r of result.cancelled) {
+    audit(actor, 'CANCEL_OWNER_PAYOUT_RECORD', 'OwnerPayoutRecord', r.id, t.auditCancelRecord(r.code, r.period, cancelReason), undefined, {
+      code: r.code,
+      period: r.period,
+      status: r.status,
+      replacedByRecordId: r.replacedByRecordId,
+    })
+  }
+  if (result.created.length > 0) {
+    audit(
+      actor,
+      'GENERATE_OWNER_PAYOUT_RECORDS',
+      'OwnerPayoutRecord',
+      `contract:${contract.id}`,
+      t.auditGenerateOnEnd(result.created.length, contract.contractNo),
+      undefined,
+      result.created.map((r) => r.code),
+    )
+  }
+}
+
+/** Dry-run `planContractEnd` cho dialog xác nhận (không ghi). Trả kế hoạch hoặc lỗi. */
+export async function previewConsignmentContractEnd(
+  id: string,
+  endedDate: string,
+): Promise<{ cancelCount: number; createCount: number; lastPeriodDays?: number; lastPeriodDaysInMonth?: number; unpaidCount: number; error?: string }> {
+  return fakeRequest(() => {
+    const contract = findContractOrThrow(readContracts(), id)
+    const records = readPayoutRecords()
+    const plan = planContractEnd(contract, records, endedDate)
+    const unpaidCount = records.filter((r) => r.contractId === id && (r.status === 'SCHEDULED' || r.status === 'ON_HOLD')).length
+    if ('error' in plan) return { cancelCount: 0, createCount: 0, unpaidCount, error: plan.error }
+    const last = [...plan.create].sort((a, b) => b.period.localeCompare(a.period))[0]
+    return {
+      cancelCount: plan.cancel.length,
+      createCount: plan.create.length,
+      lastPeriodDays: last?.daysCovered,
+      lastPeriodDaysInMonth: last?.daysInMonth,
+      unpaidCount,
+    }
+  })
+}
+
+/**
+ * UC-VC-11 — chấm dứt trước hạn: cần thông báo chấm dứt + biên bản trả xe (VC-BR-15). Ngày kết thúc = ngày của biên bản
+ * trả xe. Record kỳ sau bị huỷ, kỳ của ngày kết thúc tính lại theo số ngày (AC-VC-011). Khoản chưa chi vẫn được chi sau.
+ */
+export async function terminateConsignmentContract(id: string, actor: ActorInfo): Promise<ConsignmentContract> {
+  return fakeRequest(() => {
+    const all = readContracts()
+    const before = findContractOrThrow(all, id)
+    assertEndable(before)
+    if (!before.terminationNotice) throw new Error(t.terminateNeedsNotice)
+    const returnRecord = readRecords().find((r) => r.id === before.returnRecordId && r.type === 'RETURN')
+    if (!returnRecord) throw new Error(t.terminateNeedsReturn)
+    const endedDate = toLocalDateKey(returnRecord.handoverAt)
+    if (endedDate >= before.effectiveTo) throw new Error(t.terminateAlreadyExpired)
+    const now = new Date().toISOString()
+    const reason = before.terminationNotice.reason
+    const after: ConsignmentContract = {
+      ...before,
+      status: 'TERMINATED',
+      endedDate,
+      endReason: 'EARLY_TERMINATION',
+      statusHistory: appendHistory(before, 'TERMINATED', now, actor, reason),
+      updatedAt: now,
+    }
+    applyEndPlanAndAudit(after, endedDate, actor, now, t.cancelReasonTerminated(formatDate(endedDate)))
+    writeContracts(all.map((c) => (c.id === id ? after : c)))
+    audit(
+      actor,
+      'TERMINATE_CONSIGNMENT_CONTRACT',
+      'ConsignmentContract',
+      id,
+      t.auditTerminate(before.contractNo, endedDate),
+      { status: before.status },
+      { status: after.status, endedDate, endReason: after.endReason },
+    )
+    return after
+  })
+}
+
+/**
+ * UC-VC-11 A2 — đóng hợp đồng khi hết hạn: cần biên bản trả xe và mọi khoản chi trả đã `PAID` (kể cả kỳ cuối). Không tự
+ * sinh lịch — người dùng bấm "Sinh lịch chi trả" và chi trước, rồi mới đóng.
+ */
+export async function closeConsignmentContract(id: string, actor: ActorInfo): Promise<ConsignmentContract> {
+  return fakeRequest(() => {
+    const all = readContracts()
+    const before = findContractOrThrow(all, id)
+    assertEndable(before)
+    const returnRecord = readRecords().find((r) => r.id === before.returnRecordId && r.type === 'RETURN')
+    const blocker = canCloseContract(before, readPayoutRecords(), returnRecord, toLocalDateKey(new Date()))
+    if (blocker) throw new Error(blocker)
+    const now = new Date().toISOString()
+    const after: ConsignmentContract = {
+      ...before,
+      status: 'CLOSED',
+      endedDate: before.effectiveTo,
+      endReason: 'EXPIRED',
+      statusHistory: appendHistory(before, 'CLOSED', now, actor),
+      updatedAt: now,
+    }
+    writeContracts(all.map((c) => (c.id === id ? after : c)))
+    audit(
+      actor,
+      'CLOSE_CONSIGNMENT_CONTRACT',
+      'ConsignmentContract',
+      id,
+      t.auditClose(before.contractNo),
+      { status: before.status },
+      { status: after.status, endedDate: after.endedDate },
+    )
+    return after
+  })
+}
+
+export interface ConsignmentVehicleLossInput {
+  eventDate: string
+  incidentId?: string
+  note: string
+}
+
+/**
+ * UC-VC-12 — ghi nhận mất xe: hợp đồng `TERMINATED` ngay từ `Event Date`, KHÔNG cần biên bản trả xe (AC-VC-015).
+ * Bồi thường và tranh chấp bảo hiểm nằm ngoài hệ thống (VC-BR-16). Không ghi `vehicles` — nhắc cập nhật trạng thái xe ở UI.
+ */
+export async function recordConsignmentVehicleLoss(
+  id: string,
+  input: ConsignmentVehicleLossInput,
+  actor: ActorInfo,
+): Promise<ConsignmentContract> {
+  return fakeRequest(() => {
+    const all = readContracts()
+    const before = findContractOrThrow(all, id)
+    assertEndable(before)
+    const window = calcPayoutWindow(before)
+    if (!window) throw new Error(t.lossNotActivated)
+    const parsed = makeVehicleLossSchema({ payoutStart: window.start, todayKey: toLocalDateKey(new Date()) }).safeParse(input)
+    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? t.lossInvalid)
+    const { eventDate, note } = parsed.data
+    const incidentId = parsed.data.incidentId || undefined
+    if (incidentId) {
+      const incident = (readJson<Incident[]>(INCIDENTS_STORAGE_KEY) ?? []).find((i) => i.id === incidentId)
+      if (!incident || incident.vehicleId !== before.vehicleId) throw new Error(t.lossIncidentMismatch)
+    }
+    const now = new Date().toISOString()
+    const after: ConsignmentContract = {
+      ...before,
+      status: 'TERMINATED',
+      endedDate: eventDate,
+      endReason: 'VEHICLE_LOSS',
+      lossInfo: { eventDate, incidentId, note, recordedByName: actor.fullName, recordedAt: now },
+      statusHistory: appendHistory(before, 'TERMINATED', now, actor, note),
+      updatedAt: now,
+    }
+    applyEndPlanAndAudit(after, eventDate, actor, now, t.cancelReasonLoss(formatDate(eventDate)))
+    writeContracts(all.map((c) => (c.id === id ? after : c)))
+    audit(
+      actor,
+      'TERMINATE_CONSIGNMENT_CONTRACT',
+      'ConsignmentContract',
+      id,
+      t.auditLoss(before.contractNo, eventDate),
+      { status: before.status },
+      { status: after.status, endedDate: eventDate, endReason: after.endReason, incidentId },
+    )
+    return after
+  })
 }

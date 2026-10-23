@@ -1,5 +1,7 @@
 // Payment (PM) — đường ghi hệ thống vào sổ giao dịch (không phải API cho UI) — docs/FINANCE-REFACTOR-PLAN.md §3.2.
+import { markOwnerPayoutRecordPaid, revertOwnerPayoutRecordPaid, unlinkOwnerPayoutRecord } from '@/features/consignment'
 import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
+import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
 import { readJson } from '@/shared/lib/storage'
 import {
@@ -169,4 +171,56 @@ export function applyDepositOffsetInCallback(settlement: Settlement, actor: Acto
     actorRole: actor.role,
     after: offsetTxn,
   })
+}
+
+/**
+ * UC-VC-09 / VC-BR-13 — đồng bộ khoản chi trả chủ xe (Owner Payout Record) và lệnh chi sau mỗi thay đổi của giao dịch
+ * `OWNER_PAYOUT`. Gọi trong CÙNG callback `fakeRequest` của `confirm/fail/void/reverseTransaction`, SAU khi đã ghi sổ
+ * giao dịch (đọc storage mới nhất, nguyên tử với giao dịch):
+ * - `CONFIRMED` → lệnh chi tính lại trạng thái (`FULFILLED`), khoản chi trả `PAID`;
+ * - `FAILED`/`VOIDED` → lệnh chi `CANCELLED`, khoản chi trả gỡ liên kết (vẫn `SCHEDULED`);
+ * - `REVERSED` → lệnh chi `CANCELLED`, khoản chi trả `PAID` → `SCHEDULED` (chi lại bằng lệnh chi mới).
+ * Mỗi khoản chi trả tối đa MỘT lệnh chi chưa huỷ nên huỷ lệnh cũ là điều kiện để tạo lệnh mới.
+ */
+export function syncOwnerPayoutAfterPaymentChange(transactionId: string, actor: ActorInfo, now: string): void {
+  const txns = readAllTransactions()
+  const txn = txns.find((t) => t.id === transactionId)
+  if (!txn || txn.type !== 'OWNER_PAYOUT' || txn.reversalOfId) return
+  const recordId = txn.ownerPayoutRecordId
+  const requestId = txn.paymentRequestId
+  if (!recordId || !requestId) return
+
+  const requests = readAllPaymentRequests()
+  const request = requests.find((r) => r.id === requestId)
+  if (!request) return
+
+  if (txn.status === 'CONFIRMED') {
+    const status = deriveRequestStatus(request, txns)
+    if (status !== request.status) {
+      writeAllPaymentRequests(requests.map((r) => (r.id === request.id ? { ...r, status, updatedAt: now } : r)))
+    }
+    markOwnerPayoutRecordPaid(recordId, { transactionId: txn.id, paidAt: txn.confirmedAt ?? now }, actor, now)
+    return
+  }
+
+  const reason =
+    txn.status === 'FAILED'
+      ? vi.finance.ownerPayout.cancelReasonFailed(txn.code, txn.failReason ?? '')
+      : txn.status === 'VOIDED'
+        ? vi.finance.ownerPayout.cancelReasonVoided(txn.code, txn.voidReason ?? '')
+        : vi.finance.ownerPayout.cancelReasonReversed(txn.code, txn.reverseReason ?? '')
+  if (request.status !== 'CANCELLED') {
+    writeAllPaymentRequests(
+      requests.map((r) =>
+        r.id === request.id
+          ? { ...r, status: 'CANCELLED' as const, cancelledByName: actor.fullName, cancelledAt: now, cancelReason: reason, updatedAt: now }
+          : r,
+      ),
+    )
+  }
+  if (txn.status === 'FAILED' || txn.status === 'VOIDED') {
+    unlinkOwnerPayoutRecord(recordId, { transactionId: txn.id, reason }, actor, now)
+  } else if (txn.status === 'REVERSED') {
+    revertOwnerPayoutRecordPaid(recordId, { transactionId: txn.id, reason }, actor, now)
+  }
 }

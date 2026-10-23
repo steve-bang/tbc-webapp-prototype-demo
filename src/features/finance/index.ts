@@ -21,3 +21,5 @@ export type { CostRecord } from './revenue-cost/model'
 // REVENUE-COST-PLAN.md §19 — Round 2: màn Báo cáo tài chính.
 // Round 3 (§20.4 nợ d): export bản lazy (`revenue-cost/screens/lazyScreens.ts`) — KHÔNG export tĩnh `FinanceReportScreen.tsx` để `recharts` ra khỏi chunk chính.
 export { FinanceReportScreen } from './revenue-cost/screens/lazyScreens'
+// docs/CONSIGNMENT-PLAN.md §19.7 — màn Chi trả chủ xe (mount ở /consignment/owner-payouts).
+export { OwnerPayoutScreen } from './payment/screens/OwnerPayoutScreen'

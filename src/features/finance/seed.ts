@@ -1,7 +1,7 @@
 // Composition root của seed finance — đăng ký 5 bước đúng thứ tự cũ (docs/FINANCE-REFACTOR-PLAN.md §3.4).
 // Hàm seed của từng module chỉ `export`, không tự `registerSeedStep`.
 import { registerSeedStep } from '@/shared/fixtures/seedAll'
-import { seedPaymentRound1, seedPaymentRound2 } from './payment/seed'
+import { seedOwnerPayouts, seedPaymentRound1, seedPaymentRound2 } from './payment/seed'
 import { seedRevenueCost, seedRevenueHistory } from './revenue-cost/seed'
 import { seedFinance } from './settlement/seed'
 
@@ -14,3 +14,5 @@ registerSeedStep(seedPaymentRound2)
 // REVENUE-COST-PLAN.md §9 — chạy SAU seedPaymentRound2: nối thêm lịch sử doanh thu rồi Cost Record nhập tay.
 registerSeedStep(seedRevenueHistory)
 registerSeedStep(seedRevenueCost)
+// docs/CONSIGNMENT-PLAN.md §19.9.2 — chạy CUỐI: giao dịch chi trả chủ xe khớp lịch chi trả của features/consignment (đã seed trước finance).
+registerSeedStep(seedOwnerPayouts)

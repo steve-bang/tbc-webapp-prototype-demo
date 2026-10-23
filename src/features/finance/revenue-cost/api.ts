@@ -1,4 +1,5 @@
 // Revenue & Cost (RV) — fake API. Tách từ `finance/api.ts` — docs/FINANCE-REFACTOR-PLAN.md §3.2.
+import { OWNER_PAYOUT_RECORDS_STORAGE_KEY, type OwnerPayoutRecord } from '@/features/consignment'
 import { INCIDENTS_STORAGE_KEY, type Incident } from '@/features/incidents'
 import {
   MAINTENANCE_RECORDS_STORAGE_KEY,
@@ -22,6 +23,7 @@ import {
   type CostEntry,
   type CostRecord,
   deriveCashEntries,
+  deriveConsignmentPayoutCostEntries,
   deriveIncidentCostEntries,
   deriveMaintenanceCostEntries,
   deriveRevenueLines,
@@ -91,8 +93,9 @@ export async function listCostEntries(filter?: CostEntryFilter): Promise<CostEnt
       readJson<MaintenanceRecord[]>(MAINTENANCE_RECORDS_STORAGE_KEY) ?? [],
       readJson<SparePartRecord[]>(SPARE_PART_RECORDS_STORAGE_KEY) ?? [],
     )
-    // Phase 5 (features/consignment) — Owner Payout Record → CostEntry CONSIGNMENT_PAYOUT, DIRECT, Recognition Date = tháng chi trả (RV-BR-19, CR-2026-050).
-    return [...manual, ...incident, ...maintenance]
+    // RV-BR-19 (CR-2026-050) — Owner Payout Record của features/consignment → CostEntry CONSIGNMENT_PAYOUT, DIRECT, ghi nhận theo kỳ.
+    const consignment = deriveConsignmentPayoutCostEntries(readJson<OwnerPayoutRecord[]>(OWNER_PAYOUT_RECORDS_STORAGE_KEY) ?? [])
+    return [...manual, ...incident, ...maintenance, ...consignment]
       .filter((c) => !filter?.vehicleId || c.vehicleId === filter.vehicleId)
       .sort((a, b) => b.costDate.localeCompare(a.costDate))
   })

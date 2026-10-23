@@ -1,5 +1,18 @@
-// Payment (PM) — seed Round 1 + Round 2 (export, đăng ký ở `finance/seed.ts`) — docs/FINANCE-REFACTOR-PLAN.md §3.4.
+// Payment (PM) — seed Round 1 + Round 2 + chi trả chủ xe (export, đăng ký ở `finance/seed.ts`) — docs/FINANCE-REFACTOR-PLAN.md §3.4.
+import {
+  CONSIGNMENT_CONTRACTS_STORAGE_KEY,
+  OWNER_PAYOUT_RECORDS_STORAGE_KEY,
+  VEHICLE_OWNERS_STORAGE_KEY,
+  applyOwnerPayoutLinked,
+  applyOwnerPayoutPaid,
+  applyOwnerPayoutReverted,
+  maskAccountNumber,
+  type ConsignmentContract,
+  type OwnerPayoutRecord,
+  type VehicleOwner,
+} from '@/features/consignment'
 import { RENTALS_STORAGE_KEY, type Rental } from '@/features/rentals'
+import { vi } from '@/shared/i18n/vi'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
@@ -22,6 +35,7 @@ import {
 import type { CashDrawerSubmission, PaymentRequest, PostSettlementCharge, Receipt, Settlement, Transaction } from '../core/types.ts'
 import {
   buildOffsetTransaction,
+  buildReversalPair,
   buildPscPaymentRequest,
   buildScheduleRequests,
   buildSettlementPaymentRequest,
@@ -873,4 +887,211 @@ export function seedPaymentRound2(): void {
   if (updatedPsc002) {
     writeJson(POST_SETTLEMENT_CHARGES_STORAGE_KEY, pscs.map((p) => (p.id === 'psc_002' ? (updatedPsc002 as PostSettlementCharge) : p)))
   }
+}
+
+// ==== Chi trả chủ xe ký gửi — docs/CONSIGNMENT-PLAN.md mục 19.9.2 ====
+
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Ngày `key` lùi / tiến `offsetDays` ngày (ngày địa phương `YYYY-MM-DD`). */
+function shiftKey(key: string, offsetDays: number): string {
+  const [y, m, d] = key.split('-').map(Number)
+  return localDateKey(new Date(y, m - 1, d + offsetDays))
+}
+
+/** Giờ địa phương `hour:minute` của ngày `key` (+ `offsetDays` ngày) → ISO. */
+function atLocal(key: string, offsetDays: number, hour: number, minute = 0): string {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, m - 1, d + offsetDays, hour, minute, 0).toISOString()
+}
+
+/**
+ * Seed giao dịch chi trả chủ xe khớp với lịch chi trả của `features/consignment` (chạy SAU `seedRevenueCost`, bước cuối của
+ * finance; không ghi audit). Không gõ tay số tổng / trạng thái: mỗi khoản `SCHEDULED` đã quá hạn chi (và chủ xe có tài khoản)
+ * được chi bằng một lệnh chi + một giao dịch `OWNER_PAYOUT` chuyển khoản; khoản chi trả biến đổi bằng CHÍNH các hàm thuần
+ * `applyOwnerPayout…` mà runtime dùng. Hai ngoại lệ có chủ đích: (1) `cg_001` kỳ hiện tại − 3 bị đảo vì chuyển nhầm rồi chi lại
+ * (demo VC-BR-13); (2) `cg_006` kỳ hiện tại − 1 mới có giao dịch `PENDING` (demo "Xác nhận đã chi"). Không tạo giao dịch `CASH`
+ * nên quỹ tiền mặt không đổi.
+ */
+export function seedOwnerPayouts(): void {
+  const nowIso = new Date().toISOString()
+  const today = localDateKey(new Date())
+  const records = readJson<OwnerPayoutRecord[]>(OWNER_PAYOUT_RECORDS_STORAGE_KEY) ?? []
+  const owners = readJson<VehicleOwner[]>(VEHICLE_OWNERS_STORAGE_KEY) ?? []
+  const contracts = readJson<ConsignmentContract[]>(CONSIGNMENT_CONTRACTS_STORAGE_KEY) ?? []
+  const requests = readJson<PaymentRequest[]>(PAYMENT_REQUESTS_STORAGE_KEY) ?? []
+  const transactions = readJson<Transaction[]>(TRANSACTIONS_STORAGE_KEY) ?? []
+
+  const now = new Date()
+  const periodMinus = (n: number): string => localDateKey(new Date(now.getFullYear(), now.getMonth() - n, 1)).slice(0, 7)
+  const reversedPeriod = periodMinus(3)
+  const pendingPeriod = periodMinus(1)
+
+  const newRequests: PaymentRequest[] = []
+  const newTxns: Transaction[] = []
+  const recordById = new Map(records.map((r) => [r.id, r]))
+  const updatedRecords = new Map<string, OwnerPayoutRecord>()
+
+  function currentRecord(id: string): OwnerPayoutRecord {
+    const r = updatedRecords.get(id) ?? recordById.get(id)
+    if (!r) throw new Error(`finance/seed.ts (OwnerPayout): không tìm thấy khoản chi trả ${id}`)
+    return r
+  }
+  function ownerOf(record: OwnerPayoutRecord): VehicleOwner {
+    const owner = owners.find((o) => o.id === record.ownerId)
+    if (!owner) throw new Error(`finance/seed.ts (OwnerPayout): không tìm thấy chủ xe ${record.ownerId}`)
+    return owner
+  }
+  function contractNoOf(record: OwnerPayoutRecord): string {
+    return contracts.find((c) => c.id === record.contractId)?.contractNo ?? record.contractId
+  }
+  function recipientOf(owner: VehicleOwner): string {
+    if (!owner.bankAccount) throw new Error(`finance/seed.ts (OwnerPayout): chủ xe ${owner.id} chưa có tài khoản`)
+    return `${maskAccountNumber(owner.bankAccount.accountNumber)} — ${owner.bankAccount.bankName} — ${owner.bankAccount.accountHolder}`
+  }
+  function allCodes(): string[] {
+    return [...transactions, ...newTxns].map((t) => t.code)
+  }
+
+  /** Tạo yêu cầu chi + giao dịch `OWNER_PAYOUT` cho một khoản chi trả; `confirmedAt` trống = còn `PENDING`. */
+  function createPayout(record: OwnerPayoutRecord, performedAt: string, confirmedAt: string | undefined): { request: PaymentRequest; txn: Transaction } {
+    const owner = ownerOf(record)
+    const [year, month] = record.period.split('-')
+    const request: PaymentRequest = {
+      id: generateId('prq'),
+      source: 'CONSIGNMENT',
+      purpose: 'PAYOUT',
+      transactionType: 'OWNER_PAYOUT',
+      expectedAmount: record.amountPayable,
+      status: 'OPEN',
+      vehicleOwnerId: record.ownerId,
+      ownerPayoutRecordId: record.id,
+      vehicleId: record.vehicleId,
+      consignmentContractId: record.contractId,
+      note: vi.finance.ownerPayout.requestNote(`${month}/${year}`, contractNoOf(record)),
+      createdByName: PM_ACCOUNTANT_NAME,
+      createdAt: performedAt,
+      updatedAt: performedAt,
+    }
+    const txn: Transaction = {
+      id: generateId('txn'),
+      code: nextSequenceCode('GD', allCodes()),
+      type: 'OWNER_PAYOUT',
+      direction: 'OUT',
+      amount: record.amountPayable,
+      method: 'BANK_TRANSFER',
+      status: confirmedAt ? 'CONFIRMED' : 'PENDING',
+      vehicleOwnerId: record.ownerId,
+      ownerPayoutRecordId: record.id,
+      vehicleId: record.vehicleId,
+      payoutRecipient: recipientOf(owner),
+      paymentRequestId: request.id,
+      performedByUserId: PM_ACCOUNTANT_USER_ID,
+      performedByName: PM_ACCOUNTANT_NAME,
+      performedAt,
+      confirmedByName: confirmedAt ? PM_ACCOUNTANT_NAME : undefined,
+      confirmedAt,
+      createdAt: performedAt,
+      updatedAt: confirmedAt ?? performedAt,
+    }
+    newRequests.push(request)
+    newTxns.push(txn)
+    updatedRecords.set(
+      record.id,
+      applyOwnerPayoutLinked(currentRecord(record.id), {
+        paymentRequestId: request.id,
+        transactionId: txn.id,
+        transactionCode: txn.code,
+        at: performedAt,
+        byName: PM_ACCOUNTANT_NAME,
+      }),
+    )
+    if (confirmedAt) {
+      updatedRecords.set(record.id, applyOwnerPayoutPaid(currentRecord(record.id), { paidAt: confirmedAt, byName: PM_ACCOUNTANT_NAME }))
+    }
+    return { request, txn }
+  }
+
+  // Mã `GD-…` cấp theo thứ tự thời gian `performedAt` (mã cũ không đổi) → gom sự kiện, sắp theo thời gian rồi mới chạy.
+  const events: Array<{ at: string; run: () => void }> = []
+  for (const record of records) {
+    if (record.status !== 'SCHEDULED' || record.dueDate >= today) continue
+    const owner = ownerOf(record)
+    if (!owner.bankAccount) continue
+    const isReversedCase = record.contractId === 'cg_001' && record.period === reversedPeriod
+    const isPendingCase = record.contractId === 'cg_006' && record.period === pendingPeriod
+    // Giao dịch `PENDING` của ca (2): performedAt = min(hạn chi − 2, hôm nay − 1) 09:00, luôn ≥ mốc tạo khoản chi trả.
+    const performedAt = isPendingCase
+      ? atLocal(shiftKey(record.dueDate, -2) < shiftKey(today, -1) ? shiftKey(record.dueDate, -2) : shiftKey(today, -1), 0, 9)
+      : atLocal(record.dueDate, -2, 9)
+    if (isPendingCase) {
+      events.push({ at: performedAt, run: () => void createPayout(currentRecord(record.id), performedAt, undefined) })
+    } else if (isReversedCase) {
+      const confirmedAt = atLocal(record.dueDate, 0, 14)
+      const reversalAt = atLocal(record.dueDate, 1, 10)
+      const retryAt = atLocal(record.dueDate, 2, 9)
+      const retryConfirmedAt = atLocal(record.dueDate, 2, 14)
+      let first: { request: PaymentRequest; txn: Transaction } | undefined
+      events.push({ at: performedAt, run: () => void (first = createPayout(currentRecord(record.id), performedAt, confirmedAt)) })
+      events.push({
+        at: reversalAt,
+        run: () => {
+          if (!first) throw new Error('finance/seed.ts (OwnerPayout): thiếu giao dịch gốc để đảo')
+          const reason = 'Chuyển nhầm sang tài khoản cũ của chủ xe'
+          const pair = buildReversalPair(first.txn, reason, { userId: PM_ACCOUNTANT_USER_ID, fullName: PM_ACCOUNTANT_NAME }, nextSequenceCode('GD', allCodes()), reversalAt)
+          const index = newTxns.findIndex((t) => t.id === first?.txn.id)
+          newTxns[index] = pair.updatedOriginal
+          newTxns.push(pair.reversal)
+          const reqIndex = newRequests.findIndex((r) => r.id === first?.request.id)
+          newRequests[reqIndex] = {
+            ...first.request,
+            status: 'CANCELLED',
+            cancelledByName: PM_ACCOUNTANT_NAME,
+            cancelledAt: reversalAt,
+            cancelReason: vi.finance.ownerPayout.cancelReasonReversed(first.txn.code, reason),
+            updatedAt: reversalAt,
+          }
+          updatedRecords.set(record.id, applyOwnerPayoutReverted(currentRecord(record.id), { at: reversalAt, byName: PM_ACCOUNTANT_NAME, reason }))
+        },
+      })
+      events.push({ at: retryAt, run: () => void createPayout(currentRecord(record.id), retryAt, retryConfirmedAt) })
+    } else {
+      const confirmedAt = atLocal(record.dueDate, 0, 14)
+      events.push({ at: performedAt, run: () => void createPayout(currentRecord(record.id), performedAt, confirmedAt) })
+    }
+  }
+  events.sort((a, b) => a.at.localeCompare(b.at))
+  for (const event of events) event.run()
+
+  // ---- Đồng bộ trạng thái yêu cầu bằng `deriveRequestStatus` (không gõ tay) ----
+  const allTxns = [...transactions, ...newTxns]
+  const finalNewRequests = newRequests.map((r) => ({ ...r, status: deriveRequestStatus(r, allTxns) }))
+
+  // ---- Bước kiểm: vi phạm thì `throw` để không sai âm thầm ----
+  const fail = (msg: string): never => {
+    throw new Error(`finance/seed.ts (OwnerPayout): ${msg}`)
+  }
+  const finalRecords = records.map((r) => updatedRecords.get(r.id) ?? r)
+  for (const t of newTxns) {
+    if (t.customerId || t.rentalId) fail(`giao dịch ${t.code} chi trả chủ xe không được gắn khách / lượt thuê`)
+    if (t.method !== 'BANK_TRANSFER') fail(`giao dịch ${t.code} chi trả chủ xe phải là chuyển khoản`)
+    if (t.performedAt > nowIso || (t.confirmedAt ?? '') > nowIso || t.updatedAt > nowIso) fail(`giao dịch ${t.code} có mốc thời gian ở tương lai`)
+  }
+  for (const r of finalRecords) {
+    if (r.status !== 'PAID') continue
+    const effective = allTxns.filter((t) => t.type === 'OWNER_PAYOUT' && t.ownerPayoutRecordId === r.id && t.status === 'CONFIRMED' && !t.reversalOfId)
+    if (effective.length !== 1) fail(`khoản chi trả ${r.code} đã chi nhưng có ${effective.length} giao dịch hiệu lực`)
+    if (effective[0].amount !== r.amountPayable) fail(`khoản chi trả ${r.code} lệch số tiền với giao dịch ${effective[0].code}`)
+    if (r.updatedAt > nowIso) fail(`khoản chi trả ${r.code} có mốc thời gian ở tương lai`)
+  }
+  for (const r of finalNewRequests) {
+    const linked = r.ownerPayoutRecordId ? finalRecords.find((x) => x.id === r.ownerPayoutRecordId) : undefined
+    if (!linked) fail(`yêu cầu chi ${r.id} trỏ khoản chi trả không tồn tại`)
+  }
+
+  writeJson(PAYMENT_REQUESTS_STORAGE_KEY, [...requests, ...finalNewRequests])
+  writeJson(TRANSACTIONS_STORAGE_KEY, allTxns)
+  writeJson(OWNER_PAYOUT_RECORDS_STORAGE_KEY, finalRecords)
 }

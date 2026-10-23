@@ -202,12 +202,15 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
 // ---- Payment (PM) — `docs/PAYMENT-PLAN.md` §2.6, Round 1. ----
 
-/** `Payment-BRD.md` §6.2 + BA đề xuất `HANDOVER` (BRD §4.1/§8/PM-BR-21 — §0.4 điểm 3 `PAYMENT-PLAN.md`). `CONSIGNMENT` thuộc Phase 5, chưa thêm. */
-export const PAYMENT_REQUEST_SOURCES = ['BOOKING', 'HANDOVER', 'SETTLEMENT', 'POST_SETTLEMENT_CHARGE'] as const
+/**
+ * `Payment-BRD.md` §6.2 + BA đề xuất `HANDOVER` (BRD §4.1/§8/PM-BR-21 — §0.4 điểm 3 `PAYMENT-PLAN.md`).
+ * `CONSIGNMENT` = lệnh chi trả chủ xe ký gửi (`Payment-BRD.md` §6/§8, VC-BR-10) — nối ở cuối mảng.
+ */
+export const PAYMENT_REQUEST_SOURCES = ['BOOKING', 'HANDOVER', 'SETTLEMENT', 'POST_SETTLEMENT_CHARGE', 'CONSIGNMENT'] as const
 export type PaymentRequestSource = (typeof PAYMENT_REQUEST_SOURCES)[number]
 
-/** `Payment-BRD.md` §6.2 — `PAYOUT` thuộc Phase 5 (`VC`), chưa thêm. */
-export const PAYMENT_REQUEST_PURPOSES = ['COLLECT', 'REFUND'] as const
+/** `Payment-BRD.md` §6.2 — `PAYOUT` = chi trả chủ xe ký gửi (`VC`), nối ở cuối mảng. */
+export const PAYMENT_REQUEST_PURPOSES = ['COLLECT', 'REFUND', 'PAYOUT'] as const
 export type PaymentRequestPurpose = (typeof PAYMENT_REQUEST_PURPOSES)[number]
 
 /** `Payment-UseCase.md` §4.2. */
@@ -372,9 +375,21 @@ export const CONSIGNMENT_CONTRACT_STATUSES = [
 ] as const
 export type ConsignmentContractStatus = (typeof CONSIGNMENT_CONTRACT_STATUSES)[number]
 
-/** Lịch chi trả chủ xe — mô hình FIXED_MONTHLY, CR-2026-050. */
-export const PAYOUT_STATUSES = ['SCHEDULED', 'PAID', 'ON_HOLD'] as const
+/** Lịch chi trả chủ xe — mô hình FIXED_MONTHLY, CR-2026-050. `CANCELLED` theo BRD §6.6/§7.3 (hợp đồng kết thúc giữa tháng). */
+export const PAYOUT_STATUSES = ['SCHEDULED', 'PAID', 'ON_HOLD', 'CANCELLED'] as const
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number]
+
+/** Lý do kết thúc hợp đồng ký gửi — BA đề xuất theo BRD §7.2 (hết hạn / chấm dứt trước hạn) và §11 (mất xe). */
+export const CONSIGNMENT_END_REASONS = ['EXPIRED', 'EARLY_TERMINATION', 'VEHICLE_LOSS'] as const
+export type ConsignmentEndReason = (typeof CONSIGNMENT_END_REASONS)[number]
+
+/** Bên yêu cầu chấm dứt — BRD §15 "chủ xe hoặc công ty". */
+export const CONSIGNMENT_TERMINATION_REQUESTERS = ['OWNER', 'COMPANY'] as const
+export type ConsignmentTerminationRequester = (typeof CONSIGNMENT_TERMINATION_REQUESTERS)[number]
+
+/** Trạng thái điều chỉnh thủ công khoản chi trả — BA đề xuất theo UC-VC-08 A2 ("nhập + duyệt"). */
+export const OWNER_PAYOUT_ADJUSTMENT_STATUSES = ['PENDING_APPROVAL', 'APPROVED', 'REJECTED'] as const
+export type OwnerPayoutAdjustmentStatus = (typeof OWNER_PAYOUT_ADJUSTMENT_STATUSES)[number]
 
 // ---- Vehicle Consignment (VC) — docs/CONSIGNMENT-PLAN.md §2.6 ----
 
@@ -618,5 +633,22 @@ export const AUDIT_ACTIONS = [
   'SUSPEND_CONSIGNMENT_CONTRACT',
   'RESUME_CONSIGNMENT_CONTRACT',
   'SUPERSEDE_CONSIGNMENT_CONTRACT',
+  // Vehicle Consignment (VC) — Round 2: lịch chi trả, chấm dứt/đóng/mất xe (VC-BR-17, UC-VC-14).
+  'GENERATE_OWNER_PAYOUT_RECORDS',
+  'HOLD_OWNER_PAYOUT_RECORD',
+  'RELEASE_OWNER_PAYOUT_RECORD',
+  'ADJUST_OWNER_PAYOUT_RECORD',
+  'APPROVE_OWNER_PAYOUT_ADJUSTMENT',
+  'REJECT_OWNER_PAYOUT_ADJUSTMENT',
+  'CANCEL_OWNER_PAYOUT_RECORD',
+  'LINK_OWNER_PAYOUT_RECORD',
+  'UNLINK_OWNER_PAYOUT_RECORD',
+  'MARK_OWNER_PAYOUT_RECORD_PAID',
+  'REVERT_OWNER_PAYOUT_RECORD_PAID',
+  'NOTIFY_CONSIGNMENT_TERMINATION',
+  'CREATE_CONSIGNMENT_RETURN',
+  'TERMINATE_CONSIGNMENT_CONTRACT',
+  'CLOSE_CONSIGNMENT_CONTRACT',
+  'CREATE_OWNER_PAYOUT',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]

@@ -6,8 +6,9 @@ import { readJson, writeJson } from '@/shared/lib/storage'
 import {
   CONSIGNMENT_CONTRACTS_STORAGE_KEY,
   CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY,
+  OWNER_PAYOUT_RECORDS_STORAGE_KEY,
   VEHICLE_OWNERS_STORAGE_KEY,
-} from './api'
+} from './storage'
 import {
   buildTermsSnapshot,
   dayDiff,
@@ -21,15 +22,26 @@ import {
   type OwnerGender,
   type VehicleOwner,
 } from './model'
+import {
+  buildExpectedPayouts,
+  deriveAmountPayable,
+  materializePayoutRecord,
+  periodOf,
+  type OwnerPayoutAdjustment,
+  type OwnerPayoutRecord,
+} from './payoutModel'
 
 /**
- * Seed Xe ký gửi (`docs/CONSIGNMENT-PLAN.md` mục 10): 10 chủ xe · 19 hợp đồng · 18 biên bản (16 INTAKE + 2 RETURN).
+ * Seed Xe ký gửi (`docs/CONSIGNMENT-PLAN.md` mục 10 + 19.9.1): 10 chủ xe · 19 hợp đồng · 18 biên bản (16 INTAKE + 2 RETURN)
+ * · lịch chi trả lịch sử dựng bằng CHÍNH hàm runtime `buildExpectedPayouts` (không gõ tay số tiền / trạng thái).
  * Mọi ngày tương đối hôm nay theo NGÀY ĐỊA PHƯƠNG. Snapshot điều khoản dựng bằng `buildTermsSnapshot` từ xe thật
  * (seed `vehicles` chạy trước). Không ghi audit khi seed. Cuối hàm có bước kiểm ràng buộc, vi phạm thì `throw`.
  */
 
 const SEED_ACTOR = 'Trần Thị Quản Lý'
 const SEED_COMPANY_REP = 'Trần Thị Quản Lý'
+const SEED_ACCOUNTANT = 'Đỗ Thị Kế Toán'
+const SEED_SYSTEM = 'Hệ thống'
 
 function dayKey(offset: number): string {
   const d = new Date()
@@ -469,6 +481,29 @@ function seedContractsAndRecords(owners: VehicleOwner[], vehicles: Vehicle[]) {
       }
     }
 
+    // Chấm dứt trước hạn / hết hạn (kế hoạch mục 19.9.1): ngày kết thúc tính tiền + thông báo chấm dứt nếu có.
+    const endedAtIso = endedAtByContract.get(id)
+    let endedDate: string | undefined
+    let endReason: ConsignmentContract['endReason']
+    let terminationNotice: ConsignmentContract['terminationNotice']
+    if (status === 'TERMINATED' && endedAtIso) {
+      endedDate = toLocalDateKey(endedAtIso)
+      endReason = 'EARLY_TERMINATION'
+      const noticeDate = addDaysKey(endedDate, -base.noticePeriodDays)
+      terminationNotice = {
+        requestedBy: 'OWNER',
+        noticeDate,
+        plannedEndDate: endedDate,
+        reason: spec.endedReason ?? 'Chấm dứt trước hạn',
+        recordedByName: SEED_ACTOR,
+        recordedAt: atTime(noticeDate, 9),
+      }
+    }
+    if (status === 'CLOSED') {
+      endedDate = base.effectiveTo
+      endReason = 'EXPIRED'
+    }
+
     const contract: ConsignmentContract = {
       id,
       contractNo,
@@ -476,6 +511,9 @@ function seedContractsAndRecords(owners: VehicleOwner[], vehicles: Vehicle[]) {
       vehicleId: vehicle.id,
       status,
       ...base,
+      terminationNotice,
+      endedDate,
+      endReason,
       termsSnapshot,
       termVersions,
       signedCopy,
@@ -494,9 +532,10 @@ function seedContractsAndRecords(owners: VehicleOwner[], vehicles: Vehicle[]) {
     if (endedAt) pendingReturns.push({ contract, vehicle, endedAt })
   })
 
-  // 2 biên bản RETURN (chỉ seed — chưa có thao tác chấm dứt/đóng qua giao diện).
+  // 2 biên bản RETURN (hợp đồng đã chấm dứt / đã đóng).
   for (const { contract, vehicle, endedAt } of pendingReturns) {
     const recordSeq = records.length + 1
+    contract.returnRecordId = `cgh_${String(recordSeq).padStart(3, '0')}`
     records.push({
       id: `cgh_${String(recordSeq).padStart(3, '0')}`,
       code: nextSequenceCode(
@@ -534,12 +573,100 @@ function seedContractsAndRecords(owners: VehicleOwner[], vehicles: Vehicle[]) {
   return { contracts, records }
 }
 
+// ---- Lịch chi trả lịch sử (kế hoạch mục 19.9.1) ----
+
+function minIso(a: string, b: string): string {
+  return a < b ? a : b
+}
+function maxIso(a: string, b: string): string {
+  return a > b ? a : b
+}
+
+/**
+ * Record cho mọi hợp đồng đã kích hoạt, dựng bằng `buildExpectedPayouts` (cùng hàm runtime). Trạng thái theo luật, không
+ * gõ tay từng bản: (a) chủ xe chưa có tài khoản → tạo ra đã `ON_HOLD`; (b) hợp đồng tạm ngưng → khoản có hạn chi từ ngày
+ * tạm ngưng trở đi `ON_HOLD`; (c) `cg_012` kỳ trước có điều chỉnh −1.000.000 đã duyệt; (d) `cg_013` kỳ hiện tại có điều chỉnh
+ * +500.000 chờ duyệt. Mốc thời gian luôn nằm trong `[createdAt, now]`.
+ */
+function buildPayoutRecords(owners: VehicleOwner[], contracts: ConsignmentContract[]): OwnerPayoutRecord[] {
+  const nowIso = new Date().toISOString()
+  const currentPeriod = periodOf(dayKey(0))
+  const previousPeriod = periodOf(dayOfMonth(-1, 1))
+  const records: OwnerPayoutRecord[] = []
+  let adjustmentSeq = 0
+
+  for (const contract of contracts) {
+    if (!contract.activatedAt) continue
+    const owner = owners.find((o) => o.id === contract.ownerId)
+    if (!owner) throw new Error(`[seed consignment] thiếu chủ xe cho hợp đồng ${contract.contractNo}`)
+    const suspendedAt =
+      contract.status === 'SUSPENDED' ? [...contract.statusHistory].reverse().find((h) => h.to === 'SUSPENDED')?.at : undefined
+
+    for (const draft of buildExpectedPayouts(contract, currentPeriod)) {
+      const seq = records.length + 1
+      const createdAt = minIso(maxIso(atTime(`${draft.period}-01`, 8), contract.activatedAt), nowIso)
+      const holdNoBank = !owner.bankAccount ? 'Chủ xe chưa cung cấp tài khoản ngân hàng' : undefined
+      let record = materializePayoutRecord(
+        { ...draft, holdReason: holdNoBank },
+        { id: `opr_${String(seq).padStart(3, '0')}`, code: `CTCX-${String(seq).padStart(6, '0')}`, createdAt, createdByName: SEED_SYSTEM },
+      )
+
+      // (b) Hợp đồng tạm ngưng: khoản có hạn chi từ ngày tạm ngưng trở đi bị tạm giữ.
+      if (suspendedAt && record.status === 'SCHEDULED' && record.dueDate >= toLocalDateKey(suspendedAt)) {
+        const holdAt = minIso(maxIso(createdAt, suspendedAt), nowIso)
+        const reason = 'Tạm giữ do tranh chấp điều khoản, chờ làm rõ'
+        record = {
+          ...record,
+          status: 'ON_HOLD',
+          holdReason: reason,
+          statusHistory: [...record.statusHistory, { from: 'SCHEDULED', to: 'ON_HOLD', at: holdAt, byName: SEED_ACTOR, reason }],
+          updatedAt: holdAt,
+        }
+      }
+
+      // (c) / (d) Điều chỉnh thủ công.
+      const addAdjustment = (amount: number, note: string, approved: boolean): void => {
+        adjustmentSeq += 1
+        const requestedAt = minIso(new Date(new Date(createdAt).getTime() + 86_400_000).toISOString(), nowIso)
+        const decidedAt = minIso(new Date(new Date(requestedAt).getTime() + 2 * 3_600_000).toISOString(), nowIso)
+        const adjustment: OwnerPayoutAdjustment = {
+          id: `opa_${String(adjustmentSeq).padStart(3, '0')}`,
+          amount,
+          note,
+          status: approved ? 'APPROVED' : 'PENDING_APPROVAL',
+          requestedByName: SEED_ACCOUNTANT,
+          requestedByRole: 'ACCOUNTANT',
+          requestedAt,
+          decidedByName: approved ? SEED_ACTOR : undefined,
+          decidedAt: approved ? decidedAt : undefined,
+        }
+        const adjustments = [...record.adjustments, adjustment]
+        record = {
+          ...record,
+          adjustments,
+          amountPayable: deriveAmountPayable({ baseAmount: record.baseAmount, adjustments }),
+          updatedAt: approved ? decidedAt : requestedAt,
+        }
+      }
+      if (contract.id === 'cg_012' && draft.period === previousPeriod) {
+        addAdjustment(-1_000_000, 'Hai bên thống nhất giảm do xe nằm xưởng 5 ngày vì lỗi công ty', true)
+      }
+      if (contract.id === 'cg_013' && draft.period === currentPeriod) {
+        addAdjustment(500_000, 'Hỗ trợ phí gửi xe theo thoả thuận', false)
+      }
+      records.push(record)
+    }
+  }
+  return records
+}
+
 /** Kiểm ràng buộc trên chính dữ liệu seed (plan mục 10.2) — vi phạm thì `throw` để không sai âm thầm. */
 function assertSeedInvariants(
   owners: VehicleOwner[],
   contracts: ConsignmentContract[],
   records: ConsignmentHandoverRecord[],
   vehicles: Vehicle[],
+  payouts: OwnerPayoutRecord[],
 ): void {
   const today = toLocalDateKey(new Date())
   const fail = (msg: string): never => {
@@ -592,16 +719,43 @@ function assertSeedInvariants(
     if (!r.ownerConfirmed || !r.companyConfirmed) fail(`biên bản ${r.code} chưa được hai bên xác nhận (VC-BR-15)`)
     if (r.createdAt > new Date().toISOString()) fail(`biên bản ${r.code} có ngày tạo ở tương lai`)
   }
+
+  // ---- Lịch chi trả (kế hoạch mục 19.9.1 điểm 4) ----
+  const nowIso = new Date().toISOString()
+  const currentPeriod = periodOf(today)
+  for (const c of contracts) {
+    const own = payouts.filter((r) => r.contractId === c.id && r.status !== 'CANCELLED')
+    if (c.status === 'ACTIVE' || c.status === 'SUSPENDED') {
+      const expected = buildExpectedPayouts(c, currentPeriod).map((d) => d.period)
+      if (expected.length !== own.length || expected.some((period) => own.filter((r) => r.period === period).length !== 1)) {
+        fail(`hợp đồng ${c.contractNo} không có đúng 1 khoản chi trả không huỷ cho mỗi kỳ tới kỳ hiện tại (VC-BR-21)`)
+      }
+    }
+    const endedDate = c.endedDate
+    if (endedDate && own.some((r) => r.period > periodOf(endedDate))) {
+      fail(`hợp đồng ${c.contractNo} có khoản chi trả sau kỳ của ngày kết thúc`)
+    }
+    if (!c.activatedAt && own.length > 0) fail(`hợp đồng ${c.contractNo} chưa kích hoạt nhưng đã có khoản chi trả`)
+  }
+  for (const r of payouts) {
+    if (r.period > currentPeriod) fail(`khoản chi trả ${r.code} có kỳ ở tương lai`)
+    if (r.amountPayable !== deriveAmountPayable(r)) fail(`khoản chi trả ${r.code} có số phải trả không khớp công thức`)
+    if (r.amountPayable <= 0) fail(`khoản chi trả ${r.code} có số phải trả không dương`)
+    if (r.createdAt > nowIso || r.updatedAt > nowIso || r.updatedAt < r.createdAt) fail(`khoản chi trả ${r.code} có mốc thời gian sai`)
+    for (const h of r.statusHistory) if (h.at > nowIso) fail(`khoản chi trả ${r.code} có lịch sử trạng thái ở tương lai`)
+  }
 }
 
 function seedConsignment(): void {
   const vehicles = readJson<Vehicle[]>(VEHICLES_STORAGE_KEY) ?? []
   const owners = buildOwners()
   const { contracts, records } = seedContractsAndRecords(owners, vehicles)
-  assertSeedInvariants(owners, contracts, records, vehicles)
+  const payouts = buildPayoutRecords(owners, contracts)
+  assertSeedInvariants(owners, contracts, records, vehicles, payouts)
   writeJson(VEHICLE_OWNERS_STORAGE_KEY, owners)
   writeJson(CONSIGNMENT_CONTRACTS_STORAGE_KEY, contracts)
   writeJson(CONSIGNMENT_HANDOVER_RECORDS_STORAGE_KEY, records)
+  writeJson(OWNER_PAYOUT_RECORDS_STORAGE_KEY, payouts)
 }
 
 registerSeedStep(seedConsignment)

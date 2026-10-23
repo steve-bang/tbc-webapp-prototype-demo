@@ -212,9 +212,18 @@ export interface PaymentRequest {
   expectedAmount: number
   /** `HỆ THỐNG tính (deriveRequestStatus), không sửa tay. */
   status: PaymentRequestStatus
-  rentalId: string
+  /**
+   * `PM-BR-16`/`PM-BR-24`: yêu cầu của khách (`source ≠ CONSIGNMENT`) luôn có `rentalId` + `customerId`; lệnh chi trả chủ xe
+   * (`source = CONSIGNMENT`) thì KHÔNG — gắn `vehicleOwnerId` + `ownerPayoutRecordId` thay thế.
+   */
+  rentalId?: string
   /** Copy từ Rental lúc tạo — lọc nhanh/công nợ. */
-  customerId: string
+  customerId?: string
+  /** Chỉ `source = CONSIGNMENT` — chủ xe nhận tiền / khoản chi trả (Owner Payout Record) / xe / hợp đồng ký gửi. */
+  vehicleOwnerId?: string
+  ownerPayoutRecordId?: string
+  vehicleId?: string
+  consignmentContractId?: string
   // Round 2:
   settlementId?: string
   settlementRequestId?: string
@@ -249,9 +258,18 @@ export interface Transaction {
   amount: number
   method: PaymentMethod
   status: TransactionStatus
-  /** PM-BR-16 — bắt buộc. */
-  customerId: string
+  /**
+   * PM-BR-16 — bắt buộc với giao dịch thu / hoàn của khách. `type = OWNER_PAYOUT` (PM-BR-24) thì KHÔNG có `customerId`/`rentalId`:
+   * gắn `vehicleOwnerId` + `ownerPayoutRecordId` thay thế.
+   */
+  customerId?: string
   rentalId?: string
+  /** Chỉ `OWNER_PAYOUT` — chủ xe nhận tiền, khoản chi trả, xe. */
+  vehicleOwnerId?: string
+  ownerPayoutRecordId?: string
+  vehicleId?: string
+  /** Chỉ `OWNER_PAYOUT` — người nhận ĐÃ CHE số tài khoản ("••••6789 — Ngân hàng — Chủ TK"). */
+  payoutRecipient?: string
   /** Trống với `ADJUSTMENT`/`OFFSET`. */
   paymentRequestId?: string
   /** Round 2 — `OFFSET`. */

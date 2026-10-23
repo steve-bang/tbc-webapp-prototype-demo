@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { usePermission } from '@/features/auth'
+import { useVehicleOwners } from '@/features/consignment'
 // `customers` chưa export `useCustomers` qua barrel — deep-import thẳng
 // `hooks.ts`, cùng tiền lệ `SettlementListScreen`.
 import { useCustomers } from '@/features/customers/hooks'
@@ -46,6 +47,14 @@ export function TransactionLedgerScreen() {
   const { data: txns = [], isLoading } = useTransactions()
   const { data: customers = [] } = useCustomers()
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers])
+  const { data: owners = [] } = useVehicleOwners()
+  const ownerById = useMemo(() => new Map(owners.map((o) => [o.id, o])), [owners])
+  /** Đối tượng của giao dịch: chủ xe (chi trả ký gửi) hoặc khách hàng. */
+  const partyName = (t: { vehicleOwnerId?: string; customerId?: string }): string => {
+    if (t.vehicleOwnerId) return ownerById.get(t.vehicleOwnerId)?.fullName ?? t.vehicleOwnerId
+    if (t.customerId) return customerById.get(t.customerId)?.fullName ?? t.customerId
+    return '—'
+  }
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>(ALL)
@@ -208,7 +217,7 @@ export function TransactionLedgerScreen() {
                   <TableHead>{vi.finance.payment.ledgerColumnMethod}</TableHead>
                   <TableHead>{vi.finance.payment.ledgerColumnStatus}</TableHead>
                   <TableHead>{vi.finance.payment.ledgerColumnRental}</TableHead>
-                  <TableHead>{vi.finance.payment.ledgerColumnCustomer}</TableHead>
+                  <TableHead>{vi.finance.payment.ledgerColumnParty}</TableHead>
                   <TableHead>{vi.finance.payment.ledgerColumnPerformedBy}</TableHead>
                   <TableHead>{vi.finance.payment.ledgerColumnReceipt}</TableHead>
                 </TableRow>
@@ -233,7 +242,7 @@ export function TransactionLedgerScreen() {
                         <TransactionStatusBadge status={t.status} />
                       </TableCell>
                       <TableCell className="min-w-0 truncate font-mono text-xs">{t.rentalId ?? '—'}</TableCell>
-                      <TableCell className="min-w-0 truncate">{customerById.get(t.customerId)?.fullName ?? t.customerId}</TableCell>
+                      <TableCell className="min-w-0 truncate">{partyName(t)}</TableCell>
                       <TableCell className="min-w-0 truncate">{t.performedByName}</TableCell>
                       <TableCell>{t.receipt ? t.receipt.receiptNo : '—'}</TableCell>
                     </TableRow>
@@ -258,7 +267,7 @@ export function TransactionLedgerScreen() {
                   <span>{formatDateTime(t.performedAt)}</span>
                 </div>
                 <div className="text-muted-foreground min-w-0 truncate text-xs">
-                  {customerById.get(t.customerId)?.fullName ?? t.customerId} · {t.rentalId ?? '—'}
+                  {partyName(t)} · {t.rentalId ?? '—'}
                 </div>
               </div>
             ))}
@@ -271,7 +280,7 @@ export function TransactionLedgerScreen() {
       <TransactionDetailSheet
         transaction={detailTxn}
         allTransactions={txns}
-        customerName={detailTxn ? customerById.get(detailTxn.customerId)?.fullName : undefined}
+        partyName={detailTxn ? partyName(detailTxn) : undefined}
         outsideFilter={outsideFilter}
         open={!!detailTxn}
         onOpenChange={(o) => !o && setDetailTxnId(null)}
