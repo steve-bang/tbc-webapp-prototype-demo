@@ -11,6 +11,16 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ---
 
+### 2026-10-23
+
+**Changed**
+
+- **Phase 2 đóng (`[x]`)** — mục cuối "Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng" xác nhận không
+  còn việc code: seed `rentals`/`calendar`/`contracts` đã đăng ký đúng thứ tự, mọi route Phase 2 đã mount screen
+  thật. Chỉ cập nhật docs, không đổi code. `ComingSoon` còn lại: Dashboard + 4 route nền tảng (Phase 6), 3 route
+  ký gửi (Phase 5), `/employees/:id` (chưa gán phase — tài liệu không đặc tả màn chi tiết nhân viên, nội dung dự
+  kiến đã dời Phase 6; chờ người dùng quyết). Calendar Round 3 vẫn tạm hoãn theo chủ dự án.
+
 ### 2026-10-22
 
 **Added**

@@ -88,7 +88,10 @@ Owner/Consignment tạm ẩn.
       `/customers/:id`, `/vehicles`, `/vehicles/:id`, `/maintenance` đều đã mount screen thật. Còn
       lại `ComingSoon` hợp lệ: `/employees/:id` và mọi route Phase 2+.
 
-## Phase 2 — Lịch & lượt thuê (lõi nghiệp vụ) — `[~]`
+## Phase 2 — Lịch & lượt thuê (lõi nghiệp vụ) — `[x]`
+
+> Ngoại lệ còn mở (không chặn Phase 2): `features/calendar` Round 3 (Day/Agenda + kéo-thả UC-RC-06/07)
+> **tạm hoãn theo chủ dự án 15/09/2026** — xem dòng `features/calendar` bên dưới.
 
 **Thứ tự build đã điều chỉnh so với `docs/PAGE-IMPLEMENTATION-PRIORITY.md` (quyết định kỹ thuật của
 `tech-lead`, không đổi nội dung nghiệp vụ)**: `features/rentals` (data core + List + Create/Confirm/
@@ -188,7 +191,16 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       `VehicleRentalHistoryTab`/`CustomerRentalHistoryTab` (read-only, mirror
       `VehicleMaintenanceTab.tsx`, `useRentals` qua barrel `@/features/rentals`, không đụng
       `rentals/model.ts`/`api.ts`/`hooks.ts`/`index.ts`). Qua 1 vòng review `tech-lead`: không Blocker.
-- [ ] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng.
+- [x] Cập nhật `registerSeeds.ts`, xoá `ComingSoon` tương ứng — xác nhận 23/10/2026: `registerSeeds.ts`
+      đã import đủ `rentals` → `calendar` → `contracts` (Assignment seed nằm trong `employees/seed.ts`), mọi
+      route Phase 2 (`/calendar`, `/schedule/dispatch`, `/rentals`, `/rentals/:id`, `/contracts`,
+      `/contracts/:id`) đã mount screen thật, không còn code nào thuộc Phase 2. `ComingSoon` còn lại:
+      `/dashboard` + 4 route `/platform/*` (Phase 6), 3 route `/consignment/*` (Phase 5), và
+      `/employees/:id` — **chưa gán phase nào**: tài liệu không đặc tả màn chi tiết nhân viên riêng
+      (`WebappQuanTri.md` §8.2 chỉ có "Hồ sơ nhân viên"), `PAGE-IMPLEMENTATION-PRIORITY.md` Phase 1 mục 1 giữ
+      `ComingSoon` "cho tới khi có yêu cầu rõ ràng", nội dung dự kiến (lịch sử phân công + hiệu suất,
+      UC-EA-14/18) đã dời Phase 6 theo `EMPLOYEE-ASSIGNMENT-DISPATCH-PLAN.md` §1.2 — chờ người dùng quyết
+      nếu muốn làm cùng bảng khối lượng/hiệu suất ở Phase 6.
 
 ## Phase 3 — Giao/nhận xe & sự cố — `[x]`
 
