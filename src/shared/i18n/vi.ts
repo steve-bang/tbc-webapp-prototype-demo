@@ -644,6 +644,30 @@ export const vi = {
     contractTabViewDetail: 'Xem chi tiết hợp đồng',
     contractCreateSuccess: 'Đã sinh hợp đồng.',
     contractCreateError: 'Không thể sinh hợp đồng, vui lòng thử lại.',
+    // Dời lịch / đổi xe trước giao (CALENDAR-ROUND3-PLAN.md §3.2, §14) — thông điệp lỗi/cảnh báo theo mã của `evaluateScheduleChange`.
+    scheduleIssues: {
+      STATUS_LOCKED: 'Lượt thuê đã giao hoặc đã kết thúc — không dời lịch / đổi xe được (RC-BR-01).',
+      INVALID_PERIOD: 'Thời gian trả xe dự kiến phải sau thời gian nhận xe (RM-BR-03).',
+      PICKUP_IN_PAST: 'Thời gian nhận xe không được nằm trong quá khứ.',
+      VEHICLE_UNAVAILABLE: 'Xe đang bảo trì hoặc ngừng hoạt động — không thể xếp lượt thuê (RC-BR-04).',
+      VEHICLE_BLOCKED: 'Xe đang bị khoá lịch trong khoảng thời gian này (RC-BR-15).',
+      OVERLAP: 'Trùng thời gian với lượt thuê khác của xe này (RC-BR-02, BR-001).',
+      BUFFER_VIOLATION: 'Cách lượt thuê liền kề dưới 90 phút (đệm quay đầu — RC-BR-13). Cần nhập lý do để ghi đè.',
+      OUTSIDE_RECEIVING_WINDOW: 'Giờ trả xe dự kiến ngoài khung nhận xe 08:00–23:00 — có thể phát sinh phụ thu (RM §51).',
+      DURATION_CHANGED: 'Số ngày thuê khác số ngày đã chốt — giá KHÔNG tự đổi, cần xử lý chênh lệch thủ công (RC-BR-06).',
+      VEHICLE_CLASS_DIFFERS: 'Xe mới khác hạng xe đã chốt — giá/km và Allowed KM KHÔNG tự đổi (RC-BR-06).',
+      CONTRACT_EXISTS: 'Lượt thuê đã có hợp đồng theo xe/thời gian cũ — cần kiểm tra và xử lý hợp đồng thủ công (UC-RC-07).',
+      NO_CHANGE: 'Chưa có thay đổi nào so với lịch hiện tại.',
+    },
+    scheduleNoPermission: 'Bạn không có quyền dời lịch / đổi xe lượt thuê.',
+    scheduleStale: 'Dữ liệu lượt thuê đã thay đổi, vui lòng tải lại.',
+    scheduleVehicleNotFound: 'Không tìm thấy xe đích.',
+    scheduleOverrideReasonRequired: 'Cần nhập lý do ghi đè vùng đệm quay đầu xe (RC-BR-13).',
+    // Tab "Giá, cọc & phát sinh" — chỉ thông báo khi kỳ thuê / hạng xe hiện tại lệch snapshot (CALENDAR-ROUND3-PLAN.md P10).
+    pricingDurationChanged: (snapshotDays: number, currentDays: number) =>
+      `Thời gian thuê đã đổi (${snapshotDays} → ${currentDays} ngày); giá vẫn theo số ngày đã chốt — xử lý chênh lệch thủ công.`,
+    pricingVehicleClassChanged: (snapshotClass: string, currentClass: string) =>
+      `Hạng xe hiện tại (${currentClass}) khác hạng đã chốt (${snapshotClass}); giá/km và Allowed KM vẫn theo hạng đã chốt — xử lý chênh lệch thủ công.`,
   },
   consignment: {
     noValue: '—',

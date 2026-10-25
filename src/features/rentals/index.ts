@@ -29,3 +29,15 @@ export { canCompleteRental, canOpenSettlement, canRevertSettlementReversed } fro
 export { RENTALS_STORAGE_KEY, markRentalCompleted, markSettlementOpened, revertSettlementReversed } from './api'
 // DASHBOARD-PLATFORM-PLAN.md §5.3
 export { collectRentalTimeSignals } from './model'
+// CALENDAR-ROUND3-PLAN.md §14.2 — dời lịch / đổi xe trước giao (UC-RC-06/07): hàm kiểm tra dùng chung UI + API, schema form, 2 hook.
+export {
+  RESCHEDULABLE_STATUSES,
+  canRescheduleRental,
+  classifyConflicts,
+  evaluateScheduleChange,
+  needsOverrideReason,
+  rentalDurationDays,
+  rentalScheduleChangeSchema,
+} from './model'
+export type { RentalScheduleChangeValues, ScheduleIssue } from './model'
+export { useRescheduleRental, useChangeRentalVehicle } from './hooks'

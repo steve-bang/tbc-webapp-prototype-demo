@@ -3,9 +3,10 @@ import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
-import type { VehicleBlock } from './model'
+import { VEHICLE_BLOCKS_STORAGE_KEY, type VehicleBlock } from './blockRules'
 
-export const VEHICLE_BLOCKS_STORAGE_KEY = 'vehicleBlocks'
+// CALENDAR-ROUND3-PLAN.md §4 (C1) — khoá lưu đã chuyển sang file lá `blockRules.ts`; re-export để chỗ dùng cũ (`seed.ts`) không đổi.
+export { VEHICLE_BLOCKS_STORAGE_KEY }
 
 function readAll(): VehicleBlock[] {
   return readJson<VehicleBlock[]>(VEHICLE_BLOCKS_STORAGE_KEY) ?? []

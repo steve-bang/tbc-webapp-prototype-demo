@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { Rental } from '@/features/rentals'
 import { TURNAROUND_BUFFER_MINUTES } from '@/features/rentals'
-import type { AssignmentRole, RentalStatus, VehicleBlockStatus } from '@/shared/domain/enums'
+import type { AssignmentRole, RentalStatus } from '@/shared/domain/enums'
 import {
   addDaysToKey,
   addMonthsToKey,
@@ -14,37 +14,10 @@ import {
   zonedDateTimeToIso,
 } from '@/shared/lib/datetime'
 
-/**
- * Vehicle Block — `RentalManagement-BRD.md` §57 (CR-2026-015) + `RentalCalendar-BRD.md`
- * §30 `RC-BR-15/16` (module `RC`, xem `docs/CALENDAR-MANAGEMENT-PLAN.md` §2.1 —
- * mâu thuẫn tài liệu giữa `RentalCalendar-UseCase.md` §24 và BRD §30 đã chốt
- * dùng BRD §30 làm nguồn `RC-BR-xx`). Khoá lịch xe theo khoảng ngày, độc lập
- * với `Vehicle.status` (VM §10a) — tạo/gỡ Block KHÔNG tự đổi trạng thái xe.
- */
-export interface VehicleBlock {
-  id: string
-  vehicleId: string
-  /** ISO date (`YYYY-MM-DD`, không giờ). */
-  startDate: string
-  /**
-   * ISO date, optional — để trống = khoá vô thời hạn tới khi gỡ tay.
-   * TODO(OQ: CHANGE-REQUESTS.md CR-2026-015 câu 2 — "khoá vô thời hạn hay nhập
-   * ngày dự kiến xong" chưa chốt, Round 2 cho phép cả 2, không ép buộc).
-   */
-  endDate?: string
-  /** Nhân viên tự mô tả (VD "tai nạn", "hư nặng") — không phải enum cố định, BRD không liệt kê danh mục. */
-  reason: string
-  status: VehicleBlockStatus
-  createdByUserId: string
-  createdByName: string
-  createdByRole: string
-  releasedByUserId?: string
-  releasedByName?: string
-  releasedByRole?: string
-  releasedAt?: string
-  createdAt: string
-  updatedAt: string
-}
+// CALENDAR-ROUND3-PLAN.md §4 (C1) — entity Vehicle Block + luật chồng khoảng đã chuyển sang file lá `blockRules.ts`; re-export để chỗ dùng cũ không đổi.
+import { blockEndBound, type VehicleBlock } from './blockRules'
+export type { VehicleBlock } from './blockRules'
+export { isVehicleBlockedForPeriod } from './blockRules'
 
 /**
  * "Rental CONFIRMED trở lên" theo RM-BR-30 §57 — ý nghĩa giống `OCCUPYING_STATUSES`
@@ -63,30 +36,6 @@ const OCCUPYING_LIKE_STATUSES: RentalStatus[] = [
 
 export function isOccupyingLikeStatus(status: RentalStatus): boolean {
   return OCCUPYING_LIKE_STATUSES.includes(status)
-}
-
-/** So sánh chuỗi `YYYY-MM-DD` — coi block không có `endDate` là khoá vô thời hạn. */
-function blockEndBound(block: Pick<VehicleBlock, 'endDate'>): string {
-  return block.endDate ?? '9999-12-31'
-}
-
-/**
- * RM-BR-30/RC-BR-15 — true nếu `vehicleId` bị khoá (status `ACTIVE`) chồng lấp
- * khoảng [`startDate`, `endDate`] (so sánh dạng chuỗi ngày, không giờ).
- */
-export function isVehicleBlockedForPeriod(
-  blocks: VehicleBlock[],
-  vehicleId: string,
-  startDate: string,
-  endDate: string,
-): boolean {
-  // N8 — ngày +07 (trước đây cắt chuỗi UTC: mốc 00:00–06:59 +07 bị tính vào hôm trước)
-  const periodStart = toDateKey(startDate)
-  const periodEnd = toDateKey(endDate)
-  return blocks.some((b) => {
-    if (b.vehicleId !== vehicleId || b.status !== 'ACTIVE') return false
-    return periodStart <= blockEndBound(b) && b.startDate <= periodEnd
-  })
 }
 
 /**

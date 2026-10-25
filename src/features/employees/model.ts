@@ -212,6 +212,25 @@ export function hasAssignmentConflict(
   })
 }
 
+/**
+ * EA-BR-14 — dời Planned Window theo độ lệch của lượt thuê (CALENDAR-ROUND3-PLAN.md §14.2, C2). Chỉ phân công `ASSIGNED`
+ * (trạng thái khác giữ nguyên); `DELIVERY` dời theo độ lệch giờ giao, `RECEIVING` theo độ lệch giờ trả.
+ * Trả `null` khi không cần đổi (độ lệch tương ứng = 0 hoặc không phải `ASSIGNED`).
+ * TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 G5) — EA-BR-14 không nêu cách dời; giả định tạm như trên.
+ */
+export function shiftedAssignmentWindow(
+  assignment: Pick<Assignment, 'role' | 'status' | 'plannedWindowStart' | 'plannedWindowEnd'>,
+  deltas: { pickupDeltaMs: number; returnDeltaMs: number },
+): { plannedWindowStart: string; plannedWindowEnd: string } | null {
+  if (assignment.status !== 'ASSIGNED') return null
+  const delta = assignment.role === 'DELIVERY' ? deltas.pickupDeltaMs : deltas.returnDeltaMs
+  if (delta === 0) return null
+  return {
+    plannedWindowStart: new Date(Date.parse(assignment.plannedWindowStart) + delta).toISOString(),
+    plannedWindowEnd: new Date(Date.parse(assignment.plannedWindowEnd) + delta).toISOString(),
+  }
+}
+
 /** EA-BR-11 — không đổi người khi đã `IN_PROGRESS`/`DONE` (và các trạng thái kết thúc khác). */
 export function canReassign(assignment: Assignment): boolean {
   return assignment.status === 'ASSIGNED'

@@ -148,7 +148,7 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       lười + nhớ chế độ xem) → **B1** (dời lịch / đổi xe trước giao qua hộp thoại — hàm thuần kiểm tra, API `rentals`, dời `Planned Window`
       phân công, 3 audit action) → **B2** (kéo–thả `@dnd-kit/core` trên Week/Month/Day, dùng lại hộp thoại B1). Đổi xe giữa kỳ (UC-RM-22,
       phụ lục `ADDENDUM_VEHICLE_SWAP`, chênh lệch giá CR-2026-063) đề xuất **plan riêng** (Round C) vì `RC-BR-01` cấm trên lịch. Người dùng
-      duyệt cả 5 điểm plan §12 (25/10/2026). Tiến độ: [x] A (25/10/2026 — xem Ngày + Agenda + Lịch tải lười + nhớ chế độ xem; review đạt vòng 1, plan §13.9) · [ ] B1 · [ ] B2.
+      duyệt cả 5 điểm plan §12 (25/10/2026). Tiến độ: [x] A (25/10/2026 — xem Ngày + Agenda + Lịch tải lười + nhớ chế độ xem; review đạt vòng 1, plan §13.9) · [x] B1 (25/10/2026 — dời lịch / đổi xe trước giao qua hộp thoại; review đạt vòng 1, plan §14.9) · [ ] B2.
       **Fix theo phản hồi khách (15/09/2026):** Week view có layout mobile riêng (danh sách theo
       ngày) khiến thiếu lưới xe×ngày ở mobile trong khi Month đã always-on lưới — bỏ hẳn nhánh
       mobile trong `CalendarWeekGrid.tsx`, chỉ còn 1 lưới xe×ngày bọc `overflow-x-auto`, đồng bộ

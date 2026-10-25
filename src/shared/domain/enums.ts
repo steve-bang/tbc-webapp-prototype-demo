@@ -678,6 +678,10 @@ export const AUDIT_ACTIONS = [
   'CONFIG_CHANGE',
   // Vehicle Management (VM) — TECH-HARDENING-PLAN.md §2.3: hệ thống đổi trạng thái xe khi huỷ giao/nhận (UC-VH-14, UC-VR-19).
   'SYSTEM_CHANGE_VEHICLE_STATUS',
+  // Rental Calendar (RC) / Employee Assignment (EA) — CALENDAR-ROUND3-PLAN.md §3.5: UC-RC-06/07/19 dời lịch / đổi xe trước giao, EA-BR-14 dời Planned Window.
+  'RESCHEDULE_RENTAL',
+  'CHANGE_RENTAL_VEHICLE',
+  'UPDATE_ASSIGNMENT_WINDOW',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 

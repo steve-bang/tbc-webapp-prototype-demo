@@ -15,6 +15,12 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Lịch Round 3 — Round B1: dời lịch / đổi xe trước giao** (theo [`docs/CALENDAR-ROUND3-PLAN.md`](docs/CALENDAR-ROUND3-PLAN.md) §14 — UC-RC-06/07,
+  `RC-BR-01…06/13`, `EA-BR-14`). Trên mọi chế độ xem Lịch, bấm vào lượt chưa giao → **"Dời lịch"** / **"Đổi xe"** (vai trò có quyền sửa lượt thuê). Hộp thoại hiện cũ → mới và kiểm
+  tra ngay: chặn khi lượt đã giao, xe đang bảo dưỡng/ngừng, xe bị khoá lịch, trùng lượt khác, giờ giao ở quá khứ; cảnh báo khi số ngày thay đổi, đổi sang xe khác hạng, lượt đã
+  có hợp đồng, giờ trả ngoài 08:00–23:00; dời sát lượt trước dưới 90' phải nhập lý do. **Giá đã chốt không tự đổi** — tab Giá của lượt thuê hiện thông báo khi số ngày/hạng
+  xe lệch. Dời giờ thì **phân công giao/nhận dời theo**, cảnh báo nếu nhân viên trùng lịch. Từ chối khi lượt đã bị người khác sửa. Nhật ký thao tác có 3 hành động mới. Các
+  giả định nghiệp vụ gắn `TODO(OQ)` (plan §5). Review `tech-lead` **đạt vòng 1**, không Blocker.
 - **Lịch Round 3 — Round A: xem Ngày + Danh sách (Agenda)** (theo [`docs/CALENDAR-ROUND3-PLAN.md`](docs/CALENDAR-ROUND3-PLAN.md) §13 — `RentalCalendar-BRD.md` §8,
   `RC-BR-16`). Màn Lịch có thêm 2 chế độ **Ngày** (mỗi xe một hàng, trục giờ ngang 24h, tô khung giờ làm việc 07:00–20:00, vạch 21:00 giao/nhận chuẩn, vạch "bây giờ",
   vùng đệm 90', khoá xe; nhấp chỗ trống tạo nhanh theo giờ làm tròn 30') và **Danh sách** (lượt theo ngày giao trong tuần, đánh dấu lượt đang tiếp diễn, phân trang).

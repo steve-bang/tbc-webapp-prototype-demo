@@ -9,8 +9,10 @@ import {
   canReassign,
   canTransitionStatus,
   hasActiveAssignment,
+  hasAssignmentConflict,
   isPhoneTaken,
   nextEmployeeCode,
+  shiftedAssignmentWindow,
   type Assignment,
   type AssignmentReassignment,
   type Employee,
@@ -498,5 +500,55 @@ export async function cancelAssignment(id: string, reason: string, actor: ActorI
       after: { status: 'CANCELLED', reason: trimmedReason },
     })
     return after
+  })
+}
+
+/**
+ * EA-BR-14, EA-BR-10 — dời `Planned Window` của phân công `ASSIGNED` khi lượt thuê bị dời lịch (CALENDAR-ROUND3-PLAN.md §14.2, C2;
+ * `rentals/api.ts` gọi qua barrel). Mỗi phân công đổi → một audit `UPDATE_ASSIGNMENT_WINDOW` cùng `correlationId` với audit của lượt thuê.
+ * Trùng lịch nhân viên sau khi dời chỉ trả về để CẢNH BÁO (không chặn). Không ném lỗi nghiệp vụ — mọi kiểm tra đã xong ở phía gọi.
+ */
+export async function shiftAssignmentWindowsForRental(
+  rentalId: string,
+  deltas: { pickupDeltaMs: number; returnDeltaMs: number },
+  actor: ActorInfo,
+  correlationId: string,
+): Promise<{ updated: Assignment[]; conflicts: { assignmentId: string; employeeId: string }[] }> {
+  return fakeRequest(() => {
+    const all = readAllAssignments()
+    const now = new Date().toISOString()
+    const updated: Assignment[] = []
+    const before = new Map<string, Assignment>()
+    const next = all.map((a) => {
+      if (a.rentalId !== rentalId) return a
+      const window = shiftedAssignmentWindow(a, deltas)
+      if (!window) return a
+      before.set(a.id, a)
+      const changed: Assignment = { ...a, ...window, updatedAt: now }
+      updated.push(changed)
+      return changed
+    })
+    if (updated.length === 0) return { updated, conflicts: [] }
+    writeAllAssignments(next)
+    const conflicts: { assignmentId: string; employeeId: string }[] = []
+    for (const a of updated) {
+      const prev = before.get(a.id) as Assignment
+      appendAudit({
+        action: 'UPDATE_ASSIGNMENT_WINDOW',
+        entity: 'Assignment',
+        entityId: a.id,
+        summary: `Dời giờ phân công Rental ${a.rentalId} (${a.role}) theo lịch thuê mới`,
+        actorUserId: actor.userId,
+        actorName: actor.fullName,
+        actorRole: actor.role,
+        before: { plannedWindowStart: prev.plannedWindowStart, plannedWindowEnd: prev.plannedWindowEnd },
+        after: { plannedWindowStart: a.plannedWindowStart, plannedWindowEnd: a.plannedWindowEnd },
+        correlationId,
+      })
+      if (hasAssignmentConflict(next, a.assigneeEmployeeId, a.plannedWindowStart, a.plannedWindowEnd, a.id)) {
+        conflicts.push({ assignmentId: a.id, employeeId: a.assigneeEmployeeId })
+      }
+    }
+    return { updated, conflicts }
   })
 }

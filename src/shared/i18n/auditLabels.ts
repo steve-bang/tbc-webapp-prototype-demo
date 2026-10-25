@@ -150,6 +150,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   VIEW_AUDIT_LOG: 'Xem nhật ký thao tác',
   VIEW_AUDIT_SENSITIVE_VALUE: 'Xem giá trị nhạy cảm trong nhật ký',
   CONFIG_CHANGE: 'Đổi cấu hình hệ thống',
+  RESCHEDULE_RENTAL: 'Dời lịch lượt thuê',
+  CHANGE_RENTAL_VEHICLE: 'Đổi xe lượt thuê',
+  UPDATE_ASSIGNMENT_WINDOW: 'Dời giờ phân công',
 }
 
 export const AUDIT_MODULE_LABELS: Record<AuditModule, string> = {

@@ -11,3 +11,6 @@ export { useAssignments, useAssignment, useCreateAssignment, useReassignAssignme
 export { ASSIGNMENTS_STORAGE_KEY, EMPLOYEES_STORAGE_KEY } from './api'
 // DASHBOARD-PLATFORM-PLAN.md §5.3
 export { collectAssignmentSignals } from './model'
+// CALENDAR-ROUND3-PLAN.md §14.2 (C2) — `rentals/api.ts` dời Planned Window phân công khi dời lịch lượt thuê (EA-BR-14).
+export { shiftedAssignmentWindow } from './model'
+export { shiftAssignmentWindowsForRental } from './api'

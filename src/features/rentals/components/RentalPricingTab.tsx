@@ -1,6 +1,7 @@
-import { SECURITY_DEPOSIT_TYPE_LABELS, vi } from '@/shared/i18n/vi'
+import { useVehicles } from '@/features/vehicles'
+import { SECURITY_DEPOSIT_TYPE_LABELS, VEHICLE_CLASS_LABELS, vi } from '@/shared/i18n/vi'
 import { formatVnd } from '@/shared/lib/money'
-import type { Rental } from '../model'
+import { rentalDurationDays, type Rental } from '../model'
 
 function Field({ label, value }: { label: string; value?: string }) {
   return (
@@ -18,8 +19,26 @@ function Field({ label, value }: { label: string; value?: string }) {
  * đang tính real-time bằng hàm thuần `model.ts`).
  */
 export function RentalPricingTab({ rental }: { rental: Rental }) {
+  const { data: vehicles } = useVehicles()
+  // CALENDAR-ROUND3-PLAN.md P10 — dời lịch / đổi xe KHÔNG tự đổi giá: báo khi kỳ thuê hoặc hạng xe hiện tại đã lệch snapshot (chỉ hiển thị).
+  // TODO(OQ: RentalCalendar-BRD.md §35 Q9) — cách xử lý chênh lệch giá chưa chốt.
+  const currentDays = rentalDurationDays(rental.pickupDateTime, rental.expectedReturnDateTime)
+  const currentVehicleClass = vehicles?.find((v) => v.id === rental.vehicleId)?.vehicleClass
+  const notices: string[] = []
+  if (currentDays !== rental.rentalDurationDays) notices.push(vi.rentals.pricingDurationChanged(rental.rentalDurationDays, currentDays))
+  if (currentVehicleClass && currentVehicleClass !== rental.vehicleClass) {
+    notices.push(vi.rentals.pricingVehicleClassChanged(VEHICLE_CLASS_LABELS[rental.vehicleClass], VEHICLE_CLASS_LABELS[currentVehicleClass]))
+  }
+
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {notices.length > 0 && (
+        <div className="border-status-pending/40 bg-status-pending/10 flex flex-col gap-1 rounded-md border p-3 text-sm md:col-span-2">
+          {notices.map((n) => (
+            <p key={n}>{n}</p>
+          ))}
+        </div>
+      )}
       <div className="flex flex-col gap-4">
         <h3 className="text-sm font-semibold">{vi.rentals.sectionPricing}</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

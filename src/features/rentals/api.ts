@@ -1,13 +1,19 @@
+// CALENDAR-ROUND3-PLAN.md §4 (C1) — file lá của `calendar` (chỉ import `shared/*`): đọc khoá xe mà không tạo vòng `rentals ↔ calendar`.
+import { VEHICLE_BLOCKS_STORAGE_KEY, type VehicleBlock } from '@/features/calendar/blockRules'
 import { getById as getCustomerById } from '@/features/customers/api'
+// CALENDAR-ROUND3-PLAN.md §4 (C2) — qua barrel dữ liệu; `employees` chỉ `import type` từ `rentals` nên không tạo vòng.
+import { shiftAssignmentWindowsForRental } from '@/features/employees'
 // Rental cần Customer/Vehicle đầy đủ (không chỉ id) để chạy `canConfirm()`
 // (RM-BR-05/06/07) ngay trong lớp api — `vehicles`/`customers` chưa export
 // `getById` qua barrel `index.ts` nên import thẳng từ `api.ts` của feature đó,
 // cùng tinh thần `maintenance/hooks.ts` import thẳng `vehicles/hooks.ts`.
 import { getById as getVehicleById } from '@/features/vehicles/api'
 import type { RentalStatus, Role, SecurityDepositType, VehicleClass } from '@/shared/domain/enums'
+import { can } from '@/shared/domain/permissions'
+import { vi } from '@/shared/i18n/vi'
 import { appendAudit } from '@/shared/lib/audit'
 import { fakeRequest } from '@/shared/lib/fakeNetwork'
-import { toDateKey } from '@/shared/lib/datetime'
+import { dateTimeToMs, formatDateTime, toDateKey } from '@/shared/lib/datetime'
 import { generateId } from '@/shared/lib/id'
 import { readJson, writeJson } from '@/shared/lib/storage'
 import {
@@ -26,8 +32,11 @@ import {
   canMarkContractCreated,
   canOpenSettlement,
   canRevertSettlementReversed,
+  evaluateScheduleChange,
+  needsOverrideReason,
   rentalDurationDays,
   type Rental,
+  type ScheduleIssue,
 } from './model'
 
 export const RENTALS_STORAGE_KEY = 'rentals'
@@ -423,6 +432,176 @@ export async function revertSettlementReversed(id: string, actor: ActorInfo): Pr
     })
     return after
   })
+}
+
+// ---- Dời lịch / đổi xe trước giao — CALENDAR-ROUND3-PLAN.md §3.3 / §14.2 (UC-RC-06, UC-RC-07) ----
+
+export interface RescheduleRentalInput {
+  /** ISO hoặc giá trị `datetime-local` (hiểu theo +07). */
+  pickupDateTime: string
+  expectedReturnDateTime: string
+  /** `rental.updatedAt` lúc người dùng mở hộp thoại — lệch thì từ chối (EX-03). */
+  expectedUpdatedAt: string
+  /** Bắt buộc khi có `BUFFER_VIOLATION` (RC-BR-13). */
+  overrideReason?: string
+}
+
+export interface ChangeRentalVehicleInput {
+  vehicleId: string
+  /** Bỏ trống = giữ nguyên thời gian hiện tại. */
+  pickupDateTime?: string
+  expectedReturnDateTime?: string
+  expectedUpdatedAt: string
+  overrideReason?: string
+}
+
+export interface ScheduleChangeResult {
+  rental: Rental
+  /** Cảnh báo của lần kiểm tra cuối (đã được người dùng chấp nhận). */
+  warnings: ScheduleIssue[]
+  /** Phân công bị trùng lịch nhân viên sau khi dời giờ (EA-BR-10) — chỉ cảnh báo. */
+  assignmentConflicts: { assignmentId: string; employeeId: string }[]
+}
+
+type ScheduleChangeKind = 'RESCHEDULE_RENTAL' | 'CHANGE_RENTAL_VEHICLE'
+
+function assertScheduleEditable(all: Rental[], id: string, expectedUpdatedAt: string, actor: ActorInfo): Rental {
+  if (!can(actor.role, 'RENTAL', 'EDIT')) throw new Error(vi.rentals.scheduleNoPermission)
+  const rental = findOrThrow(all, id)
+  // EX-03 — người khác đã sửa lượt thuê này kể từ lúc mở hộp thoại.
+  if (rental.updatedAt !== expectedUpdatedAt) throw new Error(vi.rentals.scheduleStale)
+  return rental
+}
+
+/**
+ * Lõi chung của `rescheduleRental`/`changeRentalVehicle`. MỌI kiểm tra xong trước MỌI thao tác ghi (bài học N4): quyền → lượt tồn tại →
+ * `updatedAt` → xe đích → khoá xe → `evaluateScheduleChange` (+ lý do ghi đè). Chỉ ghi 4 trường `pickupDateTime`/`expectedReturnDateTime`/
+ * `vehicleId`/`updatedAt` — KHÔNG đụng trường snapshot nào (RC-BR-06, TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 Q2/Q3)).
+ */
+async function applyScheduleChange(
+  kind: ScheduleChangeKind,
+  id: string,
+  change: {
+    vehicleId?: string
+    pickupDateTime?: string
+    expectedReturnDateTime?: string
+    expectedUpdatedAt: string
+    overrideReason?: string
+  },
+  actor: ActorInfo,
+): Promise<ScheduleChangeResult> {
+  // Kiểm sớm để từ chối ngay không tốn độ trễ; được lặp lại với dữ liệu mới nhất trong `fakeRequest` bên dưới.
+  const current = assertScheduleEditable(readAll(), id, change.expectedUpdatedAt, actor)
+  const targetVehicleId = change.vehicleId ?? current.vehicleId
+  const targetVehicle = await getVehicleById(targetVehicleId)
+  if (!targetVehicle) throw new Error(vi.rentals.scheduleVehicleNotFound)
+
+  const correlationId = generateId('corr')
+  const done = await fakeRequest(() => {
+    const all = readAll()
+    const before = assertScheduleEditable(all, id, change.expectedUpdatedAt, actor)
+    const vehicleBlocks = readJson<VehicleBlock[]>(VEHICLE_BLOCKS_STORAGE_KEY) ?? []
+    const proposed = {
+      vehicleId: targetVehicleId,
+      pickupDateTime: change.pickupDateTime ?? before.pickupDateTime,
+      expectedReturnDateTime: change.expectedReturnDateTime ?? before.expectedReturnDateTime,
+    }
+    const { errors, warnings } = evaluateScheduleChange({
+      rental: before,
+      proposed,
+      rentals: all,
+      targetVehicle,
+      vehicleBlocks,
+      now: new Date(),
+    })
+    if (errors.length > 0) throw new Error(errors.map((e) => vi.rentals.scheduleIssues[e.code]).join(' '))
+    const overrideReason = change.overrideReason?.trim() ?? ''
+    if (needsOverrideReason(warnings) && !overrideReason) throw new Error(vi.rentals.scheduleOverrideReasonRequired)
+
+    // ---- Hết kiểm tra — từ đây mới ghi ----
+    const pickupMs = dateTimeToMs(proposed.pickupDateTime)
+    const returnMs = dateTimeToMs(proposed.expectedReturnDateTime)
+    const after: Rental = {
+      ...before,
+      vehicleId: proposed.vehicleId,
+      pickupDateTime: new Date(pickupMs).toISOString(),
+      expectedReturnDateTime: new Date(returnMs).toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    writeAll(all.map((r) => (r.id === id ? after : r)))
+
+    const vehicleChanged = after.vehicleId !== before.vehicleId
+    const pickupDeltaMs = pickupMs - dateTimeToMs(before.pickupDateTime)
+    const returnDeltaMs = returnMs - dateTimeToMs(before.expectedReturnDateTime)
+    const beforeFields: Record<string, string> = {}
+    const afterFields: Record<string, unknown> = {}
+    if (pickupDeltaMs !== 0) {
+      beforeFields.pickupDateTime = before.pickupDateTime
+      afterFields.pickupDateTime = after.pickupDateTime
+    }
+    if (returnDeltaMs !== 0) {
+      beforeFields.expectedReturnDateTime = before.expectedReturnDateTime
+      afterFields.expectedReturnDateTime = after.expectedReturnDateTime
+    }
+    if (vehicleChanged) {
+      beforeFields.vehicleId = before.vehicleId
+      afterFields.vehicleId = after.vehicleId
+    }
+    if (overrideReason) afterFields.overrideReason = overrideReason
+    afterFields.warnings = warnings.map((w) => w.code)
+
+    const summary =
+      kind === 'RESCHEDULE_RENTAL'
+        ? `Dời lịch lượt thuê ${id}: ${formatDateTime(before.pickupDateTime)} → ${formatDateTime(after.pickupDateTime)}`
+        : vehicleChanged
+          ? `Đổi xe lượt thuê ${id}: ${before.vehicleId} → ${after.vehicleId}`
+          : `Đổi lịch lượt thuê ${id} (giữ nguyên xe)`
+    appendAudit({
+      action: kind,
+      entity: 'Rental',
+      entityId: id,
+      summary,
+      actorUserId: actor.userId,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      before: beforeFields,
+      after: afterFields,
+      correlationId,
+      reason: overrideReason || undefined,
+    })
+    return { after, warnings, pickupDeltaMs, returnDeltaMs }
+  })
+
+  // EA-BR-14 — thời gian đổi thì dời Planned Window phân công `ASSIGNED`; đổi xe thuần tuý KHÔNG đổi phân công.
+  let assignmentConflicts: ScheduleChangeResult['assignmentConflicts'] = []
+  if (done.pickupDeltaMs !== 0 || done.returnDeltaMs !== 0) {
+    const shifted = await shiftAssignmentWindowsForRental(
+      id,
+      { pickupDeltaMs: done.pickupDeltaMs, returnDeltaMs: done.returnDeltaMs },
+      actor,
+      correlationId,
+    )
+    assignmentConflicts = shifted.conflicts
+  }
+  return { rental: done.after, warnings: done.warnings, assignmentConflicts }
+}
+
+/** UC-RC-06 — dời lịch (giờ giao/trả) trên cùng xe. */
+export async function rescheduleRental(
+  id: string,
+  input: RescheduleRentalInput,
+  actor: ActorInfo,
+): Promise<ScheduleChangeResult> {
+  return applyScheduleChange('RESCHEDULE_RENTAL', id, input, actor)
+}
+
+/** UC-RC-07 — đổi sang xe khác (có thể kèm đổi giờ) trước khi giao. */
+export async function changeRentalVehicle(
+  id: string,
+  input: ChangeRentalVehicleInput,
+  actor: ActorInfo,
+): Promise<ScheduleChangeResult> {
+  return applyScheduleChange('CHANGE_RENTAL_VEHICLE', id, input, actor)
 }
 
 // RM-BR-15 — history không xoá: không có remove() (Cancel chỉ đổi status).

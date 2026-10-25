@@ -1,7 +1,7 @@
 # Kế hoạch — Lịch Round 3: xem Ngày · Agenda · Dời lịch / đổi xe (kéo–thả) (Phase 2 Round 3)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **`APPROVED`** (25/10/2026 — người dùng duyệt cả 5 điểm §12 theo đề xuất; các Round chạy liên tục
-A → B1 → B2) · **Round A — `DONE`** (25/10/2026, brief §13, review đạt vòng 1, không Blocker — §13.9) · B1, B2 — chờ (brief viết khi Round trước `DONE`) · Round C — plan riêng, chưa làm.
+A → B1 → B2) · **Round A — `DONE`** (25/10/2026, brief §13, review đạt vòng 1, không Blocker — §13.9) · **B1 — `DONE`** (25/10/2026, brief §14, review đạt vòng 1, không Blocker — §14.9) · B2 — chờ · Round C — plan riêng, chưa làm.
 
 Hạng mục **Phase 2 Round 3** của `features/calendar` — tạm hoãn từ 15/09/2026 (`docs/CALENDAR-MANAGEMENT-PLAN.md` §8.1), nay người dùng chọn làm tiếp sau
 Phase 6.1. Plan này **thay** phác thảo §8.1 cũ (đọc lại tài liệu nghiệp vụ tại thời điểm lập plan, đúng lời dặn ở §8.1).
@@ -279,7 +279,9 @@ gọi lại đường B1. Các Round chạy liên tục nếu người dùng duy
 
 1. `npx tsc -b` · `npx oxlint` (có `import/no-cycle`) · `npm run build` sạch; `grep -rn '\*/[a-zA-Z]' src/` rỗng.
 2. `node $SP/consignment-r3/sccfiles.mjs $REPO` **rỗng** (SCC = 0); `evalorder` OK cho `/src/app/routes.tsx` và mọi `index.ts`/`ui.ts` bị sửa.
-3. `node $SP/hardening/initial-load.mjs $REPO` ≤ **1.870.000** và ≤ ngân sách Round (§2.2: A ≤ 1.835.000; B1 ≤ A + 2.000; B2 ≤ B1 + 500).
+3. `node $SP/hardening/initial-load.mjs $REPO` ≤ **1.870.000** và ≤ ngân sách Round. Ban đầu (§2.2): A ≤ 1.835.000; B1 ≤ A + 2.000; B2 ≤ B1 + 500.
+   **Đặt lại sau Round A (§13.9, thực tế A = 1.834.102):** B1 ≤ **1.844.000** (API + hàm kiểm tra + chuỗi `vi` + thông báo tab Giá nằm ở chunk chính); B2 ≤ **B1 + 1.000**
+   (`@dnd-kit` trong chunk Lịch lười).
 4. Seed **không đổi**: `dump-seed.mjs` HCM → `diff-seed` so `$SP/hardening/base-r3a-hcm.json` = 0 (`SEED_VERSION` giữ 27).
 5. `run-harness.sh` dưới `Asia/Ho_Chi_Minh`, `UTC`, `America/New_York` so `$SP/hardening/baseline-r3a` (đối số 5 = `Asia/Ho_Chi_Minh`) → 24/24 `diff=0`
    (Round B1 thêm 3 audit action: nếu harness cũ đếm audit theo danh sách cố định thì báo, không sửa harness).
@@ -569,12 +571,254 @@ chỉ `partialize` 5 trường; hàm bố cục là hàm thuần ở `model.ts`.
 đặt lại ở §8.1 mục 3 (brief B1). Baseline B1: HEAD commit Round A, tải đầu 1.834.102 B; seed/harness giữ `hardening/base-r3a-hcm.json` + `hardening/baseline-r3a/` (Round A không
 đổi dữ liệu).
 
+## 14. Round B1 — brief giao việc cho `dev` (`APPROVED` 25/10/2026)
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+### 14.1. Bối cảnh
+
+Round A đã `DONE` (commit `3660a62`): Lịch có 4 chế độ xem và đã tải lười. Round B1 dựng **toàn bộ nghiệp vụ dời lịch / đổi xe trước giao** (UC-RC-06, UC-RC-07).
+Thao tác mở **qua hộp thoại** từ menu trên block, **chưa có kéo–thả** (kéo–thả là B2 — chỉ là cử chỉ gọi lại hộp thoại này).
+
+Thiết kế đã duyệt ở §3.1–§3.5, §4 (ngoại lệ **C1**, **C2**), §5 (giả định Q1–Q5, G1–G6 — người dùng duyệt làm giả định demo 25/10/2026).
+
+Hiện `rentals/api.ts` **chưa có** hàm sửa thời gian hay đổi xe. `hasConflict()` coi vùng đệm 90' là xung đột cứng — **giữ nguyên** hàm này (K5); B1 viết hàm kiểm tra mới.
+
+### 14.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §14.5)
+
+1. **File lá `src/features/calendar/blockRules.ts`** (C1):
+   - Chuyển từ `calendar/model.ts` sang: `interface VehicleBlock`, `blockEndBound`, `isVehicleBlockedForPeriod`.
+   - Chuyển từ `calendar/api.ts` sang: `VEHICLE_BLOCKS_STORAGE_KEY`.
+   - Thêm `findBlockingBlocks(blocks, vehicleId, startIso, endIso)` → danh sách khoá `ACTIVE` chồng khoảng, tính theo date key +07.
+   - File này **chỉ** import `shared/*` — không import `rentals` hay bất kỳ feature nào.
+   - `calendar/model.ts` và `calendar/api.ts` **re-export** đúng tên cũ, nên mọi nơi đang dùng không phải sửa.
+   - Comment đầu file: lý do C1 — tránh vòng `rentals ↔ calendar` (tiền lệ `incidents/storageKeys.ts`).
+2. **Hàm thuần ở `src/features/rentals/model.ts`** (§3.2 — bảng mã lỗi/cảnh báo là **nguồn chuẩn**):
+   - `RESCHEDULABLE_STATUSES = ['DRAFT','CONFIRMED','CONTRACT_CREATED','READY_FOR_HANDOVER'] as const` — comment `RC-BR-01`, `TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 Q1 / RentalCalendar-BRD.md §35 Q8)`.
+   - `canRescheduleRental(rental)`.
+   - `classifyConflicts(rentals, vehicleId, startIso, endIso, excludeRentalId)` → `{ overlaps: Rental[]; bufferViolations: Rental[] }`.
+     - Chỉ tính lượt **đang chiếm xe**, dùng cùng danh sách trạng thái với `hasConflict`.
+     - Đệm = `TURNAROUND_BUFFER_MINUTES`.
+     - Mốc tính bằng `dateTimeToMs`.
+   - `SCHEDULE_ISSUE_CODES` (`as const`, đúng 12 mã ở §3.2) và `type ScheduleIssue = { code; rentalIds?: string[]; blockIds?: string[] }`.
+   - `evaluateScheduleChange({ rental, proposed: { vehicleId, pickupDateTime, expectedReturnDateTime }, rentals, targetVehicle, vehicleBlocks, now })` → `{ errors, warnings }`:
+     - đúng điều kiện từng mã ở §3.2;
+     - `TODO(OQ)` tại mã theo giả định: G1 `PICKUP_IN_PAST`, G2 `VEHICLE_UNAVAILABLE` khi dời trên cùng xe, G3 `OUTSIDE_RECEIVING_WINDOW`, Q2 `DURATION_CHANGED`,
+       Q3 `VEHICLE_CLASS_DIFFERS`, Q4 `CONTRACT_EXISTS`;
+     - giờ và ngày qua `shared/lib/datetime.ts` (`zonedParts` cho giờ +07);
+     - `BUFFER_VIOLATION` là **cảnh báo** cần lý do (G4).
+   - `rentalScheduleChangeSchema` (zod — cho hộp thoại):
+     - `pickupDateTime`, `expectedReturnDateTime` (chuỗi `datetime-local`), `vehicleId`, `overrideReason?`;
+     - lỗi tiếng Việt (CONVENTIONS §7).
+3. **API ở `src/features/rentals/api.ts`** (§3.3), bọc `fakeRequest`, đọc/ghi qua `storage.ts`:
+   - `rescheduleRental(id, { pickupDateTime, expectedReturnDateTime, expectedUpdatedAt, overrideReason? }, actor)`.
+   - `changeRentalVehicle(id, { vehicleId, pickupDateTime?, expectedReturnDateTime?, expectedUpdatedAt, overrideReason? }, actor)`.
+   - **Thứ tự bắt buộc — mọi kiểm tra trước mọi ghi:**
+     1. Quyền: `can(actor.role,'RENTAL','EDIT')` (import `can` từ `@/shared/domain/permissions`).
+     2. Lượt tồn tại.
+     3. `updatedAt === expectedUpdatedAt` (EX-03).
+     4. Đọc xe đích: `getById` của `@/features/vehicles/api` (đã import sẵn).
+     5. Đọc khoá xe: `readJson(VEHICLE_BLOCKS_STORAGE_KEY)` từ `@/features/calendar/blockRules` (C1).
+     6. `evaluateScheduleChange` → còn `errors` thì ném lỗi; `BUFFER_VIOLATION` mà `overrideReason` rỗng sau `trim` thì ném lỗi.
+   - Ghi: **chỉ** `pickupDateTime`, `expectedReturnDateTime`, `vehicleId`, `updatedAt`. Không trường snapshot nào đổi (K4, `RC-BR-06`).
+   - Thông điệp lỗi lấy từ `vi` (khoá theo mã).
+   - Audit:
+     - `appendAudit` với `RESCHEDULE_RENTAL` (đổi thời gian, không đổi xe) hoặc `CHANGE_RENTAL_VEHICLE` (đổi xe, có thể kèm thời gian).
+     - `before`/`after` = các trường đổi; `after` thêm `overrideReason` (nếu có) và `warnings` (mảng mã).
+     - `correlationId = generateId('corr')`.
+   - Khi **thời gian** đổi, sau khi ghi Rental gọi `shiftAssignmentWindowsForRental` (mục 4) với cùng `correlationId`.
+   - Trả `{ rental, warnings, assignmentConflicts }`.
+4. **`src/features/employees`** (C2, `EA-BR-14`, `EA-BR-10`):
+   - `model.ts`: hàm thuần `shiftedAssignmentWindow(assignment, { pickupDeltaMs, returnDeltaMs })`.
+     - Chỉ áp cho `status === 'ASSIGNED'`. `DELIVERY` dời theo `pickupDeltaMs`, `RECEIVING` theo `returnDeltaMs` (G5, `TODO(OQ)`).
+     - Delta = 0 hoặc phân công trạng thái khác → `null`.
+   - `api.ts`: `shiftAssignmentWindowsForRental(rentalId, deltas, actor, correlationId)`.
+     - Bọc `fakeRequest`. Ghi các phân công đổi, mỗi cái một audit `UPDATE_ASSIGNMENT_WINDOW` (`before`/`after` = 2 mốc, cùng `correlationId`).
+     - Trả `{ updated, conflicts: { assignmentId, employeeId }[] }` — dùng `hasAssignmentConflict` sẵn có, chỉ **cảnh báo**.
+   - `index.ts`: export thêm 2 hàm trên, comment `CALENDAR-ROUND3-PLAN.md §14.2 (C2)`.
+   - `rentals/api.ts` import từ **barrel** `@/features/employees` (không import sâu).
+5. **Hooks + barrel `rentals`:**
+   - `hooks.ts`: `useRescheduleRental`, `useChangeRentalVehicle`; `onSuccess` invalidate `['rentals']`, `['assignments']`, `['notifications']`.
+   - `index.ts`: export `RESCHEDULABLE_STATUSES`, `canRescheduleRental`, `classifyConflicts`, `evaluateScheduleChange`, `rentalScheduleChangeSchema`, type
+     `ScheduleIssue`, 2 hook; comment `CALENDAR-ROUND3-PLAN.md §14.2`.
+6. **Audit action:**
+   - `src/shared/domain/enums.ts`: nối **cuối** `AUDIT_ACTIONS` 3 mã `RESCHEDULE_RENTAL`, `CHANGE_RENTAL_VEHICLE`, `UPDATE_ASSIGNMENT_WINDOW` + comment 1 dòng
+     (`CALENDAR-ROUND3-PLAN.md §3.5 — UC-RC-06/07/19, EA-BR-14`).
+   - `src/shared/i18n/auditLabels.ts`: thêm 3 nhãn.
+7. **`src/features/calendar/components/RentalScheduleChangeDialog.tsx`** (mới, nằm trong chunk Lịch lười):
+   - Props: `rental`, `mode: 'reschedule' | 'changeVehicle'`, `initial?` (B2 sẽ truyền đề xuất từ vị trí thả), `onClose`, `onResult(ok)`.
+   - Form `react-hook-form` + `zodResolver(rentalScheduleChangeSchema)`.
+   - 2 ô `datetime-local`: hiển thị qua `isoToDateTimeInput`, đọc lại qua `dateTimeInputToIso`. `Select` xe (chỉ ở `changeVehicle`; danh sách `useVehicles` qua barrel).
+   - Mỗi lần giá trị đổi → chạy `evaluateScheduleChange` (dữ liệu từ `useRentals`, `useVehicles`, `useVehicleBlocks`; `now = new Date()`) và hiển thị:
+     - bảng **cũ → mới** (xe, giờ giao, giờ trả, số ngày);
+     - danh sách **lỗi** — nút "Xác nhận" bị khoá;
+     - danh sách **cảnh báo** (nhãn `vi`);
+     - ô **Lý do ghi đè** bắt buộc khi có `BUFFER_VIOLATION`.
+   - Lỗi `OVERLAP` / `VEHICLE_BLOCKED` liệt kê mã lượt / khoá gây xung đột. Liên kết sang Chi tiết lượt thuê **chỉ khi** `can('RENTAL','VIEW')` (Q20 / OQ-G1).
+   - Xác nhận → gọi hook. Thành công → toast; nếu có `assignmentConflicts` → toast cảnh báo trùng lịch nhân viên. Lỗi API → toast `error.message`, giữ hộp thoại mở.
+   - Hiển thị `expectedUpdatedAt` = `rental.updatedAt` lúc mở.
+   - Điện thoại: hộp thoại toàn chiều rộng, cuộn dọc bên trong.
+8. **`RentalBlockPopover.tsx`:** thêm 2 nút "Dời lịch", "Đổi xe" — chỉ hiện khi `can('RENTAL','EDIT') && canRescheduleRental(rental)`. Mở `RentalScheduleChangeDialog`. Ba chế độ
+   Week/Month/Day và Agenda (dùng chung popover) tự có nút.
+9. **`src/features/rentals/components/RentalPricingTab.tsx`** (P10, Q2/Q3 — chỉ hiển thị):
+   - `rentalDurationDays(pickup, expectedReturn)` hiện tại ≠ `rental.rentalDurationDays` → dòng thông báo "Thời gian thuê đã đổi (X → Y ngày); giá vẫn theo số ngày đã
+     chốt — xử lý chênh lệch thủ công".
+   - Hạng xe hiện tại của `vehicleId` ≠ `rental.vehicleClass` → dòng thông báo tương tự.
+   - `TODO(OQ: RentalCalendar-BRD.md §35 Q9)`.
+10. **`src/shared/i18n/vi.ts`:** nhãn 2 nút, tiêu đề/nhãn hộp thoại, nhãn 12 mã lỗi/cảnh báo, thông báo P10, toast.
+    - Nếu DoD 2 vượt ngân sách: được chuyển **chuỗi chỉ hộp thoại dùng** sang `src/shared/i18n/calendarLabels.ts` (mẫu `auditLabels.ts`/`platformLabels.ts` — D12),
+      chỉ chunk Lịch lười import. Chuỗi lỗi mà API dùng vẫn ở `vi.ts`.
+
+### 14.3. Ngoài phạm vi B1 (không làm dù "tiện tay")
+
+- Kéo–thả, `@dnd-kit` (B2).
+- Đổi `hasConflict()` / luồng tạo lượt.
+- Đổi xe giữa kỳ (Round C).
+- Sửa giá / tính lại tiền; tự huỷ hoặc tạo lại hợp đồng.
+- Sự kiện thông báo mới (G6).
+- Bộ đếm xung đột RC §17.
+- Sửa `permissions.ts`, `routeAccess.ts`.
+- Đổi seed (`SEED_VERSION` giữ 27) hoặc sửa dữ liệu xung đột có sẵn.
+- Sửa harness `phase6/*`, `demo-data/*`, `hardening/*`.
+- Sửa `docs/`. Chạy trình duyệt.
+
+### 14.4. Quy tắc bắt buộc
+
+- `CONVENTIONS.md` toàn bộ; đặc biệt:
+  - §1: chuỗi `vi`; ngày giờ chỉ qua `datetime.ts`.
+  - §3: 2 điểm nhập; import sâu chéo feature **chỉ** C1 (`@/features/calendar/blockRules` từ `rentals/api.ts`) + các import sâu đã có sẵn.
+  - §4: `fakeRequest`, `appendAudit`, `storage.ts`.
+  - §6: `can()`; không `role ===`.
+  - §7: form + zod.
+  - §10: `TODO(OQ)`.
+  - §11.
+- **Một hàm kiểm tra** cho UI và API. Hộp thoại không tự viết điều kiện riêng.
+- Kiểm tra trước mọi ghi. Lỗi ở bất kỳ bước kiểm tra nào → **không** thay đổi gì trong storage (bài học N4).
+- `import/no-cycle` phải sạch — nếu báo vòng do C1/C2, dừng và báo `tech-lead`, không tự tìm đường vòng khác.
+- Gặp quyết định nghiệp vụ mới → dừng, báo `tech-lead`.
+
+### 14.5. Thứ tự làm
+
+1. Mục 1 (`blockRules.ts` + re-export) → `tsc` + DoD 3 (SCC rỗng, `evalorder`).
+2. Mục 2 (hàm thuần) → harness DoD 7 phần T17 (gọi hàm thuần).
+3. Mục 4 (employees), rồi mục 3 + 5–6 (API, hooks, audit) → DoD 7 đủ T1–T16.
+4. Mục 7–10 (UI) → build → DoD 2.
+5. Chạy toàn bộ DoD 1–9.
+
+### 14.6. Definition of Done B1 — chạy đủ và dán kết quả vào báo cáo
+
+Baseline: commit Round A `3660a62` — tải đầu **1.834.102 B** · seed `$SP/hardening/base-r3a-hcm.json` · harness `$SP/hardening/baseline-r3a/` (Round A không đổi dữ liệu).
+
+1. `npx tsc -b` · `npx oxlint` (có `import/no-cycle`) · `npm run build` sạch (2 cảnh báo cũ). `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. **Tải đầu:** `node $SP/hardening/initial-load.mjs $REPO` ≤ **1.844.000** (ngân sách B1: +~10 kB, vì API, hàm kiểm tra, chuỗi `vi`, thông báo ở tab Giá nằm ở chunk chính).
+   - Báo chênh lệch so với 1.834.102 và kích thước chunk `CalendarScreen-*.js`.
+   - Vượt 1.844.000 → áp đòn bẩy `calendarLabels.ts` (mục 10). Vẫn vượt → dừng, báo `tech-lead`.
+   - Trần cứng toàn dự án 1.870.000.
+3. `node $SP/consignment-r3/sccfiles.mjs $REPO` **rỗng**. `evalorder` OK cho:
+   - `/src/app/routes.tsx`;
+   - `/src/features/{rentals,employees,calendar}/index.ts`;
+   - `/src/features/calendar/ui.ts`;
+   - `/src/features/calendar/blockRules.ts`.
+4. **Seed giống hệt:** `dump-seed.mjs` HCM → `diff-seed` so `$SP/hardening/base-r3a-hcm.json` = 0.
+5. **Harness 3 múi giờ:**
+   - `run-harness.sh` dưới `Asia/Ho_Chi_Minh`/`UTC`/`America/New_York` so `$SP/hardening/baseline-r3a` (đối số 5 `Asia/Ho_Chi_Minh`) → **24/24 `diff=0`**.
+   - Nếu harness cũ lệch chỉ vì `AUDIT_ACTIONS` dài thêm 3 mã → báo nguyên văn dòng lệch, không sửa harness.
+   - `guard-r1.mjs`, `n4-r1.mjs`, `$SP/cal3/cal-r3a.mjs` (so `cal-r3a-expected.txt`) ALL PASS.
+6. `tz-scan.mjs`: 5 nhóm cấm = 0 ngoài `datetime.ts`.
+7. **Harness B1** `$SP/cal3/cal-r3b1.mjs` (`dev` viết):
+   - Dùng `boot()` một lần, chụp `new Map(store)`, **khôi phục trước mỗi ca**.
+   - Gọi thẳng `load('/src/features/rentals/api.ts')`. Actor `MANAGER` (`usr_manager`), trừ T15. `expectedUpdatedAt` = `updatedAt` hiện tại, trừ T8.
+   - Đủ **17 ca T1–T17 ở §8.3**, in `PASS`/`FAIL` từng ca + `ALL PASS`.
+   - Mỗi ca: in mã lỗi/cảnh báo và số audit thêm vào (kèm `action`).
+   - Mỗi **ca lỗi**: so chuỗi JSON `rentals`, `assignments`, `audit` trước/sau → **y hệt**.
+   - Mỗi **ca thành công**: so mọi trường snapshot (`rentalDurationDays`, `baseAmount`, `allowedKm`, `vehicleClass`, `pricePerKm`, `estimatedTotal`, `prepaymentAmount`,
+     `deliveryFee`, `discountAmount`) trước/sau → **y hệt**.
+   - Chạy dưới **3 TZ** → output giống hệt. Lưu output HCM vào `$SP/cal3/cal-r3b1-expected.txt`.
+   - Ghi chú cách đọc một số ca:
+     - T5 kỳ vọng `errors` **chứa** `VEHICLE_BLOCKED` (có thể kèm `OVERLAP` vì `veh_014` còn `rt_010`).
+     - T7: `rt_009` dời +30' (từ 30' lên 60' sau giờ trả `rt_008`).
+     - T12/T13: `dev` chọn xe trống bằng `$SP/cal3/peek.mjs` và ghi id.
+     - T9: nếu `veh_004` không trống ngày 23–24/10 thì chọn lượt `CONFIRMED` khác có phân công `ASSIGNED` và ghi lý do.
+8. **Rà tĩnh** trong báo cáo:
+   - `grep -n "role ===" src/features/{rentals,employees,calendar}` → rỗng.
+   - Hộp thoại không có điều kiện kiểm tra riêng ngoài `evaluateScheduleChange` (trích đoạn).
+   - Nút "Dời lịch"/"Đổi xe" chỉ hiện theo `can('RENTAL','EDIT') && canRescheduleRental`.
+   - Liên kết lượt gây xung đột gate `can('RENTAL','VIEW')`.
+   - Bảng responsive hộp thoại 375/768.
+9. `git status`: liệt kê, có số đếm. Dự kiến khoảng 17 file theo §9 dòng B1 (+ `calendarLabels.ts` nếu dùng). Không file `docs/`.
+
+**Không yêu cầu** kiểm bằng trình duyệt (quyết định 14/09/2026).
+
+### 14.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §0, §1, §3.1–§3.5, §4 (C1, C2), §5, §6, §8.1, §8.3, §11, §12, §13.9, §14.
+2. `CONVENTIONS.md` §1, §3, §4, §6, §7, §10, §11 · `docs/ARCHITECTURE.md` §3, §5, §6a.
+3. Nghiệp vụ (chỉ các mục):
+   - `../thien-bao-car-docs/modules/RentalCalendar-BRD.md` §13, §15, §16, §19, §30;
+   - `../thien-bao-car-docs/modules/RentalCalendar-UseCase.md` §10 (UC-RC-06), §11 (UC-RC-07);
+   - `../thien-bao-car-docs/modules/RentalManagement-BRD.md` §51, §57;
+   - `../thien-bao-car-docs/modules/EmployeeAssignment-BRD.md` dòng 484–493 (`EA-BR-10/14/19`).
+4. Code:
+   - `src/features/rentals/{model,api,hooks,index}.ts`;
+   - `src/features/rentals/components/RentalPricingTab.tsx`;
+   - `src/features/employees/{model.ts (dòng 140–230),api.ts (dòng 360–500),index.ts}`;
+   - `src/features/calendar/{model.ts (dòng 1–100),api.ts,index.ts}`;
+   - `src/features/calendar/components/RentalBlockPopover.tsx`;
+   - `src/features/handover-return/components/HandoverEditDialog.tsx` (mẫu form + `datetime-local` + lý do);
+   - `src/shared/lib/{datetime.ts,audit.ts,id.ts}`;
+   - `src/shared/domain/permissions.ts` (dòng 18–62, 166–171, 597–611);
+   - `src/shared/domain/enums.ts` (khối `AUDIT_ACTIONS`);
+   - `src/shared/i18n/{auditLabels.ts (dòng 1–40),vi.ts (khối rentals, calendar)}`.
+5. Harness: `$SP/demo-data/lib.mjs` · `$SP/cal3/{peek.mjs,cal-r3a.mjs}` · `$SP/hardening/{n4-r1.mjs (mẫu khôi phục store + so JSON),run-harness.sh,dump-seed.mjs,diff-seed.mjs,initial-load.mjs,tz-scan.mjs,guard-r1.mjs}`.
+
+### 14.8. Báo cáo bàn giao `dev` phải có
+
+- Danh sách file đổi (khớp `git status`, có số đếm).
+- Output rút gọn DoD 1–7:
+  - tải đầu + chênh lệch + chunk `CalendarScreen`;
+  - SCC, `evalorder`;
+  - `diff-seed`;
+  - bảng `run-harness` 3 TZ;
+  - `guard-r1`, `n4-r1`, `cal-r3a`;
+  - `tz-scan`;
+  - `cal-r3b1` T1–T17 kèm mã + audit từng ca.
+- Rà tĩnh DoD 8.
+- Id xe đã chọn cho T9/T12/T13.
+- Các khoá `vi` mới (và `calendarLabels.ts` nếu dùng).
+- Mọi chỗ lệch plan + lý do.
+### 14.9. Kết quả review & phán quyết (25/10/2026 — đạt vòng 1, không Blocker)
+
+`tech-lead` chạy lại: 3 cổng sạch · tải đầu **1.843.864 B** (≤ 1.844.000; lần đo đầu của `dev` 1.845.523 → áp đòn bẩy `calendarLabels.ts`) · chunk `CalendarScreen` 44.034 B ·
+SCC rỗng · `cal-r3b1.mjs` dưới New_York trùng `cal-r3b1-expected.txt` (ALL PASS) · `run-harness` UTC so baseline HCM 8/8 `diff=0`. Đọc diff `rentals/api.ts`: quyền → lượt →
+`updatedAt` → xe đích → khoá xe → `evaluateScheduleChange` → lý do ghi đè, **tất cả trước** `writeAll`; chỉ ghi 4 trường; audit có `before`/`after` chỉ trường đổi + `correlationId`.
+`grep "role ==="` trong `rentals`/`employees`/`calendar`: các dòng khớp là `AssignmentRole` (`'DELIVERY'`/`'RECEIVING'`) — **trừ** `rentals/components/RentalHandoverReturnTab.tsx:52`
+(`role === 'MANAGER' || role === 'SYSTEM_ADMIN'`) **có từ trước, không nằm trong diff B1** → ghi nợ B1-N3, không xét ở review này.
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L1 | C1 mở rộng: `rentals/model.ts` cũng import `calendar/blockRules` (type + `blockEndBound`) | **Chấp nhận** — cùng file lá đã duyệt, không tạo vòng (SCC rỗng, `no-cycle` sạch). |
+| L2 | Export thêm `needsOverrideReason`, `rentalDurationDays`, type `RentalScheduleChangeValues`; `blockEndBound` từ `blockRules.ts` | **Chấp nhận.** |
+| L3 | Dùng đòn bẩy `calendarLabels.ts` | **Chấp nhận** — đúng §14.2 mục 10. |
+| L4 | `evaluateScheduleChange` thoát sớm ở `STATUS_LOCKED`/`NO_CHANGE`/`INVALID_PERIOD`; `VEHICLE_CLASS_DIFFERS` chỉ khi đổi sang xe khác hạng | **Chấp nhận** — các lỗi này làm mọi kiểm tra sau vô nghĩa; cảnh báo hạng chỉ có nghĩa khi đổi xe. |
+| L5 | Kiểm 2 lần (sớm + trong `fakeRequest`); dời phân công **sau** khi ghi lượt, ở `fakeRequest` riêng | **Chấp nhận, ghi nợ B1-N1.** Mọi kiểm tra nghiệp vụ xong trước ghi; `shiftAssignmentWindowsForRental` **không** có nhánh `throw` nghiệp vụ (chỉ đọc → tính → `writeJson`), `fakeRequest` mặc định `failRate = 0`. Lệch trạng thái chỉ xảy ra nếu `localStorage` ghi thất bại giữa 2 lần ghi — cùng mức rủi ro đã chấp nhận ở N4 (huỷ giao/nhận ghi 3 key nối tiếp). Cách sửa khi cần: tính danh sách phân công đổi bằng hàm thuần và ghi cả 2 key trong cùng một `fakeRequest`. |
+| L6 | Audit `reason = overrideReason`; `before`/`after` chỉ trường đổi | **Chấp nhận.** |
+| L7 | Hộp thoại chế độ đổi xe vẫn cho sửa giờ | **Chấp nhận** — đúng `changeRentalVehicle` (§3.3 cho phép kèm thời gian). |
+| L8 | `div.contents` chặn `click`/`keydown` nổi bọt qua portal lên ô lưới | **Chấp nhận** (đọc code). React đưa sự kiện của hộp thoại (portal) đi theo cây React lên ô lưới → ô lưới mở tạo nhanh nhầm; chặn ở lớp bọc là đúng. Không mất thao tác hợp lệ: Radix đóng bằng Esc qua listener `keydown` **capture** trên `document` (`react-dismissable-layer` dòng 105) và đóng khi bấm ngoài bằng `pointerdown` (không bị chặn); bẫy focus/Tab nằm trong hộp thoại. |
+| L9 | Tách T7, T15 thành a/b | **Chấp nhận.** |
+
+**Nợ ghi nhận (không chặn):** **B1-N1** — L5. **B1-N2** — xe đích đọc trước `fakeRequest` (trạng thái xe có thể đổi trong ~300 ms độ trễ giả lập); đưa vào trong `fakeRequest` khi sửa B1-N1.
+**B1-N3** — `RentalHandoverReturnTab.tsx:52` kiểm vai trò bằng `role ===` (có từ Phase 3, trái CONVENTIONS §6) — cần entry quyền hoặc dùng `can()` sẵn có; việc riêng.
+
+**Tải đầu:** còn dư 136 B dưới ngân sách B1. B2 đặt ngân sách theo **tập module tải đầu không đổi** (§15.6).
+
 ---
 
-## 14. Lịch sử
+## 15. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 25/10/2026 | **B1 `DONE`** — review vòng 1 đạt, không Blocker; chấp nhận L1–L9; nợ B1-N1…N3 (§14.9). Tải đầu 1.843.864 B. |
+| 25/10/2026 | Brief B1 (§14) — **giao `dev`**; ngân sách tải đầu B1 ≤ 1.844.000 B (đòn bẩy `calendarLabels.ts`), B2 ≤ B1 + 1.000. |
 | 25/10/2026 | **Round A `DONE`** — review vòng 1 đạt, không Blocker; chấp nhận L1–L4, nợ A-N1 (§13.9). Tải đầu 1.834.102 B. |
 | 25/10/2026 | **`APPROVED`** — người dùng duyệt cả 5 điểm §12. Viết brief Round A (§13), **giao `dev`**. Baseline: HEAD `6e863cf`, `hardening/baseline-r3a/`, `base-r3a-hcm.json`, tải đầu 1.854.198 B. |
 | 25/10/2026 | Tạo kế hoạch (`DRAFT — CHỜ NGƯỜI DÙNG DUYỆT`). Đo HEAD `6e863cf`: `@dnd-kit/core` 39.793 B min; Lịch tải lười → tải đầu 1.831.763 B (−22.435); 15 lượt kéo được trên seed, 2 xung đột có sẵn. Dựng `scratchpad/cal3/peek.mjs`. |

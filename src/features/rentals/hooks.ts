@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSessionStore } from '@/features/auth'
 import * as api from './api'
-import type { ActorInfo, RentalFilter, RentalFormInput } from './api'
+import type { ActorInfo, ChangeRentalVehicleInput, RentalFilter, RentalFormInput, RescheduleRentalInput } from './api'
 
 /**
  * Người thực hiện thao tác lấy từ phiên đăng nhập demo hiện tại. Fallback khi
@@ -75,5 +75,34 @@ export function useMarkContractCreated() {
       queryClient.invalidateQueries({ queryKey: ['rentals'] })
       queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] })
     },
+  })
+}
+
+/**
+ * CALENDAR-ROUND3-PLAN.md §14.2 — dời lịch / đổi xe trước giao. Đụng cả `assignments` (dời Planned Window — EA-BR-14) và
+ * `notifications` (tín hiệu giao/nhận tính động theo giờ mới).
+ */
+function invalidateScheduleQueries(queryClient: ReturnType<typeof useQueryClient>, id: string) {
+  queryClient.invalidateQueries({ queryKey: ['rentals'] })
+  queryClient.invalidateQueries({ queryKey: ['rentals', 'detail', id] })
+  queryClient.invalidateQueries({ queryKey: ['assignments'] })
+  queryClient.invalidateQueries({ queryKey: ['notifications'] })
+}
+
+export function useRescheduleRental() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RescheduleRentalInput }) => api.rescheduleRental(id, input, actor),
+    onSuccess: (_data, variables) => invalidateScheduleQueries(queryClient, variables.id),
+  })
+}
+
+export function useChangeRentalVehicle() {
+  const queryClient = useQueryClient()
+  const actor = useActor()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: ChangeRentalVehicleInput }) => api.changeRentalVehicle(id, input, actor),
+    onSuccess: (_data, variables) => invalidateScheduleQueries(queryClient, variables.id),
   })
 }

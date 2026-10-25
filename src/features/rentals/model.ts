@@ -1,11 +1,13 @@
 import { dateTimeToMs } from '@/shared/lib/datetime'
 import { z } from 'zod'
 import { paths } from '@/app/paths'
+// CALENDAR-ROUND3-PLAN.md §4 (C1) — file lá của `calendar` (chỉ import `shared/*`), không tạo vòng; dùng cho kiểm khoá xe ở hàm thuần dưới đây.
+import { findBlockingBlocks, type VehicleBlock } from '@/features/calendar/blockRules'
 import type { Customer } from '@/features/customers'
 import type { Vehicle } from '@/features/vehicles'
 import { signalDedupeKey, type OperationalSignal } from '@/shared/domain/alerts'
 import { vi } from '@/shared/i18n/vi'
-import { formatDateTime } from '@/shared/lib/datetime'
+import { formatDateTime, zonedParts } from '@/shared/lib/datetime'
 import { SECURITY_DEPOSIT_TYPES, type RentalStatus, type SecurityDepositType, type VehicleClass } from '@/shared/domain/enums'
 
 /**
@@ -206,6 +208,188 @@ export function hasConflict(
 export function suggestNextPickup(previousExpectedReturnDateTime: string): string {
   return new Date(new Date(previousExpectedReturnDateTime).getTime() + TURNAROUND_BUFFER_MINUTES * 60 * 1000).toISOString()
 }
+
+// ---- Dời lịch / đổi xe trước giao — CALENDAR-ROUND3-PLAN.md §3.2 / §14.2 (UC-RC-06, UC-RC-07) ----
+
+/**
+ * RC-BR-01 — chỉ lượt CHƯA giao mới dời lịch / đổi xe được (từ `HANDED_OVER` trở đi: đổi xe giữa kỳ là Round C, không kéo-thả).
+ * TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 Q1 / RentalCalendar-BRD.md §35 Q8) — có cho cả `CONFIRMED`/`CONTRACT_CREATED`/`READY_FOR_HANDOVER`
+ * hay chỉ `DRAFT`? Giả định tạm: cả 4 trạng thái theo tiên quyết UC-RC-06/07.
+ */
+export const RESCHEDULABLE_STATUSES = ['DRAFT', 'CONFIRMED', 'CONTRACT_CREATED', 'READY_FOR_HANDOVER'] as const
+
+/** Dùng để ẩn/hiện nút "Dời lịch"/"Đổi xe" (và tay kéo ở Round B2). */
+export function canRescheduleRental(rental: Pick<Rental, 'status'>): boolean {
+  return (RESCHEDULABLE_STATUSES as readonly RentalStatus[]).includes(rental.status)
+}
+
+/**
+ * Tách "chồng thời gian" khỏi "vi phạm vùng đệm 90'" (`hasConflict()` gộp cả hai — giữ nguyên hàm đó). Chỉ tính lượt đang chiếm xe
+ * (cùng `OCCUPYING_STATUSES` với `hasConflict`), bỏ qua `excludeRentalId`. Nhận ISO hoặc giá trị `datetime-local` (hiểu theo +07).
+ */
+export function classifyConflicts(
+  rentals: Rental[],
+  vehicleId: string,
+  startIso: string,
+  endIso: string,
+  excludeRentalId?: string,
+): { overlaps: Rental[]; bufferViolations: Rental[] } {
+  const bufferMs = TURNAROUND_BUFFER_MINUTES * 60 * 1000
+  const aStart = dateTimeToMs(startIso)
+  const aEnd = dateTimeToMs(endIso)
+  const overlaps: Rental[] = []
+  const bufferViolations: Rental[] = []
+  for (const r of rentals) {
+    if (r.id === excludeRentalId || r.vehicleId !== vehicleId || !OCCUPYING_STATUSES.includes(r.status)) continue
+    const bStart = dateTimeToMs(r.pickupDateTime)
+    const bEnd = dateTimeToMs(r.expectedReturnDateTime)
+    if (aStart < bEnd && bStart < aEnd) overlaps.push(r)
+    else if (aStart < bEnd + bufferMs && bStart < aEnd + bufferMs) bufferViolations.push(r)
+  }
+  return { overlaps, bufferViolations }
+}
+
+/** Mã lỗi/cảnh báo của `evaluateScheduleChange` — bảng chuẩn ở CALENDAR-ROUND3-PLAN.md §3.2. */
+export const SCHEDULE_ISSUE_CODES = [
+  'STATUS_LOCKED',
+  'INVALID_PERIOD',
+  'PICKUP_IN_PAST',
+  'VEHICLE_UNAVAILABLE',
+  'VEHICLE_BLOCKED',
+  'OVERLAP',
+  'BUFFER_VIOLATION',
+  'OUTSIDE_RECEIVING_WINDOW',
+  'DURATION_CHANGED',
+  'VEHICLE_CLASS_DIFFERS',
+  'CONTRACT_EXISTS',
+  'NO_CHANGE',
+] as const
+export type ScheduleIssueCode = (typeof SCHEDULE_ISSUE_CODES)[number]
+
+export interface ScheduleIssue {
+  code: ScheduleIssueCode
+  /** `OVERLAP` / `BUFFER_VIOLATION` — lượt gây xung đột. */
+  rentalIds?: string[]
+  /** `VEHICLE_BLOCKED` — khoá lịch gây xung đột. */
+  blockIds?: string[]
+}
+
+export interface ScheduleChangeProposal {
+  vehicleId: string
+  /** ISO hoặc giá trị `datetime-local` (hiểu theo +07). */
+  pickupDateTime: string
+  expectedReturnDateTime: string
+}
+
+/** Khung nhận xe chuẩn (phút trong ngày, +07) — RM §51. TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 G3). */
+const RECEIVING_WINDOW_OPEN_MINUTES = 8 * 60
+const RECEIVING_WINDOW_CLOSE_MINUTES = 23 * 60
+
+/**
+ * Hàm kiểm tra DUY NHẤT cho dời lịch / đổi xe — UI (hộp thoại) và API (`rescheduleRental`/`changeRentalVehicle`) cùng gọi.
+ * Thuần: `now`, danh sách lượt, xe đích và khoá xe đều là tham số. `errors` chặn; `warnings` cho phép đi tiếp
+ * (riêng `BUFFER_VIOLATION` bắt buộc có lý do ghi đè — xem `needsOverrideReason`).
+ */
+export function evaluateScheduleChange(input: {
+  rental: Rental
+  proposed: ScheduleChangeProposal
+  rentals: Rental[]
+  targetVehicle: Pick<Vehicle, 'status' | 'vehicleClass'>
+  vehicleBlocks: VehicleBlock[]
+  now: Date
+}): { errors: ScheduleIssue[]; warnings: ScheduleIssue[] } {
+  const { rental, proposed, rentals, targetVehicle, vehicleBlocks, now } = input
+  const errors: ScheduleIssue[] = []
+  const warnings: ScheduleIssue[] = []
+
+  // RC-BR-01, UC-RC-06/07 §tiên quyết — các kiểm tra còn lại vô nghĩa khi lượt đã khoá.
+  if (!canRescheduleRental(rental)) return { errors: [{ code: 'STATUS_LOCKED' }], warnings }
+
+  const pickupMs = dateTimeToMs(proposed.pickupDateTime)
+  const returnMs = dateTimeToMs(proposed.expectedReturnDateTime)
+
+  const unchanged =
+    proposed.vehicleId === rental.vehicleId &&
+    pickupMs === dateTimeToMs(rental.pickupDateTime) &&
+    returnMs === dateTimeToMs(rental.expectedReturnDateTime)
+  if (unchanged) return { errors: [{ code: 'NO_CHANGE' }], warnings }
+
+  // RM-BR-03, UC-RM-10 — thời gian trả phải sau thời gian giao (sai định dạng → NaN → cũng là lỗi).
+  const validPeriod = returnMs > pickupMs
+  if (!validPeriod) errors.push({ code: 'INVALID_PERIOD' })
+
+  // TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 G1) — giả định tạm: không cho dời giờ giao về quá khứ.
+  if (pickupMs < now.getTime()) errors.push({ code: 'PICKUP_IN_PAST' })
+
+  // RC-BR-04, UC-RC-08. TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 G2) — giả định tạm: chặn cả khi chỉ dời lịch trên cùng xe.
+  if (targetVehicle.status === 'MAINTENANCE' || targetVehicle.status === 'INACTIVE') errors.push({ code: 'VEHICLE_UNAVAILABLE' })
+
+  if (!validPeriod) return { errors, warnings }
+
+  const pickupIso = new Date(pickupMs).toISOString()
+  const returnIso = new Date(returnMs).toISOString()
+
+  // RM §57, RC-BR-15 — khoảng mới chồng Vehicle Block ACTIVE của xe đích.
+  const blocking = findBlockingBlocks(vehicleBlocks, proposed.vehicleId, pickupIso, returnIso)
+  if (blocking.length > 0) errors.push({ code: 'VEHICLE_BLOCKED', blockIds: blocking.map((b) => b.id) })
+
+  // RC-BR-02/05, BR-001 — chồng thời gian với lượt khác đang chiếm xe.
+  const { overlaps, bufferViolations } = classifyConflicts(rentals, proposed.vehicleId, pickupIso, returnIso, rental.id)
+  if (overlaps.length > 0) errors.push({ code: 'OVERLAP', rentalIds: overlaps.map((r) => r.id) })
+
+  // RC-BR-13, RM §12 — không chồng nhưng cách lượt liền kề < 90': cảnh báo, CẦN lý do ghi đè.
+  // TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 G4) — giả định tạm: mọi vai trò có RENTAL.EDIT được ghi đè, không giới hạn tối thiểu.
+  if (bufferViolations.length > 0) warnings.push({ code: 'BUFFER_VIOLATION', rentalIds: bufferViolations.map((r) => r.id) })
+
+  // RM §51. TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 G3) — giả định tạm: chỉ cảnh báo (RM §51 mô tả phụ thu, không cấm).
+  const p = zonedParts(returnMs)
+  const returnMinutes = p.hour * 60 + p.minute
+  if (returnMinutes > RECEIVING_WINDOW_CLOSE_MINUTES || returnMinutes < RECEIVING_WINDOW_OPEN_MINUTES) {
+    warnings.push({ code: 'OUTSIDE_RECEIVING_WINDOW' })
+  }
+
+  // RC-BR-06, UC-RC-06 bước 5. TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 Q2) — giữ nguyên snapshot giá/km; chỉ cảnh báo, không tự tính lại.
+  if (rentalDurationDays(pickupIso, returnIso) !== rental.rentalDurationDays) warnings.push({ code: 'DURATION_CHANGED' })
+
+  // RC-BR-06, UC-RC-07 bước 4. TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 Q3) — giữ nguyên snapshot hạng xe/Price Per KM; chỉ cảnh báo.
+  if (proposed.vehicleId !== rental.vehicleId && targetVehicle.vehicleClass !== rental.vehicleClass) {
+    warnings.push({ code: 'VEHICLE_CLASS_DIFFERS' })
+  }
+
+  // UC-RC-07 A2/A3. TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 Q4) — chỉ cảnh báo; không tự huỷ/tạo lại hợp đồng.
+  if (rental.status === 'CONTRACT_CREATED' || rental.status === 'READY_FOR_HANDOVER') warnings.push({ code: 'CONTRACT_EXISTS' })
+
+  return { errors, warnings }
+}
+
+/** RC-BR-13 — có cảnh báo vi phạm vùng đệm thì bắt buộc nhập lý do ghi đè (UI và API cùng dùng). */
+export function needsOverrideReason(warnings: ScheduleIssue[]): boolean {
+  return warnings.some((w) => w.code === 'BUFFER_VIOLATION')
+}
+
+/**
+ * Form hộp thoại Dời lịch / Đổi xe. `datetime-local` (`YYYY-MM-DDTHH:mm`, +07) — so sánh bằng `dateTimeToMs`.
+ * Điều kiện nghiệp vụ còn lại (xung đột, khoá, trạng thái…) KHÔNG nằm ở đây — chỉ `evaluateScheduleChange`.
+ */
+export const rentalScheduleChangeSchema = z
+  .object({
+    pickupDateTime: z.string().trim().min(1, 'Thời gian nhận xe là bắt buộc'),
+    expectedReturnDateTime: z.string().trim().min(1, 'Thời gian trả xe dự kiến là bắt buộc'),
+    vehicleId: z.string().trim().min(1, 'Chọn xe'),
+    overrideReason: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // RM-BR-03 — End DateTime > Start DateTime.
+    if (data.pickupDateTime && data.expectedReturnDateTime && !(dateTimeToMs(data.expectedReturnDateTime) > dateTimeToMs(data.pickupDateTime))) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['expectedReturnDateTime'],
+        message: 'Thời gian trả xe dự kiến phải sau thời gian nhận xe (RM-BR-03)',
+      })
+    }
+  })
+
+export type RentalScheduleChangeValues = z.infer<typeof rentalScheduleChangeSchema>
 
 // ---- §3.3 Guard chuyển trạng thái (mirror pattern `vehicles/model.ts` `canChangeStatus`) ----
 
