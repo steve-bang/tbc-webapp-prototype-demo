@@ -24,7 +24,7 @@ src/
 │   ├── auth                  SA — đăng nhập demo theo vai trò, session (Zustand persist), usePermission(),
 │   │                           Cấu hình hệ thống + Vai trò & quyền (Phase 6, màn tải lười)
 │   ├── dashboard              KPI vận hành + widget KPI tài chính (finance) + bảng cảnh báo (Phase 6)
-│   ├── calendar               RC — Day/Week/Month/Agenda + Vehicle Block (Phase 2)
+│   ├── calendar               RC — Day/Week/Month/Agenda + Vehicle Block + dời lịch/đổi xe (hộp thoại + kéo–thả `@dnd-kit`, Lịch Round 3)
 │   ├── vehicles                VM — danh sách + Vehicle Detail nhiều tab (Phase 1)
 │   ├── maintenance             MT — bảo dưỡng + phụ tùng toàn đội xe (Phase 1)
 │   ├── customers                CM (Phase 1)
@@ -146,6 +146,18 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   `YYYY-MM-DD` theo +07.
 - Lịch Tuần/Tháng và Bảng điều phối lấy danh sách ngày / dòng trong ngày từ hàm thuần `weekDayKeys`, `monthGridKeys`, `shiftAnchor`,
   `dispatchRowsForDay` (`features/calendar/model.ts`) — component chỉ hiển thị.
+
+## 6b. Lịch — 4 chế độ xem, dời lịch / đổi xe (Lịch Round 3 — `docs/CALENDAR-ROUND3-PLAN.md`)
+
+- `/calendar` có 4 chế độ Ngày · Tuần · Tháng · Danh sách (`CalendarView`, `viewRange`, `dayTimelineLayout`, `agendaGroups` ở `calendar/model.ts`); chế độ xem + bộ lọc
+  nhớ qua `calendar/store.ts` (Zustand `persist`). Màn Lịch **tải lười**.
+- **Dời lịch / đổi xe trước giao** (UC-RC-06/07) đi qua **một đường duy nhất**: `evaluateScheduleChange` (hàm thuần, `rentals/model.ts` — dùng chung cho UI và API) →
+  `RentalScheduleChangeDialog` (xác nhận cũ → mới, cảnh báo, lý do ghi đè vùng đệm) → `rescheduleRental`/`changeRentalVehicle` (`rentals/api.ts` — kiểm lại toàn bộ +
+  `updatedAt`, chỉ ghi thời gian/xe, giá snapshot không đổi, dời phân công `EA-BR-14`).
+- **Kéo–thả** chỉ là cử chỉ mở hộp thoại trên: `@dnd-kit/core` (`calendar/components/CalendarDndProvider.tsx`, chỉ nằm trong chunk Lịch lười); quy đổi vị trí thả → đề xuất bằng
+  hàm thuần ở `calendar/dndModel.ts` (**không** export qua barrel — giữ ngoài tải đầu). Chuột/bút: kéo sau 5 px; cảm ứng: nhấn giữ 300 ms (vuốt vẫn cuộn); bàn phím: Space/Enter.
+- `calendar/blockRules.ts` — file lá (type Vehicle Block + kiểm khoá xe, chỉ import `shared/*`) để `rentals` kiểm khoá xe mà không tạo vòng `rentals ↔ calendar` (ngoại lệ C1).
+- Chuỗi chỉ Lịch dùng ở `shared/i18n/calendarLabels.ts` (chỉ chunk Lịch import — giữ ngoài tải đầu, như `auditLabels.ts`).
 - Kiểm chứng (scratchpad `hardening/`): seed + harness giống hệt nhau dưới `TZ=Asia/Ho_Chi_Minh`, `UTC`, `America/New_York`. Màn Cấu hình hệ thống hiện
   múi giờ hệ thống + múi giờ trình duyệt (chỉ thông tin). TODO(OQ: `TECH-HARDENING-PLAN.md` §9 OQ-N8-1) — múi giờ có cấu hình được không.
 

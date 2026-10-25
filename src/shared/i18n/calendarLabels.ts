@@ -36,4 +36,22 @@ export const calendarLabels = {
   scheduleVehicleSuccess: 'Đã đổi xe cho lượt thuê.',
   scheduleAssignmentConflictToast: 'Giờ phân công mới trùng lịch của nhân viên (EA-BR-10) — vui lòng kiểm tra phân công.',
   scheduleError: 'Không thể cập nhật lịch, vui lòng thử lại.',
+  // ---- Kéo–thả (Round B2, CALENDAR-ROUND3-PLAN.md §15) ----
+  dragRoleDescription: 'lượt thuê có thể kéo',
+  dragInstructions:
+    'Nhấn Space hoặc Enter để nhấc lượt thuê, dùng phím mũi tên để di chuyển, Space hoặc Enter để thả, Esc để huỷ. Sau khi thả sẽ mở hộp thoại xác nhận.',
+  dragEdgeStartLabel: 'Kéo để đổi giờ giao',
+  dragEdgeEndLabel: 'Kéo để đổi giờ trả',
+  dragPlaceCell: (plate: string, date: string) => `xe ${plate}, ngày ${date}`,
+  dragPlaceRow: (plate: string) => `hàng xe ${plate}`,
+  dragAnnounceStart: (what: string) => `Đã nhấc ${what}.`,
+  dragAnnounceOver: (what: string, place: string) => `${what} đang ở ${place}.`,
+  dragAnnounceOverNone: (what: string) => `${what} đang ở ngoài vùng thả.`,
+  dragAnnounceDrop: (what: string, place: string) => `Đã thả ${what} tại ${place}. Hộp thoại xác nhận sẽ mở.`,
+  dragAnnounceDropNone: (what: string) => `Đã thả ${what} ngoài vùng thả, giữ nguyên lịch cũ.`,
+  dragAnnounceCancel: (what: string) => `Đã huỷ kéo ${what}, giữ nguyên lịch cũ.`,
+  dragWhatRental: (label: string) => `lượt thuê ${label}`,
+  dragWhatEdgeStart: (label: string) => `giờ giao của lượt thuê ${label}`,
+  dragWhatEdgeEnd: (label: string) => `giờ trả của lượt thuê ${label}`,
+  dragGhostCaption: 'Vị trí đề xuất (chưa lưu)',
 }

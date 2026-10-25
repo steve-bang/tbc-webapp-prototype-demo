@@ -15,6 +15,12 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 **Added**
 
+- **Lịch Round 3 — Round B2: kéo–thả · Lịch Round 3 hoàn tất** (theo [`docs/CALENDAR-ROUND3-PLAN.md`](docs/CALENDAR-ROUND3-PLAN.md) §15 — RC §13, §15, EX-01,
+  `AC-RC-004…007`). Trên Lịch có thể **kéo lượt thuê** (chưa giao, vai trò có quyền sửa): Tuần/Tháng — kéo sang ngày khác (giữ giờ) hoặc sang hàng xe khác (đổi xe); Ngày — kéo
+  theo bước 30 phút, **kéo cạnh** để đổi giờ giao/giờ trả. Thả xong luôn mở hộp thoại xác nhận của B1 (kiểm tra, cảnh báo, lý do); huỷ hoặc bị từ chối thì lượt giữ chỗ cũ. Chuột: kéo
+  sau 5 px (nhấp vẫn mở chi tiết); điện thoại: **nhấn giữ** để kéo, vuốt vẫn cuộn lịch; có hỗ trợ bàn phím. Ô Tháng nhiều lượt dùng nút "Dời lịch / Đổi xe". Thư viện `@dnd-kit`
+  chỉ tải khi mở Lịch — tải đầu Dashboard không đổi (1.843.864 B). Review `tech-lead` **đạt vòng 1**, không Blocker. **Lịch Round 3 DONE** (A + B1 + B2); đổi xe giữa kỳ là việc
+  riêng chờ duyệt.
 - **Lịch Round 3 — Round B1: dời lịch / đổi xe trước giao** (theo [`docs/CALENDAR-ROUND3-PLAN.md`](docs/CALENDAR-ROUND3-PLAN.md) §14 — UC-RC-06/07,
   `RC-BR-01…06/13`, `EA-BR-14`). Trên mọi chế độ xem Lịch, bấm vào lượt chưa giao → **"Dời lịch"** / **"Đổi xe"** (vai trò có quyền sửa lượt thuê). Hộp thoại hiện cũ → mới và kiểm
   tra ngay: chặn khi lượt đã giao, xe đang bảo dưỡng/ngừng, xe bị khoá lịch, trùng lượt khác, giờ giao ở quá khứ; cảnh báo khi số ngày thay đổi, đổi sang xe khác hạng, lượt đã

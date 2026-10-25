@@ -92,7 +92,7 @@ Owner/Consignment tạm ẩn.
 
 > Ngoại lệ còn mở (không chặn Phase 2): `features/calendar` Round 3 (Day/Agenda + kéo-thả UC-RC-06/07)
 > **tạm hoãn theo chủ dự án 15/09/2026** — xem dòng `features/calendar` bên dưới.
-> **25/10/2026:** Round 3 `APPROVED`, đang làm (Round A đã giao `dev`) — [`docs/CALENDAR-ROUND3-PLAN.md`](CALENDAR-ROUND3-PLAN.md).
+> **25/10/2026:** Round 3 **DONE** (A + B1 + B2) — [`docs/CALENDAR-ROUND3-PLAN.md`](CALENDAR-ROUND3-PLAN.md). Round C (đổi xe giữa kỳ) chờ duyệt.
 
 **Thứ tự build đã điều chỉnh so với `docs/PAGE-IMPLEMENTATION-PRIORITY.md` (quyết định kỹ thuật của
 `tech-lead`, không đổi nội dung nghiệp vụ)**: `features/rentals` (data core + List + Create/Confirm/
@@ -143,12 +143,12 @@ về bản chất gọi thẳng API tạo Rental — cần dữ liệu lõi tồ
       conflict + audit + xác nhận), để không dồn hết vào lần code lưới lịch đầu tiên của dự án.
       **Tạm hoãn theo yêu cầu chủ dự án (15/09/2026)** — chưa có lịch làm lại, xem
       `docs/CALENDAR-MANAGEMENT-PLAN.md` §8.1 khi quay lại.
-      **`[~]` Round 3 — `APPROVED` (25/10/2026), Round A đã giao `dev` (brief plan §13):** người dùng chọn làm tiếp sau Phase 6.1; kế hoạch chi tiết
+      **`[x]` Round 3 — DONE (25/10/2026, A + B1 + B2 — tổng kết plan §15.10; Round C đổi xe giữa kỳ là plan riêng, chờ duyệt):** người dùng chọn làm tiếp sau Phase 6.1; kế hoạch chi tiết
       [`docs/CALENDAR-ROUND3-PLAN.md`](CALENDAR-ROUND3-PLAN.md) (thay phác thảo §8.1 cũ). Chia **A** (xem Ngày + Agenda + Lịch tải
       lười + nhớ chế độ xem) → **B1** (dời lịch / đổi xe trước giao qua hộp thoại — hàm thuần kiểm tra, API `rentals`, dời `Planned Window`
       phân công, 3 audit action) → **B2** (kéo–thả `@dnd-kit/core` trên Week/Month/Day, dùng lại hộp thoại B1). Đổi xe giữa kỳ (UC-RM-22,
       phụ lục `ADDENDUM_VEHICLE_SWAP`, chênh lệch giá CR-2026-063) đề xuất **plan riêng** (Round C) vì `RC-BR-01` cấm trên lịch. Người dùng
-      duyệt cả 5 điểm plan §12 (25/10/2026). Tiến độ: [x] A (25/10/2026 — xem Ngày + Agenda + Lịch tải lười + nhớ chế độ xem; review đạt vòng 1, plan §13.9) · [x] B1 (25/10/2026 — dời lịch / đổi xe trước giao qua hộp thoại; review đạt vòng 1, plan §14.9) · [ ] B2.
+      duyệt cả 5 điểm plan §12 (25/10/2026). Tiến độ: [x] A (25/10/2026 — xem Ngày + Agenda + Lịch tải lười + nhớ chế độ xem; review đạt vòng 1, plan §13.9) · [x] B1 (25/10/2026 — dời lịch / đổi xe trước giao qua hộp thoại; review đạt vòng 1, plan §14.9) · [x] B2 (25/10/2026 — kéo–thả `@dnd-kit` trong chunk Lịch lười; review đạt vòng 1, plan §15.9). Tải đầu cuối 1.843.864 B.
       **Fix theo phản hồi khách (15/09/2026):** Week view có layout mobile riêng (danh sách theo
       ngày) khiến thiếu lưới xe×ngày ở mobile trong khi Month đã always-on lưới — bỏ hẳn nhánh
       mobile trong `CalendarWeekGrid.tsx`, chỉ còn 1 lưới xe×ngày bọc `overflow-x-auto`, đồng bộ

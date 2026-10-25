@@ -1,16 +1,86 @@
-import { useMemo } from 'react'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { useCallback, useMemo, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Lock } from 'lucide-react'
-import type { Rental } from '@/features/rentals'
+import { usePermission } from '@/features/auth'
+import { canRescheduleRental, type Rental } from '@/features/rentals'
 import type { Vehicle } from '@/features/vehicles'
+import { calendarLabels } from '@/shared/i18n/calendarLabels'
 import { vi } from '@/shared/i18n/vi'
 import { cn } from '@/shared/lib/cn'
 import { toDateKey, todayKey } from '@/shared/lib/datetime'
+import { cellDropId, ghostCoversDay, rentalDragId, type DndGhost } from '../dndModel'
 import { monthGridKeys, rentalsByVehicleInRange, type VehicleBlock } from '../model'
 
 /** Block `ACTIVE` đang phủ `dateStr` (so sánh chuỗi ngày) cho 1 xe — `undefined` nếu không bị khoá. */
 function activeBlockForDate(blocks: VehicleBlock[], vehicleId: string, dateStr: string): VehicleBlock | undefined {
   return blocks.find(
     (b) => b.vehicleId === vehicleId && b.status === 'ACTIVE' && dateStr >= b.startDate && dateStr <= (b.endDate ?? '9999-12-31'),
+  )
+}
+
+const GHOST_CELL = 'outline-primary outline-2 -outline-offset-2 outline-dashed'
+const OVER_CELL = 'bg-primary/20 ring-primary ring-1 ring-inset'
+
+interface MonthCellProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'id'> {
+  vehicleId: string
+  dateStr: string
+  ghostHere: boolean
+  children?: ReactNode
+}
+
+/** Ô ngày × xe là vùng thả (`useDroppable`, Round B2) — kể cả ô khoá / ô trống: thả vào đó để hộp thoại B1 hiện lỗi (EX-01). */
+function DropCell({ vehicleId, dateStr, ghostHere, className, children, ...rest }: MonthCellProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: cellDropId(vehicleId, dateStr) })
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className={cn(className, ghostHere && GHOST_CELL, isOver && OVER_CELL)}
+      title={ghostHere ? calendarLabels.dragGhostCaption : undefined}
+      {...rest}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * Ô có ĐÚNG MỘT lượt kéo được: cả ô vừa là vùng thả vừa là tay kéo của lượt đó (ô ~26 px, không vẽ khối riêng).
+ * Ô nhiều lượt không kéo từ lưới Tháng được (không biết kéo lượt nào) — dùng Tuần / Ngày hoặc nút "Dời lịch" ở popover.
+ */
+function DragDropCell({ rental, vehicleId, dateStr, ghostHere, className, children, ...rest }: MonthCellProps & { rental: Rental }) {
+  const drop = useDroppable({ id: cellDropId(vehicleId, dateStr) })
+  const drag = useDraggable({
+    id: rentalDragId(rental.id, dateStr),
+    attributes: { roleDescription: calendarLabels.dragRoleDescription },
+  })
+  const { setNodeRef: setDropRef } = drop
+  const { setNodeRef: setDragRef } = drag
+  const setRef = useCallback(
+    (node: HTMLButtonElement | null) => {
+      setDropRef(node)
+      setDragRef(node)
+    },
+    [setDropRef, setDragRef],
+  )
+  return (
+    <button
+      ref={setRef}
+      type="button"
+      className={cn(
+        className,
+        'cursor-grab touch-manipulation',
+        ghostHere && GHOST_CELL,
+        drop.isOver && OVER_CELL,
+        drag.isDragging && 'opacity-40',
+      )}
+      title={ghostHere ? calendarLabels.dragGhostCaption : undefined}
+      {...rest}
+      {...drag.attributes}
+      {...drag.listeners}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -27,6 +97,7 @@ export function CalendarMonthGrid({
   blocks,
   showInactiveVehicles,
   highlightRentalIds,
+  ghost,
   onEmptyCellClick,
   onBlockedCellClick,
   onDayCellClick,
@@ -38,10 +109,14 @@ export function CalendarMonthGrid({
   blocks: VehicleBlock[]
   showInactiveVehicles: boolean
   highlightRentalIds: Set<string>
+  /** Bóng mờ viền nét đứt ở vị trí đề xuất trong lúc hộp thoại dời lịch / đổi xe mở (Round B2). */
+  ghost?: DndGhost
   onEmptyCellClick: (vehicleId: string, pickupDateTime: string) => void
   onBlockedCellClick: (block: VehicleBlock) => void
   onDayCellClick: (vehicle: Vehicle, dateStr: string, rentalsForCell: Rental[]) => void
 }) {
+  const { can } = usePermission()
+  const canEdit = can('RENTAL', 'EDIT')
   const dayStrs = useMemo(() => monthGridKeys(monthKey), [monthKey])
   const today = todayKey()
 
@@ -95,49 +170,64 @@ export function CalendarMonthGrid({
                     return rentalStart <= dateStr && dateStr <= rentalEnd
                   })
                   const highlighted = rentalsForCell.some((r) => highlightRentalIds.has(r.id))
+                  const ghostHere = ghostCoversDay(ghost, vehicle.id, dateStr)
+                  const dragRental = rentalsForCell.length === 1 ? rentalsForCell[0] : undefined
 
                   if (block) {
                     return (
-                      <button
+                      <DropCell
                         key={dateStr}
-                        type="button"
+                        vehicleId={vehicle.id}
+                        dateStr={dateStr}
+                        ghostHere={ghostHere}
+                        title={block.reason}
                         className="border-destructive/30 bg-destructive/10 hover:bg-destructive/20 flex h-9 items-center justify-center border-l"
                         onClick={() => onBlockedCellClick(block)}
-                        title={block.reason}
                         aria-label={`${vehicle.plate} — ${dateStr} — ${vi.calendar.blockDetailTitle}`}
                       >
                         <Lock className="text-destructive size-3" />
-                      </button>
+                      </DropCell>
                     )
                   }
 
                   if (rentalsForCell.length > 0) {
-                    return (
-                      <button
-                        key={dateStr}
-                        type="button"
-                        className={cn(
-                          'hover:bg-accent/50 flex h-9 items-center justify-center border-l',
-                          highlighted && 'ring-primary ring-2 ring-inset',
-                        )}
-                        onClick={() => onDayCellClick(vehicle, dateStr, rentalsForCell)}
-                        aria-label={`${vehicle.plate} — ${dateStr} — ${vi.calendar.rentalCount(rentalsForCell.length)}`}
-                      >
-                        {rentalsForCell.length === 1 ? (
-                          <span className="bg-primary size-2 rounded-full" />
-                        ) : (
-                          <span className="bg-primary text-primary-foreground flex size-4 items-center justify-center rounded-full text-[9px] font-medium">
-                            {rentalsForCell.length}
-                          </span>
-                        )}
-                      </button>
+                    const cellProps = {
+                      vehicleId: vehicle.id,
+                      dateStr,
+                      ghostHere,
+                      className: cn(
+                        'hover:bg-accent/50 flex h-9 items-center justify-center border-l',
+                        highlighted && 'ring-primary ring-2 ring-inset',
+                      ),
+                      onClick: () => onDayCellClick(vehicle, dateStr, rentalsForCell),
+                      'aria-label': `${vehicle.plate} — ${dateStr} — ${vi.calendar.rentalCount(rentalsForCell.length)}`,
+                    }
+                    const dots =
+                      rentalsForCell.length === 1 ? (
+                        <span className="bg-primary size-2 rounded-full" />
+                      ) : (
+                        <span className="bg-primary text-primary-foreground flex size-4 items-center justify-center rounded-full text-[9px] font-medium">
+                          {rentalsForCell.length}
+                        </span>
+                      )
+                    // Gate: can('RENTAL','EDIT') && canRescheduleRental(rental) — lượt không kéo được giữ ô như cũ (chỉ thả được vào).
+                    return dragRental && canEdit && canRescheduleRental(dragRental) ? (
+                      <DragDropCell key={dateStr} rental={dragRental} {...cellProps}>
+                        {dots}
+                      </DragDropCell>
+                    ) : (
+                      <DropCell key={dateStr} {...cellProps}>
+                        {dots}
+                      </DropCell>
                     )
                   }
 
                   return (
-                    <button
+                    <DropCell
                       key={dateStr}
-                      type="button"
+                      vehicleId={vehicle.id}
+                      dateStr={dateStr}
+                      ghostHere={ghostHere}
                       className="hover:bg-accent/40 h-9 border-l"
                       onClick={() => onEmptyCellClick(vehicle.id, `${dateStr}T09:00`)}
                       aria-label={`${vehicle.plate} — ${dateStr}`}

@@ -1,11 +1,15 @@
-import { useMemo } from 'react'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { useMemo, type ReactNode } from 'react'
+import { usePermission } from '@/features/auth'
 import type { Customer } from '@/features/customers'
-import type { Rental } from '@/features/rentals'
+import { canRescheduleRental, type Rental } from '@/features/rentals'
 import type { Vehicle } from '@/features/vehicles'
+import { calendarLabels } from '@/shared/i18n/calendarLabels'
 import { RENTAL_STATUS_LABELS, vi } from '@/shared/i18n/vi'
 import { cn } from '@/shared/lib/cn'
 import { formatDate, formatTime, formatWeekdayShort, startOfDayIso, todayKey } from '@/shared/lib/datetime'
 import { RentalBlockPopover } from './RentalBlockPopover'
+import { cellDropId, rentalDragId, type DndGhost } from '../dndModel'
 import { isOccupyingLikeStatus, rentalsByVehicleInRange, turnaroundBufferWindow, weekDayKeys } from '../model'
 
 /** Trục thời gian trong ngày cho mỗi ô — 24h đầy đủ (00:00 → 24:00 hôm sau). */
@@ -26,6 +30,104 @@ function positionInDay(startMs: number, endMs: number, dateStr: string): { topPc
   return { topPct, heightPct }
 }
 
+/** Ô ngày × xe — vùng thả (`useDroppable`, Round B2); nhấp ô trống vẫn tạo nhanh như cũ. */
+function WeekCell({
+  vehicleId,
+  dateStr,
+  label,
+  onActivate,
+  children,
+}: {
+  vehicleId: string
+  dateStr: string
+  label: string
+  onActivate: () => void
+  children: ReactNode
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: cellDropId(vehicleId, dateStr) })
+  return (
+    // Không dùng thẻ `<button>` ở đây — bên trong còn có
+    // `RentalBlockPopover` (trigger cũng là phần tử tương
+    // tác), lồng interactive-trong-interactive không hợp lệ
+    // (HTML content model của `<button>`).
+    <div
+      ref={setNodeRef}
+      role="button"
+      tabIndex={0}
+      className={cn('hover:bg-accent/40 relative h-24 border-l text-left', isOver && 'bg-primary/15 ring-primary ring-1 ring-inset')}
+      onClick={onActivate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onActivate()
+      }}
+      aria-label={label}
+    >
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Mảnh khối lượt thuê trong 1 ô ngày. Kéo MẢNH BẤT KỲ của lượt nhiều ngày = dời cả lượt theo độ lệch ngày (Round B2).
+ * `canDrag` = `can('RENTAL','EDIT') && canRescheduleRental(rental)` — lượt không kéo được giữ nguyên hành vi cũ (chỉ mở popover).
+ */
+function WeekBlock({
+  rental,
+  dayKey,
+  topPct,
+  heightPct,
+  canDrag,
+  highlighted,
+  customer,
+  vehicle,
+}: {
+  rental: Rental
+  dayKey: string
+  topPct: number
+  heightPct: number
+  canDrag: boolean
+  highlighted: boolean
+  customer?: Customer
+  vehicle?: Vehicle
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: rentalDragId(rental.id, dayKey),
+    disabled: !canDrag,
+    attributes: { roleDescription: calendarLabels.dragRoleDescription },
+  })
+  const customerName = customer?.fullName ?? rental.customerId
+  return (
+    <RentalBlockPopover rental={rental} customer={customer} vehicle={vehicle}>
+      <div
+        ref={setNodeRef}
+        {...(canDrag ? { ...attributes, ...listeners } : {})}
+        role="button"
+        tabIndex={0}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={
+          canDrag
+            ? (e) => {
+                listeners?.onKeyDown?.(e)
+                // Space/Enter nhấc khối bằng bàn phím — không để nổi bọt lên ô (sẽ mở tạo nhanh).
+                if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+              }
+            : undefined
+        }
+        className={cn(
+          'bg-primary/15 border-primary/40 absolute inset-x-0.5 overflow-hidden rounded-sm border px-1 py-0.5 text-[10px] leading-tight',
+          canDrag && 'cursor-grab touch-manipulation',
+          isDragging && 'opacity-40',
+          highlighted && 'ring-primary ring-2',
+        )}
+        style={{ top: `${topPct}%`, height: `${heightPct}%` }}
+        title={`${customerName} — ${formatTime(rental.pickupDateTime)}-${formatTime(rental.expectedReturnDateTime)} — ${RENTAL_STATUS_LABELS[rental.status]}`}
+      >
+        <p className="truncate font-medium">{customerName}</p>
+        <p className="truncate">{RENTAL_STATUS_LABELS[rental.status]}</p>
+      </div>
+    </RentalBlockPopover>
+  )
+}
+
 /**
  * `docs/CALENDAR-MANAGEMENT-PLAN.md` §5.2 — trục theo xe (mỗi xe 1 hàng), 7
  * cột ngày, Rental Block vẽ theo giờ thật trong ngày (RC-BR-12 lượt nhiều
@@ -42,6 +144,7 @@ export function CalendarWeekGrid({
   showInactiveVehicles,
   highlightRentalIds,
   customerById,
+  ghost,
   onEmptyCellClick,
 }: {
   /** Date key (+07) bất kỳ trong tuần cần hiển thị. */
@@ -51,8 +154,12 @@ export function CalendarWeekGrid({
   showInactiveVehicles: boolean
   highlightRentalIds: Set<string>
   customerById: Map<string, Customer>
+  /** Bóng mờ viền nét đứt ở vị trí đề xuất trong lúc hộp thoại dời lịch / đổi xe mở (Round B2). */
+  ghost?: DndGhost
   onEmptyCellClick: (vehicleId: string, pickupDateTime: string) => void
 }) {
+  const { can } = usePermission()
+  const canEdit = can('RENTAL', 'EDIT')
   const dayStrs = useMemo(() => weekDayKeys(anchorKey), [anchorKey])
   const today = todayKey()
 
@@ -121,21 +228,17 @@ export function CalendarWeekGrid({
                     })
                     .filter((x): x is { rentalId: string; topPct: number; heightPct: number } => x !== null)
 
+                  const ghostPos = ghost && ghost.vehicleId === vehicle.id
+                    ? positionInDay(Date.parse(ghost.pickupDateTime), Date.parse(ghost.expectedReturnDateTime), dateStr)
+                    : null
+
                   return (
-                    // Không dùng thẻ `<button>` ở đây — bên trong còn có
-                    // `RentalBlockPopover` (trigger cũng là phần tử tương
-                    // tác), lồng interactive-trong-interactive không hợp lệ
-                    // (HTML content model của `<button>`).
-                    <div
+                    <WeekCell
                       key={dateStr}
-                      role="button"
-                      tabIndex={0}
-                      className="hover:bg-accent/40 relative h-24 border-l text-left"
-                      onClick={() => onEmptyCellClick(vehicle.id, `${dateStr}T09:00`)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') onEmptyCellClick(vehicle.id, `${dateStr}T09:00`)
-                      }}
-                      aria-label={`${vehicle.plate} — ${dateStr}`}
+                      vehicleId={vehicle.id}
+                      dateStr={dateStr}
+                      label={`${vehicle.plate} — ${dateStr}`}
+                      onActivate={() => onEmptyCellClick(vehicle.id, `${dateStr}T09:00`)}
                     >
                       {bufferSegments.map((seg) => (
                         <div
@@ -146,29 +249,27 @@ export function CalendarWeekGrid({
                         />
                       ))}
                       {blocksInDay.map(({ rental, topPct, heightPct }) => (
-                        <RentalBlockPopover
+                        <WeekBlock
                           key={rental.id}
                           rental={rental}
+                          dayKey={dateStr}
+                          topPct={topPct}
+                          heightPct={heightPct}
+                          canDrag={canEdit && canRescheduleRental(rental)}
+                          highlighted={highlightRentalIds.has(rental.id)}
                           customer={customerById.get(rental.customerId)}
                           vehicle={vehicleById.get(rental.vehicleId)}
-                        >
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={(e) => e.stopPropagation()}
-                            className={cn(
-                              'bg-primary/15 border-primary/40 absolute inset-x-0.5 overflow-hidden rounded-sm border px-1 py-0.5 text-[10px] leading-tight',
-                              highlightRentalIds.has(rental.id) && 'ring-primary ring-2',
-                            )}
-                            style={{ top: `${topPct}%`, height: `${heightPct}%` }}
-                            title={`${customerById.get(rental.customerId)?.fullName ?? rental.customerId} — ${formatTime(rental.pickupDateTime)}-${formatTime(rental.expectedReturnDateTime)} — ${RENTAL_STATUS_LABELS[rental.status]}`}
-                          >
-                            <p className="truncate font-medium">{customerById.get(rental.customerId)?.fullName ?? rental.customerId}</p>
-                            <p className="truncate">{RENTAL_STATUS_LABELS[rental.status]}</p>
-                          </div>
-                        </RentalBlockPopover>
+                        />
                       ))}
-                    </div>
+                      {ghostPos && (
+                        <div
+                          className="border-primary bg-primary/10 pointer-events-none absolute inset-x-0.5 z-10 rounded-sm border-2 border-dashed"
+                          style={{ top: `${ghostPos.topPct}%`, height: `${ghostPos.heightPct}%` }}
+                          title={calendarLabels.dragGhostCaption}
+                          aria-hidden
+                        />
+                      )}
+                    </WeekCell>
                   )
                 })}
               </div>

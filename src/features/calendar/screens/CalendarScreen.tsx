@@ -18,13 +18,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/shared/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 import { CalendarAgendaList } from '../components/CalendarAgendaList'
+import { CalendarDndProvider, type DndPendingProposal } from '../components/CalendarDndProvider'
 import { CalendarDayGrid } from '../components/CalendarDayGrid'
 import { CalendarMonthGrid } from '../components/CalendarMonthGrid'
 import { CalendarWeekGrid } from '../components/CalendarWeekGrid'
 import { DayDetailDialog } from '../components/DayDetailDialog'
 import { canOpenRentalQuickCreate, type QuickCreateRequest } from '../components/RentalQuickCreateGate'
+import { RentalScheduleChangeDialog } from '../components/RentalScheduleChangeDialog'
 import { VehicleBlockDetailDialog } from '../components/VehicleBlockDetailDialog'
 import { VehicleBlockFormDialog } from '../components/VehicleBlockFormDialog'
+import type { DndGhost } from '../dndModel'
 import { useVehicleBlocks } from '../hooks'
 import { shiftAnchor, viewRange, type CalendarView, type VehicleBlock } from '../model'
 import { useCalendarPrefsStore } from '../store'
@@ -40,7 +43,7 @@ interface DayDetailState {
  * (mặc định, CR-2026-032) + Month (lưới xe×ngày, CR-2026-017/044) + Vehicle
  * Block CRUD + tạo nhanh; `docs/CALENDAR-ROUND3-PLAN.md` Round A thêm Day
  * (lưới xe × trục giờ) + Agenda (danh sách theo ngày) và nhớ chế độ xem + bộ
- * lọc (`store.ts`). Chưa kéo-thả (Round B2), KHÔNG có khu "Chưa xếp xe"
+ * lọc (`store.ts`); Round B2 thêm kéo-thả (Week/Month/Day) — kéo chỉ ĐỀ XUẤT, hộp thoại B1 mới ghi. KHÔNG có khu "Chưa xếp xe"
  * (§0.2 — xung đột với `RM-BR-02` đã DONE ở Round 1 của `rentals`).
  */
 export function CalendarScreen() {
@@ -69,6 +72,8 @@ export function CalendarScreen() {
   const [blockFormOpen, setBlockFormOpen] = useState(false)
   const [blockDetail, setBlockDetail] = useState<VehicleBlock | null>(null)
   const [dayDetail, setDayDetail] = useState<DayDetailState | null>(null)
+  // Round B2 — đề xuất sau khi thả; còn tồn tại = hộp thoại B1 đang mở + lưới vẽ bóng mờ. Huỷ / lỗi / thành công → null (xoá bóng).
+  const [pendingProposal, setPendingProposal] = useState<DndPendingProposal | null>(null)
 
   const { data: rentals = [] } = useRentals()
   const { data: vehicles = [] } = useVehicles()
@@ -153,6 +158,8 @@ export function CalendarScreen() {
     if (!canOpenRentalQuickCreate(blocks, { vehicleId, pickupDateTime })) return
     setQuickCreateRequest({ vehicleId, pickupDateTime })
   }
+
+  const ghost: DndGhost | undefined = pendingProposal ? { rentalId: pendingProposal.rental.id, ...pendingProposal.proposal } : undefined
 
   return (
     <div>
@@ -249,47 +256,66 @@ export function CalendarScreen() {
         </div>
       </div>
 
-      {view === 'day' ? (
-        <CalendarDayGrid
-          dateKey={anchorKey}
-          vehicles={gridVehicles}
-          rentals={filteredRentals}
-          blocks={blocks}
-          showInactiveVehicles={showInactiveVehicles}
-          highlightRentalIds={highlightRentalIds}
-          customerById={customerById}
-          onEmptyCellClick={attemptOpenQuickCreate}
-        />
-      ) : view === 'agenda' ? (
-        <CalendarAgendaList
-          rentals={filteredRentals}
-          fromKey={range.fromKey}
-          toKey={range.toKey}
-          vehicleById={vehicleById}
-          customerById={customerById}
-          highlightRentalIds={highlightRentalIds}
-        />
-      ) : view === 'week' ? (
-        <CalendarWeekGrid
-          anchorKey={anchorKey}
-          vehicles={gridVehicles}
-          rentals={filteredRentals}
-          showInactiveVehicles={showInactiveVehicles}
-          highlightRentalIds={highlightRentalIds}
-          customerById={customerById}
-          onEmptyCellClick={attemptOpenQuickCreate}
-        />
-      ) : (
-        <CalendarMonthGrid
-          monthKey={toMonthKey(anchorKey)}
-          vehicles={gridVehicles}
-          rentals={filteredRentals}
-          blocks={blocks}
-          showInactiveVehicles={showInactiveVehicles}
-          highlightRentalIds={highlightRentalIds}
-          onEmptyCellClick={attemptOpenQuickCreate}
-          onBlockedCellClick={(block) => setBlockDetail(block)}
-          onDayCellClick={(vehicle, dateStr, rentalsForCell) => setDayDetail({ vehicle, dateStr, rentals: rentalsForCell })}
+      <CalendarDndProvider
+        rentals={filteredRentals}
+        vehicleById={vehicleById}
+        customerById={customerById}
+        onProposal={setPendingProposal}
+      >
+        {view === 'day' ? (
+          <CalendarDayGrid
+            dateKey={anchorKey}
+            vehicles={gridVehicles}
+            rentals={filteredRentals}
+            blocks={blocks}
+            showInactiveVehicles={showInactiveVehicles}
+            highlightRentalIds={highlightRentalIds}
+            customerById={customerById}
+            ghost={ghost}
+            onEmptyCellClick={attemptOpenQuickCreate}
+          />
+        ) : view === 'agenda' ? (
+          <CalendarAgendaList
+            rentals={filteredRentals}
+            fromKey={range.fromKey}
+            toKey={range.toKey}
+            vehicleById={vehicleById}
+            customerById={customerById}
+            highlightRentalIds={highlightRentalIds}
+          />
+        ) : view === 'week' ? (
+          <CalendarWeekGrid
+            anchorKey={anchorKey}
+            vehicles={gridVehicles}
+            rentals={filteredRentals}
+            showInactiveVehicles={showInactiveVehicles}
+            highlightRentalIds={highlightRentalIds}
+            customerById={customerById}
+            ghost={ghost}
+            onEmptyCellClick={attemptOpenQuickCreate}
+          />
+        ) : (
+          <CalendarMonthGrid
+            monthKey={toMonthKey(anchorKey)}
+            vehicles={gridVehicles}
+            rentals={filteredRentals}
+            blocks={blocks}
+            showInactiveVehicles={showInactiveVehicles}
+            highlightRentalIds={highlightRentalIds}
+            ghost={ghost}
+            onEmptyCellClick={attemptOpenQuickCreate}
+            onBlockedCellClick={(block) => setBlockDetail(block)}
+            onDayCellClick={(vehicle, dateStr, rentalsForCell) => setDayDetail({ vehicle, dateStr, rentals: rentalsForCell })}
+          />
+        )}
+      </CalendarDndProvider>
+
+      {pendingProposal && (
+        <RentalScheduleChangeDialog
+          rental={pendingProposal.rental}
+          mode={pendingProposal.mode}
+          initial={pendingProposal.proposal}
+          onClose={() => setPendingProposal(null)}
         />
       )}
 

@@ -1,7 +1,7 @@
 # Kế hoạch — Lịch Round 3: xem Ngày · Agenda · Dời lịch / đổi xe (kéo–thả) (Phase 2 Round 3)
 
 **Vai trò soạn:** `tech-lead` · **Trạng thái:** **`APPROVED`** (25/10/2026 — người dùng duyệt cả 5 điểm §12 theo đề xuất; các Round chạy liên tục
-A → B1 → B2) · **Round A — `DONE`** (25/10/2026, brief §13, review đạt vòng 1, không Blocker — §13.9) · **B1 — `DONE`** (25/10/2026, brief §14, review đạt vòng 1, không Blocker — §14.9) · B2 — chờ · Round C — plan riêng, chưa làm.
+A → B1 → B2) · **Round A — `DONE`** (25/10/2026, brief §13, review đạt vòng 1, không Blocker — §13.9) · **B1 — `DONE`** (25/10/2026, brief §14, review đạt vòng 1, không Blocker — §14.9) · **B2 — `DONE`** (25/10/2026, brief §15, review đạt vòng 1, không Blocker — §15.9) · **LỊCH ROUND 3 (A + B1 + B2) — `DONE`** (25/10/2026; tổng kết §15.10) · Round C — plan riêng, chưa làm.
 
 Hạng mục **Phase 2 Round 3** của `features/calendar` — tạm hoãn từ 15/09/2026 (`docs/CALENDAR-MANAGEMENT-PLAN.md` §8.1), nay người dùng chọn làm tiếp sau
 Phase 6.1. Plan này **thay** phác thảo §8.1 cũ (đọc lại tài liệu nghiệp vụ tại thời điểm lập plan, đúng lời dặn ở §8.1).
@@ -280,8 +280,8 @@ gọi lại đường B1. Các Round chạy liên tục nếu người dùng duy
 1. `npx tsc -b` · `npx oxlint` (có `import/no-cycle`) · `npm run build` sạch; `grep -rn '\*/[a-zA-Z]' src/` rỗng.
 2. `node $SP/consignment-r3/sccfiles.mjs $REPO` **rỗng** (SCC = 0); `evalorder` OK cho `/src/app/routes.tsx` và mọi `index.ts`/`ui.ts` bị sửa.
 3. `node $SP/hardening/initial-load.mjs $REPO` ≤ **1.870.000** và ≤ ngân sách Round. Ban đầu (§2.2): A ≤ 1.835.000; B1 ≤ A + 2.000; B2 ≤ B1 + 500.
-   **Đặt lại sau Round A (§13.9, thực tế A = 1.834.102):** B1 ≤ **1.844.000** (API + hàm kiểm tra + chuỗi `vi` + thông báo tab Giá nằm ở chunk chính); B2 ≤ **B1 + 1.000**
-   (`@dnd-kit` trong chunk Lịch lười).
+   **Đặt lại sau Round A (§13.9, thực tế A = 1.834.102):** B1 ≤ **1.844.000** (API + hàm kiểm tra + chuỗi `vi` + thông báo tab Giá nằm ở chunk chính).
+   **B2 (đặt sau B1 = 1.843.864, §14.9):** ≤ **1.844.500** và tập module tải đầu không đổi (`@dnd-kit`, hàm thuần mới, chuỗi mới đều ở chunk Lịch lười).
 4. Seed **không đổi**: `dump-seed.mjs` HCM → `diff-seed` so `$SP/hardening/base-r3a-hcm.json` = 0 (`SEED_VERSION` giữ 27).
 5. `run-harness.sh` dưới `Asia/Ho_Chi_Minh`, `UTC`, `America/New_York` so `$SP/hardening/baseline-r3a` (đối số 5 = `Asia/Ho_Chi_Minh`) → 24/24 `diff=0`
    (Round B1 thêm 3 audit action: nếu harness cũ đếm audit theo danh sách cố định thì báo, không sửa harness).
@@ -811,12 +811,228 @@ SCC rỗng · `cal-r3b1.mjs` dưới New_York trùng `cal-r3b1-expected.txt` (AL
 
 **Tải đầu:** còn dư 136 B dưới ngân sách B1. B2 đặt ngân sách theo **tập module tải đầu không đổi** (§15.6).
 
+## 15. Round B2 — brief giao việc cho `dev` (`APPROVED` 25/10/2026)
+
+`SP=/tmp/claude-0/-home-user/f80ff31e-7a52-5fb1-8095-bb034c4d84d9/scratchpad`, `REPO=/home/user/tbc-webapp-prototype-demo`.
+
+### 15.1. Bối cảnh
+
+B1 đã `DONE` (commit `e8f1485`). Nghiệp vụ dời lịch / đổi xe đã khoá trong:
+
+- `evaluateScheduleChange`;
+- `rescheduleRental` / `changeRentalVehicle`;
+- `RentalScheduleChangeDialog` — có prop `initial` dành cho B2.
+
+B2 chỉ thêm **cử chỉ kéo–thả** (P7, UC-RC-06/07, RC §13, EX-01, `AC-RC-004…007`): quy đổi vị trí thả thành đề xuất, rồi **mở đúng hộp thoại B1**. B2 **không** viết thêm luật
+nghiệp vụ, **không** gọi API ghi trực tiếp. Thư viện: `@dnd-kit/core` 6.3.1 (đã có trong `package.json`, quyết định §12 câu 5).
+
+**Tải đầu đã cạn:** 1.843.864 B, dư 136 B dưới ngân sách B1. Toàn bộ B2 phải nằm trong **chunk Lịch lười**:
+
+- `calendar/model.ts` và `vi.ts` thuộc tải đầu, vì `calendar/index` được `finance` import tĩnh;
+- vậy hàm thuần mới đặt ở **file mới chỉ chunk lười dùng**;
+- chuỗi mới đặt ở `shared/i18n/calendarLabels.ts`.
+
+### 15.2. Trong phạm vi (đúng danh sách — làm theo thứ tự §15.5)
+
+1. **`src/features/calendar/dndModel.ts`** (mới — hàm thuần):
+   - **Chỉ** được import bởi file trong `calendar/components/` hoặc `calendar/screens/CalendarScreen.tsx`. **Không** export qua `calendar/index.ts` (giữ ngoài tải đầu).
+   - Import được: `@/features/rentals` (type + hàm), `shared/lib/datetime.ts`.
+   - Hàm:
+     - `proposalFromDayShift(rental, dayDelta, targetVehicleId)` → `{ vehicleId, pickupDateTime, expectedReturnDateTime }`.
+       Dời **nguyên ngày** bằng `addDaysToKey` trên date key +07, giữ nguyên giờ:phút +07 (`zonedParts` + `zonedDateTimeToIso`). Dùng cho Week/Month.
+     - `proposalFromTimeShift(rental, minuteDelta, targetVehicleId, edge?: 'start' | 'end')`. Làm tròn `minuteDelta` về bội **30**.
+       - Không có `edge`: dời cả lượt.
+       - `edge = 'start'`: chỉ đổi giờ giao. `edge = 'end'`: chỉ đổi giờ trả.
+       - Cạnh đầu không vượt quá (cạnh cuối − 30').
+       - Dùng cho Day.
+     - `minuteDeltaFromPixels(deltaX, rowWidthPx)` → phút (24h = `rowWidthPx`), làm tròn 30'.
+     - `scheduleModeFor(rental, proposal)` → `'changeVehicle'` nếu đổi xe, ngược lại `'reschedule'`.
+     - `isNoopProposal(rental, proposal)`.
+   - Id kéo/thả (hằng + hàm tạo/đọc):
+     - kéo block: `rental:<rentalId>:<dayKey>`;
+     - kéo cạnh (Day): `edge:<start|end>:<rentalId>`;
+     - ô thả Week/Month: `cell:<vehicleId>:<dayKey>`;
+     - hàng thả Day: `row:<vehicleId>`.
+2. **`src/features/calendar/components/CalendarDndProvider.tsx`** (mới):
+   - Bọc `DndContext`, cấu hình sensor:
+     - `PointerSensor` `activationConstraint: { distance: 5 }` — nhấp thường vẫn mở popover;
+     - `TouchSensor` `{ delay: 300, tolerance: 8 }` — vuốt vẫn cuộn lưới;
+     - `KeyboardSensor`.
+   - Bật `autoScroll` mặc định (cuộn khung lưới khi kéo tới mép).
+   - `DragOverlay` hiển thị bản sao block đang kéo (biển số + khách).
+   - `onDragEnd`:
+     1. Đọc `active`/`over`, tính đề xuất bằng `dndModel`.
+     2. `isNoopProposal` → không làm gì.
+     3. Ngược lại gọi `onProposal({ rental, proposal, mode })` do `CalendarScreen` truyền vào.
+   - Thông báo cho trình đọc màn hình (`accessibility.announcements`) bằng chuỗi `calendarLabels`.
+3. **3 lưới** `CalendarWeekGrid.tsx`, `CalendarMonthGrid.tsx`, `CalendarDayGrid.tsx`:
+   - Mỗi mảnh block dùng `useDraggable` với `disabled = !(can('RENTAL','EDIT') && canRescheduleRental(rental))`. Lượt không kéo được giữ nguyên hành vi cũ.
+   - Kéo **mảnh bất kỳ** của lượt nhiều ngày = dời cả lượt theo độ lệch ngày giữa ô nguồn và ô đích.
+   - Ô ngày (Week/Month) và hàng xe (Day) dùng `useDroppable`. Ô đích đang `over` được làm nổi bằng token theme.
+   - Day: 2 tay kéo cạnh trái/phải trên block kéo được (`edge:start|end`), con trỏ `ew-resize`, vùng chạm ≥ 12 px.
+   - Block kéo được đặt `touch-action: manipulation` (khuyến nghị của `@dnd-kit` cho `TouchSensor`).
+   - Nhấp (không kéo) vẫn mở `RentalBlockPopover` như cũ.
+   - Nhấp ô trống vẫn tạo nhanh như cũ.
+4. **`CalendarScreen.tsx`:**
+   - Bọc vùng lưới bằng `CalendarDndProvider`.
+   - State `pendingProposal`. Khi có đề xuất → mở `RentalScheduleChangeDialog` với `mode` từ `scheduleModeFor` và `initial = proposal` (dùng lại component, không tạo
+     hộp thoại mới).
+   - **Hiển thị lạc quan** (RC §29): khi có `pendingProposal`, lưới vẽ một **bóng mờ** (viền nét đứt) ở vị trí đề xuất; block gốc giữ nguyên.
+     - Huỷ hoặc API từ chối → xoá bóng (block "về chỗ cũ", A3/EX-01).
+     - Thành công → xoá bóng; dữ liệu mới vẽ lại qua invalidate của hook B1.
+   - Đề xuất bị **lỗi** (vd. `OVERLAP`, `VEHICLE_UNAVAILABLE`) vẫn mở hộp thoại. Hộp thoại B1 đã hiện lỗi, liệt kê lượt/khoá gây xung đột và khoá nút Xác nhận — đây là phần
+     "hiển thị lý do + mở nhanh" của EX-01.
+5. **`src/shared/i18n/calendarLabels.ts`:** thêm toàn bộ chuỗi mới (nhãn tay kéo, `aria-label`, thông báo trình đọc màn hình, chú thích bóng mờ). **`vi.ts` không đổi**.
+
+### 15.3. Ngoài phạm vi B2 (không làm dù "tiện tay")
+
+- Đổi `evaluateScheduleChange`, API B1, `RentalScheduleChangeDialog` — chỉ được sửa tối thiểu nếu cần nhận `initial` đúng kiểu; ghi lý do.
+- Sửa nợ B1-N1/N2/N3.
+- Kéo–thả ở Agenda, Bảng điều phối.
+- `@dnd-kit/sortable`.
+- Đổi `vi.ts`, `calendar/model.ts`, `calendar/index.ts`.
+- Thêm phụ thuộc mới.
+- Đổi seed, `permissions.ts`. Sửa harness có sẵn.
+- Sửa `docs/`. Chạy trình duyệt.
+
+### 15.4. Quy tắc bắt buộc
+
+- `CONVENTIONS.md` §1 (chuỗi qua `calendarLabels.ts`; ngày giờ chỉ qua `datetime.ts`), §3 (2 điểm nhập — `@/features/rentals` cho type/hàm/hook), §6 (`can()`), §8 (theme
+  token, `cn()`, responsive; chỉ khung lưới cuộn ngang), §10, §11.
+- **Không** có lời gọi API ghi (`rescheduleRental`/`changeRentalVehicle`/hook mutate) trong `dndModel.ts`, `CalendarDndProvider.tsx` hay 3 file lưới. Mọi ghi đi qua hộp thoại B1.
+- Không đổi hành vi nhấp/tạo nhanh/popover khi không kéo.
+- Gặp quyết định nghiệp vụ mới → dừng, báo `tech-lead`.
+
+### 15.5. Thứ tự làm
+
+1. Mục 1 (`dndModel.ts`) → harness DoD 7.
+2. Mục 2 + mục 3 cho **Week**. Rồi mục 4 → build → DoD 2 (kiểm tải đầu **ngay** khi `@dnd-kit` vừa vào).
+3. Mục 3 cho Month, rồi Day (kèm kéo cạnh), rồi mục 5.
+4. Chạy toàn bộ DoD 1–9.
+
+### 15.6. Definition of Done B2 — chạy đủ và dán kết quả vào báo cáo
+
+Baseline: commit B1 `e8f1485`:
+
+- tải đầu **1.843.864 B**;
+- build sourcemap `$SP/cal3/dist-b1-sm/` — tải đầu bản sourcemap 1.844.703, 0 module `@dnd-kit`;
+- seed `$SP/hardening/base-r3a-hcm.json`; harness `$SP/hardening/baseline-r3a/`;
+- `$SP/cal3/cal-r3a-expected.txt`, `$SP/cal3/cal-r3b1-expected.txt`.
+
+1. `npx tsc -b` · `npx oxlint` (có `import/no-cycle`) · `npm run build` sạch (2 cảnh báo cũ). `grep -rn '\*/[a-zA-Z]' src/` rỗng.
+2. **Tải đầu — ngân sách B2:**
+   - `node $SP/hardening/initial-load.mjs $REPO` ≤ **1.844.500**. Phần dư chỉ để bù nhiễu ranh giới chunk (bài học R2 L1).
+   - **Tập module tải đầu không đổi:**
+     `npx vite build --sourcemap --outDir $SP/cal3/dist-b2-sm && node $SP/hardening/initial-modules.mjs $SP/cal3/dist-b1-sm $SP/cal3/dist-b2-sm` → **`ADDED 0`, `REMOVED 0`**.
+     Không module `@dnd-kit` nào trong tải đầu.
+   - Báo kích thước chunk `CalendarScreen-*.js` (và chunk `@dnd-kit` nếu Rolldown tách riêng — phải là chunk lười).
+   - Trần cứng 1.870.000.
+   - Vượt ngân sách → dừng, báo `tech-lead`, không tự tải lười thêm.
+3. `node $SP/consignment-r3/sccfiles.mjs $REPO` **rỗng**. `evalorder` OK cho `/src/app/routes.tsx`, `/src/features/calendar/ui.ts`.
+4. `git diff --stat -- src/shared/i18n/vi.ts src/features/calendar/model.ts src/features/calendar/index.ts` → **rỗng**.
+5. **Seed + harness giống hệt:**
+   - `diff-seed` HCM so `base-r3a-hcm.json` = 0.
+   - `run-harness.sh` 3 TZ so `baseline-r3a` (đối số 5 `Asia/Ho_Chi_Minh`) → **24/24 `diff=0`**.
+   - `guard-r1.mjs`, `n4-r1.mjs` ALL PASS.
+   - `cal-r3a.mjs`, `cal-r3b1.mjs` trùng file `-expected.txt` dưới 3 TZ.
+6. `tz-scan.mjs`: 5 nhóm cấm = 0 ngoài `datetime.ts`.
+7. **Harness B2** `$SP/cal3/cal-r3b2.mjs` (`dev` viết; `boot()`; `load('/src/features/calendar/dndModel.ts')` + `rentals/model.ts`). Chạy dưới 3 TZ → **output giống hệt**.
+   Lưu output HCM vào `$SP/cal3/cal-r3b2-expected.txt`. Ca:
+   - `proposalFromDayShift`: `rt_011` +1 ngày → bằng đề xuất T1 của B1; ±3 ngày; đổi hàng sang `veh_012` → đưa vào `evaluateScheduleChange` → lỗi `OVERLAP` (= T2).
+     `rt_019`/`ho_004` (giao 06:00 +07): giữ đúng 06:00 +07 sau khi dời (in ISO).
+   - `proposalFromTimeShift`:
+     - `rt_009` +30' → `evaluateScheduleChange` có `BUFFER_VIOLATION` (= T7);
+     - `minuteDelta = 44` → làm tròn 30, `= 46` → 60;
+     - `edge='end'` +1 ngày (1440') với `rt_011` → `DURATION_CHANGED` (= T14);
+     - `edge='start'` kéo vượt cạnh cuối → kẹp ở (cuối − 30').
+   - `minuteDeltaFromPixels(120, 960)` = 180.
+   - `scheduleModeFor` đúng cho đổi xe / không đổi xe. `isNoopProposal` đúng khi thả lại chỗ cũ.
+   - Parse/format id kéo/thả 4 loại, khứ hồi đúng.
+8. **Rà tĩnh** trong báo cáo:
+   - `grep -nE "rescheduleRental|changeRentalVehicle|useRescheduleRental|useChangeRentalVehicle" src/features/calendar/dndModel.ts src/features/calendar/components/{CalendarDndProvider,CalendarWeekGrid,CalendarMonthGrid,CalendarDayGrid}.tsx`
+     → rỗng.
+   - `grep -rn "dndModel" src --include=*.ts --include=*.tsx`: chỉ file trong `calendar/components/` + `CalendarScreen.tsx`.
+   - Trích đoạn `disabled` của `useDraggable` (gate quyền + trạng thái).
+   - Bảng sensor/cảm ứng (`distance 5`, `delay 300`/`tolerance 8`, `touch-action`, `autoScroll`) và responsive 375/768.
+9. `git status`: liệt kê, có số đếm. Dự kiến khoảng 7 file:
+   - mới: `dndModel.ts`, `CalendarDndProvider.tsx`;
+   - sửa: 3 lưới, `CalendarScreen.tsx`, `calendarLabels.ts`.
+
+   Không file `docs/`.
+
+**Không yêu cầu** kiểm bằng trình duyệt (quyết định 14/09/2026). Người dùng tự kiểm kéo–thả bằng chuột và cảm ứng.
+
+### 15.7. File `dev` đọc trước (đúng danh sách — không scan rộng)
+
+1. File này: §1.1 (P6, P7), §2, §3.1, §3.4 (gạch "Kéo–thả"), §6, §8.1, §8.4, §14.9, §15.
+2. `CONVENTIONS.md` §1, §3, §6, §8, §10, §11 · `docs/ARCHITECTURE.md` §6a, §7.
+3. Nghiệp vụ (chỉ các mục): `../thien-bao-car-docs/modules/RentalCalendar-BRD.md` §13, §15, §29, §31 (`AC-RC-004…007`), §32 (EX-01).
+4. Code:
+   - `src/features/calendar/screens/CalendarScreen.tsx`;
+   - `src/features/calendar/components/{CalendarWeekGrid,CalendarMonthGrid,CalendarDayGrid,RentalBlockPopover,RentalScheduleChangeDialog}.tsx`;
+   - `src/features/rentals/{model.ts (khối evaluateScheduleChange, RESCHEDULABLE_STATUSES),index.ts}`;
+   - `src/shared/lib/datetime.ts`;
+   - `src/shared/i18n/calendarLabels.ts`;
+   - tài liệu API `@dnd-kit/core` trong `node_modules/@dnd-kit/core/dist/` (`*.d.ts` của `DndContext`, `useDraggable`, `useDroppable`, sensor, `DragOverlay`).
+5. Harness: `$SP/demo-data/lib.mjs` · `$SP/cal3/{cal-r3b1.mjs,peek.mjs}` · `$SP/hardening/{initial-load.mjs,initial-modules.mjs,run-harness.sh,dump-seed.mjs,diff-seed.mjs,tz-scan.mjs,guard-r1.mjs}`.
+
+### 15.8. Báo cáo bàn giao `dev` phải có
+
+- Danh sách file đổi (khớp `git status`, có số đếm).
+- Output rút gọn DoD 1–7:
+  - tải đầu ngay khi `@dnd-kit` vào và cuối Round;
+  - `initial-modules` `ADDED`/`REMOVED`;
+  - kích thước chunk Lịch / `@dnd-kit`;
+  - SCC, `evalorder`;
+  - DoD 4 rỗng;
+  - `diff-seed`;
+  - bảng `run-harness` 3 TZ;
+  - 4 harness cũ;
+  - `tz-scan`;
+  - `cal-r3b2`.
+- Rà tĩnh DoD 8.
+- Các khoá `calendarLabels` mới.
+- Mọi chỗ lệch plan + lý do.
+### 15.9. Kết quả review & phán quyết (25/10/2026 — đạt vòng 1, không Blocker)
+
+`tech-lead` chạy lại: 3 cổng sạch · tải đầu **1.843.864 B** (không đổi so với B1; `dev` đo `initial-modules` `ADDED 0`/`REMOVED 0`; `@dnd-kit` chỉ ở chunk `CalendarScreen` 95,92 kB) ·
+SCC rỗng · diff `vi.ts`/`calendar/model.ts`/`calendar/index.ts` rỗng · `cal-r3b2` (New_York) và `cal-r3b1` (UTC) trùng file kỳ vọng · `run-harness` New_York so baseline HCM 8/8 `diff=0`.
+Đọc code: `dndModel.ts` chỉ `import type` từ `rentals` + helper `datetime.ts` (không API ghi, không hook mutate); `dndModel` chỉ được import ở 3 lưới (giá trị) và `CalendarScreen` (`import type`,
+bị xoá khi biên dịch — không kéo file vào chunk khác); `useDraggable` `disabled` theo `canDrag = can('RENTAL','EDIT') && canRescheduleRental(rental)` ở Week/Day, Month gate cùng điều kiện
+trước khi render ô kéo được; block kéo được có `touch-manipulation` (cho phép cuộn/vuốt), `TouchSensor` nhấn giữ 300 ms/dung sai 8 px → vuốt trên điện thoại vẫn cuộn lưới.
+
+| # | Lệch | Phán quyết |
+| --- | --- | --- |
+| L1 | `MousePenSensor` (lớp con `PointerSensor`, bỏ qua `pointerType === 'touch'`) | **Chấp nhận** — đúng ý brief (vuốt cuộn, nhấn giữ kéo); `PointerSensor` gốc giành cử chỉ cảm ứng. |
+| L2 | Month: chỉ ô có đúng 1 lượt kéo được; ô nhiều lượt dùng nút "Dời lịch / Đổi xe"; mọi ô là vùng thả (ô khoá → `VEHICLE_BLOCKED` trong hộp thoại) | **Chấp nhận** — ô Tháng chỉ vẽ chấm/số lượt, không xác định được lượt nào đang kéo khi ô có nhiều lượt; đường menu vẫn đủ chức năng (K1). |
+| L3 | Kéo cạnh: `closestCenter` dự phòng; ẩn tay kéo cạnh ở phía bị cắt; kẹp đối xứng cạnh cuối ≥ đầu + 30' | **Chấp nhận.** |
+| L4 | Space/Enter nhấc khối, không nổi bọt lên ô | **Chấp nhận** — tránh mở tạo nhanh nhầm. |
+| L5 | Month: ô có đúng 1 lượt kéo được → Space/Enter bắt đầu kéo; chi tiết ngày chỉ mở bằng click | **Chấp nhận, ghi nợ B2-N1 (Nên sửa).** Hồi quy truy cập bàn phím nhưng không chặn thao tác chính: chỉ ảnh hưởng ô có đúng 1 lượt kéo được; nội dung chi tiết ngày (lượt + giờ giao/nhận) vẫn xem được bằng bàn phím ở chế độ Ngày/Danh sách và popover. Cách sửa: `KeyboardSensor` `keyboardCodes.start = ['Space']` (Enter giữ cho mở chi tiết ngày), cập nhật thông báo trình đọc màn hình. |
+| L6 | `DragOverlay` `dropAnimation={null}`; khối gốc mờ 40% khi kéo; bóng nét đứt mất khi hộp thoại đóng | **Chấp nhận.** |
+| L7 | Không sửa hộp thoại B1 / `evaluateScheduleChange` | **Chấp nhận** — đúng ngoài phạm vi. |
+
+**Nợ ghi nhận:** **B2-N1** — L5.
+
+### 15.10. Tổng kết Lịch Round 3
+
+| Round | Commit | Nội dung |
+| --- | --- | --- |
+| A | `3660a62` | Xem Ngày + Danh sách, nhớ chế độ xem, Lịch tải lười |
+| B1 | `e8f1485` | Dời lịch / đổi xe trước giao qua hộp thoại (`evaluateScheduleChange`, API `rentals`, dời phân công, 3 audit action) |
+| B2 | (commit này) | Kéo–thả `@dnd-kit/core` trên Week/Month/Day (+ kéo cạnh ở Day) — dùng lại hộp thoại B1 |
+
+Số cuối: tải đầu `/dashboard` **1.843.864 B** (trước Round 3: 1.854.198; trần 1.870.000) · chunk Lịch lười 95,92 kB (gzip 28,68 kB) · SCC **0** · seed không đổi (`SEED_VERSION` 27) ·
+harness cũ giống hệt dưới 3 múi giờ · 3 harness mới (`cal-r3a`, `cal-r3b1` 17+ ca, `cal-r3b2`) ALL PASS, giống hệt dưới 3 múi giờ · cả 3 Round đạt vòng 1, không Blocker.
+Còn lại: **Round C** (đổi xe giữa kỳ — §10, chờ người dùng duyệt + BA chốt OQ) · nợ A-N1, B1-N1…N3, B2-N1 · OQ §5 Q1–Q5, G1–G7 (giả định demo, BA chốt).
+
 ---
 
-## 15. Lịch sử
+## 16. Lịch sử
 
 | Ngày | Nội dung |
 | --- | --- |
+| 25/10/2026 | **B2 `DONE` — Lịch Round 3 `DONE`** — review vòng 1 đạt, không Blocker; chấp nhận L1–L7, nợ B2-N1 (§15.9); tổng kết §15.10. |
+| 25/10/2026 | Brief B2 (§15) — **giao `dev`**; ngân sách B2: tải đầu ≤ 1.844.500 B **và** tập module tải đầu không đổi (`initial-modules.mjs` so `cal3/dist-b1-sm`); chuỗi mới chỉ ở `calendarLabels.ts`, hàm thuần mới ở `calendar/dndModel.ts` (ngoài tải đầu). |
 | 25/10/2026 | **B1 `DONE`** — review vòng 1 đạt, không Blocker; chấp nhận L1–L9; nợ B1-N1…N3 (§14.9). Tải đầu 1.843.864 B. |
 | 25/10/2026 | Brief B1 (§14) — **giao `dev`**; ngân sách tải đầu B1 ≤ 1.844.000 B (đòn bẩy `calendarLabels.ts`), B2 ≤ B1 + 1.000. |
 | 25/10/2026 | **Round A `DONE`** — review vòng 1 đạt, không Blocker; chấp nhận L1–L4, nợ A-N1 (§13.9). Tải đầu 1.834.102 B. |
