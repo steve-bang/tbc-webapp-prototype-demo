@@ -7,9 +7,11 @@ import {
   addMonthsToKey,
   eachDayKey,
   endOfMonthKey,
+  startOfDayIso,
   startOfMonthKey,
   startOfWeekKey,
   toDateKey,
+  zonedDateTimeToIso,
 } from '@/shared/lib/datetime'
 
 /**
@@ -143,7 +145,8 @@ export function rentalsByVehicleInRange(rentals: Rental[], startDate: string, en
 
 // ---- Lưới ngày (SA-BR-14 — mọi khoá ngày theo +07, không phụ thuộc giờ trình duyệt) ----
 
-export type CalendarView = 'week' | 'month'
+/** Chế độ xem Lịch — `RentalCalendar-BRD.md` §8 (Day · Week · Month · Agenda), mặc định `week` (`RC-BR-16`). */
+export type CalendarView = 'day' | 'week' | 'month' | 'agenda'
 
 /** 7 date key của tuần chứa `anchorKey`, bắt đầu thứ Hai (RC-BR-16: Week là view mặc định). */
 export function weekDayKeys(anchorKey: string): string[] {
@@ -160,9 +163,172 @@ export function monthGridKeys(monthKey: string): string[] {
   return eachDayKey(first, endOfMonthKey(first))
 }
 
-/** Chuyển kỳ: Tuần ± 7 ngày; Tháng ± `step` tháng (kẹp ngày về cuối tháng đích, 31/01 + 1 tháng = 28|29/02). */
+/**
+ * Chuyển kỳ: Ngày ± 1 ngày; Tuần và Agenda ± 7 ngày (Agenda dùng cùng phạm vi tuần với Week);
+ * Tháng ± `step` tháng (kẹp ngày về cuối tháng đích, 31/01 + 1 tháng = 28|29/02).
+ */
 export function shiftAnchor(anchorKey: string, view: CalendarView, step: number): string {
-  return view === 'week' ? addDaysToKey(anchorKey, 7 * step) : addMonthsToKey(anchorKey, step)
+  switch (view) {
+    case 'day':
+      return addDaysToKey(anchorKey, step)
+    case 'week':
+    case 'agenda':
+      return addDaysToKey(anchorKey, 7 * step)
+    case 'month':
+      return addMonthsToKey(anchorKey, step)
+  }
+}
+
+/** Phạm vi ngày (hai đầu gồm cả) của chế độ xem: Ngày = 1 ngày; Tuần/Agenda = `weekDayKeys`; Tháng = cả tháng. */
+export function viewRange(anchorKey: string, view: CalendarView): { fromKey: string; toKey: string } {
+  switch (view) {
+    case 'day':
+      return { fromKey: anchorKey, toKey: anchorKey }
+    case 'week':
+    case 'agenda': {
+      const keys = weekDayKeys(anchorKey)
+      return { fromKey: keys[0], toKey: keys[6] }
+    }
+    case 'month':
+      return { fromKey: startOfMonthKey(anchorKey), toKey: endOfMonthKey(anchorKey) }
+  }
+}
+
+// ---- Chế độ Ngày / Agenda (CALENDAR-ROUND3-PLAN.md §13) ----
+
+/**
+ * Khung giờ làm việc tô nổi ở chế độ Ngày (giờ +07, `start` gồm, `end` là mốc kết thúc).
+ * TODO(OQ: CALENDAR-ROUND3-PLAN.md §5 G7) — RC §25 ví dụ 07:00–20:00, chưa cấu hình.
+ */
+export const WORKING_HOURS = { start: 7, end: 20 } as const
+
+/** Mốc giao/nhận chuẩn 21:00 (CR-2026-005, RM §51) — vạch dọc ở chế độ Ngày. */
+export const STANDARD_HANDOVER_HOUR = 21
+
+const DAY_MINUTES = 24 * 60
+const MIN_ITEM_WIDTH_PCT = 1
+
+export interface DayTimelineRentalItem {
+  rentalId: string
+  leftPct: number
+  widthPct: number
+  /** Lượt bắt đầu trước 00:00 của ngày đang xem. */
+  continuesBefore: boolean
+  /** Lượt kết thúc sau 24:00 của ngày đang xem. */
+  continuesAfter: boolean
+}
+
+export interface DayTimelineBufferItem {
+  rentalId: string
+  leftPct: number
+  widthPct: number
+}
+
+export interface DayTimelineRow {
+  vehicleId: string
+  rentals: DayTimelineRentalItem[]
+  /** Vùng đệm 90' sau giờ trả dự kiến (RC-BR-13). */
+  buffers: DayTimelineBufferItem[]
+  /** Vehicle Block `ACTIVE` phủ ngày này (cả ngày) — `undefined` nếu không có. */
+  blockId?: string
+}
+
+/** Cắt [startMs, endMs] theo 00:00–24:00 (+07) của ngày → % trên trục; null nếu không chồng ngày. */
+function clipToDayPct(startMs: number, endMs: number, dayStartMs: number): { leftPct: number; widthPct: number } | null {
+  const dayEndMs = dayStartMs + DAY_MINUTES * 60_000
+  if (endMs <= dayStartMs || startMs >= dayEndMs) return null
+  const clippedStart = Math.max(startMs, dayStartMs)
+  const clippedEnd = Math.min(endMs, dayEndMs)
+  const leftPct = ((clippedStart - dayStartMs) / (dayEndMs - dayStartMs)) * 100
+  const rawWidth = ((clippedEnd - clippedStart) / (dayEndMs - dayStartMs)) * 100
+  const widthPct = Math.min(Math.max(rawWidth, MIN_ITEM_WIDTH_PCT), 100 - leftPct)
+  return { leftPct, widthPct }
+}
+
+/**
+ * Bố cục lưới Ngày: mỗi xe (theo thứ tự `vehicles`) một hàng, trục ngang 00:00–24:00 (+07) của `dateKey`.
+ * Lượt thuê cắt theo ngày; vùng đệm 90' chỉ cho lượt đang chiếm xe (như Week); khoá xe `ACTIVE` phủ ngày.
+ */
+export function dayTimelineLayout(
+  dateKey: string,
+  rentals: Rental[],
+  blocks: VehicleBlock[],
+  vehicles: { id: string }[],
+): DayTimelineRow[] {
+  const dayStartMs = Date.parse(startOfDayIso(dateKey))
+  const dayEndMs = dayStartMs + DAY_MINUTES * 60_000
+  const byVehicle = rentalsByVehicleInRange(rentals, dateKey, dateKey)
+  return vehicles.map((v) => {
+    const list = (byVehicle.get(v.id) ?? []).slice().sort((a, b) => a.pickupDateTime.localeCompare(b.pickupDateTime))
+    const rentalItems: DayTimelineRentalItem[] = []
+    const bufferItems: DayTimelineBufferItem[] = []
+    for (const r of list) {
+      const startMs = Date.parse(r.pickupDateTime)
+      const endMs = Date.parse(r.expectedReturnDateTime)
+      const pos = clipToDayPct(startMs, endMs, dayStartMs)
+      if (pos) {
+        rentalItems.push({ rentalId: r.id, ...pos, continuesBefore: startMs < dayStartMs, continuesAfter: endMs > dayEndMs })
+      }
+      if (isOccupyingLikeStatus(r.status)) {
+        const win = turnaroundBufferWindow(r.expectedReturnDateTime)
+        const bufPos = clipToDayPct(Date.parse(win.start), Date.parse(win.end), dayStartMs)
+        if (bufPos) bufferItems.push({ rentalId: r.id, ...bufPos })
+      }
+    }
+    const block = blocks.find(
+      (b) => b.vehicleId === v.id && b.status === 'ACTIVE' && b.startDate <= dateKey && dateKey <= blockEndBound(b),
+    )
+    return { vehicleId: v.id, rentals: rentalItems, buffers: bufferItems, blockId: block?.id }
+  })
+}
+
+export interface AgendaGroup {
+  dateKey: string
+  /** `continuing`: bắt đầu trước phạm vi nhưng còn chạy trong phạm vi. */
+  rentals: { rental: Rental; continuing: boolean }[]
+}
+
+/**
+ * Nhóm lượt theo ngày giao cho Agenda. Lượt bắt đầu trước `fromKey` nhưng còn chạy tới `fromKey` trở đi
+ * xếp vào ngày đầu phạm vi (`continuing: true`). Cùng tập lượt với `rentalsByVehicleInRange`. Nhóm trống bị bỏ; sắp theo giờ giao.
+ */
+export function agendaGroups(rentals: Rental[], fromKey: string, toKey: string): AgendaGroup[] {
+  const map = new Map<string, AgendaGroup['rentals']>()
+  for (const r of rentals) {
+    const pickupKey = toDateKey(r.pickupDateTime)
+    const returnKey = toDateKey(r.expectedReturnDateTime)
+    let groupKey: string
+    let continuing = false
+    if (pickupKey >= fromKey && pickupKey <= toKey) {
+      groupKey = pickupKey
+    } else if (pickupKey < fromKey && returnKey >= fromKey) {
+      groupKey = fromKey
+      continuing = true
+    } else {
+      continue
+    }
+    const list = map.get(groupKey) ?? []
+    list.push({ rental: r, continuing })
+    map.set(groupKey, list)
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([dateKey, list]) => ({
+      dateKey,
+      rentals: list.sort(
+        (a, b) => a.rental.pickupDateTime.localeCompare(b.rental.pickupDateTime) || a.rental.id.localeCompare(b.rental.id),
+      ),
+    }))
+}
+
+/**
+ * Vị trí nhấp trên trục Ngày (0–1) → ISO, làm tròn 30' (+07). Dùng tạo nhanh khi nhấp ô trống (RC §13).
+ * Kẹp trong [0, 1]; 1 = 00:00 ngày kế tiếp.
+ */
+export function timeFromDayPosition(dateKey: string, pct: number): string {
+  const clamped = Math.min(Math.max(pct, 0), 1)
+  const minutes = Math.round((clamped * DAY_MINUTES) / 30) * 30
+  return zonedDateTimeToIso(dateKey, 0, minutes)
 }
 
 export interface DispatchDayRow {

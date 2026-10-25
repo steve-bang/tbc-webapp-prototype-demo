@@ -159,7 +159,7 @@ Vì `api.ts` giữ chữ ký hàm bất đồng bộ giống REST thật (`list`
   đổi. Nhãn menu lấy từ `vi.nav`.
 - **Tải lười màn ít dùng** (`docs/DASHBOARD-PLATFORM-PLAN.md` D11): feature có `screens/lazyScreens.ts`
   (`React.lazy(() => import('./XxxScreen').then(...))`), barrel UI `ui.ts` export **bản lazy** (giữ nguyên tên),
-  `app/routes.tsx` bọc `<Suspense fallback=…>`. Đang áp cho Báo cáo tài chính, Trung tâm thông báo, Nhật ký thao tác,
+  `app/routes.tsx` bọc `<Suspense fallback=…>`. Đang áp cho Lịch (`/calendar` — Lịch Round 3 A), Báo cáo tài chính, Trung tâm thông báo, Nhật ký thao tác,
   Cấu hình hệ thống, Vai trò & quyền, Chi tiết nhân viên, widget tài chính Dashboard. Trần: **tổng JS tải đầu
   `/dashboard` (entry + mọi `modulepreload`) ≤ 1.870 kB**. Barrel dữ liệu `index.ts` (được `shared/layout` import, vd. `auth`)
   không còn export màn nào (Phase 6.1 R2). Lưu ý đo: tách barrel ở R2 không đổi tập module tải đầu (so sourcemap) nhưng Rolldown chia thêm

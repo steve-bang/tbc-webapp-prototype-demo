@@ -37,7 +37,15 @@ export function AppRoutes() {
         <Route path="/" element={<Navigate to={paths.dashboard} replace />} />
         <Route path={paths.dashboard} element={<DashboardScreen />} />
         <Route element={<RequirePermission access={ROUTE_ACCESS.calendar} />}>
-          <Route path={paths.calendar} element={<CalendarScreen />} />
+          {/* Màn Lịch tải lười (`calendar/screens/lazyScreens.ts`) — CALENDAR-ROUND3-PLAN.md C3. */}
+          <Route
+            path={paths.calendar}
+            element={
+              <Suspense fallback={<p className="text-muted-foreground text-sm">{vi.common.loading}</p>}>
+                <CalendarScreen />
+              </Suspense>
+            }
+          />
         </Route>
 
         <Route element={<RequirePermission access={ROUTE_ACCESS.vehicles} />}>

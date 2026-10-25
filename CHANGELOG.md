@@ -11,6 +11,16 @@ này là nhật ký thay đổi của riêng repo webapp (kế hoạch, code, c�
 
 ---
 
+### 2026-10-25
+
+**Added**
+
+- **Lịch Round 3 — Round A: xem Ngày + Danh sách (Agenda)** (theo [`docs/CALENDAR-ROUND3-PLAN.md`](docs/CALENDAR-ROUND3-PLAN.md) §13 — `RentalCalendar-BRD.md` §8,
+  `RC-BR-16`). Màn Lịch có thêm 2 chế độ **Ngày** (mỗi xe một hàng, trục giờ ngang 24h, tô khung giờ làm việc 07:00–20:00, vạch 21:00 giao/nhận chuẩn, vạch "bây giờ",
+  vùng đệm 90', khoá xe; nhấp chỗ trống tạo nhanh theo giờ làm tròn 30') và **Danh sách** (lượt theo ngày giao trong tuần, đánh dấu lượt đang tiếp diễn, phân trang).
+  Lịch **nhớ chế độ xem và bộ lọc** giữa các lần mở (mở lại luôn về hôm nay). Màn Lịch chuyển sang **tải lười** — tải đầu Dashboard 1.834.102 B (trước đó 1.854.198),
+  lần đầu mở Lịch tải thêm ~34 kB. Chưa có dời lịch / đổi xe / kéo–thả (Round B1/B2). Review `tech-lead` **đạt vòng 1**, không Blocker.
+
 ### 2026-10-23
 
 **Added**

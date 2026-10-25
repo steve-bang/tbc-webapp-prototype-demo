@@ -11,12 +11,14 @@ import { useVehicles } from '@/features/vehicles/hooks'
 import type { Vehicle } from '@/features/vehicles'
 import { vi } from '@/shared/i18n/vi'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDate, toDateKey, toMonthKey, todayKey } from '@/shared/lib/datetime'
+import { formatDate, formatWeekdayShort, toDateKey, toMonthKey, todayKey } from '@/shared/lib/datetime'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select'
 import { Switch } from '@/shared/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/shared/ui/tabs'
+import { CalendarAgendaList } from '../components/CalendarAgendaList'
+import { CalendarDayGrid } from '../components/CalendarDayGrid'
 import { CalendarMonthGrid } from '../components/CalendarMonthGrid'
 import { CalendarWeekGrid } from '../components/CalendarWeekGrid'
 import { DayDetailDialog } from '../components/DayDetailDialog'
@@ -24,7 +26,8 @@ import { canOpenRentalQuickCreate, type QuickCreateRequest } from '../components
 import { VehicleBlockDetailDialog } from '../components/VehicleBlockDetailDialog'
 import { VehicleBlockFormDialog } from '../components/VehicleBlockFormDialog'
 import { useVehicleBlocks } from '../hooks'
-import { shiftAnchor, weekDayKeys, type CalendarView, type VehicleBlock } from '../model'
+import { shiftAnchor, viewRange, type CalendarView, type VehicleBlock } from '../model'
+import { useCalendarPrefsStore } from '../store'
 
 interface DayDetailState {
   vehicle: Vehicle
@@ -33,25 +36,34 @@ interface DayDetailState {
 }
 
 /**
- * `docs/CALENDAR-MANAGEMENT-PLAN.md` §5.1 — trang Lịch cho thuê (`RC`). Round
- * 2 = Week (mặc định, CR-2026-032) + Month (lưới xe×ngày, CR-2026-017/044) +
- * Vehicle Block CRUD + tạo nhanh. KHÔNG có Day/Agenda view, KHÔNG kéo-thả
- * (Round 3 — §0.3/§1.2 kế hoạch), KHÔNG có khu "Chưa xếp xe" (§0.2 — xung đột
- * với `RM-BR-02` đã DONE ở Round 1 của `rentals`).
+ * `docs/CALENDAR-MANAGEMENT-PLAN.md` §5.1 — trang Lịch cho thuê (`RC`). Week
+ * (mặc định, CR-2026-032) + Month (lưới xe×ngày, CR-2026-017/044) + Vehicle
+ * Block CRUD + tạo nhanh; `docs/CALENDAR-ROUND3-PLAN.md` Round A thêm Day
+ * (lưới xe × trục giờ) + Agenda (danh sách theo ngày) và nhớ chế độ xem + bộ
+ * lọc (`store.ts`). Chưa kéo-thả (Round B2), KHÔNG có khu "Chưa xếp xe"
+ * (§0.2 — xung đột với `RM-BR-02` đã DONE ở Round 1 của `rentals`).
  */
 export function CalendarScreen() {
   const { can } = usePermission()
   const canCreateRental = can('RENTAL', 'CREATE')
   const canBlockVehicle = can('VEHICLE', 'BLOCK')
 
-  const [view, setView] = useState<CalendarView>('week') // RC-BR-16 — mặc định Week
+  // RC §8 — chế độ xem + bộ lọc được nhớ giữa các lần mở (`store.ts`); mốc điều hướng + tìm kiếm thì không.
+  const {
+    view,
+    vehicleFilter: storedVehicleFilter,
+    showCancelled,
+    showNoShow,
+    showInactiveVehicles,
+    setView,
+    setVehicleFilter,
+    setShowCancelled,
+    setShowNoShow,
+    setShowInactiveVehicles,
+  } = useCalendarPrefsStore()
   // N8 — mốc điều hướng là date key +07 (không phải Date theo giờ trình duyệt)
   const [anchorKey, setAnchorKey] = useState(() => todayKey())
   const [search, setSearch] = useState('')
-  const [vehicleFilter, setVehicleFilter] = useState<string | undefined>(undefined)
-  const [showCancelled, setShowCancelled] = useState(false) // RC-BR-08
-  const [showNoShow, setShowNoShow] = useState(false) // §11 kế hoạch — quy ước hiển thị cùng nhóm CANCELLED
-  const [showInactiveVehicles, setShowInactiveVehicles] = useState(false)
 
   const [quickCreateRequest, setQuickCreateRequest] = useState<QuickCreateRequest | null>(null)
   const [blockFormOpen, setBlockFormOpen] = useState(false)
@@ -62,6 +74,9 @@ export function CalendarScreen() {
   const { data: vehicles = [] } = useVehicles()
   const { data: customers = [] } = useCustomers()
   const { data: blocks = [] } = useVehicleBlocks()
+
+  // Bộ lọc xe đã lưu nhưng xe không còn tồn tại → coi như "Tất cả xe" (không để lịch trống khó hiểu).
+  const vehicleFilter = storedVehicleFilter && vehicles.some((v) => v.id === storedVehicleFilter) ? storedVehicleFilter : undefined
 
   const customerById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers])
   const vehicleById = useMemo(() => new Map(vehicles.map((v) => [v.id, v])), [vehicles])
@@ -100,9 +115,7 @@ export function CalendarScreen() {
   }, [search, filteredRentals, matchesQuery])
   const highlightRentalIds = useMemo(() => new Set(matchedRentals.map((r) => r.id)), [matchedRentals])
 
-  const weekKeys = useMemo(() => weekDayKeys(anchorKey), [anchorKey])
-  const weekStartKey = weekKeys[0]
-  const weekEndKey = weekKeys[6]
+  const range = useMemo(() => viewRange(anchorKey, view), [anchorKey, view])
 
   /**
    * Tìm kiếm → nhảy tới (§5.1) — chạy trực tiếp trong sự kiện `onChange` của ô
@@ -118,12 +131,10 @@ export function CalendarScreen() {
     const earliest = matches[0]
     if (!earliest) return
     const matchKey = toDateKey(earliest.pickupDateTime)
+    // Ngoài phạm vi đang xem (Ngày / Tuần / Tháng / Danh sách) → nhảy tới ngày khớp.
     setAnchorKey((prev) => {
-      if (view === 'week') {
-        const prevWeek = weekDayKeys(prev)
-        return matchKey < prevWeek[0] || matchKey > prevWeek[6] ? matchKey : prev
-      }
-      return toMonthKey(matchKey) === toMonthKey(prev) ? prev : matchKey
+      const { fromKey, toKey } = viewRange(prev, view)
+      return matchKey < fromKey || matchKey > toKey ? matchKey : prev
     })
   }
 
@@ -162,8 +173,10 @@ export function CalendarScreen() {
         <div className="flex flex-wrap items-center gap-2">
           <Tabs value={view} onValueChange={(v) => setView(v as CalendarView)}>
             <TabsList>
+              <TabsTrigger value="day">{vi.calendar.viewDay}</TabsTrigger>
               <TabsTrigger value="week">{vi.calendar.viewWeek}</TabsTrigger>
               <TabsTrigger value="month">{vi.calendar.viewMonth}</TabsTrigger>
+              <TabsTrigger value="agenda">{vi.calendar.viewAgenda}</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -179,9 +192,13 @@ export function CalendarScreen() {
             </Button>
           </div>
 
-          {view === 'week' ? (
+          {view === 'day' ? (
             <span className="text-foreground text-sm font-medium">
-              {formatDate(weekStartKey)} → {formatDate(weekEndKey)}
+              {vi.calendar.dayTitle(formatWeekdayShort(anchorKey), formatDate(anchorKey))}
+            </span>
+          ) : view === 'week' || view === 'agenda' ? (
+            <span className="text-foreground text-sm font-medium">
+              {formatDate(range.fromKey)} → {formatDate(range.toKey)}
             </span>
           ) : (
             <Input
@@ -232,7 +249,27 @@ export function CalendarScreen() {
         </div>
       </div>
 
-      {view === 'week' ? (
+      {view === 'day' ? (
+        <CalendarDayGrid
+          dateKey={anchorKey}
+          vehicles={gridVehicles}
+          rentals={filteredRentals}
+          blocks={blocks}
+          showInactiveVehicles={showInactiveVehicles}
+          highlightRentalIds={highlightRentalIds}
+          customerById={customerById}
+          onEmptyCellClick={attemptOpenQuickCreate}
+        />
+      ) : view === 'agenda' ? (
+        <CalendarAgendaList
+          rentals={filteredRentals}
+          fromKey={range.fromKey}
+          toKey={range.toKey}
+          vehicleById={vehicleById}
+          customerById={customerById}
+          highlightRentalIds={highlightRentalIds}
+        />
+      ) : view === 'week' ? (
         <CalendarWeekGrid
           anchorKey={anchorKey}
           vehicles={gridVehicles}

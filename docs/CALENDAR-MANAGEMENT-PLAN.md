@@ -6,6 +6,7 @@ không cần tôi accept plan"). Round 2 (Week + Month + Vehicle Block + tạo n
 qua 1 vòng review `tech-lead` không có Blocker (chi tiết ở `docs/IMPLEMENTATION-PLAN.md` mục
 `features/calendar`). **Round 3 (Day/Agenda + kéo-thả, §8.1) tạm hoãn theo yêu cầu chủ dự án
 (15/09/2026)** — chưa có lịch làm lại, giữ nguyên nội dung §8.1 làm tham khảo khi quay lại.
+**25/10/2026: Round 3 làm lại theo [`docs/CALENDAR-ROUND3-PLAN.md`](CALENDAR-ROUND3-PLAN.md) (`APPROVED`) — thay §8.1.**
 
 **Nguồn nghiệp vụ:** `../thien-bao-car-docs/modules/RentalCalendar-BRD.md` (v1.3, toàn bộ §1-§35) +
 `RentalCalendar-UseCase.md` (v1.2, UC-RC-05/08/13/18) + `../thien-bao-car-docs/modules/
