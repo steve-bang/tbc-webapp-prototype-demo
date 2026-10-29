@@ -21,7 +21,7 @@
 .chk-row .st{flex:none;width:24px;height:24px;margin-top:1px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-tertiary)}
 .chk-row.ok .st{color:var(--status-success)}
 .chk-row.fail .st{color:var(--status-danger)}
-.chk-row.spin .st{color:var(--status-info)}
+.chk-row.is-run .st{color:var(--status-info)}
 .chk-row .lb{font:600 14px/20px var(--font)}
 .chk-row .dt{font:400 13px/18px var(--font);color:var(--text-secondary)}
 .chk-row.fail{background:var(--status-danger-bg)}
