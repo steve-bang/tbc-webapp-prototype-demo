@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S-001 · Design System · Tokens</title>
+<link rel="stylesheet" href="../tokens/tokens.css"><link rel="stylesheet" href="../tokens/components.css">
+<script>var t=new URLSearchParams(location.search).get('theme');document.documentElement.dataset.theme=t==='dark'?'dark':'light';</script>
+<script src="../tokens/icons.js" defer></script>
+<style>
+.tkgrid{display:flex;gap:var(--space-6);padding:var(--space-8);flex-wrap:wrap;align-items:flex-start}
+.tk{width:640px;background:var(--bg-canvas);color:var(--text-primary);border:1px solid var(--border-default);border-radius:var(--radius-xl);padding:var(--space-6)}
+.tk h2{font:700 20px/28px var(--font);margin:0 0 var(--space-4)}.tk h3{font:600 14px/20px var(--font);margin:var(--space-6) 0 var(--space-2);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em}
+.sw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2)}
+.sw{display:flex;gap:var(--space-2);align-items:center;font:500 12px/16px var(--font);min-height:40px}
+.sw i{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);flex:none}
+.sw b{display:block;font-weight:600}.sw span{color:var(--text-secondary);font-family:ui-monospace,monospace}
+.ct{width:100%;border-collapse:collapse;font:400 13px/18px var(--font)}.ct td,.ct th{padding:6px 8px;border-bottom:1px solid var(--border-default);text-align:left}
+.pass{color:var(--status-success);font-weight:700}.fail{color:var(--status-danger);font-weight:700}
+.sp{display:flex;align-items:center;gap:var(--space-3);font:12px/16px var(--font);margin:4px 0}.sp i{display:block;height:12px;background:var(--action-primary);border-radius:2px}
+.rd{display:flex;gap:var(--space-3);flex-wrap:wrap}.rd div{width:72px;height:56px;background:var(--bg-subtle);border:1.5px solid var(--border-strong);font:12px/16px var(--font);display:flex;align-items:center;justify-content:center}
+.el{display:flex;gap:var(--space-4)}.el div{width:120px;height:72px;background:var(--surface-raised);border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;font:12px/16px var(--font);text-align:center}
+.prim{display:flex;gap:4px;flex-wrap:wrap}.prim i{width:56px;height:40px;border-radius:var(--radius-sm);border:1px solid var(--border-default);font:10px/12px var(--font);font-style:normal;padding:2px;color:#000;display:flex;align-items:flex-end}
+</style></head><body>
+<header class="page-title"><h1>S-001 · Design System · Tokens</h1><p>Nguồn: <code>tokens/tokens.css</code> (Modern Enterprise Blue) · skill mobile-saas-ui-ux §4 · Light + Dark hiển thị song song (tham số ?theme không ảnh hưởng trang này)</p></header>
+<div class="tkgrid"><section class="tk" data-theme="light" data-panel><h2>Light</h2>
+<h3>Màu semantic (lớp 2 — component chỉ dùng lớp này)</h3><div class="sw-grid" data-sw></div>
+<h3>Tương phản (WCAG 2.1) — văn bản ≥ 4.5:1, UI/icon ≥ 3:1</h3><table class="ct" data-ct></table>
+<h3>Typography</h3>
+<div class="t-display">Display 32/40 · 700</div><div class="t-h-xl">Heading XL 28/36 · 700</div><div class="t-h-lg">Heading LG 24/32 · 700</div><div class="t-h-md">Heading MD 20/28 · 600</div><div class="t-h-sm">Heading SM 18/26 · 600</div><div class="t-body-lg">Body LG 16/24 · 400 — Giao xe lúc 08:30, 51K-123.45</div><div class="t-body-md">Body MD 14/20 · 400 — nội dung mặc định, tối thiểu cho thông tin bắt buộc</div><div class="t-body-sm">Body SM 13/18 · 400 — phụ chú</div><div class="t-label">Label MD 14/20 · 600</div><div class="t-caption">Caption 12/16 · 400 — chỉ cho nhãn phụ, KHÔNG cho thông tin bắt buộc</div>
+<div class="t-h-md num" style="margin-top:8px">1.250.000 ₫ · 12.345 km <span class="faint t-body-sm">(tabular-nums)</span></div>
+</section><section class="tk" data-theme="dark" data-panel><h2>Dark</h2>
+<h3>Màu semantic (lớp 2 — component chỉ dùng lớp này)</h3><div class="sw-grid" data-sw></div>
+<h3>Tương phản (WCAG 2.1) — văn bản ≥ 4.5:1, UI/icon ≥ 3:1</h3><table class="ct" data-ct></table>
+<h3>Typography</h3>
+<div class="t-display">Display 32/40 · 700</div><div class="t-h-xl">Heading XL 28/36 · 700</div><div class="t-h-lg">Heading LG 24/32 · 700</div><div class="t-h-md">Heading MD 20/28 · 600</div><div class="t-h-sm">Heading SM 18/26 · 600</div><div class="t-body-lg">Body LG 16/24 · 400 — Giao xe lúc 08:30, 51K-123.45</div><div class="t-body-md">Body MD 14/20 · 400 — nội dung mặc định, tối thiểu cho thông tin bắt buộc</div><div class="t-body-sm">Body SM 13/18 · 400 — phụ chú</div><div class="t-label">Label MD 14/20 · 600</div><div class="t-caption">Caption 12/16 · 400 — chỉ cho nhãn phụ, KHÔNG cho thông tin bắt buộc</div>
+<div class="t-h-md num" style="margin-top:8px">1.250.000 ₫ · 12.345 km <span class="faint t-body-sm">(tabular-nums)</span></div>
+</section></div>
+<main class="tkgrid" style="padding-top:0">
+<section class="tk" style="width:640px"><h2>Spacing · Radius · Elevation (dùng chung 2 theme)</h2>
+<h3>Spacing (lưới 4pt)</h3><div id="sp"></div>
+<h3>Radius</h3><div class="rd"><div style="border-radius:var(--radius-sm)">sm 6</div><div style="border-radius:var(--radius-md)">md 10</div><div style="border-radius:var(--radius-lg)">lg 14</div><div style="border-radius:var(--radius-xl)">xl 20</div><div style="border-radius:var(--radius-2xl)">2xl 24</div><div style="border-radius:var(--radius-full)">full</div></div>
+<h3>Elevation (tối đa 3 mức)</h3><div class="el"><div style="box-shadow:var(--elevation-card)">card</div><div style="box-shadow:var(--elevation-dropdown)">dropdown</div><div style="box-shadow:var(--elevation-modal)">modal / sheet</div></div>
+<h3>Vùng chạm</h3><p class="t-body-md">Tối thiểu <b>48×48dp</b>, khoảng cách giữa 2 vùng chạm ≥ 8dp. Nút cao 48; tab cao 56; hàng danh sách ≥ 56.</p></section>
+<section class="tk" style="width:640px"><h2>3 lớp token</h2>
+<p class="t-body-md"><b>Lớp 1 — Primitive</b> (<code>--blue-600</code>, <code>--neutral-900</code>…): bảng màu thô, CHỈ được tham chiếu trong <code>tokens.css</code>.<br><b>Lớp 2 — Semantic</b> (<code>--text-primary</code>, <code>--action-primary</code>, <code>--status-danger-bg</code>…): đổi giá trị theo Light/Dark; mọi mockup chỉ dùng lớp này.<br><b>Lớp 3 — Component</b> (<code>--_bg</code>/<code>--_fg</code> cục bộ trong <code>.btn</code>…): biến nội bộ của component, trỏ về lớp 2.</p>
+<h3>Primitive (tham khảo)</h3><div class="prim" data-prim></div></section></main>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+var SEM=['bg-canvas','bg-subtle','surface-default','surface-raised','text-primary','text-secondary','text-tertiary','text-disabled','text-inverse','border-default','border-strong','border-focus','action-primary','action-primary-text','action-primary-pressed','action-disabled','action-disabled-text','status-success','status-success-bg','status-warning','status-warning-bg','status-danger','status-danger-bg','status-info','status-info-bg'];
+function rgb(h){h=h.trim().replace('#','');return [0,2,4].map(function(i){return parseInt(h.substr(i,2),16)/255})}
+function lum(c){var a=rgb(c).map(function(v){return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*a[0]+.7152*a[1]+.0722*a[2]}
+function cr(a,b){var x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+var PAIRS=[['text-primary','bg-canvas',4.5],['text-primary','surface-default',4.5],['text-secondary','surface-default',4.5],['text-secondary','bg-subtle',4.5],['text-tertiary','bg-canvas',4.5],['text-tertiary','surface-default',4.5],['text-tertiary','surface-raised',4.5],['text-tertiary','bg-subtle',4.5],['action-primary-text','action-primary',4.5],['action-primary','bg-canvas',3],['action-disabled-text','action-disabled',4.5],['status-success','status-success-bg',4.5],['status-warning','status-warning-bg',4.5],['status-danger','status-danger-bg',4.5],['status-info','status-info-bg',4.5],['border-strong','bg-canvas',3],['text-inverse','status-danger',4.5]];
+document.querySelectorAll('[data-panel]').forEach(function(p){
+ var cs=getComputedStyle(p),g=function(n){return cs.getPropertyValue('--'+n).trim()};
+ var sw=p.querySelector('[data-sw]');SEM.forEach(function(n){sw.insertAdjacentHTML('beforeend','<div class="sw"><i style="background:var(--'+n+')"></i><div><b>'+n+'</b><span>'+g(n)+'</span></div></div>')});
+ var t=p.querySelector('[data-ct]');t.insertAdjacentHTML('beforeend','<tr><th>Chữ / nền</th><th>Mẫu</th><th>Tỉ lệ</th><th>Mục tiêu</th></tr>');
+ PAIRS.forEach(function(x){var r=cr(g(x[0]),g(x[1]));var ok=r>=x[2];t.insertAdjacentHTML('beforeend','<tr><td>'+x[0]+' / '+x[1]+'</td><td><span style="background:var(--'+x[1]+');color:var(--'+x[0]+');padding:2px 8px;border-radius:4px;border:1px solid var(--border-default);font-weight:600">Aa 123</span></td><td>'+r.toFixed(2)+':1</td><td class="'+(ok?'pass':'fail')+'">'+(ok?'✓ ':'✗ ')+'≥ '+x[2]+'</td></tr>')});
+});
+var sp=document.getElementById('sp');[1,2,3,4,5,6,8,10,12].forEach(function(n){sp.insertAdjacentHTML('beforeend','<div class="sp"><span style="width:70px">space-'+n+'</span><i style="width:calc(var(--space-'+n+'))"></i><span>'+(n*4)+'px</span></div>')});
+var root=getComputedStyle(document.documentElement);var pr=document.querySelector('[data-prim]');
+['blue-50','blue-100','blue-500','blue-600','blue-700','neutral-0','neutral-50','neutral-100','neutral-200','neutral-400','neutral-600','neutral-800','neutral-900','green-700','amber-700','red-700'].forEach(function(n){pr.insertAdjacentHTML('beforeend','<i style="background:var(--'+n+');'+(/-(600|700|800|900)$/.test(n)?'color:#fff':'')+'">'+n+'</i>')});
+});
+</script>
+</body></html>
