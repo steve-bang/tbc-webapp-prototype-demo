@@ -125,3 +125,4 @@
 .vr-est-row .top .amt{margin-left:0}
 .vr-est-total .sum{white-space:nowrap;font-size:22px}
 .vr-est-row>.icon{align-self:center;color:var(--text-secondary)}
+.photo-slot.is-error:has(.vr-nm),.photo-slot.is-blur:has(.vr-nm){padding-top:56px;box-sizing:border-box}
