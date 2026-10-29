@@ -1,5 +1,5 @@
 /* Design tokens — App nhân viên Thiên Bảo Car (Modern Enterprise Blue). Semantic tokens; component KHÔNG dùng primitive. */
-:root{
+:root,[data-theme="light"]{
   --blue-50:#EFF6FF;--blue-100:#DBEAFE;--blue-500:#3B82F6;--blue-600:#2563EB;--blue-700:#1D4ED8;
   --neutral-0:#FFFFFF;--neutral-50:#F8FAFC;--neutral-100:#F1F5F9;--neutral-200:#E2E8F0;--neutral-400:#94A3B8;--neutral-600:#475569;--neutral-800:#1E293B;--neutral-900:#0F172A;
   --green-700:#15803D;--amber-700:#B45309;--red-700:#B91C1C;
@@ -15,7 +15,7 @@
   --status-success:#15803D;--status-success-bg:#DCFCE7;--status-warning:#B45309;--status-warning-bg:#FEF3C7;
   --status-danger:#B91C1C;--status-danger-bg:#FEE2E2;--status-info:#1D4ED8;--status-info-bg:#DBEAFE;
 }
-:root[data-theme="dark"]{
+:root[data-theme="dark"],[data-theme="dark"]{
   --bg-canvas:#0B1220;--bg-subtle:#111C2E;--surface-default:#162235;--surface-raised:#1C2A40;
   --text-primary:#F1F5F9;--text-secondary:#B8C4D6;--text-tertiary:#94A3B8;--text-disabled:#94A3B8;--text-inverse:#0B1220;
   --border-default:#334155;--border-strong:#64748B;--border-focus:#60A5FA;
