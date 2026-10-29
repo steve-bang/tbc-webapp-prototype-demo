@@ -178,3 +178,4 @@
 .sign-big{height:240px}
 .cust-head{display:flex;flex-direction:column;gap:var(--space-1)}
 .mini-fuel{display:flex;gap:3px}.mini-fuel i{flex:1;height:14px;border-radius:var(--radius-sm);background:var(--border-default)}.mini-fuel i.on{background:var(--action-primary)}
+.scroll>*{flex-shrink:0}

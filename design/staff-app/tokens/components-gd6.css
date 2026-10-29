@@ -120,3 +120,8 @@
 .vr-sec .cnt{font:700 14px/20px var(--font);font-variant-numeric:tabular-nums;color:var(--text-secondary)}
 .vr-note{font:400 13px/18px var(--font);color:var(--text-secondary)}
 .vr-field-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
+
+.vr-est-row .top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3)}
+.vr-est-row .top .amt{margin-left:0}
+.vr-est-total .sum{white-space:nowrap;font-size:22px}
+.vr-est-row>.icon{align-self:center;color:var(--text-secondary)}
