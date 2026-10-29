@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 Hướng dẫn cho Claude Code (và mọi dev) khi làm việc trong repo này.
 
 ## 1. Repo này là gì
@@ -93,6 +95,15 @@ Không lặp lại ở đây — bắt buộc đọc:
   lint/typecheck, trích dẫn tài liệu trong code, gotcha `*/` trong comment.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): sơ đồ tầng thư mục, luồng dữ liệu, vòng đời
   seed/reset, theming, routing, checklist nạp backend thật.
+
+Kiến trúc tóm tắt (cần đọc nhiều file mới thấy): `Screen → features/<x>/hooks.ts (TanStack Query) →
+api.ts → fakeRequest() → shared/lib/storage.ts (localStorage, namespace `tbc_admin:*`)`, mọi ghi đều
+gọi `appendAudit()`. `src/app/` chỉ mount screen; phân quyền chặn ở route qua `app/routeAccess.ts`
+(`RequirePermission`) **và** ẩn menu/nút qua `nav.tsx` + `can()` — thêm route mới phải khai ở cả hai.
+Seed: mỗi `features/<x>/seed.ts` tự `registerSeedStep()`; **thứ tự import** trong
+`shared/fixtures/registerSeeds.ts` = thứ tự chạy (entity gốc như employees/customers/vehicles trước
+rentals). Đổi cấu trúc entity → bump `SEED_VERSION`. Không có vòng import giữa các feature; `shared/`
+không import ngược `features/`.
 
 Lệnh nhanh: `npm run dev` · `npx tsc -b` (typecheck) · `npx oxlint` (lint) · `npm run build`. Chưa có
 test runner — cổng bắt buộc trước khi `dev` báo một task là xong: `npx tsc -b`, `npx oxlint`, và
