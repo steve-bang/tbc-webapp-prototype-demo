@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S-xxx · Tên màn</title>
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../tokens/components.css">
+<script>/* ?theme=dark|light  -> data-theme trên <html> (screenshot.mjs dùng tham số này) */
+var t=new URLSearchParams(location.search).get('theme');document.documentElement.dataset.theme=t==='dark'?'dark':'light';</script>
+<script src="../tokens/icons.js" defer></script>
+</head>
+<body>
+<header class="page-title">
+  <h1>S-xxx · Tên màn</h1>
+  <p>Nguồn: <code>EA §15</code>, <code>EA-BR-17</code>, <code>CR-2026-0xx</code> · Giả định: A-nn · Vai trò: DELIVERY/RECEIVING STAFF</p>
+</header>
+<!-- Trang gom nhiều state: mỗi .stage-col = 1 state (default / loading / empty / error / offline ...) -->
+<main class="stage">
+  <section class="stage-col">
+    <div class="stage-cap">Default <small>mô tả ngắn state / hành vi tương tác</small></div>
+    <div class="device">
+      <div class="statusbar"><span>9:41</span><span class="sb-icons"><i data-icon="wifi" data-size="16"></i></span></div>
+      <div class="device-body">
+        <div class="appbar"><div class="appbar-title">Tiêu đề</div>
+          <button class="icon-btn" aria-label="Thông báo"><i data-icon="bell"></i></button></div>
+        <div class="scroll">
+          <div class="card"><div class="card-title">Nội dung</div></div>
+        </div>
+        <div class="cta-bar"><button class="btn block">Hành động chính</button></div>
+        <nav class="tabbar" aria-label="Điều hướng chính">
+          <button class="tab is-active" aria-selected="true"><i data-icon="home"></i>Hôm nay</button>
+          <button class="tab"><i data-icon="calendar-days"></i>Sắp tới</button>
+          <button class="tab"><i data-icon="bell"></i>Thông báo<span class="tab-badge">3</span></button>
+          <button class="tab"><i data-icon="user"></i>Tài khoản</button>
+        </nav>
+      </div>
+      <div class="homebar"></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>
