@@ -178,3 +178,4 @@
 .scroll>*{flex-shrink:0}
 .sheet-bottom{overflow-y:auto}
 .input .val.num{white-space:nowrap}
+.pay-total{flex-direction:column;align-items:flex-start;gap:var(--space-1)}.pay-total>.money{align-self:flex-end}
