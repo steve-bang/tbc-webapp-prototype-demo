@@ -177,3 +177,4 @@
 /* Nội dung cuộn không bị co lại trong .scroll (flex column) */
 .scroll>*{flex-shrink:0}
 .sheet-bottom{overflow-y:auto}
+.input .val.num{white-space:nowrap}
