@@ -1,0 +1,30 @@
+/* Design tokens — App nhân viên Thiên Bảo Car (Modern Enterprise Blue). Semantic tokens; component KHÔNG dùng primitive. */
+:root{
+  --blue-50:#EFF6FF;--blue-100:#DBEAFE;--blue-500:#3B82F6;--blue-600:#2563EB;--blue-700:#1D4ED8;
+  --neutral-0:#FFFFFF;--neutral-50:#F8FAFC;--neutral-100:#F1F5F9;--neutral-200:#E2E8F0;--neutral-400:#94A3B8;--neutral-600:#475569;--neutral-800:#1E293B;--neutral-900:#0F172A;
+  --green-700:#15803D;--amber-700:#B45309;--red-700:#B91C1C;
+  --space-0:0;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px;
+  --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-xl:20px;--radius-2xl:24px;--radius-full:9999px;
+  --elevation-card:0 1px 3px rgba(15,23,42,.04);--elevation-dropdown:0 4px 12px rgba(15,23,42,.12);--elevation-modal:0 8px 24px rgba(15,23,42,.16);
+  --font:-apple-system,"SF Pro Text","Roboto","Inter",system-ui,sans-serif;
+  /* light */
+  --bg-canvas:#F8FAFC;--bg-subtle:#F1F5F9;--surface-default:#FFFFFF;--surface-raised:#FFFFFF;
+  --text-primary:#0F172A;--text-secondary:#475569;--text-tertiary:#64748B;--text-disabled:#64748B;--text-inverse:#FFFFFF;
+  --border-default:#E2E8F0;--border-strong:#94A3B8;--border-focus:#2563EB;
+  --action-primary:#2563EB;--action-primary-text:#FFFFFF;--action-primary-pressed:#1D4ED8;--action-disabled:#E2E8F0;--action-disabled-text:#64748B;
+  --status-success:#15803D;--status-success-bg:#DCFCE7;--status-warning:#B45309;--status-warning-bg:#FEF3C7;
+  --status-danger:#B91C1C;--status-danger-bg:#FEE2E2;--status-info:#1D4ED8;--status-info-bg:#DBEAFE;
+}
+:root[data-theme="dark"]{
+  --bg-canvas:#0B1220;--bg-subtle:#111C2E;--surface-default:#162235;--surface-raised:#1C2A40;
+  --text-primary:#F1F5F9;--text-secondary:#B8C4D6;--text-tertiary:#94A3B8;--text-disabled:#94A3B8;--text-inverse:#0B1220;
+  --border-default:#334155;--border-strong:#64748B;--border-focus:#60A5FA;
+  --action-primary:#60A5FA;--action-primary-text:#0B1220;--action-primary-pressed:#93C5FD;--action-disabled:#334155;--action-disabled-text:#94A3B8;
+  --status-success:#4ADE80;--status-success-bg:#123A2A;--status-warning:#FBBF24;--status-warning-bg:#422F12;
+  --status-danger:#F87171;--status-danger-bg:#451C25;--status-info:#60A5FA;--status-info-bg:#172F52;
+}
+/* typography: display 32/40/700 · heading-xl 28/36/700 · heading-lg 24/32/700 · heading-md 20/28/600 · heading-sm 18/26/600
+   body-lg 16/24/400 · body-md 14/20/400 · body-sm 13/18/400 · label-md 14/20/600 · caption 12/16/400 (không dùng caption cho thông tin bắt buộc) */
+.t-display{font:700 32px/40px var(--font)}.t-h-xl{font:700 28px/36px var(--font)}.t-h-lg{font:700 24px/32px var(--font)}
+.t-h-md{font:600 20px/28px var(--font)}.t-h-sm{font:600 18px/26px var(--font)}.t-body-lg{font:400 16px/24px var(--font)}
+.t-body-md{font:400 14px/20px var(--font)}.t-body-sm{font:400 13px/18px var(--font)}.t-label{font:600 14px/20px var(--font)}.t-caption{font:400 12px/16px var(--font)}
