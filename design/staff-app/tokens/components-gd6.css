@@ -1,0 +1,122 @@
+/* Components GĐ6 — Wizard Nhận xe (VR). Bổ sung cho components.css, CHỈ dùng token semantic.
+   Mọi class mới tiền tố vr- (tránh va chạm với designer khác); các trang GĐ6 có <body class="vr-page">. */
+
+/* Khung máy cao theo nội dung (màn dài: minh hoạ toàn bộ vùng cuộn) */
+.vr-page .device.is-auto{height:auto;min-height:0}
+.vr-page .device.is-auto>.device-body{flex:none;overflow:visible}
+.vr-page .device.is-auto .scroll{flex:none;overflow:visible}
+.vr-page .banner.offline .act{color:inherit;text-decoration:underline}
+.vr-page .device.is-auto .vr-over{position:absolute;inset:0}
+
+/* Dải tham chiếu dữ liệu lúc GIAO (luôn thấy ở các bước 2-8) — VR-BR-10 */
+.vr-ref{flex:none;display:flex;align-items:center;gap:var(--space-3);min-height:48px;padding:var(--space-1) var(--space-1) var(--space-1) var(--space-4);background:var(--status-info-bg);border-bottom:1px solid var(--border-default);color:var(--text-primary)}
+.vr-ref .lbl{display:inline-flex;gap:var(--space-1);align-items:center;font:700 13px/18px var(--font);color:var(--status-info);white-space:nowrap}
+.vr-ref .vals{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:0 var(--space-3);font:500 13px/18px var(--font);font-variant-numeric:tabular-nums}
+.vr-ref .vals b{font-weight:700}
+
+/* Hàng trạng thái (kiểm tra tiền điều kiện, các bước, rà soát) */
+.vr-rows{background:var(--surface-default);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden}
+.vr-row{display:flex;gap:var(--space-3);align-items:flex-start;min-height:56px;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-default);color:var(--text-primary)}
+.vr-row:last-child{border-bottom:0}
+.vr-row.is-now{background:var(--status-info-bg)}
+.vr-row.is-tap{align-items:center;min-height:64px}
+.vr-row .st{width:28px;height:28px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bg-subtle);color:var(--text-secondary);border:1.5px solid var(--border-strong)}
+.vr-row .st.ok{background:var(--status-success-bg);color:var(--status-success);border-color:transparent}
+.vr-row .st.bad{background:var(--status-danger-bg);color:var(--status-danger);border-color:transparent}
+.vr-row .st.warn{background:var(--status-warning-bg);color:var(--status-warning);border-color:transparent}
+.vr-row .st.run{background:var(--status-info-bg);color:var(--status-info);border-color:transparent}
+.vr-row .st .icon{width:16px;height:16px}
+.vr-row .t1{font:600 15px/22px var(--font)}
+.vr-row .t2{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.vr-row .t2.err{color:var(--status-danger);font-weight:600}
+.vr-row .go{margin-left:auto;flex:none;align-self:center;display:inline-flex;align-items:center;gap:var(--space-1);min-height:48px;padding:0 var(--space-2);font:700 14px/20px var(--font);color:var(--action-primary);background:none;border:0}
+
+/* Bảng so sánh Giao -> Trả */
+.vr-cmp{display:grid;grid-template-columns:92px 1fr 1fr;gap:var(--space-2) var(--space-3);align-items:baseline;font:400 14px/20px var(--font)}
+.vr-cmp .h{font:600 13px/18px var(--font);color:var(--text-secondary);display:flex;gap:var(--space-1);align-items:center}
+.vr-cmp .k{color:var(--text-secondary)}
+.vr-cmp .v{font-weight:700;font-variant-numeric:tabular-nums}
+.vr-cmp .span{grid-column:1/-1}
+.vr-delta{display:inline-flex;align-items:center;gap:var(--space-1);font:700 14px/20px var(--font);font-variant-numeric:tabular-nums}
+.vr-delta.warn{color:var(--status-warning)}.vr-delta.bad{color:var(--status-danger)}.vr-delta.ok{color:var(--status-success)}
+
+/* Khối tính sơ bộ */
+.vr-calc{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);background:var(--bg-subtle);border:1px dashed var(--border-strong)}
+.vr-calc .line{display:flex;justify-content:space-between;gap:var(--space-3);align-items:flex-start;font:400 14px/20px var(--font)}
+.vr-calc .line .r{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.vr-calc .head{font:600 13px/18px var(--font);color:var(--text-secondary);display:flex;gap:var(--space-1);align-items:center}
+
+/* Ô ảnh: nhãn góc + ảnh tham chiếu lúc giao */
+.photo-slot .vr-nm{position:absolute;top:var(--space-2);left:var(--space-2);max-width:calc(100% - 60px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 13px/18px var(--font);color:var(--text-primary);background:var(--surface-default);border:1px solid var(--border-default);padding:0 var(--space-2);border-radius:var(--radius-sm);text-align:left}
+.photo-slot .vr-refthumb{position:absolute;top:var(--space-2);right:var(--space-2);width:44px;height:33px;border-radius:var(--radius-sm);border:2px solid var(--action-primary);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));color:var(--text-secondary);display:flex;align-items:center;justify-content:center}
+.photo-slot .vr-refthumb .icon{width:16px;height:16px;color:var(--text-secondary)}
+.photo-slot.is-locked{border-style:solid;border-color:var(--border-default);background:var(--bg-subtle)}
+.photo-slot.is-locked>.icon{color:var(--text-secondary)}
+.vr-legend{display:flex;gap:var(--space-2);align-items:center;font:400 13px/18px var(--font);color:var(--text-secondary)}
+.vr-legend .sw{width:28px;height:21px;flex:none;border-radius:var(--radius-sm);border:2px solid var(--action-primary);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default))}
+
+/* Ảnh đối chiếu: cặp lớn + thẻ khác biệt */
+.vr-pair{display:flex;flex-direction:column;gap:var(--space-3)}
+.vr-pair .photo-slot{aspect-ratio:4/3;min-height:120px}
+.vr-mark{position:absolute;right:var(--space-3);top:var(--space-3);width:44px;height:44px;border-radius:50%;border:3px solid var(--status-danger);background:transparent}
+.thumbs{display:flex;gap:var(--space-2);flex-wrap:wrap}
+.thumbs .th{width:56px;height:56px;flex:none;border-radius:var(--radius-sm);border:1px solid var(--border-default);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));display:flex;align-items:center;justify-content:center;color:var(--text-secondary)}
+
+/* Segmented 4 lựa chọn cao 48 (Return Checklist, phân loại đối chiếu) */
+.segmented.vr-tall .seg{min-height:48px;padding:0 var(--space-1);font:600 13px/16px var(--font);text-align:center;flex-direction:row;gap:var(--space-1)}
+.segmented.vr-tall .seg .icon{width:16px;height:16px}
+.segmented .seg.is-on.ok{color:var(--status-success)}
+.segmented .seg.is-on.bad{color:var(--status-danger)}
+.segmented .seg.is-on.warn{color:var(--status-warning)}
+.segmented .seg.is-on.neutral{color:var(--text-primary)}
+
+/* Thẻ chọn (radio card) cho khách xác nhận */
+.vr-opt{display:flex;gap:var(--space-3);align-items:flex-start;min-height:64px;padding:var(--space-3) var(--space-4);border:1.5px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-default);color:var(--text-primary)}
+.vr-opt .rd{width:24px;height:24px;flex:none;border-radius:50%;border:2px solid var(--border-strong);display:flex;align-items:center;justify-content:center;margin-top:2px;background:var(--surface-default)}
+.vr-opt .t1{font:600 16px/24px var(--font)}.vr-opt .t2{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.vr-opt.is-on{border-color:var(--action-primary);background:var(--status-info-bg)}
+.vr-opt.is-on .rd{border-color:var(--action-primary)}
+.vr-opt.is-on .rd::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--action-primary)}
+.vr-opt.warn.is-on{border-color:var(--status-warning);background:var(--status-warning-bg)}
+.vr-opt.warn.is-on .rd{border-color:var(--status-warning)}.vr-opt.warn.is-on .rd::after{background:var(--status-warning)}
+.vr-opt.bad.is-on{border-color:var(--status-danger);background:var(--status-danger-bg)}
+.vr-opt.bad.is-on .rd{border-color:var(--status-danger)}.vr-opt.bad.is-on .rd::after{background:var(--status-danger)}
+
+/* Bảng ước tính phát sinh */
+.vr-est{background:var(--surface-default);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden}
+.vr-est-row{display:flex;gap:var(--space-3);align-items:flex-start;min-height:56px;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-default);color:var(--text-primary)}
+.vr-est-row .ic{width:36px;height:36px;flex:none;border-radius:var(--radius-md);background:var(--status-info-bg);color:var(--status-info);display:flex;align-items:center;justify-content:center}
+.vr-est-row .nm{font:600 15px/22px var(--font)}
+.vr-est-row .fx{font:400 13px/18px var(--font);color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.vr-est-row .amt{margin-left:auto;flex:none;text-align:right;font:700 15px/22px var(--font);font-variant-numeric:tabular-nums;white-space:nowrap}
+.vr-est-row .amt small{display:block;font:400 13px/18px var(--font);color:var(--text-secondary)}
+.vr-est-row.is-zero .ic{background:var(--bg-subtle);color:var(--text-secondary)}
+.vr-est-row.is-zero .amt{font-weight:400;color:var(--text-secondary)}
+.vr-est-row.is-pending{background:var(--status-warning-bg)}
+.vr-est-row.is-pending .ic{background:var(--surface-default);color:var(--status-warning)}
+.vr-est-row.is-error{background:var(--status-danger-bg)}
+.vr-est-row.is-error .ic{background:var(--surface-default);color:var(--status-danger)}
+.vr-est-row.is-tap{min-height:64px}
+.vr-est-total{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3);padding:var(--space-4);background:var(--bg-subtle);border-top:2px solid var(--border-strong)}
+.vr-est-total .sum{font:700 24px/32px var(--font);font-variant-numeric:tabular-nums}
+.vr-stamp{display:inline-flex;gap:var(--space-1);align-items:center;padding:2px var(--space-2);border-radius:var(--radius-sm);border:1.5px dashed var(--status-warning);color:var(--status-warning);background:var(--status-warning-bg);font:700 13px/18px var(--font)}
+
+/* Ô nhập có đơn vị */
+.input .unit{flex:none;color:var(--text-secondary);font-weight:600}
+.input input.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.input.is-big{min-height:64px}.input.is-big input{height:60px;font:700 24px/32px var(--font);font-variant-numeric:tabular-nums}
+
+/* Biểu tượng kết quả lớn (hoàn tất) */
+.vr-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--space-3);padding:var(--space-6) var(--space-4) var(--space-2)}
+.vr-hero .big{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--status-success-bg);color:var(--status-success)}
+.vr-hero .big .icon{width:52px;height:52px}
+.vr-hero.is-warn .big{background:var(--status-warning-bg);color:var(--status-warning)}
+.vr-hero.is-bad .big{background:var(--status-danger-bg);color:var(--status-danger)}
+.vr-hero h2{margin:0;font:700 24px/32px var(--font)}
+.vr-hero p{margin:0;color:var(--text-secondary);font:400 15px/22px var(--font);max-width:310px}
+
+/* Nhãn mục có đếm (Ngoại thất 10/13) */
+.vr-sec{display:flex;justify-content:space-between;align-items:baseline}
+.vr-sec .cnt{font:700 14px/20px var(--font);font-variant-numeric:tabular-nums;color:var(--text-secondary)}
+.vr-note{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.vr-field-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}

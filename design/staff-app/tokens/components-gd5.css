@@ -1,0 +1,179 @@
+/* components-gd5.css — Giai đoạn 5: Wizard Giao xe (VH). Bổ sung cho components.css, CHỈ dùng token semantic.
+   Nguồn: VH §9–§20, VH-BR-05/06/07/08/13/14/17/18/20/22/23, CR-2026-052/055/056/060, A-01/04/05/08/16/21/25. */
+
+/* ===== Wizard header mở rộng ===== */
+.wiz-head .ctx-strip{display:flex;align-items:center;gap:var(--space-2);min-height:32px;padding:0 var(--space-3);font:500 13px/18px var(--font);color:var(--text-secondary);overflow:hidden;white-space:nowrap}
+.wiz-head .ctx-strip .icon{flex:none}
+.wiz-head .ctx-strip .nm{overflow:hidden;text-overflow:ellipsis}
+.saved{display:inline-flex;align-items:center;gap:4px;flex:none;font:600 13px/18px var(--font);color:var(--status-success)}
+.saved.is-saving{color:var(--text-secondary)}
+.saved.is-error{color:var(--status-danger)}
+.steps .s.warn{background:var(--status-warning)}
+.cta-row{display:flex;gap:var(--space-2)}
+.cta-row .btn:first-child:not(:only-child){flex:0 0 auto}
+.cta-row .btn:last-child{flex:1}
+.cta-bar .btn.danger.secondary{align-self:stretch}
+
+/* ===== Danh sách kiểm tra tiền điều kiện (S-050) ===== */
+.chk-list{background:var(--surface-default);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden}
+.chk-row{display:flex;gap:var(--space-3);align-items:flex-start;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border-default);min-height:56px}
+.chk-row:last-child{border-bottom:0}
+.chk-row .st{flex:none;width:24px;height:24px;margin-top:1px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-tertiary)}
+.chk-row.ok .st{color:var(--status-success)}
+.chk-row.fail .st{color:var(--status-danger)}
+.chk-row.spin .st{color:var(--status-info)}
+.chk-row .lb{font:600 14px/20px var(--font)}
+.chk-row .dt{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.chk-row.fail{background:var(--status-danger-bg)}
+.chk-row.fail .dt{color:var(--text-primary)}
+.chk-row .fix{display:flex;gap:var(--space-1);align-items:flex-start;margin-top:var(--space-1);font:600 13px/18px var(--font);color:var(--status-danger)}
+.chk-row.wait .lb{color:var(--text-secondary);font-weight:500}
+
+/* ===== Danh sách bước / tổng quan phiên (S-051) ===== */
+.step-list{display:flex;flex-direction:column}
+.step-row{display:flex;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--space-1);border-bottom:1px solid var(--border-default);color:var(--text-primary)}
+.step-row:last-child{border-bottom:0}
+.step-row .no{width:32px;height:32px;flex:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 14px/20px var(--font);background:var(--bg-subtle);color:var(--text-secondary);border:1.5px solid var(--border-strong)}
+.step-row.done .no{background:var(--status-success-bg);border-color:transparent;color:var(--status-success)}
+.step-row.warn .no{background:var(--status-warning-bg);border-color:transparent;color:var(--status-warning)}
+.step-row.now{background:var(--status-info-bg);border-radius:var(--radius-md)}
+.step-row.now .no{background:var(--action-primary);border-color:transparent;color:var(--action-primary-text)}
+.step-row .nm{font:600 15px/22px var(--font)}
+.step-row .sub{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.step-row .end{flex:none;display:inline-flex;align-items:center;gap:var(--space-1);font:600 13px/18px var(--font);color:var(--text-secondary)}
+.step-row.done .end{color:var(--status-success)}
+.step-row.warn .end{color:var(--status-warning)}
+.step-row.is-locked{color:var(--text-secondary)}
+
+/* ===== Chú thích giải phẫu (anatomy) ===== */
+.anno{position:absolute;z-index:20;width:24px;height:24px;border-radius:50%;background:var(--status-danger);color:var(--text-inverse);font:700 13px/24px var(--font);text-align:center;box-shadow:var(--elevation-dropdown)}
+.legend{width:390px;display:flex;flex-direction:column;gap:var(--space-2);font:400 13px/18px var(--font);color:var(--text-secondary)}
+.legend b{display:inline-block;min-width:22px;height:22px;border-radius:50%;background:var(--status-danger);color:var(--text-inverse);text-align:center;font:700 12px/22px var(--font);margin-right:var(--space-2)}
+
+/* ===== Số liệu giao (S-052) ===== */
+.odo .ph{color:var(--text-tertiary);font-weight:500;font-size:20px;letter-spacing:0}
+.odo.is-warn{border-color:var(--status-warning)}
+.fuel-count{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3)}
+.fuel-count .of{font:600 14px/20px var(--font);color:var(--text-secondary)}
+.fuel-viz{display:flex;gap:4px;height:12px}
+.fuel-viz i{flex:1;border-radius:var(--radius-sm);background:var(--border-default)}
+.fuel-viz i.on{background:var(--action-primary)}
+.input.is-warn{border-color:var(--status-warning)}
+.field-warn{display:flex;gap:var(--space-1);align-items:flex-start;font:500 13px/18px var(--font);color:var(--status-warning)}
+.field-warn .icon{width:16px;height:16px;margin-top:1px}
+.input .val{flex:1;min-width:0}
+.input .val.ph{color:var(--text-tertiary)}
+
+/* ===== Lưới ô ảnh (S-053/055) ===== */
+.slot-cell{display:flex;flex-direction:column;gap:var(--space-1);min-width:0}
+.slot-name{display:flex;align-items:center;gap:var(--space-1);font:600 13px/18px var(--font);color:var(--text-primary)}
+.slot-name .req{color:var(--status-danger)}
+.slot-name .opt{font-weight:400;color:var(--text-secondary)}
+.tabs-seg{display:grid;gap:4px;background:var(--bg-subtle);padding:4px;border-radius:var(--radius-md)}
+.tabs-seg .t{min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--radius-sm);font:600 13px/16px var(--font);color:var(--text-secondary);text-align:center}
+.tabs-seg .t small{font:500 12px/16px var(--font)}
+.tabs-seg .t.is-on{background:var(--surface-default);color:var(--action-primary);box-shadow:var(--elevation-card);outline:1px solid var(--border-default)}
+.tabs-seg .t.is-done small{color:var(--status-success)}
+.photo-slot.is-skel{border-style:solid;border-color:var(--border-default);background:var(--bg-subtle)}
+.video-slot{aspect-ratio:16/9;min-height:140px}
+
+/* ===== Hiện trạng có sẵn / panel lịch sử (S-054) ===== */
+.hist-panel .tl-item .body{min-width:0}
+.hist-panel .tl-thumb{width:48px;height:48px;flex:none;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));color:var(--text-tertiary);display:flex;align-items:center;justify-content:center;margin-left:auto}
+.hist-panel .tl-item{padding-bottom:var(--space-3)}
+.hist-note{display:flex;gap:var(--space-2);align-items:center;font:400 13px/18px var(--font);color:var(--text-secondary)}
+.cond-item .end{align-self:center;color:var(--text-secondary)}
+.cond-item.is-error{border-color:var(--status-danger);background:var(--status-danger-bg)}
+.cond-item.is-error .ico{background:var(--surface-default);color:var(--status-danger)}
+.check.is-box-card{border:1.5px solid var(--border-strong);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);background:var(--surface-default)}
+
+/* ===== Checklist bàn giao (S-056) ===== */
+.chk-item{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3);border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--surface-default)}
+.chk-item.is-error{border-color:var(--status-danger);background:var(--status-danger-bg)}
+.chk-item .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-2)}
+.chk-item .nm{font:600 15px/22px var(--font)}
+.chk-item .nm .req{color:var(--status-danger)}
+.chk-item .sub{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.tri{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2)}
+.tri .o{min-height:48px;display:flex;align-items:center;justify-content:center;gap:4px;padding:0 var(--space-1);text-align:center;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-default);color:var(--text-primary);font:600 13px/16px var(--font)}
+.tri .o .icon{width:16px;height:16px}
+.tri .o.is-on.ok{background:var(--status-success-bg);border-color:var(--status-success);color:var(--status-success)}
+.tri .o.is-on.no{background:var(--status-warning-bg);border-color:var(--status-warning);color:var(--status-warning)}
+.tri .o.is-on.na{background:var(--bg-subtle);border-color:var(--text-secondary);color:var(--text-secondary)}
+.chk-item .mini-btn{display:inline-flex;align-items:center;gap:var(--space-1);min-height:48px;padding:0 var(--space-2);color:var(--action-primary);font:600 13px/18px var(--font);background:none;border:0}
+
+/* ===== Thu tiền mốc giao (S-057) ===== */
+.pay-item{display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);border:1px solid var(--border-default);border-radius:var(--radius-lg);background:var(--surface-default);box-shadow:var(--elevation-card)}
+.pay-item.is-paid{background:var(--bg-subtle)}
+.pay-item.is-short{border-color:var(--status-danger)}
+.pay-item .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3)}
+.pay-item .nm{font:600 15px/22px var(--font)}
+.pay-item .sub{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.pay-item .amt{font:700 24px/32px var(--font);font-variant-numeric:tabular-nums}
+.pay-item .amt.is-strike{text-decoration:line-through;color:var(--text-secondary)}
+.pay-total{display:flex;justify-content:space-between;align-items:baseline;padding:var(--space-3) var(--space-4);border-radius:var(--radius-lg);background:var(--status-info-bg);color:var(--text-primary)}
+.pay-total .money{font:700 22px/30px var(--font)}
+.pay-bar{height:8px;border-radius:var(--radius-full);background:var(--border-default);overflow:hidden}
+.pay-bar i{display:block;height:100%;background:var(--status-success)}
+.pay-bar.is-short i{background:var(--status-danger)}
+
+/* ===== Khách xác nhận (S-058) ===== */
+.cust-bar{flex:none;display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);background:var(--status-info-bg);color:var(--status-info);font:700 14px/20px var(--font);border-bottom:1px solid var(--border-default)}
+.cust-sum{display:flex;flex-direction:column;gap:var(--space-3);font:400 16px/24px var(--font)}
+.cust-sum .info-row{font-size:16px;line-height:24px;min-height:40px}
+.hub-state{display:flex;gap:var(--space-3);align-items:flex-start;padding:var(--space-3) var(--space-4);border-radius:var(--radius-lg);border:1px solid var(--border-default);background:var(--surface-default)}
+.hub-state.ok{background:var(--status-success-bg);border-color:var(--status-success)}
+.hub-state.no{background:var(--status-danger-bg);border-color:var(--status-danger)}
+.hub-state.wait{background:var(--status-warning-bg);border-color:var(--status-warning)}
+.hub-state .icon{margin-top:1px}
+.hub-state.ok .icon{color:var(--status-success)}.hub-state.no .icon{color:var(--status-danger)}.hub-state.wait .icon{color:var(--status-warning)}
+
+/* ===== Rà soát (S-059) ===== */
+.rv-list{background:var(--surface-default);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden}
+.rv-row{display:flex;gap:var(--space-3);align-items:center;min-height:64px;padding:var(--space-2) var(--space-4);border-bottom:1px solid var(--border-default)}
+.rv-row:last-child{border-bottom:0}
+.rv-row .st{flex:none;width:24px;height:24px;display:inline-flex;color:var(--status-success)}
+.rv-row.bad .st{color:var(--status-warning)}
+.rv-row.na .st{color:var(--text-tertiary)}
+.rv-row .nm{font:600 15px/22px var(--font)}
+.rv-row .sub{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.rv-row.bad{background:var(--status-warning-bg)}
+.rv-row.bad .sub{color:var(--text-primary)}
+.rv-row .go{flex:none;display:inline-flex;align-items:center;gap:2px;min-height:48px;padding:0 var(--space-1);font:700 13px/18px var(--font);color:var(--action-primary);background:none;border:0}
+
+/* ===== Hoàn tất (S-060) ===== */
+.done-hero{display:flex;flex-direction:column;align-items:center;gap:var(--space-3);text-align:center;padding:var(--space-6) var(--space-4) var(--space-2)}
+.done-hero .art{width:96px;height:96px;border-radius:50%;background:var(--status-success-bg);color:var(--status-success);display:flex;align-items:center;justify-content:center}
+.done-hero .art .icon{width:52px;height:52px}
+.done-hero.is-error .art{background:var(--status-danger-bg);color:var(--status-danger)}
+.done-hero.is-warn .art{background:var(--status-warning-bg);color:var(--status-warning)}
+.done-hero h2{margin:0;font:700 24px/32px var(--font)}
+.done-hero p{margin:0;color:var(--text-secondary);font:400 15px/22px var(--font);max-width:310px}
+.change-row{display:flex;align-items:center;gap:var(--space-2);min-height:40px;font:400 14px/20px var(--font)}
+.change-row .arrow{color:var(--text-tertiary)}
+.change-row .to{font-weight:700}
+
+/* ===== Xem lại (S-061) ===== */
+.ro-sec{background:var(--surface-default);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden}
+.ro-sec>.hd{display:flex;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--space-4);font:600 15px/22px var(--font)}
+.ro-sec>.hd .end{margin-left:auto;display:inline-flex;align-items:center;gap:var(--space-1);color:var(--text-secondary);font:600 13px/18px var(--font)}
+.ro-sec>.bd{padding:0 var(--space-4) var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);border-top:1px solid var(--border-default);padding-top:var(--space-3)}
+.thumb-row{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
+.thumb-row .th{aspect-ratio:1;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));color:var(--text-tertiary);display:flex;align-items:center;justify-content:center}
+.thumb-row .th.more{background:var(--bg-subtle);font:700 14px/20px var(--font);color:var(--text-secondary)}
+.log-row{display:flex;gap:var(--space-3);font:400 13px/18px var(--font);color:var(--text-secondary)}
+.log-row b{color:var(--text-primary);font-weight:600}
+.log-row .tm{flex:none;width:44px;font-variant-numeric:tabular-nums;color:var(--text-primary);font-weight:600}
+
+/* ===== Tạm dừng / thoát (S-062) ===== */
+.opt-card{display:flex;gap:var(--space-3);align-items:flex-start;padding:var(--space-3) var(--space-4);min-height:64px;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-default)}
+.opt-card.is-primary{border-color:var(--action-primary);background:var(--status-info-bg)}
+.opt-card .nm{font:600 15px/22px var(--font)}
+.opt-card .sub{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.opt-card .icon{margin-top:2px;color:var(--action-primary)}
+.opt-card.is-danger{border-color:var(--status-danger)}
+.opt-card.is-danger .icon{color:var(--status-danger)}
+
+/* Nội dung cuộn không bị co lại trong .scroll (flex column) */
+.scroll>*{flex-shrink:0}
+.sheet-bottom{overflow-y:auto}

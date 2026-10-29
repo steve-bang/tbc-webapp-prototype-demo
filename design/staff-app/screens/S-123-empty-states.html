@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S-123 · Danh mục Empty state</title>
+<link rel="stylesheet" href="../tokens/tokens.css"><link rel="stylesheet" href="../tokens/components.css"><link rel="stylesheet" href="../tokens/components-gd7-8.css">
+<script>var t=new URLSearchParams(location.search).get('theme');document.documentElement.dataset.theme=t==='dark'?'dark':'light';</script>
+<script src="../tokens/icons.js" defer></script>
+</head><body>
+<header class="page-title"><h1>S-123 · Danh mục Empty state</h1><p>Nguồn: skill mobile-saas-ui-ux · <code>S-006</code> (pattern) · CR-2026-052 (panel lịch sử ẩn khi rỗng) · Ưu tiên S</p></header>
+<main class="stage">
+<div style="width:100%"><div class="empty-grid">
+<div class="empty-cell"><div class="tag">S-020 · Hôm nay</div><div class="empty "><div class="art"><i data-icon="calendar-days" data-size="24"></i></div><h3>Hôm nay bạn không có lịch giao/nhận</h3><p>Việc mới sẽ hiện ở đây và gửi thông báo cho bạn.</p><button class="btn">Xem việc sắp tới</button></div></div>
+<div class="empty-cell"><div class="tag">S-021 · Sắp tới</div><div class="empty "><div class="art"><i data-icon="calendar-days" data-size="24"></i></div><h3>Chưa có việc sắp tới</h3><p>Khi điều phối giao việc cho các ngày tới, bạn sẽ thấy ở đây.</p></div></div>
+<div class="empty-cell"><div class="tag">S-026 · Việc đã xong</div><div class="empty "><div class="art"><i data-icon="check-circle" data-size="24"></i></div><h3>Chưa có việc hoàn tất</h3><p>Việc giao/nhận bạn đã hoàn tất sẽ hiện để xem lại.</p></div></div>
+<div class="empty-cell"><div class="tag">S-024 · Thông báo</div><div class="empty "><div class="art"><i data-icon="bell" data-size="24"></i></div><h3>Chưa có thông báo</h3><p>Việc mới, đổi giờ, đổi người sẽ báo ở đây.</p></div></div>
+<div class="empty-cell"><div class="tag">S-113 · Nhật ký</div><div class="empty "><div class="art"><i data-icon="history" data-size="24"></i></div><h3>Chưa có thao tác nào</h3><p>Thao tác giao/nhận xe của bạn sẽ hiện ở đây.</p></div></div>
+<div class="empty-cell"><div class="tag">S-113 · Lọc không có kết quả</div><div class="empty "><div class="art"><i data-icon="search" data-size="24"></i></div><h3>Không có thao tác phù hợp</h3><p>Thử chọn “Tất cả”.</p><button class="btn">Bỏ lọc</button></div></div>
+<div class="empty-cell"><div class="tag">S-075 · Sự cố nhận xe</div><div class="empty "><div class="art"><i data-icon="shield" data-size="24"></i></div><h3>Không có sự cố</h3><p>Nếu phát hiện hư hỏng mới, thêm ở đây kèm ảnh.</p><button class="btn">Thêm sự cố</button></div></div>
+<div class="empty-cell"><div class="tag">S-054 · Hư hỏng có sẵn</div><div class="empty "><div class="art"><i data-icon="clipboard-list" data-size="24"></i></div><h3>Chưa ghi hư hỏng có sẵn</h3><p>Thêm từng mục kèm ảnh, hoặc xác nhận xe không có hư hỏng.</p><button class="btn">Thêm hư hỏng</button></div></div>
+<div class="empty-cell"><div class="tag">S-037 · Lịch sử hiện trạng xe</div><div class="empty "><div class="art"><i data-icon="history" data-size="24"></i></div><h3>Xe chưa có lịch sử hiện trạng</h3><p>Panel được ẩn khi không có dữ liệu.</p></div></div>
+<div class="empty-cell"><div class="tag">S-079/080 · VETC / phạt nguội</div><div class="empty "><div class="art"><i data-icon="banknote" data-size="24"></i></div><h3>Chưa có khoản nào</h3><p>Chỉ thêm khi khách có phát sinh phí đường bộ hoặc phạt nguội.</p><button class="btn">Thêm khoản</button></div></div>
+<div class="empty-cell"><div class="tag">S-078 · Return Checklist</div><div class="empty "><div class="art"><i data-icon="list-checks" data-size="24"></i></div><h3>Lượt giao không có mục bàn giao</h3><p>Không có phụ kiện/giấy tờ để đối chiếu.</p></div></div>
+<div class="empty-cell"><div class="tag">S-110 · Lỗi tải (mẫu)</div><div class="empty is-error"><div class="art"><i data-icon="alert-circle" data-size="24"></i></div><h3>Không tải được dữ liệu</h3><p>Kiểm tra kết nối rồi thử lại.</p><button class="btn">Thử lại</button></div></div>
+</div>
+<section class="sheet"><h2>Quy tắc viết nội dung rỗng</h2><table class="spec-table"><tr><th>Nguyên tắc</th><th>Ví dụ</th></tr>
+<tr><td>Tiêu đề nói <b>trạng thái</b>, không đổ lỗi</td><td>“Hôm nay bạn không có lịch giao/nhận”</td></tr>
+<tr><td>1 câu giải thích <b>khi nào có dữ liệu</b></td><td>“Việc mới sẽ hiện ở đây và gửi thông báo cho bạn.”</td></tr>
+<tr><td>Tối đa <b>1 hành động</b>; không có thì bỏ nút</td><td>“Xem việc sắp tới”</td></tr>
+<tr><td>Lỗi ≠ rỗng: dùng icon đỏ + <b>Thử lại</b></td><td>“Không tải được dữ liệu”</td></tr>
+<tr><td>Không lộ dữ liệu ẩn; panel lịch sử xe rỗng thì <b>ẩn</b></td><td>S-037</td></tr></table></section></div>
+</main>
+</body></html>

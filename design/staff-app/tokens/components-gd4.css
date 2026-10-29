@@ -1,0 +1,175 @@
+/* Components GĐ4 — Khối hiện trường dùng chung (camera, viewer, lưới ảnh, sơ đồ xe, panel lịch sử, thu tiền, xác nhận, chia sẻ).
+   CHỈ dùng token semantic. Bề mặt camera/viewer luôn tối: bọc bằng data-theme="dark" (token tự đổi), KHÔNG hardcode màu.
+   Nạp SAU components.css. Nguồn: PLAN GĐ4 (S-030…S-046). */
+
+/* ===== Camera (S-030) — luôn tối ===== */
+.cam-body{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg-canvas);color:var(--text-primary)}
+.cam-view{flex:1;min-height:0;position:relative;background:linear-gradient(165deg,var(--bg-subtle),var(--bg-canvas));display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);overflow:hidden}
+.cam-view .scene{width:70%;height:auto;opacity:.35}
+.cam-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);z-index:2}
+.cam-top .icon-btn{background:var(--surface-default);color:var(--text-primary)}
+.cam-top .icon-btn.is-on{background:var(--action-primary);color:var(--action-primary-text)}
+.cam-slot{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;background:var(--surface-default);border-radius:var(--radius-lg);padding:var(--space-1) var(--space-3);font:700 15px/22px var(--font)}
+.cam-slot small{font:500 13px/18px var(--font);color:var(--text-secondary)}
+.cam-guide{position:absolute;inset:84px var(--space-5) 76px;border:2px dashed var(--text-primary);border-radius:var(--radius-lg);opacity:.75;pointer-events:none}
+.cam-guide.is-warn{border-color:var(--status-warning);opacity:1}
+.cam-guide-cap{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(76px + var(--space-3));background:var(--surface-default);border-radius:var(--radius-full);padding:var(--space-1) var(--space-4);font:600 14px/20px var(--font);white-space:nowrap;display:flex;gap:var(--space-2);align-items:center}
+.cam-ref{position:absolute;top:84px;right:var(--space-3);width:124px;z-index:2;border:2px solid var(--action-primary);border-radius:var(--radius-md);background:var(--surface-default);overflow:hidden}
+.cam-ref .ref-img{height:84px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));color:var(--text-secondary);opacity:.85}
+.cam-ref .ref-cap{color:var(--text-primary);font:600 13px/18px var(--font);padding:2px var(--space-2);display:flex;gap:var(--space-1);align-items:center}
+.cam-ref.is-ghost .ref-img{opacity:.4}
+.cam-bar{flex:none;display:flex;align-items:center;justify-content:space-around;padding:var(--space-3) var(--space-4) var(--space-4);background:var(--bg-canvas)}
+.cam-thumb{width:56px;height:56px;border-radius:var(--radius-md);border:2px solid var(--border-strong);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));display:flex;align-items:center;justify-content:center;color:var(--text-secondary);position:relative}
+.cam-thumb .n{position:absolute;top:-8px;right:-8px}
+.shutter{width:76px;height:76px;border-radius:50%;border:4px solid var(--text-primary);background:transparent;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.shutter::after{content:"";width:58px;height:58px;border-radius:50%;background:var(--text-primary)}
+.shutter.is-disabled{border-color:var(--border-strong)}.shutter.is-disabled::after{background:var(--border-strong)}
+.shutter.is-rec{border-color:var(--status-danger)}.shutter.is-rec::after{width:30px;height:30px;border-radius:var(--radius-md);background:var(--status-danger)}
+.cam-hint{position:absolute;left:var(--space-4);right:var(--space-4);top:84px;z-index:3}
+.cam-flash-opt{display:flex;gap:var(--space-2)}
+.rec-badge{display:inline-flex;align-items:center;gap:var(--space-2);background:var(--status-danger-bg);color:var(--status-danger);border-radius:var(--radius-full);padding:var(--space-1) var(--space-3);font:700 16px/24px var(--font);font-variant-numeric:tabular-nums}
+.rec-badge::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--status-danger)}
+.rec-limit{position:absolute;left:var(--space-5);right:var(--space-5);bottom:var(--space-3);z-index:2;display:flex;flex-direction:column;gap:var(--space-1);background:var(--surface-default);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);font:600 13px/18px var(--font)}
+
+/* ===== Viewer xem trước ảnh (S-031) ===== */
+.viewer-img{position:relative;flex:1;min-height:0;background:linear-gradient(135deg,var(--bg-subtle),var(--bg-canvas));display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);overflow:hidden}
+.viewer-img .zoom-chip{position:absolute;right:var(--space-3);bottom:var(--space-3);background:var(--surface-default);color:var(--text-primary);border-radius:var(--radius-full);padding:var(--space-1) var(--space-3);font:600 13px/18px var(--font);display:flex;gap:var(--space-1);align-items:center}
+.viewer-img .loupe{position:absolute;width:96px;height:96px;border-radius:50%;border:3px solid var(--action-primary);top:30%;left:48%;background:var(--surface-default);opacity:.3}
+.meta-box{background:var(--surface-default);border-radius:var(--radius-lg);padding:var(--space-2) var(--space-4);display:flex;flex-direction:column}
+.pair-col{display:flex;flex-direction:column;gap:var(--space-2)}
+.pair-img{aspect-ratio:3/4;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);position:relative;border:1px solid var(--border-default)}
+.pair-img .mark{position:absolute;left:var(--space-2);bottom:var(--space-2);right:var(--space-2)}
+
+/* ===== Lưới ô ảnh (S-034) ===== */
+.grp-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);min-height:40px}
+.grp-head .t{font:700 16px/24px var(--font)}
+.grp-head .cnt{font:700 14px/20px var(--font);font-variant-numeric:tabular-nums;color:var(--text-secondary)}
+.grp-head .cnt.is-done{color:var(--status-success)}
+.slot-name{position:absolute;top:var(--space-2);left:var(--space-2);right:var(--space-2);display:flex;justify-content:space-between;gap:var(--space-1);font:700 13px/18px var(--font);color:var(--text-primary);text-align:left}
+.slot-name .req{color:var(--status-danger)}
+.photo-slot.has-name{padding-top:var(--space-6);min-height:128px}
+.photo-slot.has-name.is-filled{padding-top:var(--space-2)}
+.photo-slot.is-filled .slot-name{z-index:2}
+.photo-slot.is-filled .slot-name span:first-child{background:var(--surface-default);border-radius:var(--radius-sm);padding:0 var(--space-1)}
+.photo-slot.is-optional{border-style:dotted}
+.prog-card{display:flex;align-items:center;gap:var(--space-4)}
+.prog-card .big{font:700 24px/32px var(--font);font-variant-numeric:tabular-nums}
+.sticky-tabs{display:flex;gap:var(--space-2)}
+
+/* ===== Sơ đồ xe (S-035) ===== */
+.car-wrap{background:var(--bg-subtle);border-radius:var(--radius-lg);padding:var(--space-3);display:flex;flex-direction:column;align-items:center;gap:var(--space-2);border:1px solid var(--border-default)}
+.car-svg{width:100%;max-width:290px;height:auto;display:block}
+.car-svg .body{fill:var(--surface-default);stroke:var(--border-strong);stroke-width:2}
+.car-svg .zone{fill:var(--bg-subtle);stroke:var(--border-strong);stroke-width:1.5;stroke-dasharray:4 3}
+.car-svg .zone.is-sel{fill:var(--status-danger-bg);stroke:var(--status-danger);stroke-dasharray:none;stroke-width:2.5}
+.car-svg .zone.is-focus{stroke:var(--border-focus);stroke-width:3;stroke-dasharray:none}
+.car-svg .glass{fill:none;stroke:var(--border-strong);stroke-width:1.5}
+.car-svg .lbl{font:600 11px var(--font);fill:var(--text-secondary);text-anchor:middle}
+.car-svg .pin circle{fill:var(--status-danger);stroke:var(--surface-default);stroke-width:2}
+.car-svg .pin text{font:700 13px var(--font);fill:var(--text-inverse);text-anchor:middle}
+.zone-row{display:flex;align-items:center;gap:var(--space-3);min-height:48px;padding:0 var(--space-3);border-radius:var(--radius-md);border:1.5px solid var(--border-strong);background:var(--surface-default);font:500 15px/22px var(--font)}
+.zone-row.is-on{border-color:var(--status-danger);background:var(--status-danger-bg);font-weight:700}
+.zone-row .pn{width:24px;height:24px;border-radius:50%;background:var(--status-danger);color:var(--text-inverse);font:700 13px/24px var(--font);text-align:center;flex:none}
+
+/* ===== Form hư hỏng (S-036) ===== */
+.sev-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)}
+.sev-opt{display:flex;flex-direction:column;gap:2px;min-height:64px;padding:var(--space-2) var(--space-3);border:1.5px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-default);font:700 15px/22px var(--font);cursor:pointer}
+.sev-opt small{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.sev-opt.is-on{border-color:var(--action-primary);background:var(--status-info-bg)}
+.sev-opt.is-on.is-bad{border-color:var(--status-danger);background:var(--status-danger-bg)}
+.sev-opt .tick{display:inline-flex;gap:var(--space-1);align-items:center}
+.photo-strip{display:flex;gap:var(--space-2);overflow:hidden}
+.photo-strip .photo-slot{flex:none;width:96px;aspect-ratio:1;min-height:96px}
+.baseline-cmp{display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-2)}
+.baseline-cmp .opt{min-height:64px;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;font:600 13px/18px var(--font);padding:var(--space-1);background:var(--surface-default)}
+.baseline-cmp .opt.is-on{border-color:var(--action-primary);background:var(--status-info-bg);color:var(--status-info)}
+.baseline-cmp .opt.is-on.is-bad{border-color:var(--status-warning);background:var(--status-warning-bg);color:var(--status-warning)}
+
+/* ===== Panel Lịch sử hiện trạng xe (S-037/038) — CR-2026-052 ===== */
+.hist-panel{background:var(--surface-default);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden}
+.hist-head{display:flex;align-items:center;gap:var(--space-3);min-height:56px;padding:var(--space-2) var(--space-4);background:var(--bg-subtle)}
+.hist-head .ttl{flex:1;min-width:0;font:700 16px/24px var(--font)}
+.hist-head .ttl small{display:block;font:400 13px/18px var(--font);color:var(--text-secondary)}
+.hist-body{padding:var(--space-3) var(--space-4) 0;display:flex;flex-direction:column}
+.hist-item{display:flex;gap:var(--space-3);position:relative;padding-bottom:var(--space-4);min-height:56px}
+.hist-item::before{content:"";position:absolute;left:15px;top:34px;bottom:2px;width:2px;background:var(--border-default)}
+.hist-item:last-child::before{display:none}
+.hist-item .tl-dot{z-index:1}
+.hist-item .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--space-1)}
+.hist-item .top{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap}
+.hist-item .kind{font:700 14px/20px var(--font)}
+.hist-item .when{font:400 13px/18px var(--font);color:var(--text-secondary)}
+.hist-item .sum{font:400 14px/20px var(--font)}
+.hist-item .meta{font:400 13px/18px var(--font);color:var(--text-secondary);display:flex;gap:var(--space-1);align-items:center}
+.mini-thumb{width:56px;height:56px;flex:none;border-radius:var(--radius-md);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);border:1px solid var(--border-default)}
+.mini-row{display:flex;gap:var(--space-2);align-items:center}
+.hist-foot{border-top:1px solid var(--border-default);display:flex}
+.hist-foot .btn{flex:1;border-radius:0}
+.tl-dot.warn{background:var(--status-warning-bg);color:var(--status-warning)}
+.tl-dot.danger{background:var(--status-danger-bg);color:var(--status-danger)}
+.tl-dot.ok{background:var(--status-success-bg);color:var(--status-success)}
+.tl-dot.neutral{background:var(--bg-subtle);color:var(--text-secondary)}
+.filtered-note{display:flex;gap:var(--space-2);align-items:flex-start;font:400 13px/18px var(--font);color:var(--text-secondary);padding:var(--space-2) var(--space-4) var(--space-3)}
+.hero-photo{aspect-ratio:4/3;border-radius:var(--radius-lg);background:linear-gradient(135deg,var(--bg-subtle),var(--border-default));display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);position:relative;border:1px solid var(--border-default)}
+.hero-photo .count{position:absolute;right:var(--space-3);bottom:var(--space-3)}
+
+/* ===== Thu tiền (S-039/040/041) ===== */
+.pay-item{display:flex;flex-direction:column;gap:var(--space-3)}
+.pay-item .head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3)}
+.pay-item .title{font:700 16px/24px var(--font)}
+.pay-item .sub{font:400 14px/20px var(--font);color:var(--text-secondary)}
+.pay-item .amt{font:700 22px/30px var(--font);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pay-item.is-paid{background:var(--bg-subtle)}
+.pay-total{display:flex;justify-content:space-between;align-items:baseline;padding:var(--space-3) var(--space-4);border-radius:var(--radius-lg);background:var(--status-info-bg);color:var(--text-primary)}
+.pay-total .amt{font:700 24px/32px var(--font);font-variant-numeric:tabular-nums}
+.qr-meta{width:100%;display:flex;flex-direction:column;gap:var(--space-1);background:var(--bg-subtle);border-radius:var(--radius-md);padding:var(--space-3);text-align:left}
+.qr-box.is-dim{opacity:.25}
+.qr-box.is-loading{background:var(--surface-default)}
+.countdown{font:700 20px/28px var(--font);font-variant-numeric:tabular-nums}
+.wait-pulse{width:96px;height:96px;border-radius:50%;background:var(--status-info-bg);color:var(--status-info);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 10px var(--bg-subtle)}
+.wait-pulse.ok{background:var(--status-success-bg);color:var(--status-success)}
+.wait-pulse.warn{background:var(--status-warning-bg);color:var(--status-warning)}
+.wait-pulse.bad{background:var(--status-danger-bg);color:var(--status-danger)}
+.result-center{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--space-3);padding:var(--space-4) var(--space-2)}
+.result-center h2{margin:0;font:700 22px/30px var(--font)}
+.diff-table{width:100%;display:flex;flex-direction:column;gap:var(--space-2);background:var(--surface-default);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:var(--space-3)}
+.receipt-slot{aspect-ratio:16/9;min-height:120px}
+
+/* ===== Chuyển thiết bị & khách xác nhận (S-042…045) ===== */
+.handoff{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:var(--space-5);padding:var(--space-8) var(--space-6)}
+.handoff .art{width:140px;height:140px;border-radius:50%;background:var(--status-info-bg);color:var(--status-info);display:flex;align-items:center;justify-content:center}
+.handoff h2{margin:0;font:700 26px/34px var(--font)}
+.handoff p{margin:0;font:400 17px/26px var(--font);color:var(--text-secondary);max-width:300px}
+.cust-mode{background:var(--surface-default)}
+.cust-bar{flex:none;display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);background:var(--status-info-bg);color:var(--status-info);font:600 14px/20px var(--font);border-bottom:1px solid var(--border-default)}
+.ack-big{font:700 24px/32px var(--font)}
+.choice-card{display:flex;gap:var(--space-3);align-items:flex-start;padding:var(--space-3) var(--space-4);border:1.5px solid var(--border-strong);border-radius:var(--radius-lg);background:var(--surface-default);min-height:64px}
+.choice-card .box{width:24px;height:24px;flex:none;border:2px solid var(--border-strong);border-radius:50%;margin-top:2px;display:inline-flex;align-items:center;justify-content:center}
+.choice-card.is-on{border-color:var(--action-primary);background:var(--status-info-bg)}
+.choice-card.is-on .box{border-color:var(--action-primary)}
+.choice-card.is-on .box::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--action-primary)}
+.choice-card.is-bad.is-on{border-color:var(--status-danger);background:var(--status-danger-bg)}
+.choice-card.is-bad.is-on .box{border-color:var(--status-danger)}.choice-card.is-bad.is-on .box::after{background:var(--status-danger)}
+.choice-card.is-warn.is-on{border-color:var(--status-warning);background:var(--status-warning-bg)}
+.choice-card.is-warn.is-on .box{border-color:var(--status-warning)}.choice-card.is-warn.is-on .box::after{background:var(--status-warning)}
+.choice-card .t{font:700 16px/24px var(--font)}.choice-card .d{font:400 14px/20px var(--font);color:var(--text-secondary)}
+.otp-cells{display:flex;gap:var(--space-2);justify-content:center}
+.otp-cell{width:48px;height:60px;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-default);display:flex;align-items:center;justify-content:center;font:700 26px/32px var(--font);font-variant-numeric:tabular-nums}
+.otp-cell.is-cur{border-color:var(--border-focus);box-shadow:0 0 0 3px var(--status-info-bg)}
+.otp-cells.is-error .otp-cell{border-color:var(--status-danger)}
+.otp-cells.is-ok .otp-cell{border-color:var(--status-success)}
+.sign-pad.is-error{border-color:var(--status-danger)}
+.sign-meta{display:flex;justify-content:space-between;font:400 13px/18px var(--font);color:var(--text-secondary)}
+
+/* ===== Chia sẻ (S-046) ===== */
+.share-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
+.share-app{display:flex;flex-direction:column;align-items:center;gap:var(--space-1);min-height:88px;font:600 13px/18px var(--font);text-align:center;color:var(--text-primary);padding:var(--space-1)}
+.share-app .ico{width:56px;height:56px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;background:var(--status-info-bg);color:var(--status-info)}
+.share-app .ico.ok{background:var(--status-success-bg);color:var(--status-success)}
+.share-app .ico.neutral{background:var(--bg-subtle);color:var(--text-secondary)}
+.link-box{display:flex;align-items:center;gap:var(--space-2);background:var(--bg-subtle);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);font:500 14px/20px var(--font);min-height:48px}
+.share-log{display:flex;gap:var(--space-3);align-items:flex-start;min-height:56px;padding:var(--space-2) 0}
+.thumb-row{display:flex;gap:var(--space-2)}
+.thumb-row .mini-thumb{width:64px;height:64px}
+.set-badge{display:inline-flex;align-items:center;gap:var(--space-1);font:600 13px/18px var(--font);color:var(--text-secondary)}
+.btn.wrap{white-space:normal;text-align:center;padding:var(--space-2) var(--space-4);line-height:20px;font-size:14px}
